@@ -19,7 +19,7 @@ export function InsertPanel({ figures, subjectColor }: InsertPanelProps) {
     );
   }
   return (
-    <div className="max-w-2xl mx-auto p-4 sm:p-6 space-y-10">
+    <div className="max-w-3xl mx-auto p-3 sm:p-6 space-y-10">
       <div className="text-center border-b border-border pb-4">
         <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Resource insert</p>
         <p className="text-sm text-muted-foreground mt-1">
@@ -40,18 +40,18 @@ export function InsertPanel({ figures, subjectColor }: InsertPanelProps) {
             </div>
           )}
           {fig.type === "passage" && (
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="rounded-xl border border-border bg-card p-3 sm:p-5">
               <p className="text-[11px] text-muted-foreground mb-3 italic">{fig.styleNote}</p>
               <div className="space-y-0.5">
                 {fig.lines.map((ln: string, i: number) =>
                   ln === "" ? (
                     <div key={i} className="h-3" />
                   ) : (
-                    <div key={i} className="flex gap-3">
-                      <span className="w-7 shrink-0 text-right text-[10px] leading-relaxed text-muted-foreground tabular-nums select-none">
-                        {(i + 1) % 5 === 0 ? i + 1 : ""}
+                    <div key={i} className="flex gap-2 sm:gap-3">
+                      <span className="w-6 sm:w-7 shrink-0 text-right text-[9px] sm:text-[10px] leading-[1.6] sm:leading-relaxed text-muted-foreground/70 tabular-nums select-none pt-[3px]">
+                        {i + 1}
                       </span>
-                      <p className="text-sm leading-relaxed font-serif flex-1">{ln}</p>
+                      <p className="text-[13px] sm:text-sm leading-[1.6] sm:leading-relaxed font-serif flex-1 break-words">{ln}</p>
                     </div>
                   )
                 )}
