@@ -8,7 +8,7 @@ import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts"
 import { shouldSuppressDiagram } from "../_shared/diagram-suppression.ts";
 import { hasBrokenDiagramReference, scrubBrokenDiagramReferences, referencesExternalInsert } from "../_shared/question-text-scrubber.ts";
 import { validateCircuitConfig, buildComponentListForPrompt } from "../_shared/circuit-validation.ts";
-import { describeFigureForPrompt, validateMapFigure, buildMapFigurePrompt, validateInsertFigures, buildInsertFiguresPrompt } from "../_shared/insert-figures.ts";
+import { buildStudiedTextsPrompt, describeFigureForPrompt, validateMapFigure, buildMapFigurePrompt, validateInsertFigures, buildInsertFiguresPrompt } from "../_shared/insert-figures.ts";
 import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
 import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 import { getSubjectSpecificInstructions } from "../_shared/exam-extraction-prompts.ts";
@@ -2454,7 +2454,13 @@ Match genuine AQA/Edexcel/OCR A-level standard:
   const subjectSpecificBlock = getSubjectSpecificInstructions(subject, examBoard, educationalLevel);
 
   // ── ASSEMBLE USER PROMPT ──────────────────────────────────────────────────
+  const studiedTextsBlock = buildStudiedTextsPrompt(
+    Array.isArray((formatData?.profile_metadata as any)?.studiedTexts) ? (formatData!.profile_metadata as any).studiedTexts : []
+  );
+  if (studiedTextsBlock) console.log('[texts] studied-texts block active');
+
   const userPrompt = [
+    studiedTextsBlock,
     insertPromptBlock,
     contextBlock,
     subjectRulesBlock,
