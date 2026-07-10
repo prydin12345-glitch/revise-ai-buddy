@@ -396,7 +396,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   // ── INSERT FIGURE (Option A: figure first, questions written against it) ──
   // For insert-capable subjects, generate + validate a map figure BEFORE the
   // questions, so the question prompt can reference the figure's REAL data.
-  const INSERT_CAPABLE = /geograph|history|environment|earth science/i;
+  const INSERT_CAPABLE = /geograph|history|environment|earth science|english/i;
   let insertFigures: any[] = [];
   let insertPromptBlock = '';
   console.log(`[insert] includeInsert=${includeInsert} subject="${exam.subject_id}" capable=${INSERT_CAPABLE.test(String(exam.subject_id || ''))}`);  if (includeInsert && INSERT_CAPABLE.test(String(exam.subject_id || ''))) {
@@ -407,7 +407,8 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       const figPrompt = buildInsertFiguresPrompt(
         `${exam.subject_id} exam at ${exam.qualification_level || 'GCSE/A-Level'} level` +
         (exam.notes ? `. Focus: ${String(exam.notes).slice(0, 200)}` : ''),
-        topicsForFigures
+        topicsForFigures,
+        String(exam.exam_board || '')
       );
       const figResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
