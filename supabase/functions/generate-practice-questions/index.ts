@@ -14,7 +14,7 @@ import { logAIUsage } from "../_shared/usage-logger.ts";
 import { splitMultiPartQuestions, ensureRenderableGraphConfigs } from "../_shared/question-postprocessor.ts";
 import { detectSubject, needsCircuitRules } from "../_shared/subject-detection.ts";
 import { detectDiagramTopics, buildDiagramSuppressionNotice, buildPhasorInstructions, buildNodalAnalysisInstruction, buildDeltaWyeInstructions, buildCircuitInstructions } from "../_shared/electrical-instructions.ts";
-import { validateInsertFigures, buildInsertFiguresPrompt } from "../_shared/insert-figures.ts";
+import { describeFigureForPrompt, validateInsertFigures, buildInsertFiguresPrompt } from "../_shared/insert-figures.ts";
 import { validateCircuitConfig } from "../_shared/circuit-validation.ts";
 import { buildDifficultyInstructions } from "../_shared/difficulty-instructions.ts";
 import { NOTATION_RULES, SKETCH_TYPE_RULE, NUCLEAR_EQUATION_COMPLETION_INSTRUCTIONS } from "../_shared/generation-rules.ts";
@@ -285,14 +285,7 @@ async function generateQuestionsInBackground(
                   console.error('[insert] FIGURE SAVE FAILED (is the practice insert_figures migration applied?):', figSaveErr.message);
                 } else {
                   practiceInsertFigures = figures;
-                  const figLines = figures.map((f: any) => {
-                    if (f.type === 'map_points') {
-                      const pts = f.points.map((pt: any) => `${pt.name} (${pt.category}${typeof pt.value === 'number' ? `, ${pt.value}` : ''})`).join(', ');
-                      return `Figure ${f.figureNumber}: "${f.title}" — UK map (labelled points): ${pts}. Categories: ${f.categories.map((ct: any) => ct.label).join(', ')}. Pattern/distribution/identification questions ONLY — categorical data, NO precise calculations.`;
-                    }
-                    const sample = f.rows.slice(0, 3).map((r: any[]) => r.join(' / ')).join('; ');
-                    return `Figure ${f.figureNumber}: "${f.title}" — data table, columns [${f.columns.join(', ')}], ${f.rows.length} rows of RAW numeric values (e.g. ${sample}). Supports calculation and precise comparison.`;
-                  }).join('\n');
+                  const figLines = figures.map((f: any) => describeFigureForPrompt(f)).join('\n');
                   practiceFigBlock = `\n## INSERT FIGURES AVAILABLE (${figures.length})\n${figLines}\nRULES:\n- 1 to 3 of the questions must explicitly reference each figure ("Using Figure N, ...") and instruct "Support your answer with data from Figure N."\n- Calculations ONLY against data tables; pattern/distribution against maps.\n- Only name places/entities that appear VERBATIM in a figure's data.\n- Do NOT invent data not present in a figure. All other questions must NOT mention any figure.\n`;
                   console.log('[insert] practice figures generated:', figures.map((f: any) => `${f.figureNumber}:${f.type}`).join(', '));
                 }
