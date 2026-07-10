@@ -760,7 +760,10 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   // deliberately contain e.g. a 40-mark writing task).
   const userBlueprintActive = (() => {
     try {
-      const meta = (exam.exam_format?.[0]?.profile_metadata ?? {}) as any;
+      // Read the SAME source the blueprint prompt uses (formatData), with the
+      // exam-join as fallback — a mismatch here once let this gate delete a
+      // blueprint's deliberate 20-mark question as "duplicate essay".
+      const meta = ((formatData?.profile_metadata ?? exam.exam_format?.[0]?.profile_metadata) ?? {}) as any;
       return Array.isArray(meta?.paperBlueprint?.sections) && meta.paperBlueprint.sections.length > 0;
     } catch { return false; }
   })();
@@ -787,6 +790,22 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     console.log(`[markcap] paper totals: ${questions.length} questions, ${totalMarks} marks`);
   } else {
     console.log('[markcap] skipped — user paper blueprint is authoritative');
+  }
+
+  // Blueprint completeness alarm — a swallowed question must never hide
+  // behind the renumberer again.
+  if (userBlueprintActive) {
+    try {
+      const meta = ((formatData?.profile_metadata ?? exam.exam_format?.[0]?.profile_metadata) ?? {}) as any;
+      const expected = (meta.paperBlueprint.sections as any[]).reduce((n: number, s: any) => n + (Array.isArray(s.questions) ? s.questions.length : 0), 0);
+      const expectedMarks = (meta.paperBlueprint.sections as any[]).reduce((n: number, s: any) => n + (Array.isArray(s.questions) ? s.questions.reduce((m: number, q: any) => m + (Number(q.marks) || 0), 0) : 0), 0);
+      const gotMarks = questions.reduce((s: number, q: any) => s + (Number(q.marks) || 0), 0);
+      if (questions.length !== expected || gotMarks !== expectedMarks) {
+        console.error(`[blueprint] SHORTFALL: expected ${expected} questions / ${expectedMarks} marks, got ${questions.length} / ${gotMarks} — check gates and model compliance`);
+      } else {
+        console.log(`[blueprint] complete: ${expected} questions, ${expectedMarks} marks as specified`);
+      }
+    } catch { /* alarm is best-effort */ }
   }
 
   // ── NUMBERING NORMALISER (post-gates) ────────────────────────────────────
