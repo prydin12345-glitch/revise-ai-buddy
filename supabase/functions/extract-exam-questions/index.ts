@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
@@ -8,7 +7,7 @@ import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts"
 import { shouldSuppressDiagram } from "../_shared/diagram-suppression.ts";
 import { hasBrokenDiagramReference, scrubBrokenDiagramReferences, referencesExternalInsert } from "../_shared/question-text-scrubber.ts";
 import { validateCircuitConfig, buildComponentListForPrompt } from "../_shared/circuit-validation.ts";
-import { buildStudiedTextsPrompt, describeFigureForPrompt, validateMapFigure, buildMapFigurePrompt, validateInsertFigures, buildInsertFiguresPrompt } from "../_shared/insert-figures.ts";
+import { buildBlueprintPrompt, validatePaperBlueprint, buildStudiedTextsPrompt, describeFigureForPrompt, validateMapFigure, buildMapFigurePrompt, validateInsertFigures, buildInsertFiguresPrompt } from "../_shared/insert-figures.ts";
 import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
 import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 import { getSubjectSpecificInstructions } from "../_shared/exam-extraction-prompts.ts";
@@ -755,7 +754,15 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   }
 
   // ── MARK-CAP GATE (Phase 4) ──────────────────────────────────────────────
-  {
+  // Skipped when a user blueprint is active — it is authoritative (it may
+  // deliberately contain e.g. a 40-mark writing task).
+  const userBlueprintActive = (() => {
+    try {
+      const meta = (exam.exam_format?.[0]?.profile_metadata ?? {}) as any;
+      return Array.isArray(meta?.paperBlueprint?.sections) && meta.paperBlueprint.sections.length > 0;
+    } catch { return false; }
+  })();
+  if (!userBlueprintActive) {
     const isEssay = (q: any) => (Number(q.marks) || 0) >= 15;
     const isExtended = (q: any) => (Number(q.marks) || 0) >= 9 && (Number(q.marks) || 0) < 15;
     const essays = questions.filter(isEssay).sort((a: any, b: any) => (Number(b.marks) || 0) - (Number(a.marks) || 0));
@@ -776,6 +783,8 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     }
     const totalMarks = questions.reduce((s: number, q: any) => s + (Number(q.marks) || 0), 0);
     console.log(`[markcap] paper totals: ${questions.length} questions, ${totalMarks} marks`);
+  } else {
+    console.log('[markcap] skipped — user paper blueprint is authoritative');
   }
 
   // ── NUMBERING NORMALISER (post-gates) ────────────────────────────────────
@@ -2458,8 +2467,13 @@ Match genuine AQA/Edexcel/OCR A-level standard:
     Array.isArray((formatData?.profile_metadata as any)?.studiedTexts) ? (formatData!.profile_metadata as any).studiedTexts : []
   );
   if (studiedTextsBlock) console.log('[texts] studied-texts block active');
+  const bpMeta = (formatData?.profile_metadata && typeof formatData.profile_metadata === 'object') ? (formatData.profile_metadata as any) : {};
+  const bpValidation = validatePaperBlueprint(bpMeta.paperBlueprint);
+  const blueprintBlock = bpValidation.ok && bpValidation.blueprint ? buildBlueprintPrompt(bpValidation.blueprint) : '';
+  if (blueprintBlock) console.log(`[blueprint] active: ${bpValidation.totalQuestions} questions, ${bpValidation.totalMarks} marks`);
 
   const userPrompt = [
+    blueprintBlock,
     studiedTextsBlock,
     insertPromptBlock,
     contextBlock,
