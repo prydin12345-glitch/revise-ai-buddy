@@ -1255,6 +1255,7 @@ export type Database = {
           id: string
           include_graphs: boolean | null
           include_tables: boolean | null
+          insert_figures: Json | null
           mcq_count: number | null
           notes: string | null
           profile_id: string | null
@@ -1284,6 +1285,7 @@ export type Database = {
           id?: string
           include_graphs?: boolean | null
           include_tables?: boolean | null
+          insert_figures?: Json | null
           mcq_count?: number | null
           notes?: string | null
           profile_id?: string | null
@@ -1313,6 +1315,7 @@ export type Database = {
           id?: string
           include_graphs?: boolean | null
           include_tables?: boolean | null
+          insert_figures?: Json | null
           mcq_count?: number | null
           notes?: string | null
           profile_id?: string | null

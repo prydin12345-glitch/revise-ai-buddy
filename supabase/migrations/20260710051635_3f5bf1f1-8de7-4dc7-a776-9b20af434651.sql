@@ -1,0 +1,1 @@
+ALTER TABLE public.practice_question_sets ADD COLUMN IF NOT EXISTS insert_figures jsonb DEFAULT NULL;
