@@ -320,10 +320,18 @@ export const ExamProfileModal = ({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Educational level (optional)</Label>
-                <Popover open={levelPopoverOpen} onOpenChange={setLevelPopoverOpen}>
+                <Label className="text-xs text-muted-foreground">
+                  Educational level <span className="text-destructive">*</span>
+                </Label>
+                <Popover open={levelPopoverOpen} onOpenChange={setLevelPopoverOpen} modal>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" role="combobox" className="w-full justify-between h-10 text-sm font-normal">
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className={`w-full justify-between h-10 text-sm font-normal ${
+                        missingLevel ? "border-amber-500/60" : ""
+                      }`}
+                    >
                       <span className={educationalTier ? "text-foreground" : "text-muted-foreground"}>
                         {educationalTier
                           ? (educationalTier === "other"
