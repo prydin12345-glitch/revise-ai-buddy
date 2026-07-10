@@ -600,7 +600,7 @@ export const ExamProfileModal = ({
           <div className="text-left self-center min-w-0">
             <p className="text-xs font-medium truncate">{profileName.trim() || "Untitled profile"}</p>
             <p className="text-[11px] text-muted-foreground truncate">
-              {canSave ? summaryParts : (!profileName.trim() ? "Add a profile name" : "Pick at least one topic") + " to continue"}
+              {canSave ? summaryParts : (!profileName.trim() ? "Add a profile name" : selectedTopics.length === 0 ? "Pick at least one topic" : "Select an educational level") + " to continue"}
             </p>
           </div>
           <div className="flex gap-2 shrink-0">
