@@ -603,6 +603,8 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       if (bp) console.log(`[sections] detected ${bp.sections.length} sections from reference paper: ${bp.sections.map((s) => `${s.label}(${s.markPattern.length}q${s.optionGate ? ',opt' : ''})`).join(' ')}`);
       return buildSectionBlueprintPromptBlock(bp);
     })(),
+    studiedTexts: Array.isArray((formatData?.profile_metadata as any)?.studiedTexts) ? (formatData!.profile_metadata as any).studiedTexts : [],
+    paperBlueprint: (formatData?.profile_metadata && typeof formatData.profile_metadata === 'object') ? (formatData.profile_metadata as any).paperBlueprint : null,
   });
 
   let extractionPrompt = extractionPrompt_raw;
