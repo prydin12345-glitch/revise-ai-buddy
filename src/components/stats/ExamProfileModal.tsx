@@ -173,11 +173,18 @@ export const ExamProfileModal = ({
       const initWritten = initialData?.written_question_count ?? (initialData?.question_count ? Math.max(initialData.question_count - (initialData.mcq_count ?? 0), 5) : 10);
       setWrittenCount(initWritten);
       setMcqCount(initialData?.mcq_count ?? 0);
-      // Pre-fill educational tier from profile if no initial data
-      const tier = initialData?.educational_tier || preferences?.preferred_educational_level || "";
-      const known = isKnownLevel(tier);
-      setEducationalTier(known || !tier ? tier : "other");
-      setCustomTier(known || !tier ? "" : tier);
+      // Pre-fill educational tier from profile if no initial data.
+      // Only accept known level ids — legacy/raw codes like "level3_a_level"
+      // are ignored so the field shows "Select level..." rather than an ugly
+      // pre-populated "Other qualification" with a raw code in the text box.
+      const rawTier = initialData?.educational_tier || preferences?.preferred_educational_level || "";
+      if (rawTier && isKnownLevel(rawTier)) {
+        setEducationalTier(rawTier);
+        setCustomTier("");
+      } else {
+        setEducationalTier("");
+        setCustomTier("");
+      }
       setTimeLimitMinutes(
         initialData?.time_limit_minutes != null ? String(initialData.time_limit_minutes) : ""
       );
@@ -221,10 +228,10 @@ export const ExamProfileModal = ({
 
   // filtering handled inside InlineTopicPicker
 
+  const finalTier = educationalTier === "other" ? customTier.trim() : educationalTier;
   const handleSave = () => {
-    if (!profileName.trim() || selectedTopics.length === 0) return;
+    if (!profileName.trim() || selectedTopics.length === 0 || !finalTier) return;
     const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
-    const finalTier = educationalTier === "other" ? customTier : educationalTier;
     const advancedWithMcq = { ...advanced, mcqCount };
     const resolvedQuestionStructure = isMcqOnlyProfile ? "mcq_only" : questionStructure;
     onSave(
@@ -273,7 +280,8 @@ export const ExamProfileModal = ({
     { id: 4, label: "4 options", example: "A, B, C, D", detail: "Standard board-style MCQs with four choices." },
   ];
 
-  const canSave = !!profileName.trim() && selectedTopics.length > 0;
+  const canSave = !!profileName.trim() && selectedTopics.length > 0 && !!finalTier;
+  const missingLevel = !finalTier;
   const summaryParts = [
     `${totalQuestionCount} question${totalQuestionCount === 1 ? "" : "s"}`,
     selectedTopics.length ? `${selectedTopics.length} topic${selectedTopics.length === 1 ? "" : "s"}` : null,
@@ -312,10 +320,18 @@ export const ExamProfileModal = ({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Educational level (optional)</Label>
-                <Popover open={levelPopoverOpen} onOpenChange={setLevelPopoverOpen}>
+                <Label className="text-xs text-muted-foreground">
+                  Educational level <span className="text-destructive">*</span>
+                </Label>
+                <Popover open={levelPopoverOpen} onOpenChange={setLevelPopoverOpen} modal>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" role="combobox" className="w-full justify-between h-10 text-sm font-normal">
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className={`w-full justify-between h-10 text-sm font-normal ${
+                        missingLevel ? "border-amber-500/60" : ""
+                      }`}
+                    >
                       <span className={educationalTier ? "text-foreground" : "text-muted-foreground"}>
                         {educationalTier
                           ? (educationalTier === "other"
@@ -362,6 +378,11 @@ export const ExamProfileModal = ({
                     ))}
                   </PopoverContent>
                 </Popover>
+                {missingLevel && (
+                  <p className="text-[11px] text-amber-500 flex items-center gap-1">
+                    Please select a level so questions match your standard.
+                  </p>
+                )}
               </div>
             </div>
             {educationalTier === "other" && (
@@ -579,7 +600,7 @@ export const ExamProfileModal = ({
           <div className="text-left self-center min-w-0">
             <p className="text-xs font-medium truncate">{profileName.trim() || "Untitled profile"}</p>
             <p className="text-[11px] text-muted-foreground truncate">
-              {canSave ? summaryParts : (!profileName.trim() ? "Add a profile name" : "Pick at least one topic") + " to continue"}
+              {canSave ? summaryParts : (!profileName.trim() ? "Add a profile name" : selectedTopics.length === 0 ? "Pick at least one topic" : "Select an educational level") + " to continue"}
             </p>
           </div>
           <div className="flex gap-2 shrink-0">
