@@ -182,6 +182,10 @@ export function validateInsertFigures(raw: any): { figures: any[]; rejected: str
       const v = validateTableFigure(f);
       if (v.ok && v.figure) figures.push(v.figure);
       else rejected.push(`table "${f?.title ?? "?"}": ${v.reasons.join("; ")}`);
+    } else if (f?.type === "text_extract") {
+      const v = validateTextExtract(f);
+      if (v.ok && v.figure) figures.push(v.figure);
+      else rejected.push(`extract "${f?.title ?? "?"}": ${v.reasons.join("; ")}`);
     } else {
       rejected.push(`unknown figure type "${f?.type}"`);
     }
@@ -205,10 +209,64 @@ ${buildMapFigurePrompt(subjectContext).split("Rules:")[1] ? "" : ""}{"type":"map
 {"type":"data_table","title":"...","columns":["Place","<Measure> (units)"],"rows":[["London",615],["Fort William",2184]],"unitsNote":"..."}
    - 4-10 rows, exact numeric values so students can calculate differences, percentages, means.
 
+3) Text extract (source-analysis questions — qualitative topics like place identity, perceptions, regeneration):
+{"type":"text_extract","title":"...","sourceLine":"Interview with a resident of <place>, 2024 (fictional)","paragraphs":["1-4 short paragraphs of ORIGINAL text you write — a first-person account, blog excerpt, or survey summary with a clear perspective/tone worth analysing"]}
+   - 200-1600 characters total. MUST be original writing, never quoted from real publications. sourceLine must say (fictional).
+
 RULES:
 - ${topicLine}
 - Each figure must serve a DIFFERENT topic/question cluster — never one figure for everything.
 - If any question will require calculation, a data_table with raw numbers MUST exist for it; category-band maps cannot support precise calculation.
 - Context: ${subjectContext}
 Return ONLY the JSON array.`;
+}
+
+
+// ── text_extract figures: qualitative sources (interview excerpts, survey
+//    summaries, media descriptions) for source-analysis questions. ──────────
+export interface TextExtractFigureData {
+  figureNumber?: string;
+  title: string;
+  type: "text_extract";
+  sourceLine: string;   // e.g. "Interview with a long-term resident of Salford, 2024 (fictional)"
+  paragraphs: string[]; // 1-4 short paragraphs of ORIGINAL text
+}
+
+export function validateTextExtract(raw: any): { ok: boolean; figure: TextExtractFigureData | null; reasons: string[] } {
+  if (!raw || raw.type !== "text_extract") return { ok: false, figure: null, reasons: ["not a text_extract"] };
+  const paragraphs = (Array.isArray(raw.paragraphs) ? raw.paragraphs : [])
+    .filter((t: any) => typeof t === "string" && t.trim().length > 0)
+    .map((t: string) => t.trim())
+    .slice(0, 4);
+  const total = paragraphs.join(" ").length;
+  if (paragraphs.length === 0 || total < 200) return { ok: false, figure: null, reasons: [`extract too short (${total} chars, min 200)`] };
+  if (total > 1600) return { ok: false, figure: null, reasons: [`extract too long (${total} chars, max 1600)`] };
+  const sourceLine = typeof raw.sourceLine === "string" && raw.sourceLine.trim() ? raw.sourceLine.trim() : "";
+  if (!sourceLine) return { ok: false, figure: null, reasons: ["missing sourceLine attribution"] };
+  return {
+    ok: true,
+    figure: {
+      figureNumber: typeof raw.figureNumber === "string" ? raw.figureNumber : undefined,
+      title: typeof raw.title === "string" && raw.title.trim() ? raw.title.trim() : "Untitled extract",
+      type: "text_extract", sourceLine, paragraphs,
+    },
+    reasons: [],
+  };
+}
+
+/** One description per figure for the question-writer prompt — the single
+ *  source of truth both exam and practice flows should use. */
+export function describeFigureForPrompt(f: any): string {
+  if (f.type === "map_points") {
+    const pts = f.points.map((pt: any) => `${pt.name} (${pt.category}${typeof pt.value === "number" ? `, ${pt.value}` : ""})`).join(", ");
+    return `Figure ${f.figureNumber}: "${f.title}" — UK map (labelled points): ${pts}. Categories: ${f.categories.map((ct: any) => ct.label).join(", ")}. Pattern/distribution/identification questions ONLY — categorical data, NO precise calculations.`;
+  }
+  if (f.type === "data_table") {
+    const sample = f.rows.slice(0, 3).map((r: any[]) => r.join(" / ")).join("; ");
+    return `Figure ${f.figureNumber}: "${f.title}" — data table, columns [${f.columns.join(", ")}], ${f.rows.length} rows of RAW numeric values (e.g. ${sample}). Supports calculation and precise comparison.`;
+  }
+  if (f.type === "text_extract") {
+    return `Figure ${f.figureNumber}: "${f.title}" — qualitative text extract (${f.sourceLine}). Full text: ${f.paragraphs.join(" ")} — Supports source-analysis questions (how the place/issue is represented, tone, perspective, reliability). NO calculations; questions must quote or refer to specific phrases from the extract.`;
+  }
+  return `Figure ${f.figureNumber}: "${f.title}"`;
 }
