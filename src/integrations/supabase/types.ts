@@ -2189,6 +2189,7 @@ export type Database = {
           question_count: number
           question_structure: string | null
           structure_preset: string | null
+          studied_texts: Json | null
           subject_name: string
           time_limit_minutes: number | null
           topics: string[]
@@ -2218,6 +2219,7 @@ export type Database = {
           question_count?: number
           question_structure?: string | null
           structure_preset?: string | null
+          studied_texts?: Json | null
           subject_name: string
           time_limit_minutes?: number | null
           topics?: string[]
@@ -2247,6 +2249,7 @@ export type Database = {
           question_count?: number
           question_structure?: string | null
           structure_preset?: string | null
+          studied_texts?: Json | null
           subject_name?: string
           time_limit_minutes?: number | null
           topics?: string[]
