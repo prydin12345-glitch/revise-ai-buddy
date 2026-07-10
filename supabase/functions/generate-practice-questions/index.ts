@@ -242,7 +242,7 @@ async function generateQuestionsInBackground(
     // ── INSERT FIGURES FOR PRACTICE (Option A: figure first) ────────────────
     // Same engine as exams: shared prompt + validation gates. Figures are
     // generated before questions so the question prompt references REAL data.
-    const PRACTICE_INSERT_CAPABLE = /geograph|history|environment|earth science/i;
+    const PRACTICE_INSERT_CAPABLE = /geograph|history|environment|earth science|english/i;
     const PRACTICE_AI_KEY = Deno.env.get('LOVABLE_API_KEY') ?? '';
     let practiceInsertFigures: any[] = [];
     let practiceFigBlock = '';
@@ -258,7 +258,8 @@ async function generateQuestionsInBackground(
         try {
           const figPrompt = buildInsertFiguresPrompt(
             `${practiceSubject} practice questions at ${(setData as any).educational_tier || 'GCSE/A-Level'} level`,
-            practiceTopics
+            practiceTopics,
+            String((setData as any).exam_board || '')
           );
           const figResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
             method: 'POST',
