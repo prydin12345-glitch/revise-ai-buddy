@@ -553,6 +553,7 @@ export default function CreateExam() {
           longForm: { count: 0, marksEach: 0 },
           // Pass advanced profile metadata
           profileMetadata: {
+            studiedTexts: (getProfilesForSubject(subjectId).find((pr: any) => pr.id === selectedProfile) as any)?.studied_texts ?? null,
             questionStructure: profileQuestionStructure,
             parentQuestionCount: profileParentQuestionCount,
             maxPartsPerQuestion: profileMaxPartsPerQuestion,
