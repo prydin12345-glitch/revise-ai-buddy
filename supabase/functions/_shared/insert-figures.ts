@@ -468,3 +468,34 @@ Q2 (5 marks): "How does the writer show <x> in lines <a>-<b>?" Impressions with 
 Q3 (10 marks): "How does the writer make these lines <tense/moving/vivid>?" Close language analysis of a middle range.
 Q4 (10 marks): "How is <character/place> presented across the passage as a whole?" Whole-text, using the tonal arc.`,
 };
+
+
+// ── Studied-text copyright routing ──────────────────────────────────────────
+// Public domain (UK: author died 70+ years ago) → real extracts may be quoted.
+// In copyright or unknown → essay-prompt mode only, never reproduce passages.
+const PD_AUTHORS = /shakespeare|dickens|austen|bront[eë]|stevenson|shelley|hardy|chaucer|blake|wordsworth|keats|byron|coleridge|wilde|conan doyle|doyle|owen|sassoon|rossetti|browning|tennyson|orwell|eliot|gaskell|wells|stoker|swift|defoe/i;
+const PD_TITLES = /othello|macbeth|romeo|tempest|merchant of venice|much ado|julius caesar|hamlet|king lear|christmas carol|jekyll|frankenstein|pride and prejudice|wuthering heights|jane eyre|great expectations|sign of four|dr(acula)?\b|nineteen eighty|animal farm|silas marner|far from the madding/i;
+const INCOPYRIGHT_TITLES = /inspector calls|lord of the flies|blood brothers|streetcar|kestrel|\bkes\b|curious incident|anita and me|pigeon english|never let me go|history boys|handmaid|of mice and men|great gatsby|crucible|death of a salesman|jerusalem\b|small island|leave taking|princess and the hustler|my name is leon|power and conflict|love and relationships|worlds and lives|unseen poetry anthology/i;
+
+export type TextCopyright = "public_domain" | "in_copyright" | "unknown";
+export function classifyTextCopyright(title: string): TextCopyright {
+  const t = String(title || "");
+  if (INCOPYRIGHT_TITLES.test(t)) return "in_copyright";
+  if (PD_TITLES.test(t) || PD_AUTHORS.test(t)) return "public_domain";
+  return "unknown";
+}
+
+export interface StudiedText { role: string; title: string; }
+
+/** Prompt block telling the question-writer what each studied text permits. */
+export function buildStudiedTextsPrompt(texts: StudiedText[]): string {
+  if (!Array.isArray(texts) || texts.length === 0) return "";
+  const lines = texts.filter((t) => t && t.title).map((t) => {
+    const cls = classifyTextCopyright(t.title);
+    if (cls === "public_domain") {
+      return `- "${t.title}" (${t.role}) — PUBLIC DOMAIN: you MAY write passage-based questions that quote genuine short extracts from this text (quote accurately; a passage question presents the extract then asks about it and the wider text).`;
+    }
+    return `- "${t.title}" (${t.role}) — ${cls === "in_copyright" ? "IN COPYRIGHT" : "COPYRIGHT UNKNOWN (treat as in copyright)"}: essay-prompt questions ONLY (e.g. "How does the writer present X in <title>?"). NEVER reproduce passages or quotations beyond character/place names and the title.`;
+  });
+  return `\n## STUDIED TEXTS (from the student's exam profile)\nQuestions in text-based sections must target these EXACT texts — never substitute different works:\n${lines.join("\n")}\n`;
+}
