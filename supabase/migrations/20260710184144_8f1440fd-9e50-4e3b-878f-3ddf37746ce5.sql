@@ -1,0 +1,1 @@
+ALTER TABLE public.subject_exam_profiles ADD COLUMN IF NOT EXISTS studied_texts jsonb;
