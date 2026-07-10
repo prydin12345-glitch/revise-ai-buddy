@@ -378,6 +378,11 @@ export const ExamProfileModal = ({
                     ))}
                   </PopoverContent>
                 </Popover>
+                {missingLevel && (
+                  <p className="text-[11px] text-amber-500 flex items-center gap-1">
+                    Please select a level so questions match your standard.
+                  </p>
+                )}
               </div>
             </div>
             {educationalTier === "other" && (
