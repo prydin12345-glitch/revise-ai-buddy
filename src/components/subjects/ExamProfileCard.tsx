@@ -39,6 +39,12 @@ export const ExamProfileCard = ({ profile, subjectName, onEdit }: ExamProfileCar
                 <Hash className="w-3 h-3" />
                 {profile.question_count} questions
               </span>
+              {Array.isArray((profile as any).paper_blueprint?.sections) && (profile as any).paper_blueprint.sections.length > 0 && (
+                <span className="flex items-center gap-1 text-primary">
+                  <ListChecks className="w-3 h-3" />
+                  Custom layout
+                </span>
+              )}
               {profile.topics.length > 0 && (
                 <span className="flex items-center gap-1">
                   <ListChecks className="w-3 h-3" />
