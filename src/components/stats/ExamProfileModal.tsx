@@ -173,11 +173,18 @@ export const ExamProfileModal = ({
       const initWritten = initialData?.written_question_count ?? (initialData?.question_count ? Math.max(initialData.question_count - (initialData.mcq_count ?? 0), 5) : 10);
       setWrittenCount(initWritten);
       setMcqCount(initialData?.mcq_count ?? 0);
-      // Pre-fill educational tier from profile if no initial data
-      const tier = initialData?.educational_tier || preferences?.preferred_educational_level || "";
-      const known = isKnownLevel(tier);
-      setEducationalTier(known || !tier ? tier : "other");
-      setCustomTier(known || !tier ? "" : tier);
+      // Pre-fill educational tier from profile if no initial data.
+      // Only accept known level ids — legacy/raw codes like "level3_a_level"
+      // are ignored so the field shows "Select level..." rather than an ugly
+      // pre-populated "Other qualification" with a raw code in the text box.
+      const rawTier = initialData?.educational_tier || preferences?.preferred_educational_level || "";
+      if (rawTier && isKnownLevel(rawTier)) {
+        setEducationalTier(rawTier);
+        setCustomTier("");
+      } else {
+        setEducationalTier("");
+        setCustomTier("");
+      }
       setTimeLimitMinutes(
         initialData?.time_limit_minutes != null ? String(initialData.time_limit_minutes) : ""
       );
