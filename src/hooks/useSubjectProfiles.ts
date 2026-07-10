@@ -187,6 +187,7 @@ export const useSubjectProfiles = () => {
           mcq_options_count: structureSettings?.mcqOptionsCount ?? 4,
           include_graphs: structureSettings?.includeGraphs ?? false,
           include_tables: structureSettings?.includeTables ?? false,
+          studied_texts: (advanced as any)?.studiedTexts ?? null,
         } as any)
         .select()
         .single();
