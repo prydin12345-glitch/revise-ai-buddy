@@ -2467,12 +2467,9 @@ Match genuine AQA/Edexcel/OCR A-level standard:
   const subjectSpecificBlock = getSubjectSpecificInstructions(subject, examBoard, educationalLevel);
 
   // ── ASSEMBLE USER PROMPT ──────────────────────────────────────────────────
-  const studiedTextsBlock = buildStudiedTextsPrompt(
-    Array.isArray((formatData?.profile_metadata as any)?.studiedTexts) ? (formatData!.profile_metadata as any).studiedTexts : []
-  );
+  const studiedTextsBlock = buildStudiedTextsPrompt(Array.isArray(studiedTexts) ? studiedTexts : []);
   if (studiedTextsBlock) console.log('[texts] studied-texts block active');
-  const bpMeta = (formatData?.profile_metadata && typeof formatData.profile_metadata === 'object') ? (formatData.profile_metadata as any) : {};
-  const bpValidation = validatePaperBlueprint(bpMeta.paperBlueprint);
+  const bpValidation = validatePaperBlueprint(paperBlueprint);
   const blueprintBlock = bpValidation.ok && bpValidation.blueprint ? buildBlueprintPrompt(bpValidation.blueprint) : '';
   if (blueprintBlock) console.log(`[blueprint] active: ${bpValidation.totalQuestions} questions, ${bpValidation.totalMarks} marks`);
 
