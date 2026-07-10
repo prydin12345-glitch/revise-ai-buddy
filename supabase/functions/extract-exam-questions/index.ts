@@ -8,7 +8,7 @@ import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts"
 import { shouldSuppressDiagram } from "../_shared/diagram-suppression.ts";
 import { hasBrokenDiagramReference, scrubBrokenDiagramReferences, referencesExternalInsert } from "../_shared/question-text-scrubber.ts";
 import { validateCircuitConfig, buildComponentListForPrompt } from "../_shared/circuit-validation.ts";
-import { validateMapFigure, buildMapFigurePrompt, validateInsertFigures, buildInsertFiguresPrompt } from "../_shared/insert-figures.ts";
+import { describeFigureForPrompt, validateMapFigure, buildMapFigurePrompt, validateInsertFigures, buildInsertFiguresPrompt } from "../_shared/insert-figures.ts";
 import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
 import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 import { getSubjectSpecificInstructions } from "../_shared/exam-extraction-prompts.ts";
@@ -432,14 +432,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
               console.error('[insert] FIGURE SAVE FAILED (is the insert_figures migration applied?):', figSaveErr.message);
             } else {
               insertFigures = figures;
-              const figLines = figures.map((f: any) => {
-                if (f.type === 'map_points') {
-                  const pts = f.points.map((pt: any) => `${pt.name} (${pt.category}${typeof pt.value === 'number' ? `, ${pt.value}` : ''})`).join(', ');
-                  return `Figure ${f.figureNumber}: "${f.title}" — UK map (labelled points): ${pts}. Categories: ${f.categories.map((ct: any) => ct.label).join(', ')}. Supports pattern/distribution/identification questions ONLY — its data is categorical, so NO precise calculations from this figure.`;
-                }
-                const sample = f.rows.slice(0, 3).map((r: any[]) => r.join(' / ')).join('; ');
-                return `Figure ${f.figureNumber}: "${f.title}" — data table, columns [${f.columns.join(', ')}], ${f.rows.length} rows of RAW numeric values (e.g. ${sample}). Supports calculation and precise comparison questions.`;
-              }).join('\n');
+              const figLines = figures.map((f: any) => describeFigureForPrompt(f)).join('\n');
               const hierarchyRule = useOriginalStructure && detectedOriginalStructure
                 ? 'Place figure questions inside the detected parent/sub-part hierarchy; do NOT create a small standalone figure-only paper.'
                 : 'Spread figure questions through the paper following its structure.';
