@@ -144,6 +144,8 @@ export const ExamProfileModal = ({
   const [studiedTexts, setStudiedTexts] = useState<Array<{ role: string; title: string }>>([]);
   const [newTextRole, setNewTextRole] = useState("shakespeare");
   const [newTextTitle, setNewTextTitle] = useState("");
+  const [blueprintEnabled, setBlueprintEnabled] = useState(false);
+  const [blueprintSections, setBlueprintSections] = useState<Array<{ title: string; questions: Array<{ marks: number; style: string }> }>>([]);
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [writtenCount, setWrittenCount] = useState(10);
   const [mcqCount, setMcqCount] = useState(0);
@@ -168,13 +170,18 @@ export const ExamProfileModal = ({
   // Structure sync (single source of truth): with sub-parts, the written
   // count IS parents × parts — the slider locks and derives. With mixed,
   // parents are a subset of the written questions.
-  const structureLocksWritten = !isMcqOnlyProfile && questionStructure === "sub_questions";
+  const blueprintTotalQuestions = blueprintSections.reduce((n, s) => n + s.questions.length, 0);
+  const blueprintTotalMarks = blueprintSections.reduce((n, s) => n + s.questions.reduce((m, q) => m + (Number(q.marks) || 0), 0), 0);
+  const blueprintActive = blueprintEnabled && blueprintTotalQuestions > 0;
+  const structureLocksWritten = (!isMcqOnlyProfile && questionStructure === "sub_questions") || blueprintActive;
   useEffect(() => {
     if (structureLocksWritten) {
-      const derived = Math.min(20, parentQuestionCount * maxPartsPerQuestion);
+      const derived = blueprintActive
+        ? Math.min(20, blueprintTotalQuestions)
+        : Math.min(20, parentQuestionCount * maxPartsPerQuestion);
       if (writtenCount !== derived) setWrittenCount(derived);
     }
-  }, [structureLocksWritten, parentQuestionCount, maxPartsPerQuestion]);
+  }, [structureLocksWritten, parentQuestionCount, maxPartsPerQuestion, blueprintActive, blueprintTotalQuestions]);
   useEffect(() => {
     if (!isMcqOnlyProfile && questionStructure === "mixed" && parentQuestionCount > writtenCount) {
       setParentQuestionCount(Math.max(1, writtenCount));
@@ -186,6 +193,10 @@ export const ExamProfileModal = ({
       setProfileName(initialData?.profile_name || "");
       setSelectedTopics(initialData?.topics || []);
       setStudiedTexts(Array.isArray((initialData as any)?.studied_texts) ? (initialData as any).studied_texts : []);
+      const bp = (initialData as any)?.paper_blueprint;
+      const bpSections = Array.isArray(bp?.sections) ? bp.sections : [];
+      setBlueprintSections(bpSections);
+      setBlueprintEnabled(bpSections.length > 0);
       const initWritten = initialData?.written_question_count ?? (initialData?.question_count ? Math.max(initialData.question_count - (initialData.mcq_count ?? 0), 5) : 10);
       setWrittenCount(initWritten);
       setMcqCount(initialData?.mcq_count ?? 0);
@@ -248,7 +259,11 @@ export const ExamProfileModal = ({
   const handleSave = () => {
     if (!profileName.trim() || selectedTopics.length === 0 || !finalTier) return;
     const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
-    const advancedWithMcq = { ...advanced, mcqCount, studiedTexts: isTextBasedSubject ? studiedTexts : undefined };
+    const advancedWithMcq = {
+      ...advanced, mcqCount,
+      studiedTexts: isTextBasedSubject ? studiedTexts : undefined,
+      paperBlueprint: blueprintActive ? { sections: blueprintSections } : null,
+    };
     const resolvedQuestionStructure = isMcqOnlyProfile ? "mcq_only" : questionStructure;
     onSave(
       profileName.trim(),
@@ -437,7 +452,7 @@ export const ExamProfileModal = ({
                 />
                 {structureLocksWritten && (
                   <p className="text-[11px] text-muted-foreground">
-                    Set by your structure: {parentQuestionCount} question{parentQuestionCount === 1 ? "" : "s"} \u00d7 {maxPartsPerQuestion} parts = {writtenCount} written parts
+                    {blueprintActive ? `Set by your paper structure: ${blueprintTotalQuestions} questions \u00b7 ${blueprintTotalMarks} marks` : `Set by your structure: ${parentQuestionCount} question${parentQuestionCount === 1 ? "" : "s"} \u00d7 ${maxPartsPerQuestion} parts = ${writtenCount} written parts`}
                   </p>
                 )}
                 {writtenCount >= 15 && (
@@ -648,6 +663,72 @@ export const ExamProfileModal = ({
               onChange={setTimeLimitMinutes}
               subjectColor={subjectColor}
             />
+          </SectionCard>
+
+          {/* ── Paper structure (optional blueprint) ── */}
+          <SectionCard accent={subjectColor} icon={ListChecks} title="Paper structure" hint={blueprintActive ? `${blueprintTotalQuestions} questions \u00b7 ${blueprintTotalMarks} marks` : "optional"}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium">Define the exact paper layout</p>
+                <p className="text-[10px] text-muted-foreground">Pin every question's marks and purpose \u2014 like a real board paper (e.g. Q1: 4-mark list, Q2: 8-mark language analysis\u2026). When on, this overrides the question sliders.</p>
+              </div>
+              <Switch checked={blueprintEnabled} onCheckedChange={(v) => {
+                setBlueprintEnabled(v);
+                if (v && blueprintSections.length === 0) {
+                  setBlueprintSections([{ title: "Section A", questions: [{ marks: 4, style: "" }] }]);
+                }
+              }} />
+            </div>
+            {blueprintEnabled && (
+              <div className="space-y-3">
+                {blueprintSections.map((sec, si) => (
+                  <div key={si} className="rounded-lg border border-border/40 bg-muted/30 p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Input value={sec.title} placeholder={`Section ${String.fromCharCode(65 + si)}: Reading`}
+                        onChange={(e) => setBlueprintSections(blueprintSections.map((s, j) => j === si ? { ...s, title: e.target.value } : s))}
+                        className="h-8 text-xs font-medium" />
+                      <button type="button" aria-label="Remove section"
+                        onClick={() => setBlueprintSections(blueprintSections.filter((_, j) => j !== si))}
+                        className="text-muted-foreground hover:text-destructive text-sm shrink-0">\u00d7</button>
+                    </div>
+                    {sec.questions.map((q, qi) => (
+                      <div key={qi} className="flex items-center gap-2">
+                        <span className="text-[10px] text-muted-foreground w-7 shrink-0 tabular-nums">
+                          Q{blueprintSections.slice(0, si).reduce((n, s) => n + s.questions.length, 0) + qi + 1}
+                        </span>
+                        <Input type="number" min={1} max={60} value={q.marks || ""}
+                          onChange={(e) => setBlueprintSections(blueprintSections.map((s, j) => j === si ? { ...s, questions: s.questions.map((qq, k) => k === qi ? { ...qq, marks: parseInt(e.target.value) || 0 } : qq) } : s))}
+                          className="h-8 w-16 text-xs text-center" aria-label="Marks" />
+                        <span className="text-[10px] text-muted-foreground shrink-0">marks</span>
+                        <Input value={q.style} placeholder='e.g. "List four things from an early line range"'
+                          onChange={(e) => setBlueprintSections(blueprintSections.map((s, j) => j === si ? { ...s, questions: s.questions.map((qq, k) => k === qi ? { ...qq, style: e.target.value } : qq) } : s))}
+                          className="h-8 text-xs flex-1" />
+                        <button type="button" aria-label="Remove question"
+                          onClick={() => setBlueprintSections(blueprintSections.map((s, j) => j === si ? { ...s, questions: s.questions.filter((_, k) => k !== qi) } : s))}
+                          className="text-muted-foreground hover:text-destructive text-sm shrink-0">\u00d7</button>
+                      </div>
+                    ))}
+                    <Button type="button" variant="ghost" size="sm" className="h-7 text-[11px]"
+                      onClick={() => setBlueprintSections(blueprintSections.map((s, j) => j === si ? { ...s, questions: [...s.questions, { marks: 6, style: "" }] } : s))}>
+                      + Add question
+                    </Button>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between">
+                  <Button type="button" variant="outline" size="sm" className="h-7 text-[11px]"
+                    onClick={() => setBlueprintSections([...blueprintSections, { title: "", questions: [{ marks: 4, style: "" }] }])}>
+                    + Add section
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground tabular-nums">{blueprintTotalQuestions} questions \u00b7 {blueprintTotalMarks} marks</p>
+                </div>
+                {blueprintSections.some((s) => s.questions.some((q) => !q.marks || q.marks < 1)) && (
+                  <p className="text-[11px] text-orange-400">\u26a0 Some questions have no marks set \u2014 they will be ignored at generation.</p>
+                )}
+                {blueprintActive && mcqCount > 0 && (
+                  <p className="text-[11px] text-orange-400">\u26a0 Your paper structure and MCQ count ({mcqCount}) are both set \u2014 MCQs will be generated as an additional section.</p>
+                )}
+              </div>
+            )}
           </SectionCard>
 
           {/* ── Advanced ── */}
