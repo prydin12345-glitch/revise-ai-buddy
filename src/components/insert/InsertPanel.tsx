@@ -39,6 +39,25 @@ export function InsertPanel({ figures, subjectColor }: InsertPanelProps) {
               <MapFigure title={fig.title} points={fig.points} categories={fig.categories} showPointLabels />
             </div>
           )}
+          {fig.type === "passage" && (
+            <div className="rounded-xl border border-border bg-card p-5">
+              <p className="text-[11px] text-muted-foreground mb-3 italic">{fig.styleNote}</p>
+              <div className="space-y-0.5">
+                {fig.lines.map((ln: string, i: number) =>
+                  ln === "" ? (
+                    <div key={i} className="h-3" />
+                  ) : (
+                    <div key={i} className="flex gap-3">
+                      <span className="w-7 shrink-0 text-right text-[10px] leading-relaxed text-muted-foreground tabular-nums select-none">
+                        {(i + 1) % 5 === 0 ? i + 1 : ""}
+                      </span>
+                      <p className="text-sm leading-relaxed font-serif flex-1">{ln}</p>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          )}
           {fig.type === "text_extract" && (
             <div className="rounded-xl border border-border bg-card p-5">
               <div className="border-l-2 border-primary/40 pl-4 space-y-3">
