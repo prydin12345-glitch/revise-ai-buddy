@@ -182,6 +182,10 @@ export function validateInsertFigures(raw: any): { figures: any[]; rejected: str
       const v = validateTableFigure(f);
       if (v.ok && v.figure) figures.push(v.figure);
       else rejected.push(`table "${f?.title ?? "?"}": ${v.reasons.join("; ")}`);
+    } else if (f?.type === "passage") {
+      const v = validatePassage(f);
+      if (v.ok && v.figure) figures.push(v.figure);
+      else rejected.push(`passage "${f?.title ?? "?"}": ${v.reasons.join("; ")}`);
     } else if (f?.type === "text_extract") {
       const v = validateTextExtract(f);
       if (v.ok && v.figure) figures.push(v.figure);
@@ -195,7 +199,13 @@ export function validateInsertFigures(raw: any): { figures: any[]; rejected: str
 }
 
 /** Phase-2 prompt: 1-3 figures, type matched to question need, per-topic. */
-export function buildInsertFiguresPrompt(subjectContext: string, topics: string[]): string {
+export function buildInsertFiguresPrompt(subjectContext: string, topics: string[], board = ""): string {
+  // English papers are passage-based, not map/table-based: dispatch to the
+  // brief system so each generation is a distinct point in creative space.
+  if (/english/i.test(subjectContext)) {
+    const brief = buildPassageBrief(board.toLowerCase());
+    return buildPassagePrompt(brief, subjectContext) + "\nReturn ONLY a JSON ARRAY containing that single passage object.";
+  }
   const topicLine = topics.length ? `The paper's topic scope: ${topics.slice(0, 6).join("; ")}.` : "";
   return `
 ## INSERT FIGURES (1-3, TYPE-MATCHED)
@@ -268,5 +278,193 @@ export function describeFigureForPrompt(f: any): string {
   if (f.type === "text_extract") {
     return `Figure ${f.figureNumber}: "${f.title}" — qualitative text extract (${f.sourceLine}). Full text: ${f.paragraphs.join(" ")} — Supports source-analysis questions (how the place/issue is represented, tone, perspective, reliability). NO calculations; questions must quote or refer to specific phrases from the extract.`;
   }
+  if (f.type === "passage") {
+    const numbered = f.lines.map((ln: string, i: number) => (ln === "" ? "" : `${i + 1}: ${ln}`)).join("\n");
+    return `Figure ${f.figureNumber}: "${f.title}" — ${f.styleNote}. A line-numbered reading passage (${f.wordCount} words, ${f.lines.length} lines incl. paragraph breaks).
+GROUND TRUTH for structure/tone questions: tonal arc = "${f.tonalArc}"; planted structural device = "${f.plantedDevice}".
+${ENGLISH_LADDERS[f.board] || ENGLISH_LADDERS.aqa}
+HARD RULES for questions about this passage:
+- Any quoted words MUST be verbatim substrings of the passage.
+- Any line references MUST be within 1-${f.lines.length} and suit the ladder position (Q1 early lines, later questions later/whole text).
+- Never ask about content the passage does not contain.
+FULL PASSAGE (numbered):
+${numbered}`;
+  }
   return `Figure ${f.figureNumber}: "${f.title}"`;
 }
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ENGLISH PASSAGE ENGINE
+// A "passage" figure: 400-750 words of AI-ORIGINAL prose, line-numbered
+// server-side so questions can reference verifiable line ranges. The brief
+// system randomises genre/tone/situation in CODE so the model cannot collapse
+// to its favourite passage; the blueprint system encodes each board's paper
+// architecture so the question ladder matches the selected exam board.
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface PassageFigureData {
+  figureNumber?: string;
+  title: string;
+  type: "passage";
+  board: "aqa" | "edexcel" | "eduqas";
+  styleNote: string;        // e.g. "Contemporary fiction — story opening (fictional, AI-original)"
+  tonalArc: string;         // ground truth for tone/structure questions
+  plantedDevice: string;    // ground truth structural device
+  lines: string[];          // server-computed typographic lines (max ~90 chars)
+  wordCount: number;
+}
+
+// ── Brief banks: the anti-repetition engine. Each generation draws one value
+//    per bank, giving >400k distinct briefs before sampling variety. ──
+const PASSAGE_FORMS: Record<string, string[]> = {
+  aqa:     ["the opening of a short story", "the climactic moment of a short story", "a tense mid-story scene"],
+  edexcel: ["an extract from a 19th-century-style novel", "a 19th-century-style short story scene"],
+  eduqas:  ["the opening of a short story", "an extract from a memoir-style piece", "a descriptive non-fiction scene"],
+};
+const ERA_STYLES: Record<string, string> = {
+  aqa: "20th/21st-century literary fiction register",
+  edexcel: "Victorian-era register (formal syntax, period-appropriate detail, no archaic spelling)",
+  eduqas: "contemporary register",
+};
+const NARRATIVE_STANCES = [
+  "first person, past tense, close and confessional",
+  "first person, present tense, immediate and restless",
+  "third person limited, past tense, following one character closely",
+  "third person, present tense, cinematic and detached",
+  "third person limited, past tense, with intrusions of the character's doubt",
+];
+const TONAL_ARCS = [
+  "calm domesticity giving way to creeping unease",
+  "bravado slowly undercut by vulnerability",
+  "wonder curdling into disillusionment",
+  "tension building to a release that is not quite relief",
+  "nostalgia disturbed by an unwelcome present",
+  "isolation warmed, briefly, by an unexpected kindness",
+  "routine broken by a moment of quiet awe",
+  "confidence eroded by small accumulating details",
+];
+const SITUATIONS = [
+  "a night market closing down in the rain", "a hospital waiting room at 3am",
+  "a ferry crossing in worsening weather", "the demolition of a childhood home",
+  "a lighthouse keeper's final week before automation", "a kitchen the morning after an argument",
+  "an allotment tended by an elderly neighbour", "a sleeper train crossing a border at dawn",
+  "the last day of a failing seaside arcade", "a swimming lake at first light",
+  "an attic cleared after a bereavement", "a bus depot during a heatwave",
+  "a school hall being set up for an exam", "a harbour where the boats no longer fish",
+  "an observatory on the night of a storm", "a laundrette open late in winter",
+  "a beekeeper discovering an empty hive", "a city rooftop garden above traffic",
+  "a canal towpath in thick fog", "a village shop on its final morning of trade",
+  "a climbing hut below a mountain in cloud", "an orchard during an unexpected frost",
+  "a printing works on the night shift", "a pier closed for repairs, visited anyway",
+];
+const STRUCTURAL_DEVICES = [
+  "a flashback roughly two-thirds of the way through",
+  "a shift from wide panoramic description to one small telling detail",
+  "a cyclical ending that returns to the opening image, changed",
+  "a sudden change of pace from slow description to rapid short sentences",
+  "a perspective pull-back that reveals something the narrator missed",
+  "an object introduced early that regains significance at the end",
+];
+
+function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
+
+export interface PassageBrief {
+  board: "aqa" | "edexcel" | "eduqas";
+  form: string; era: string; stance: string;
+  tonalArc: string; situation: string; device: string;
+}
+
+export function buildPassageBrief(board: string): PassageBrief {
+  const b = (["aqa", "edexcel", "eduqas"].includes(board) ? board : "aqa") as PassageBrief["board"];
+  return {
+    board: b,
+    form: pick(PASSAGE_FORMS[b]),
+    era: ERA_STYLES[b],
+    stance: pick(NARRATIVE_STANCES),
+    tonalArc: pick(TONAL_ARCS),
+    situation: pick(SITUATIONS),
+    device: pick(STRUCTURAL_DEVICES),
+  };
+}
+
+/** Prompt asking the model for ONE original passage executing the brief. */
+export function buildPassagePrompt(brief: PassageBrief, levelContext: string): string {
+  return `
+## ENGLISH READING PASSAGE (INSERT)
+Write ONE original prose passage for an English Language exam (${levelContext}).
+Execute this brief EXACTLY — it was chosen for you:
+- Form: ${brief.form}
+- Register: ${brief.era}
+- Narrative stance: ${brief.stance}
+- Tonal arc across the passage: ${brief.tonalArc}
+- Situation/setting: ${brief.situation}
+- Planted structural device (must genuinely occur): ${brief.device}
+Requirements:
+- 450-700 words, 5-9 paragraphs, exam-appropriate content (no graphic violence/sexual content).
+- ENTIRELY ORIGINAL writing. Never imitate a specific real author's identifiable work or reproduce any existing text.
+- The tonal arc and structural device must be genuinely present and analysable — a student will be asked about them.
+Output ONLY JSON:
+{"type":"passage","board":"${brief.board}","title":"<short evocative title>","styleNote":"${brief.form}, ${brief.era.split("(")[0].trim()} (AI-original)","tonalArc":"${brief.tonalArc}","plantedDevice":"${brief.device}","text":"<the full passage with \\n\\n between paragraphs>"}`;
+}
+
+/** Split passage text into stable typographic lines (~90 chars) for numbering. */
+export function toNumberedLines(text: string): string[] {
+  const lines: string[] = [];
+  for (const para of text.split(/\n{2,}/).map((s) => s.trim()).filter(Boolean)) {
+    const words = para.split(/\s+/);
+    let cur = "";
+    for (const w of words) {
+      if ((cur + " " + w).trim().length > 90) { lines.push(cur.trim()); cur = w; }
+      else cur = (cur + " " + w).trim();
+    }
+    if (cur) lines.push(cur);
+    lines.push(""); // paragraph break (unnumbered blank)
+  }
+  while (lines.length && lines[lines.length - 1] === "") lines.pop();
+  return lines;
+}
+
+export function validatePassage(raw: any): { ok: boolean; figure: PassageFigureData | null; reasons: string[] } {
+  if (!raw || raw.type !== "passage") return { ok: false, figure: null, reasons: ["not a passage"] };
+  const text = typeof raw.text === "string" ? raw.text.trim() : "";
+  const wordCount = text ? text.split(/\s+/).length : 0;
+  if (wordCount < 350) return { ok: false, figure: null, reasons: [`passage too short (${wordCount} words, min 350)`] };
+  if (wordCount > 850) return { ok: false, figure: null, reasons: [`passage too long (${wordCount} words, max 850)`] };
+  const paras = text.split(/\n{2,}/).filter((s: string) => s.trim());
+  if (paras.length < 3) return { ok: false, figure: null, reasons: [`only ${paras.length} paragraphs (min 3)`] };
+  const board = (["aqa", "edexcel", "eduqas"].includes(raw.board) ? raw.board : "aqa") as PassageFigureData["board"];
+  return {
+    ok: true,
+    figure: {
+      figureNumber: typeof raw.figureNumber === "string" ? raw.figureNumber : undefined,
+      title: typeof raw.title === "string" && raw.title.trim() ? raw.title.trim() : "Untitled passage",
+      type: "passage", board,
+      styleNote: typeof raw.styleNote === "string" ? raw.styleNote : "AI-original prose",
+      tonalArc: typeof raw.tonalArc === "string" ? raw.tonalArc : "",
+      plantedDevice: typeof raw.plantedDevice === "string" ? raw.plantedDevice : "",
+      lines: toNumberedLines(text),
+      wordCount,
+    },
+    reasons: [],
+  };
+}
+
+// ── Board blueprints: the question ladder per board. ──
+export const ENGLISH_LADDERS: Record<string, string> = {
+  aqa: `AQA English Language Paper 1 Section A ladder (follow EXACTLY, marks as stated):
+Q1 (4 marks): "List four things about <subject> from lines 1 to <n>." Pure retrieval from an early line range.
+Q2 (8 marks): "How does the writer use language to <effect>? Focus on lines <a> to <b>." Words/phrases, language features, sentence forms.
+Q3 (8 marks): "How has the writer structured the text to interest you as a reader?" Whole-text structure — this passage's planted device and tonal arc are the intended material.
+Q4 (20 marks): "A reader said: '<plausible evaluative claim about the passage>'. To what extent do you agree? Focus on lines <c> to the end." Evaluation with method analysis.`,
+  edexcel: `Edexcel English Language Paper 1 Section A ladder (19th-century-style fiction; follow EXACTLY):
+Q1 (1 mark): Identify a word/phrase from lines 1-<n> meaning <x>.
+Q2 (2 marks): Give two things about <subject> from a stated line range.
+Q3 (6 marks): "Analyse how the writer uses language and structure to <effect> in lines <a>-<b>."
+Q4 (15 marks): "In this extract, there is an attempt to build <tension/sympathy/atmosphere>. Evaluate how successfully this is achieved."`,
+  eduqas: `Eduqas English Language Component 1 Section A ladder (follow EXACTLY):
+Q1 (5 marks): List five explicit details from lines 1-<n>.
+Q2 (5 marks): "How does the writer show <x> in lines <a>-<b>?" Impressions with textual support.
+Q3 (10 marks): "How does the writer make these lines <tense/moving/vivid>?" Close language analysis of a middle range.
+Q4 (10 marks): "How is <character/place> presented across the passage as a whole?" Whole-text, using the tonal arc.`,
+};
