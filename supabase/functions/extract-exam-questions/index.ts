@@ -603,6 +603,8 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       if (bp) console.log(`[sections] detected ${bp.sections.length} sections from reference paper: ${bp.sections.map((s) => `${s.label}(${s.markPattern.length}q${s.optionGate ? ',opt' : ''})`).join(' ')}`);
       return buildSectionBlueprintPromptBlock(bp);
     })(),
+    studiedTexts: Array.isArray((formatData?.profile_metadata as any)?.studiedTexts) ? (formatData!.profile_metadata as any).studiedTexts : [],
+    paperBlueprint: (formatData?.profile_metadata && typeof formatData.profile_metadata === 'object') ? (formatData.profile_metadata as any).paperBlueprint : null,
   });
 
   let extractionPrompt = extractionPrompt_raw;
@@ -1628,6 +1630,8 @@ function buildPrompt(params: {
   insertPromptBlock?: string;
   originalStructurePromptBlock?: string;
   sectionBlueprintPromptBlock?: string;
+  studiedTexts?: any[];
+  paperBlueprint?: any;
 }): { systemPrompt: string; userPrompt: string } {
   const {
     subject,
@@ -1659,6 +1663,8 @@ function buildPrompt(params: {
     insertPromptBlock = '',
     originalStructurePromptBlock = '',
     sectionBlueprintPromptBlock = '',
+    studiedTexts = [],
+    paperBlueprint = null,
   } = params;
 
   const totalQuestions = desiredMcqCount + desiredWrittenCount;
@@ -2463,12 +2469,9 @@ Match genuine AQA/Edexcel/OCR A-level standard:
   const subjectSpecificBlock = getSubjectSpecificInstructions(subject, examBoard, educationalLevel);
 
   // ── ASSEMBLE USER PROMPT ──────────────────────────────────────────────────
-  const studiedTextsBlock = buildStudiedTextsPrompt(
-    Array.isArray((formatData?.profile_metadata as any)?.studiedTexts) ? (formatData!.profile_metadata as any).studiedTexts : []
-  );
+  const studiedTextsBlock = buildStudiedTextsPrompt(Array.isArray(studiedTexts) ? studiedTexts : []);
   if (studiedTextsBlock) console.log('[texts] studied-texts block active');
-  const bpMeta = (formatData?.profile_metadata && typeof formatData.profile_metadata === 'object') ? (formatData.profile_metadata as any) : {};
-  const bpValidation = validatePaperBlueprint(bpMeta.paperBlueprint);
+  const bpValidation = validatePaperBlueprint(paperBlueprint);
   const blueprintBlock = bpValidation.ok && bpValidation.blueprint ? buildBlueprintPrompt(bpValidation.blueprint) : '';
   if (blueprintBlock) console.log(`[blueprint] active: ${bpValidation.totalQuestions} questions, ${bpValidation.totalMarks} marks`);
 
