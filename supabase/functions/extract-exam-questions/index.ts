@@ -332,7 +332,7 @@ serve(async (req) => {
     }
     // ───────────────────────────────────────────────────────────────────
 
-    console.log('[version] extract v3 — original-mode + deep style sampling');
+    console.log('[version] extract v4 — humanities diagram gate + figure retry');
     const { draftId, includeInsert, curriculumTopics: bodyTopics } = await req.json();
     if (!draftId) {
       return new Response(JSON.stringify({ error: 'Draft ID required' }), {
@@ -409,15 +409,20 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
         topicsForFigures,
         String(exam.exam_board || '')
       );
-      const figResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${lovableApiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [{ role: 'user', content: figPrompt }],
-          temperature: 0.4,
-        }),
-      });
+      let figResp: any = null;
+      for (let figAttempt = 0; figAttempt < 2; figAttempt++) {
+        if (figAttempt > 0) console.warn('[insert] figure call failed — retrying once');
+        figResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${lovableApiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [{ role: 'user', content: figPrompt }],
+            temperature: 0.4,
+          }),
+        });
+        if (figResp && figResp.ok) break;
+      }
       if (!figResp.ok) console.error('[insert] AI figures call failed:', figResp.status);
       if (figResp.ok) {
         const figData = await figResp.json();
@@ -698,6 +703,24 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     }
     return { ...question, diagramConfig: result.config, diagram_config: result.config };
   });
+
+  // ── HUMANITIES DIAGRAM GATE ──────────────────────────────────────────────
+  // Text-based subjects must never render technical diagrams (a circuit once
+  // appeared in an English paper — the model emitted a diagramConfig and the
+  // circuit validator dutifully repaired it). Deterministic kill, by subject.
+  const HUMANITIES_RE = /english|history|literature|religio|sociolog|philosoph|politics|law\b/i;
+  if (HUMANITIES_RE.test(String(exam.subject_id || ''))) {
+    let stripped = 0;
+    for (const q of questions) {
+      if (q.diagramConfig || q.diagram_config || q.generated_diagram_url) {
+        q.diagramConfig = null;
+        q.diagram_config = null;
+        q.generated_diagram_url = null;
+        stripped++;
+      }
+    }
+    if (stripped > 0) console.warn(`[diaggate] stripped ${stripped} technical diagram(s) from a ${exam.subject_id} paper — humanities papers never carry them`);
+  }
 
   // ── FIGURE-REFERENCE GATE (Phase 3) ──────────────────────────────────────
   // Deterministic enforcement of the figure/question contract:
