@@ -2183,6 +2183,7 @@ export type Database = {
           mcq_count: number | null
           mcq_options_count: number
           mcq_position: string | null
+          paper_blueprint: Json | null
           parent_question_count: number | null
           profile_name: string
           question_count: number
@@ -2211,6 +2212,7 @@ export type Database = {
           mcq_count?: number | null
           mcq_options_count?: number
           mcq_position?: string | null
+          paper_blueprint?: Json | null
           parent_question_count?: number | null
           profile_name: string
           question_count?: number
@@ -2239,6 +2241,7 @@ export type Database = {
           mcq_count?: number | null
           mcq_options_count?: number
           mcq_position?: string | null
+          paper_blueprint?: Json | null
           parent_question_count?: number | null
           profile_name?: string
           question_count?: number

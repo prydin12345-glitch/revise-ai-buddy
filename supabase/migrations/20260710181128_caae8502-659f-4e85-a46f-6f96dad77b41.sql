@@ -1,0 +1,1 @@
+ALTER TABLE public.subject_exam_profiles ADD COLUMN IF NOT EXISTS paper_blueprint jsonb DEFAULT NULL;
