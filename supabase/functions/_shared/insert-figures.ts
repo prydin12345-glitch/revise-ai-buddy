@@ -499,3 +499,45 @@ export function buildStudiedTextsPrompt(texts: StudiedText[]): string {
   });
   return `\n## STUDIED TEXTS (from the student's exam profile)\nQuestions in text-based sections must target these EXACT texts — never substitute different works:\n${lines.join("\n")}\n`;
 }
+
+
+// ── User-defined paper blueprints ───────────────────────────────────────────
+// A profile can pin the paper's exact architecture: sections containing
+// questions with fixed marks and a style hint. When present, the blueprint is
+// AUTHORITATIVE: it overrides count sliders and the generic mark caps.
+export interface BlueprintQuestion { marks: number; style: string; }
+export interface BlueprintSection { title: string; questions: BlueprintQuestion[]; }
+export interface PaperBlueprint { sections: BlueprintSection[]; }
+
+export function validatePaperBlueprint(raw: any): { ok: boolean; blueprint: PaperBlueprint | null; totalQuestions: number; totalMarks: number; reasons: string[] } {
+  const reasons: string[] = [];
+  const sections: BlueprintSection[] = [];
+  for (const s of Array.isArray(raw?.sections) ? raw.sections : []) {
+    const questions: BlueprintQuestion[] = [];
+    for (const q of Array.isArray(s?.questions) ? s.questions : []) {
+      const marks = Number(q?.marks);
+      if (!isFinite(marks) || marks < 1 || marks > 60) { reasons.push("question with invalid marks dropped"); continue; }
+      questions.push({ marks: Math.round(marks), style: typeof q?.style === "string" ? q.style.trim() : "" });
+    }
+    if (questions.length === 0) { reasons.push(`section "${s?.title ?? "?"}" empty — dropped`); continue; }
+    sections.push({ title: typeof s?.title === "string" && s.title.trim() ? s.title.trim() : `Section ${sections.length + 1}`, questions });
+  }
+  const totalQuestions = sections.reduce((n, s) => n + s.questions.length, 0);
+  const totalMarks = sections.reduce((n, s) => n + s.questions.reduce((m, q) => m + q.marks, 0), 0);
+  if (sections.length === 0 || totalQuestions === 0) return { ok: false, blueprint: null, totalQuestions: 0, totalMarks: 0, reasons: [...reasons, "no valid sections"] };
+  return { ok: true, blueprint: { sections }, totalQuestions, totalMarks, reasons };
+}
+
+/** The authoritative prompt block: exact sections, marks, order, numbering. */
+export function buildBlueprintPrompt(bp: PaperBlueprint): string {
+  let qNum = 0;
+  const lines = bp.sections.map((s) => {
+    const qs = s.questions.map((q) => {
+      qNum++;
+      return `  Q${qNum} (${q.marks} marks)${q.style ? `: ${q.style}` : ""}`;
+    }).join("\n");
+    return `${s.title}\n${qs}`;
+  }).join("\n");
+  const totalMarks = bp.sections.reduce((n, s) => n + s.questions.reduce((m, q) => m + q.marks, 0), 0);
+  return `\n## PAPER STRUCTURE (MANDATORY — set by the student's exam profile)\nGenerate EXACTLY this paper, in this order, with these exact marks (${qNum} questions, ${totalMarks} marks total). Question numbering continues across sections. No extra questions, no missing questions, no changed marks. Each question must match its stated style/purpose:\n${lines}\nIf a style mentions a figure/extract/source, that question must reference the insert figure appropriately.\n`;
+}
