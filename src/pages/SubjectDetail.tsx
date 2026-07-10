@@ -123,6 +123,7 @@ const SubjectDetail = () => {
       include_graphs: structureSettings?.includeGraphs ?? false,
       include_tables: structureSettings?.includeTables ?? false,
       studied_texts: (advanced as any)?.studiedTexts ?? null,
+      paper_blueprint: (advanced as any)?.paperBlueprint ?? null,
     };
     if (editingProfile) {
       await updateProfile(editingProfile.id, payload);
