@@ -172,7 +172,7 @@ export default function CreateExam() {
   const [derivedTopics, setDerivedTopics] = useState<string[]>([]);
   const [derivedTopicInput, setDerivedTopicInput] = useState("");
   const deriveResolveRef = useRef<((topics: string[] | null) => void) | null>(null);
-  const subjectSupportsInsert = /geograph|history|environment|earth science/i.test(subjectId || "");
+  const subjectSupportsInsert = /geograph|history|environment|earth science|english/i.test(subjectId || "");
   const [includeGraphs, setIncludeGraphs] = useState(true);
   
   // Timer settings
