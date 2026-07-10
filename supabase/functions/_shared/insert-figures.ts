@@ -455,8 +455,9 @@ export const ENGLISH_LADDERS: Record<string, string> = {
   aqa: `AQA English Language Paper 1 Section A ladder (follow EXACTLY, marks as stated):
 Q1 (4 marks): "List four things about <subject> from lines 1 to <n>." Pure retrieval from an early line range.
 Q2 (8 marks): "How does the writer use language to <effect>? Focus on lines <a> to <b>." Words/phrases, language features, sentence forms.
-Q3 (8 marks): "How has the writer structured the text to interest you as a reader?" Whole-text structure — this passage's planted device and tonal arc are the intended material.
-Q4 (20 marks): "A reader said: '<plausible evaluative claim about the passage>'. To what extent do you agree? Focus on lines <c> to the end." Evaluation with method analysis.`,
+Q3 (8 marks): "How has the writer structured the text to interest you as a reader?" Whole-text structure — this passage's planted device and tonal arc are the intended material. END the question text with AQA's scaffold bullets on new lines: "You could write about:" then "• what the writer focuses your attention on at the beginning" / "• how and why the writer changes this focus as the source develops" / "• any other structural features that interest you".
+Q4 (20 marks): "A reader said: '<plausible evaluative claim about the passage>'. To what extent do you agree? Focus on lines <c> to the end." Evaluation with method analysis. END the question text with scaffold bullets: "In your response, you could:" then "• consider your own impressions of <the subject>" / "• evaluate how the writer <achieves the claimed effect>" / "• support your response with references to the text".
+Q5 (40 marks, Section B Writing): offer an Either/Or choice — EITHER a description suggested by a given scene linked to the passage's theme OR a narrative task. End with "(24 marks for content and organisation, 16 marks for technical accuracy)".`,
   edexcel: `Edexcel English Language Paper 1 Section A ladder (19th-century-style fiction; follow EXACTLY):
 Q1 (1 mark): Identify a word/phrase from lines 1-<n> meaning <x>.
 Q2 (2 marks): Give two things about <subject> from a stated line range.
