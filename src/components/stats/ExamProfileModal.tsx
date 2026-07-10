@@ -53,18 +53,66 @@ const STRUCTURE_PREVIEWS = [
   {
     id: "standalone",
     label: "Standalone",
-    preview: ["Q1  Explain how erosion shapes\u2026", "Q2  Calculate the gradient of\u2026", "Q3  Describe the process of\u2026"],
+    preview: ["Q1  Explain how erosion shapes…", "Q2  Calculate the gradient of…", "Q3  Describe the process of…"],
   },
   {
     id: "sub_questions",
     label: "Sub-parts",
-    preview: ["Q1 (a) State the definition of\u2026", "     (b) Explain why this occurs\u2026", "     (c) Evaluate the impact of\u2026"],
+    preview: ["Q1 (a) State the definition of…", "     (b) Explain why this occurs…", "     (c) Evaluate the impact of…"],
   },
   {
     id: "mixed",
     label: "Mixed",
-    preview: ["Q1  Explain how erosion shapes\u2026", "Q2 (a) State the definition of\u2026", "     (b) Evaluate the impact of\u2026"],
+    preview: ["Q1  Explain how erosion shapes…", "Q2 (a) State the definition of…", "     (b) Evaluate the impact of…"],
   },
+];
+
+
+// Common board paper layouts — one tap loads the real architecture.
+const BLUEPRINT_PRESETS: Array<{ id: string; label: string; sections: Array<{ title: string; questions: Array<{ marks: number; style: string }> }> }> = [
+  { id: "aqa_lang_p1", label: "AQA English Language Paper 1",
+    sections: [
+      { title: "Section A: Reading", questions: [
+        { marks: 4, style: "List / identify from the text" },
+        { marks: 8, style: "Language analysis" },
+        { marks: 8, style: "Structure analysis" },
+        { marks: 20, style: "Evaluate a statement" } ] },
+      { title: "Section B: Writing", questions: [ { marks: 40, style: "Extended writing task" } ] } ] },
+  { id: "edexcel_lang_p1", label: "Edexcel English Language Paper 1",
+    sections: [
+      { title: "Section A: Reading", questions: [
+        { marks: 1, style: "List / identify from the text" },
+        { marks: 2, style: "List / identify from the text" },
+        { marks: 6, style: "Language analysis" },
+        { marks: 15, style: "Evaluate a statement" } ] },
+      { title: "Section B: Writing", questions: [ { marks: 40, style: "Extended writing task" } ] } ] },
+  { id: "eduqas_lang_c1", label: "Eduqas English Language Component 1",
+    sections: [
+      { title: "Section A: Reading", questions: [
+        { marks: 5, style: "List / identify from the text" },
+        { marks: 5, style: "Explain / describe" },
+        { marks: 10, style: "Language analysis" },
+        { marks: 10, style: "Evaluate a statement" } ] },
+      { title: "Section B: Writing", questions: [ { marks: 40, style: "Extended writing task" } ] } ] },
+  { id: "aqa_lit_p1", label: "AQA English Literature A-level Paper 1",
+    sections: [
+      { title: "Section A: Shakespeare", questions: [ { marks: 25, style: "Passage-based question with linked essay" } ] },
+      { title: "Section B: Unseen poetry", questions: [ { marks: 25, style: "Essay on two unseen poems" } ] },
+      { title: "Section C: Comparing texts", questions: [ { marks: 25, style: "Essay comparing two studied texts" } ] } ] },
+];
+
+const QUESTION_STYLE_OPTIONS = [
+  "List / identify from the text",
+  "Explain / describe",
+  "Compare",
+  "Language analysis",
+  "Structure analysis",
+  "Analyse data / calculation",
+  "Evaluate a statement",
+  "Passage-based question with linked essay",
+  "Essay on two unseen poems",
+  "Essay comparing two studied texts",
+  "Extended writing task",
 ];
 
 const STUDIED_TEXT_ROLES = [
@@ -311,7 +359,8 @@ export const ExamProfileModal = ({
     { id: 4, label: "4 options", example: "A, B, C, D", detail: "Standard board-style MCQs with four choices." },
   ];
 
-  const canSave = !!profileName.trim() && selectedTopics.length > 0 && !!finalTier;
+  const blueprintHasInvalidMarks = blueprintActive && blueprintSections.some((s) => s.questions.some((q) => !q.marks || q.marks < 1));
+  const canSave = !!profileName.trim() && selectedTopics.length > 0 && !!finalTier && !blueprintHasInvalidMarks;
   const missingLevel = !finalTier;
   const summaryParts = [
     `${totalQuestionCount} question${totalQuestionCount === 1 ? "" : "s"}`,
@@ -452,7 +501,7 @@ export const ExamProfileModal = ({
                 />
                 {structureLocksWritten && (
                   <p className="text-[11px] text-muted-foreground">
-                    {blueprintActive ? `Set by your paper structure: ${blueprintTotalQuestions} questions \u00b7 ${blueprintTotalMarks} marks` : `Set by your structure: ${parentQuestionCount} question${parentQuestionCount === 1 ? "" : "s"} \u00d7 ${maxPartsPerQuestion} parts = ${writtenCount} written parts`}
+                    {blueprintActive ? `Set by your paper structure: ${blueprintTotalQuestions} questions · ${blueprintTotalMarks} marks` : `Set by your structure: ${parentQuestionCount} question${parentQuestionCount === 1 ? "" : "s"} × ${maxPartsPerQuestion} parts = ${writtenCount} written parts`}
                   </p>
                 )}
                 {writtenCount >= 15 && (
@@ -466,6 +515,7 @@ export const ExamProfileModal = ({
                 </div>
                 <Slider
                   min={0} max={30} step={1}
+                  disabled={blueprintActive}
                   value={[mcqCount]}
                   onValueChange={(v) => {
                     const newVal = v[0];
@@ -474,6 +524,9 @@ export const ExamProfileModal = ({
                   }}
                   style={{ "--slider-track": "hsl(var(--muted))", "--slider-range": "hsl(160 84% 39%)" } as React.CSSProperties}
                 />
+                {blueprintActive && (
+                  <p className="text-[11px] text-muted-foreground">Locked by Exact paper layout — add MCQs as a section there instead.</p>
+                )}
                 {mcqCount >= 25 && (
                   <p className="text-[11px] text-orange-400">⚠ {mcqCount} MCQ — consider splitting into two sessions</p>
                 )}
@@ -483,7 +536,11 @@ export const ExamProfileModal = ({
           </SectionCard>
 
           {/* ── Structure ── */}
-          <SectionCard accent={subjectColor} icon={ListChecks} title={isMcqOnlyProfile ? "Answer options" : "Structure"} hint={isMcqOnlyProfile ? undefined : "how written questions are organised"}>
+          <SectionCard accent={subjectColor} icon={ListChecks} title={isMcqOnlyProfile ? "Answer options" : "Structure"} hint={blueprintActive ? "locked by Exact paper layout" : (isMcqOnlyProfile ? undefined : "how written questions are organised")}>
+            {blueprintActive && (
+              <p className="text-[11px] text-muted-foreground -mt-1">Locked — your Exact paper layout defines the structure. Turn it off below to edit these.</p>
+            )}
+            <div className={blueprintActive ? "opacity-50 pointer-events-none" : ""}>
             {isMcqOnlyProfile ? (
               <>
                 <div className="grid grid-cols-2 gap-2">
@@ -560,7 +617,7 @@ export const ExamProfileModal = ({
                   <div className="rounded-lg border border-border/40 bg-muted/30 p-3 space-y-3">
                     <p className="text-[11px] text-muted-foreground">
                       {questionStructure === "sub_questions"
-                        ? `${parentQuestionCount} question${parentQuestionCount === 1 ? "" : "s"}, each with up to ${maxPartsPerQuestion} parts \u2014 ${parentQuestionCount * maxPartsPerQuestion} written parts in total.`
+                        ? `${parentQuestionCount} question${parentQuestionCount === 1 ? "" : "s"}, each with up to ${maxPartsPerQuestion} parts — ${parentQuestionCount * maxPartsPerQuestion} written parts in total.`
                         : `${parentQuestionCount} of your ${writtenCount} written questions will have sub-parts; the other ${Math.max(0, writtenCount - parentQuestionCount)} are standalone.`}
                     </p>
                     <div className="grid grid-cols-2 gap-4">
@@ -575,7 +632,7 @@ export const ExamProfileModal = ({
                     </div>
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <Label className="text-[11px] text-muted-foreground">Parts per question (a, b, c\u2026)</Label>
+                        <Label className="text-[11px] text-muted-foreground">Parts per question (a, b, c…)</Label>
                         <span className="text-xs font-bold tabular-nums" style={{ color: subjectColor }}>{maxPartsPerQuestion}</span>
                       </div>
                       <Slider min={2} max={6} step={1} value={[maxPartsPerQuestion]}
@@ -587,6 +644,7 @@ export const ExamProfileModal = ({
                 )}
               </>
             )}
+            </div>
           </SectionCard>
 
           {/* ── Topics ── */}
@@ -666,11 +724,11 @@ export const ExamProfileModal = ({
           </SectionCard>
 
           {/* ── Paper structure (optional blueprint) ── */}
-          <SectionCard accent={subjectColor} icon={ListChecks} title="Paper structure" hint={blueprintActive ? `${blueprintTotalQuestions} questions \u00b7 ${blueprintTotalMarks} marks` : "optional"}>
+          <SectionCard accent={subjectColor} icon={ListChecks} title="Exact paper layout" hint={blueprintActive ? `${blueprintTotalQuestions} questions · ${blueprintTotalMarks} marks` : "optional"}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium">Define the exact paper layout</p>
-                <p className="text-[10px] text-muted-foreground">Pin every question's marks and purpose \u2014 like a real board paper (e.g. Q1: 4-mark list, Q2: 8-mark language analysis\u2026). When on, this overrides the question sliders.</p>
+                <p className="text-[10px] text-muted-foreground">Recreate a real paper's layout question by question — every question's marks and purpose, organised into sections. While this is on, it sets the question counts (the sliders above lock).</p>
               </div>
               <Switch checked={blueprintEnabled} onCheckedChange={(v) => {
                 setBlueprintEnabled(v);
@@ -681,6 +739,22 @@ export const ExamProfileModal = ({
             </div>
             {blueprintEnabled && (
               <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Label className="text-[11px] text-muted-foreground shrink-0">Start from a preset</Label>
+                  <select
+                    className="h-8 rounded-md border border-input bg-background px-2 text-xs flex-1"
+                    value=""
+                    onChange={(e) => {
+                      const preset = BLUEPRINT_PRESETS.find((pr) => pr.id === e.target.value);
+                      if (preset) setBlueprintSections(JSON.parse(JSON.stringify(preset.sections)));
+                    }}
+                  >
+                    <option value="">Choose a board paper (or build your own below)…</option>
+                    {BLUEPRINT_PRESETS.map((pr) => (
+                      <option key={pr.id} value={pr.id}>{pr.label}</option>
+                    ))}
+                  </select>
+                </div>
                 {blueprintSections.map((sec, si) => (
                   <div key={si} className="rounded-lg border border-border/40 bg-muted/30 p-3 space-y-2">
                     <div className="flex items-center gap-2">
@@ -689,10 +763,10 @@ export const ExamProfileModal = ({
                         className="h-8 text-xs font-medium" />
                       <button type="button" aria-label="Remove section"
                         onClick={() => setBlueprintSections(blueprintSections.filter((_, j) => j !== si))}
-                        className="text-muted-foreground hover:text-destructive text-sm shrink-0">\u00d7</button>
+                        className="text-muted-foreground hover:text-destructive text-sm shrink-0">×</button>
                     </div>
                     {sec.questions.map((q, qi) => (
-                      <div key={qi} className="flex items-center gap-2">
+                      <div key={qi} className="flex flex-wrap items-center gap-2">
                         <span className="text-[10px] text-muted-foreground w-7 shrink-0 tabular-nums">
                           Q{blueprintSections.slice(0, si).reduce((n, s) => n + s.questions.length, 0) + qi + 1}
                         </span>
@@ -700,12 +774,34 @@ export const ExamProfileModal = ({
                           onChange={(e) => setBlueprintSections(blueprintSections.map((s, j) => j === si ? { ...s, questions: s.questions.map((qq, k) => k === qi ? { ...qq, marks: parseInt(e.target.value) || 0 } : qq) } : s))}
                           className="h-8 w-16 text-xs text-center" aria-label="Marks" />
                         <span className="text-[10px] text-muted-foreground shrink-0">marks</span>
-                        <Input value={q.style} placeholder='e.g. "List four things from an early line range"'
-                          onChange={(e) => setBlueprintSections(blueprintSections.map((s, j) => j === si ? { ...s, questions: s.questions.map((qq, k) => k === qi ? { ...qq, style: e.target.value } : qq) } : s))}
-                          className="h-8 text-xs flex-1" />
+                        <select
+                          value={QUESTION_STYLE_OPTIONS.includes(q.style) ? q.style : "__other"}
+                          onChange={(e) => {
+                            const v = e.target.value === "__other" ? "" : e.target.value;
+                            setBlueprintSections(blueprintSections.map((s, j) => j === si ? { ...s, questions: s.questions.map((qq, k) => k === qi ? { ...qq, style: v } : qq) } : s));
+                          }}
+                          className="h-8 rounded-md border border-input bg-background px-2 text-xs flex-1 min-w-[150px]"
+                          aria-label="Question style"
+                        >
+                          {QUESTION_STYLE_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                          <option value="__other">Other (describe it)…</option>
+                        </select>
+                        {!QUESTION_STYLE_OPTIONS.includes(q.style) && (
+                          <Input value={q.style} placeholder="Describe this question's purpose"
+                            onChange={(e) => setBlueprintSections(blueprintSections.map((s, j) => j === si ? { ...s, questions: s.questions.map((qq, k) => k === qi ? { ...qq, style: e.target.value } : qq) } : s))}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                setBlueprintSections(blueprintSections.map((s, j) => j === si ? { ...s, questions: [...s.questions, { marks: 6, style: "" }] } : s));
+                              }
+                            }}
+                            className="h-8 text-xs flex-1 basis-full sm:basis-auto min-w-[150px]" />
+                        )}
                         <button type="button" aria-label="Remove question"
                           onClick={() => setBlueprintSections(blueprintSections.map((s, j) => j === si ? { ...s, questions: s.questions.filter((_, k) => k !== qi) } : s))}
-                          className="text-muted-foreground hover:text-destructive text-sm shrink-0">\u00d7</button>
+                          className="text-muted-foreground hover:text-destructive text-sm shrink-0">×</button>
                       </div>
                     ))}
                     <Button type="button" variant="ghost" size="sm" className="h-7 text-[11px]"
@@ -719,13 +815,21 @@ export const ExamProfileModal = ({
                     onClick={() => setBlueprintSections([...blueprintSections, { title: "", questions: [{ marks: 4, style: "" }] }])}>
                     + Add section
                   </Button>
-                  <p className="text-[11px] text-muted-foreground tabular-nums">{blueprintTotalQuestions} questions \u00b7 {blueprintTotalMarks} marks</p>
+                  <p className="text-[11px] text-muted-foreground tabular-nums">{blueprintTotalQuestions} questions · {blueprintTotalMarks} marks</p>
                 </div>
+                {blueprintTotalQuestions > 0 && (
+                  <p className="text-[11px] text-muted-foreground tabular-nums rounded-md bg-muted/40 px-2.5 py-1.5">
+                    Preview: {(() => { let n = 0; return blueprintSections.flatMap((s) => s.questions).map((q) => { n++; return `Q${n} [${q.marks || "?"}]`; }).join(" · "); })()}
+                  </p>
+                )}
                 {blueprintSections.some((s) => s.questions.some((q) => !q.marks || q.marks < 1)) && (
-                  <p className="text-[11px] text-orange-400">\u26a0 Some questions have no marks set \u2014 they will be ignored at generation.</p>
+                  <p className="text-[11px] text-destructive">⚠ Some questions have no marks set — fix or remove them to save this profile.</p>
+                )}
+                {blueprintSections.some((s) => s.questions.some((q) => q.marks > 40)) && (
+                  <p className="text-[11px] text-orange-400">⚠ Questions above 40 marks are rare on real papers — double-check this is intended.</p>
                 )}
                 {blueprintActive && mcqCount > 0 && (
-                  <p className="text-[11px] text-orange-400">\u26a0 Your paper structure and MCQ count ({mcqCount}) are both set \u2014 MCQs will be generated as an additional section.</p>
+                  <p className="text-[11px] text-orange-400">⚠ Your paper structure and MCQ count ({mcqCount}) are both set — MCQs will be generated as an additional section.</p>
                 )}
               </div>
             )}
