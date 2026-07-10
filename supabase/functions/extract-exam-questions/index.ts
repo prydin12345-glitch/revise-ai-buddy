@@ -1628,6 +1628,8 @@ function buildPrompt(params: {
   insertPromptBlock?: string;
   originalStructurePromptBlock?: string;
   sectionBlueprintPromptBlock?: string;
+  studiedTexts?: any[];
+  paperBlueprint?: any;
 }): { systemPrompt: string; userPrompt: string } {
   const {
     subject,
