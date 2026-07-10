@@ -333,14 +333,6 @@ const ExamReview = () => {
     setTimeout(() => navigate('/my-exams'), 1000);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   const percentage = submission && !scoresHidden ? (submission.total_score / submission.total_marks) * 100 : 0;
   const pctTone = percentage >= 75 ? 'text-success' : percentage >= 50 ? 'text-warning' : 'text-danger';
   const correctCount = scoresHidden ? 0 : Object.values(answers).filter(a => a.is_correct).length;
@@ -348,6 +340,7 @@ const ExamReview = () => {
   const incorrectCount = scoresHidden ? 0 : questions.length - correctCount - partialCount;
 
   // ── Marked-paper filter + topic rollup ──────────────────────────────────
+  // NOTE: hooks must run on every render — keep them above any early return.
   const counts = useMemo(() => ({
     all: questions.length,
     correct: correctCount,
@@ -385,6 +378,14 @@ const ExamReview = () => {
     setFilter('all');
     requestAnimationFrame(() => scrollToQuestion(next.id));
   }, [questions, answers]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   // ── Sidebar Content (shared between mobile drawer and desktop sidebar) ────
   const sidebarContent = (
