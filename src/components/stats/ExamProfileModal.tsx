@@ -228,8 +228,9 @@ export const ExamProfileModal = ({
 
   // filtering handled inside InlineTopicPicker
 
+  const finalTier = educationalTier === "other" ? customTier.trim() : educationalTier;
   const handleSave = () => {
-    if (!profileName.trim() || selectedTopics.length === 0) return;
+    if (!profileName.trim() || selectedTopics.length === 0 || !finalTier) return;
     const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
     const finalTier = educationalTier === "other" ? customTier : educationalTier;
     const advancedWithMcq = { ...advanced, mcqCount };
