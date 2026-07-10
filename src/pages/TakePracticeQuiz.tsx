@@ -1,3 +1,4 @@
+
 /**
  * TakePracticeQuiz - Practice quiz taking and review component
  * 
@@ -12,6 +13,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { InsertPanel } from "@/components/insert/InsertPanel";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -213,6 +215,8 @@ const TakePracticeQuiz = () => {
   const [userAnswers, setUserAnswers] = useState<Record<string, UserAnswer>>({});
   const [loading, setLoading] = useState(true);
   const [quizTitle, setQuizTitle] = useState("");
+  const [insertFigures, setInsertFigures] = useState<any[]>([]);
+  const [showFigures, setShowFigures] = useState(false);
   const [subjectColor, setSubjectColor] = useState("#3B82F6");
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [showResults, setShowResults] = useState(false);
@@ -699,6 +703,7 @@ const TakePracticeQuiz = () => {
       }
 
       setQuizTitle(quizSet.set_name);
+      setInsertFigures(Array.isArray((quizSet as any).insert_figures) ? (quizSet as any).insert_figures : []);
       setSubjectColor(quizSet.subject_id || "#3B82F6");
 
       // Load resource pack if exists
@@ -1730,6 +1735,16 @@ const TakePracticeQuiz = () => {
               <Menu className="h-5 w-5" />
             </Button>
             <h1 className="font-semibold text-base lg:text-lg truncate max-w-[200px] lg:max-w-[300px]">{quizTitle}</h1>
+            {insertFigures.length > 0 && (
+              <Button
+                variant={showFigures ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowFigures(!showFigures)}
+                className="flex-shrink-0"
+              >
+                {showFigures ? "Questions" : `Figures (${insertFigures.length})`}
+              </Button>
+            )}
           </div>
 
           {/* Center: Question number (e.g., "Question 2c") */}
@@ -3053,7 +3068,15 @@ const TakePracticeQuiz = () => {
       </AlertDialog>
 
       <AlertDialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
-        <AlertDialogContent>
+        {showFigures && (
+        <div className="fixed inset-0 top-14 z-40 bg-background overflow-y-auto">
+          <InsertPanel figures={insertFigures} />
+          <div className="max-w-2xl mx-auto px-4 pb-8">
+            <Button className="w-full" onClick={() => setShowFigures(false)}>Back to questions</Button>
+          </div>
+        </div>
+      )}
+      <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Submit Practice Quiz?</AlertDialogTitle><AlertDialogDescription className="space-y-2"><p>You've answered {answeredCount} out of {questions.length} questions.</p>{unansweredCount > 0 && <p className="text-amber-600 font-medium">⚠️ {unansweredCount} question(s) are unanswered.</p>}{flaggedQuestions.size > 0 && <p className="text-blue-600">🚩 {flaggedQuestions.size} question(s) flagged for review.</p>}</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Review Answers</AlertDialogCancel>
