@@ -122,6 +122,7 @@ const SubjectDetail = () => {
       mcq_options_count: structureSettings?.mcqOptionsCount ?? 4,
       include_graphs: structureSettings?.includeGraphs ?? false,
       include_tables: structureSettings?.includeTables ?? false,
+      studied_texts: (advanced as any)?.studiedTexts ?? null,
     };
     if (editingProfile) {
       await updateProfile(editingProfile.id, payload);
