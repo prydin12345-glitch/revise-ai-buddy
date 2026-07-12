@@ -1318,6 +1318,7 @@ const TakePracticeQuiz = () => {
         newAnswers[currentQuestion.id] = {
           answer: "",
           workingOut: "",
+          finalAnswer: "",
           submitted: false,
           answerLatex: undefined,
           useMathInput: undefined,
