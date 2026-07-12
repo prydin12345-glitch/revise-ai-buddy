@@ -89,6 +89,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ResourcePack, ResourceItem } from "@/components/practice/ResourcePackUploader";
 import { QuizQuestionErrorBoundary } from "@/components/quiz/QuizQuestionErrorBoundary";
+import PracticeQuizSidebar from "@/components/quiz/PracticeQuizSidebar";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
@@ -1814,98 +1815,82 @@ const TakePracticeQuiz = () => {
       )}
 
       <div className="flex flex-1 w-full">
-        {/* Sidebar - fixed width, scrollable */}
-        <aside className={`${hideNavigation ? 'w-0 overflow-hidden' : sidebarOpen ? 'w-56 lg:w-60' : 'w-0 overflow-hidden'} lg:block ${sidebarOpen && !hideNavigation ? 'fixed lg:relative inset-0 lg:inset-auto z-40 lg:z-auto' : ''} transition-all duration-300 border-r bg-card/50 flex-shrink-0`}>
-          {sidebarOpen && !hideNavigation && (
-            <div className="fixed inset-0 bg-black/50 lg:hidden z-30" onClick={() => setSidebarOpen(false)} />
-          )}
-          <div className="relative z-40 bg-card h-full sticky top-[4.5rem] max-h-[calc(100vh-4.5rem)] overflow-y-auto">
-            <div className="p-4 lg:p-5 flex flex-col gap-5 h-full">
-              <div>
-                <h2 className="text-xs font-semibold mb-3 text-muted-foreground tracking-wide">QUESTIONS</h2>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {questions.map((q) => {
-                    const { className, style } = getQuestionButtonStyle(q);
-                    return (
-                      <button key={q.id} onClick={() => guardNavigation(() => { setCurrentIndex(questions.indexOf(q)); window.scrollTo({ top: 0, behavior: 'smooth' }); if (window.innerWidth < 1024) setSidebarOpen(false); })} className={className} style={style}>
-                        {q.question_number}
-                        {flaggedQuestions.has(q.id) && (
-                          <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full p-0.5">
-                            <Flag className="w-2 h-2 text-white" fill="white" />
+        {/* Sidebar — Proposal C "Paper Index" */}
+        <PracticeQuizSidebar
+          questions={questions as any}
+          currentIndex={currentIndex}
+          setCurrentIndex={setCurrentIndex}
+          userAnswers={userAnswers as any}
+          flaggedQuestions={flaggedQuestions}
+          subjectColor={subjectColor}
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          hideNavigation={hideNavigation}
+          isReviewMode={isReviewMode}
+          answeredCount={answeredCount}
+          totalQuestions={questions.length}
+          onNavigateToQuizzes={() => navigate('/quizzes')}
+          onSubmitAll={
+            isReviewMode
+              ? undefined
+              : () => guardNavigation(() => setShowSubmitDialog(true))
+          }
+          guardNavigation={guardNavigation}
+          bottomSlot={
+            resourcePack && resourcePack.items.length > 0 ? (
+              <Collapsible open={resourcesExpanded} onOpenChange={setResourcesExpanded}>
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center justify-between w-full text-left group py-1">
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="w-4 h-4" style={{ color: subjectColor }} />
+                      <span className="text-[11px] font-semibold text-muted-foreground tracking-wider uppercase">
+                        Resources
+                      </span>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 tabular-nums">
+                        {resourcePack.items.length}
+                      </Badge>
+                    </div>
+                    {resourcesExpanded ? (
+                      <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2">
+                  <ScrollArea className="max-h-64">
+                    <div className="space-y-2 pr-2">
+                      {resourcePack.items.map((item) => (
+                        <div
+                          key={item.id}
+                          className="p-2 rounded-token-sm border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-xs">{item.source_label}</span>
+                            <Badge variant="outline" className="text-[10px] capitalize px-1">
+                              {item.resource_type.replace('_', ' ')}
+                            </Badge>
                           </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="space-y-1.5 text-xs text-muted-foreground">
-                <div><span className="font-medium text-foreground">Answered:</span> {answeredCount}/{questions.length}</div>
-                <div><span className="font-medium text-foreground">Flagged:</span> {flaggedQuestions.size}</div>
-              </div>
-              {/* Submit All / Exit button - contextual based on mode */}
-              {isReviewMode ? (
-                <Button variant="outline" size="sm" className="mt-2" onClick={() => navigate('/quizzes')}>Exit Review</Button>
-              ) : (
-                <Button variant="destructive" size="sm" className="mt-2" onClick={() => guardNavigation(() => setShowSubmitDialog(true))}>Submit All</Button>
-              )}
+                          {item.content_text && (
+                            <p className="text-[11px] text-muted-foreground line-clamp-2">
+                              {item.content_text.substring(0, 100)}...
+                            </p>
+                          )}
+                          {item.word_count && (
+                            <p className="text-[10px] text-muted-foreground mt-1 tabular-nums">
+                              {item.word_count} words
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </CollapsibleContent>
+              </Collapsible>
+            ) : null
+          }
+        />
 
-              {/* Resource Pack Section - at bottom of sidebar */}
-              {resourcePack && resourcePack.items.length > 0 && (
-                <Collapsible open={resourcesExpanded} onOpenChange={setResourcesExpanded} className="mt-4 pt-4 border-t border-border">
-                  <CollapsibleTrigger asChild>
-                    <button className="flex items-center justify-between w-full text-left group">
-                      <div className="flex items-center gap-2">
-                        <BookOpen className="w-4 h-4" style={{ color: subjectColor }} />
-                        <span className="text-xs font-semibold text-muted-foreground tracking-wide">RESOURCES</span>
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                          {resourcePack.items.length}
-                        </Badge>
-                      </div>
-                      {resourcesExpanded ? (
-                        <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                      )}
-                    </button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="mt-3">
-                    <ScrollArea className="max-h-64">
-                      <div className="space-y-2 pr-2">
-                        {resourcePack.items.map((item) => (
-                          <div 
-                            key={item.id} 
-                            className="p-2 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
-                            onClick={() => {
-                              // Could open a modal here in the future
-                            }}
-                          >
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-xs">{item.source_label}</span>
-                              <Badge variant="outline" className="text-[10px] capitalize px-1">
-                                {item.resource_type.replace('_', ' ')}
-                              </Badge>
-                            </div>
-                            {item.content_text && (
-                              <p className="text-[11px] text-muted-foreground line-clamp-2">
-                                {item.content_text.substring(0, 100)}...
-                              </p>
-                            )}
-                            {item.word_count && (
-                              <p className="text-[10px] text-muted-foreground mt-1">
-                                {item.word_count} words
-                              </p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </CollapsibleContent>
-                </Collapsible>
-              )}
-            </div>
-          </div>
-        </aside>
 
         {/* Main content - takes remaining space, with bottom nav */}
         <main className="flex-1 flex flex-col min-h-[calc(100vh-4.5rem)] min-w-0">
