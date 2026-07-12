@@ -3047,89 +3047,42 @@ const TakePracticeQuiz = () => {
             </div>
           </div>
 
-          {/* Sticky bottom navigation */}
-          <div className="sticky bottom-0 border-t bg-card/95 backdrop-blur p-3 lg:p-4">
-            <div className="max-w-5xl mx-auto flex gap-3">
-              {/* In review mode: show only navigation buttons + Exit review */}
-              {isReviewMode ? (
-                <>
-                  <Button 
-                    onClick={() => { setCurrentIndex(prev => prev - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
-                    disabled={currentIndex === 0} 
-                    variant="outline" 
-                    size="lg" 
-                    className="flex-1"
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-1 lg:mr-2" />
-                    <span className="hidden sm:inline">Previous</span>
-                    <span className="sm:hidden">Prev</span>
-                  </Button>
-                  <Button 
-                    onClick={() => navigate('/quizzes')} 
-                    variant="default"
-                    size="lg" 
-                    className="flex-1 min-w-0"
-                  >
-                    <span className="truncate">Exit Review</span>
-                  </Button>
-                  <Button 
-                    onClick={() => { setCurrentIndex(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
-                    disabled={currentIndex === questions.length - 1} 
-                    variant="outline" 
-                    size="lg" 
-                    className="flex-1"
-                  >
-                    <span>Next</span>
-                    <ChevronRight className="w-4 h-4 ml-1 lg:ml-2" />
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button 
-                    onClick={() => guardNavigation(() => { setCurrentIndex(prev => prev - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); })} 
-                    disabled={currentIndex === 0} 
-                    variant="outline" 
-                    size="lg" 
-                    className="flex-1"
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-1 lg:mr-2" />
-                    <span className="hidden sm:inline">Previous</span>
-                    <span className="sm:hidden">Prev</span>
-                  </Button>
-                  <Button 
-                    onClick={handleSubmitAnswer} 
-                    disabled={currentAnswer.submitted || isGrading || (
-                      !currentAnswer.answer.trim() && 
-                      !(currentAnswer.tableGridAnswers && Object.values(currentAnswer.tableGridAnswers).some(arr => arr.length > 0)) &&
-                      !(currentAnswer.tableGridInputs && Object.values(currentAnswer.tableGridInputs).some(obj => Object.values(obj).some(v => v !== '' && v !== 0)))
-                    )} 
-                    size="lg" 
-                    className="flex-1 min-w-0" 
-                    style={{ backgroundColor: currentAnswer.submitted ? undefined : subjectColor }}
-                  >
-                    {isGrading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        <span className="hidden sm:inline">Grading...</span>
-                      </>
-                    ) : (
-                      <span className="truncate">Submit Answer</span>
-                    )}
-                  </Button>
-                  <Button 
-                    onClick={() => guardNavigation(() => { setCurrentIndex(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); })} 
-                    disabled={currentIndex === questions.length - 1} 
-                    variant="outline" 
-                    size="lg" 
-                    className="flex-1"
-                  >
-                    <span>Next</span>
-                    <ChevronRight className="w-4 h-4 ml-1 lg:ml-2" />
-                  </Button>
-                </>
-              )}
+          {/* Sticky bottom navigation — review mode only. Active-quiz actions live in the card. */}
+          {isReviewMode && (
+            <div className="sticky bottom-0 border-t bg-card/95 backdrop-blur p-3 lg:p-4">
+              <div className="max-w-5xl mx-auto flex gap-3">
+                <Button
+                  onClick={() => { setCurrentIndex(prev => prev - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  disabled={currentIndex === 0}
+                  variant="outline"
+                  size="lg"
+                  className="flex-1"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1 lg:mr-2" />
+                  <span className="hidden sm:inline">Previous</span>
+                  <span className="sm:hidden">Prev</span>
+                </Button>
+                <Button
+                  onClick={() => navigate('/quizzes')}
+                  variant="default"
+                  size="lg"
+                  className="flex-1 min-w-0"
+                >
+                  <span className="truncate">Exit Review</span>
+                </Button>
+                <Button
+                  onClick={() => { setCurrentIndex(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  disabled={currentIndex === questions.length - 1}
+                  variant="outline"
+                  size="lg"
+                  className="flex-1"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="w-4 h-4 ml-1 lg:ml-2" />
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </main>
       </div>
 
