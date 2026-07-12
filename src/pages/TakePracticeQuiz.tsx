@@ -1360,6 +1360,7 @@ const TakePracticeQuiz = () => {
           [currentQuestion.id]: {
             answer: "",
             workingOut: "",
+            finalAnswer: "",
             submitted: false,
             graphPlottedPoints: [],
             graphSegments: [],
