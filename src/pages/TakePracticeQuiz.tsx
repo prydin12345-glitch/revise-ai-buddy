@@ -90,6 +90,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ResourcePack, ResourceItem } from "@/components/practice/ResourcePackUploader";
 import { QuizQuestionErrorBoundary } from "@/components/quiz/QuizQuestionErrorBoundary";
 import PracticeQuizSidebar from "@/components/quiz/PracticeQuizSidebar";
+import QuestionCardShell from "@/components/quiz/QuestionCardShell";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
@@ -1896,19 +1897,28 @@ const TakePracticeQuiz = () => {
         <main className="flex-1 flex flex-col min-h-[calc(100vh-4.5rem)] min-w-0">
           {/* Scrollable question area */}
           <div className="flex-1 p-4 lg:p-6 xl:p-8 overflow-y-auto">
-            <div className="max-w-5xl mx-auto w-full">
-              {/* Question Card */}
-              <Card className="border-l-4" style={{ borderLeftColor: subjectColor }}>
-                <CardContent className="p-5 lg:p-8 space-y-6 lg:space-y-8">
-                  {/* Question header - shows specific question number (e.g., "Question 2c") */}
-                  <div className="flex justify-between items-start gap-4">
-                    <span className="text-lg font-semibold text-foreground">
-                      Question {currentQuestion.question_number}
-                    </span>
-                    <Badge style={{ backgroundColor: subjectColor, color: 'white' }} className="text-sm px-3 py-1 shrink-0">
-                      {currentQuestion.marks} marks
-                    </Badge>
-                  </div>
+            <div className="w-full">
+              {(() => {
+                const qnum = String(currentQuestion.question_number ?? "").trim();
+                const m = qnum.match(/^(\d+)\s*[\(\)]?\s*([a-z]?)\)?/i);
+                const parent = m ? m[1] : qnum;
+                const part = m ? (m[2] || "").toLowerCase() : "";
+                return (
+                  <QuestionCardShell
+                    parent={parent}
+                    part={part || undefined}
+                    subtopic={currentQuestion.subtopic}
+                    marks={currentQuestion.marks}
+                    subjectColor={subjectColor}
+                    active
+                    metadata={{
+                      topic: (currentQuestion as any).topic,
+                      difficulty: (currentQuestion as any).difficulty,
+                      aiGenerated: Boolean((currentQuestion as any).ai_generated ?? true),
+                    }}
+                  >
+                <div className="space-y-6 lg:space-y-8">
+
 
                   <QuizQuestionErrorBoundary questionId={currentQuestion.id}>
                     {/* Question text */}
@@ -2778,24 +2788,43 @@ const TakePracticeQuiz = () => {
                       }
                     }
 
-                    // Default: standard text input with math keypad
+                    // Default: grounded Answer Slate — Proposal B
                     return (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-muted-foreground">Your Answer</span>
-                          <Button
-                            variant={showMathKeypad ? "secondary" : "ghost"}
-                            size="icon"
-                            onClick={() => setShowMathKeypad(prev => !prev)}
-                            disabled={currentAnswer.submitted}
-                            title="Math symbols"
+                      <div className="answer-slate" aria-label="Answer area">
+                        <div className="flex items-center justify-between mb-3">
+                          <div
+                            role="tablist"
+                            aria-label="Answer mode"
+                            className="inline-flex items-center p-0.5 rounded-token-sm bg-background border border-border text-[12px]"
                           >
-                            <Calculator className="w-4 h-4" />
-                          </Button>
+                            <button
+                              type="button"
+                              role="tab"
+                              aria-selected={!showMathKeypad}
+                              disabled={currentAnswer.submitted}
+                              onClick={() => setShowMathKeypad(false)}
+                              className={`px-3 py-1 rounded-[6px] font-medium transition-colors ${!showMathKeypad ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                            >
+                              Text
+                            </button>
+                            <button
+                              type="button"
+                              role="tab"
+                              aria-selected={showMathKeypad}
+                              disabled={currentAnswer.submitted}
+                              onClick={() => setShowMathKeypad(true)}
+                              className={`px-3 py-1 rounded-[6px] font-medium transition-colors ${showMathKeypad ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                            >
+                              Math
+                            </button>
+                          </div>
+                          <span className="text-[11px] uppercase tracking-wider text-muted-foreground tabular-nums">
+                            {currentQuestion.marks} {currentQuestion.marks === 1 ? "mark" : "marks"}
+                          </span>
                         </div>
-                        <Textarea 
+                        <Textarea
                           ref={answerTextareaRef}
-                          value={currentAnswer.answer} 
+                          value={currentAnswer.answer}
                           onChange={(e) => {
                             const newAnswer = { ...currentAnswer, answer: e.target.value };
                             setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
@@ -2804,80 +2833,77 @@ const TakePracticeQuiz = () => {
                           onBlur={() => {
                             debouncedSave(currentQuestion.id, { answer: currentAnswer.answer });
                           }}
-                          disabled={currentAnswer.submitted} 
-                          className="min-h-[140px] lg:min-h-[160px] text-base text-foreground" 
-                          placeholder={currentQuestion.has_math ? "Type your answer here… (use the calculator icon for symbols)" : "Type your answer here…"}
+                          disabled={currentAnswer.submitted}
+                          className={`${currentQuestion.marks <= 2 ? "min-h-[100px]" : currentQuestion.marks <= 4 ? "min-h-[160px]" : currentQuestion.marks <= 7 ? "min-h-[220px]" : "min-h-[300px]"} text-[15px] leading-relaxed text-foreground bg-background rounded-token-sm border-border resize-y`}
+                          placeholder="Write your working here."
                         />
-                        
-                        {/* Docked Math Insert Keypad (below textarea) */}
+
+                        {/* Docked math keypad — slides in below the slate */}
                         {showMathKeypad && !currentAnswer.submitted && (
-                          <MathInsertKeypad
-                            isOpen={true}
-                            onClose={() => setShowMathKeypad(false)}
-                            onInsert={(text, caretOffset) => {
-                              const textarea = answerTextareaRef.current;
-                              if (!textarea) return;
-                              
-                              const start = textarea.selectionStart;
-                              const end = textarea.selectionEnd;
-                              const before = currentAnswer.answer.substring(0, start);
-                              const after = currentAnswer.answer.substring(end);
-                              const newValue = before + text + after;
-                              
-                              const newAnswer = { ...currentAnswer, answer: newValue };
-                              setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
-                              debouncedSave(currentQuestion.id, { answer: newValue });
-                              
-                              // Restore focus and cursor position (inside template if caretOffset provided)
-                              requestAnimationFrame(() => {
-                                textarea.focus();
-                                const insertEnd = start + text.length;
-                                const newPos = caretOffset ? insertEnd - caretOffset : insertEnd;
-                                textarea.setSelectionRange(newPos, newPos);
-                              });
-                            }}
-                            onNavigate={(direction) => {
-                              const textarea = answerTextareaRef.current;
-                              if (!textarea) return;
-                              const pos = textarea.selectionStart;
-                              const newPos = direction === 'left' 
-                                ? Math.max(0, pos - 1) 
-                                : Math.min(currentAnswer.answer.length, pos + 1);
-                              textarea.focus();
-                              textarea.setSelectionRange(newPos, newPos);
-                            }}
-                            onDelete={() => {
-                              const textarea = answerTextareaRef.current;
-                              if (!textarea) return;
-                              const start = textarea.selectionStart;
-                              const end = textarea.selectionEnd;
-                              
-                              if (start === end && start > 0) {
-                                const before = currentAnswer.answer.substring(0, start - 1);
-                                const after = currentAnswer.answer.substring(end);
-                                const newValue = before + after;
-                                const newAnswer = { ...currentAnswer, answer: newValue };
-                                setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
-                                debouncedSave(currentQuestion.id, { answer: newValue });
-                                requestAnimationFrame(() => {
-                                  textarea.focus();
-                                  textarea.setSelectionRange(start - 1, start - 1);
-                                });
-                              } else if (start !== end) {
+                          <div className="docked-keypad mt-3" role="toolbar" aria-label="Math keypad">
+                            <MathInsertKeypad
+                              isOpen={true}
+                              onClose={() => setShowMathKeypad(false)}
+                              onInsert={(text, caretOffset) => {
+                                const textarea = answerTextareaRef.current;
+                                if (!textarea) return;
+                                const start = textarea.selectionStart;
+                                const end = textarea.selectionEnd;
                                 const before = currentAnswer.answer.substring(0, start);
                                 const after = currentAnswer.answer.substring(end);
-                                const newValue = before + after;
+                                const newValue = before + text + after;
                                 const newAnswer = { ...currentAnswer, answer: newValue };
                                 setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
                                 debouncedSave(currentQuestion.id, { answer: newValue });
                                 requestAnimationFrame(() => {
                                   textarea.focus();
-                                  textarea.setSelectionRange(start, start);
+                                  const insertEnd = start + text.length;
+                                  const newPos = caretOffset ? insertEnd - caretOffset : insertEnd;
+                                  textarea.setSelectionRange(newPos, newPos);
                                 });
-                              }
-                            }}
-                            subjectColor={subjectColor}
-                          />
+                              }}
+                              onNavigate={(direction) => {
+                                const textarea = answerTextareaRef.current;
+                                if (!textarea) return;
+                                const pos = textarea.selectionStart;
+                                const newPos = direction === 'left'
+                                  ? Math.max(0, pos - 1)
+                                  : Math.min(currentAnswer.answer.length, pos + 1);
+                                textarea.focus();
+                                textarea.setSelectionRange(newPos, newPos);
+                              }}
+                              onDelete={() => {
+                                const textarea = answerTextareaRef.current;
+                                if (!textarea) return;
+                                const start = textarea.selectionStart;
+                                const end = textarea.selectionEnd;
+                                if (start === end && start > 0) {
+                                  const before = currentAnswer.answer.substring(0, start - 1);
+                                  const after = currentAnswer.answer.substring(end);
+                                  const newValue = before + after;
+                                  const newAnswer = { ...currentAnswer, answer: newValue };
+                                  setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                                  debouncedSave(currentQuestion.id, { answer: newValue });
+                                  requestAnimationFrame(() => {
+                                    textarea.focus();
+                                    textarea.setSelectionRange(start - 1, start - 1);
+                                  });
+                                } else if (start !== end) {
+                                  const before = currentAnswer.answer.substring(0, start);
+                                  const after = currentAnswer.answer.substring(end);
+                                  const newValue = before + after;
+                                  const newAnswer = { ...currentAnswer, answer: newValue };
+                                  setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                                  debouncedSave(currentQuestion.id, { answer: newValue });
+                                  requestAnimationFrame(() => {
+                                    textarea.focus();
+                                    textarea.setSelectionRange(start, start);
+                                  });
+                                }
+                              }}
+                              subjectColor={subjectColor}
+                            />
+                          </div>
                         )}
                       </div>
                     );
@@ -2928,8 +2954,10 @@ const TakePracticeQuiz = () => {
                       Grading your answer...
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+                  </QuestionCardShell>
+                );
+              })()}
             </div>
           </div>
 
