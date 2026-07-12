@@ -97,8 +97,15 @@ All colors MUST be HSL.
     --surface-panel-2: 216 38% 97%;
     --surface-hover: 216 30% 91%;
 
-    /* Border radius */
+    /* Border radius scale */
     --radius: 0.75rem;
+    --radius-lg: 0.75rem; /* 12px — cards, slates, popovers */
+    --radius-sm: 0.5rem;  /* 8px  — chips, small controls */
+
+    /* Elevated surface (keypads, popovers, tooltips) */
+    --surface-elevated: 0 0% 100%;
+    --surface-inset: 216 40% 96%; /* answer slate inset in light */
+
 
     /* Status colors */
     --success: 152 55% 38%;
@@ -148,86 +155,95 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 220 38% 5%;
-    --foreground: 216 40% 95%;
+    /* Premium monochrome — true-neutral achromatic scale.
+       No blue/violet tint. Chroma reserved for state & subject accent. */
+    --background: 220 8% 8%;
+    --foreground: 210 15% 94%;
 
-    --card: 220 35% 8%;
-    --card-foreground: 216 40% 95%;
+    --card: 220 8% 13%;
+    --card-foreground: 210 15% 94%;
 
-    --popover: 220 33% 11%;
-    --popover-foreground: 216 40% 95%;
+    --popover: 220 8% 16%;
+    --popover-foreground: 210 15% 94%;
 
-    --primary: 231 91% 65%;
-    --primary-foreground: 0 0% 100%;
-    --primary-light: 231 91% 25%;
+    --primary: 231 91% 68%;
+    --primary-foreground: 220 8% 8%;
+    --primary-light: 231 91% 22%;
 
-    --secondary: 220 33% 12%;
-    --secondary-foreground: 216 40% 95%;
+    --secondary: 220 8% 15%;
+    --secondary-foreground: 210 15% 94%;
 
-    --muted: 220 28% 15%;
-    --muted-foreground: 218 15% 72%;
+    --muted: 220 8% 16%;
+    --muted-foreground: 210 10% 62%; /* AA on card (13%) */
 
-    --accent: 220 33% 14%;
-    --accent-foreground: 216 40% 95%;
+    --accent: 220 8% 16%;
+    --accent-foreground: 210 15% 94%;
 
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --destructive-muted: 0 65% 18%;
-    --destructive-border: 0 62% 40%;
+    --destructive: 0 65% 62%;
+    --destructive-foreground: 220 8% 8%;
+    --destructive-muted: 0 40% 18%;
+    --destructive-border: 0 55% 40%;
 
-    --border: 224 18% 20%;
-    --input: 224 18% 20%;
-    --ring: 231 91% 65%;
+    --border: 220 6% 20%;
+    --input: 220 6% 20%;
+    --ring: 231 91% 68%;
 
-    /* Custom surfaces — unified panel used for chat AND review paper */
-    --surface-panel: 224 22% 10%;
-    --surface-panel-2: 225 20% 13%;
-    --surface-hover: 226 21% 17%;
+    /* Elevated surface — keypads, popovers, tooltips */
+    --surface-elevated: 220 8% 16%;
+    --surface-inset: 220 8% 11%; /* answer slate inset in dark */
+
+    /* Unified paper/panel surfaces */
+    --surface-panel: 220 8% 13%;
+    --surface-panel-2: 220 8% 15%;
+    --surface-hover: 220 8% 18%;
 
     /* Danger */
-    --danger: 351 88% 68%;
+    --danger: 351 72% 62%;
     --danger-foreground: 0 0% 100%;
-    --danger-muted: 0 60% 15%;
-    --danger-border: 351 80% 50%;
+    --danger-muted: 351 40% 18%;
+    --danger-border: 351 60% 45%;
 
-    --success: 152 58% 52%;
-    --success-foreground: 0 0% 100%;
-    --success-light: 152 58% 22%;
-    --success-border: 152 58% 45%;
+    /* Muted-but-crisp status colours for near-black surfaces */
+    --success: 142 45% 55%;
+    --success-foreground: 220 8% 8%;
+    --success-light: 142 35% 18%;
+    --success-border: 142 40% 40%;
 
-    --warning: 38 92% 60%;
-    --warning-foreground: 38 100% 12%;
-    --warning-light: 38 92% 18%;
-    --warning-border: 38 92% 50%;
-    
-    --info: 262 83% 58%;
-    --info-foreground: 0 0% 100%;
-    --info-light: 262 83% 20%;
-    --info-border: 262 83% 35%;
-    
-    --gradient-success: linear-gradient(135deg, hsl(142 71% 45%) 0%, hsl(142 71% 40%) 100%);
-    --gradient-warning: linear-gradient(135deg, hsl(38 92% 50%) 0%, hsl(38 92% 45%) 100%);
-    --gradient-info: linear-gradient(135deg, hsl(262 83% 58%) 0%, hsl(262 83% 53%) 100%);
+    --warning: 38 70% 60%;
+    --warning-foreground: 38 100% 10%;
+    --warning-light: 38 40% 18%;
+    --warning-border: 38 60% 45%;
 
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 210 85% 55%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 47% 18%;
-    --sidebar-accent-foreground: 210 85% 70%;
-    --sidebar-border: 222 30% 25%;
-    --sidebar-ring: 210 85% 55%;
+    --info: 231 70% 68%;
+    --info-foreground: 220 8% 8%;
+    --info-light: 231 40% 20%;
+    --info-border: 231 50% 45%;
 
-    --gradient-hero: linear-gradient(135deg, hsl(210 85% 55%) 0%, hsl(210 85% 45%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(222 47% 14%) 0%, hsl(222 47% 11%) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(142 45% 50%) 0%, hsl(142 45% 45%) 100%);
+    --gradient-warning: linear-gradient(135deg, hsl(38 70% 55%) 0%, hsl(38 70% 50%) 100%);
+    --gradient-info: linear-gradient(135deg, hsl(231 70% 62%) 0%, hsl(231 70% 58%) 100%);
 
-    --shadow-soft: 0 4px 20px -2px hsl(210 85% 60% / 0.2);
-    --shadow-card: 0 2px 8px -1px hsl(0 0% 0% / 0.2);
+    /* Sidebar — one step lighter than app, one step darker than card */
+    --sidebar-background: 220 8% 10%;
+    --sidebar-foreground: 210 15% 94%;
+    --sidebar-primary: 231 91% 68%;
+    --sidebar-primary-foreground: 220 8% 8%;
+    --sidebar-accent: 220 8% 15%;
+    --sidebar-accent-foreground: 210 15% 94%;
+    --sidebar-border: 220 6% 18%;
+    --sidebar-ring: 231 91% 68%;
 
-    /* AI tutor brand gradient (blue → violet) */
-    --tutor-grad-from: 231 91% 65%;
-    --tutor-grad-to: 258 90% 66%;
+    --gradient-hero: linear-gradient(135deg, hsl(231 91% 65%) 0%, hsl(231 91% 55%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(220 8% 14%) 0%, hsl(220 8% 13%) 100%);
+
+    --shadow-soft: 0 4px 20px -2px hsl(0 0% 0% / 0.35);
+    --shadow-card: 0 1px 2px 0 hsl(0 0% 0% / 0.4);
+
+    /* AI tutor brand gradient (unchanged) */
+    --tutor-grad-from: 231 91% 68%;
+    --tutor-grad-to: 258 90% 70%;
   }
+
 }
 
 @layer utilities {
