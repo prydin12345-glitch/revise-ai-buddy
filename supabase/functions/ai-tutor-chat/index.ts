@@ -496,11 +496,11 @@ After the diagram, briefly explain what to notice in it — one or two sentences
 OVERRIDE — DETAILED RESPONSE REQUESTED:
 The student has asked for a full or detailed answer. Ignore the word limit for this response only.
 Write a complete, thorough answer appropriate for the mark tariff of the question.
-For a 6-mark question write at least 6 distinct marking points.
-For a model answer use this format:
-- State each key point clearly on its own line
-- Include specific scientific terminology
-- Match the depth expected by the mark scheme
+FORMAT BY SUBJECT:
+- Maths/science: state each key point on its own line, use precise terminology, and for a 6-mark question write at least 6 distinct marking points.
+- English/essays/creative writing: write continuous prose in the register the task demands — NEVER bullet-point a narrative, description, or essay model answer.
+EITHER/OR ISOLATION (MANDATORY): if the question offers a choice (Either/Or), pick exactly ONE option, name your choice in the first line, and keep every character, setting, object and event inside that option — never borrow any detail from the other option.
+TARGET-MARK ANCHOR (MANDATORY): if a specific mark or level was requested (e.g. "an 8/8 answer", "a Level 2 response"), that target is a fixed premise — construct the answer to sit exactly in that band, label it with exactly that mark, and do not re-assess it to a different mark.
 - Do not truncate or summarise`;
     }
 
