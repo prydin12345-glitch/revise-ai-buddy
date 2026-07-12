@@ -2983,6 +2983,64 @@ const TakePracticeQuiz = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Unified action bar — Proposal D: primary + nav docked at bottom-right of the card */}
+                {!isReviewMode && (
+                  <div className="mt-6 pt-4 border-t border-border flex items-center justify-between gap-3">
+                    <Button
+                      onClick={() => guardNavigation(() => { setCurrentIndex(prev => prev - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); })}
+                      disabled={currentIndex === 0}
+                      variant="ghost"
+                      className="rounded-token-sm"
+                    >
+                      <ChevronLeft className="w-4 h-4 mr-1" />
+                      Previous
+                    </Button>
+                    <div className="flex items-center gap-2">
+                      {!currentAnswer.submitted && currentIndex < questions.length - 1 && (
+                        <Button
+                          onClick={() => guardNavigation(() => { setCurrentIndex(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); })}
+                          variant="ghost"
+                          className="rounded-token-sm text-muted-foreground"
+                        >
+                          Skip
+                        </Button>
+                      )}
+                      {currentAnswer.submitted ? (
+                        <Button
+                          onClick={() => guardNavigation(() => { setCurrentIndex(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); })}
+                          disabled={currentIndex === questions.length - 1}
+                          className="rounded-token-sm px-5 font-semibold"
+                          style={{ backgroundColor: subjectColor, color: '#fff' }}
+                        >
+                          Next
+                          <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={handleSubmitAnswer}
+                          disabled={isGrading || (
+                            !currentAnswer.answer.trim() &&
+                            !(currentAnswer.finalAnswer && currentAnswer.finalAnswer.trim()) &&
+                            !(currentAnswer.tableGridAnswers && Object.values(currentAnswer.tableGridAnswers).some(arr => arr.length > 0)) &&
+                            !(currentAnswer.tableGridInputs && Object.values(currentAnswer.tableGridInputs).some(obj => Object.values(obj).some(v => v !== '' && v !== 0)))
+                          )}
+                          className="rounded-token-sm px-5 font-semibold"
+                          style={{ backgroundColor: subjectColor, color: '#fff' }}
+                        >
+                          {isGrading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Grading…
+                            </>
+                          ) : (
+                            "Submit answer"
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
                   </QuestionCardShell>
                 );
               })()}
