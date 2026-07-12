@@ -2827,6 +2827,9 @@ const TakePracticeQuiz = () => {
                             {currentQuestion.marks} {currentQuestion.marks === 1 ? "mark" : "marks"}
                           </span>
                         </div>
+                        {currentQuestion.marks >= 3 && (
+                          <div className="slate-zone-label mb-1.5">Working</div>
+                        )}
                         <Textarea
                           ref={answerTextareaRef}
                           value={currentAnswer.answer}
@@ -2840,8 +2843,28 @@ const TakePracticeQuiz = () => {
                           }}
                           disabled={currentAnswer.submitted}
                           className={`${currentQuestion.marks <= 2 ? "min-h-[100px]" : currentQuestion.marks <= 4 ? "min-h-[160px]" : currentQuestion.marks <= 7 ? "min-h-[220px]" : "min-h-[300px]"} text-[15px] leading-relaxed text-foreground bg-background rounded-token-sm border-border resize-y`}
-                          placeholder="Write your working here."
+                          placeholder={currentQuestion.marks >= 3 ? "Show every step of your working here." : "Write your answer here."}
                         />
+
+                        {/* Final answer — dedicated single-line for multi-mark questions */}
+                        {currentQuestion.marks >= 3 && (
+                          <div className="slate-final mt-4">
+                            <div className="slate-zone-label mb-1.5">Final answer</div>
+                            <input
+                              type="text"
+                              value={currentAnswer.finalAnswer ?? ""}
+                              onChange={(e) => {
+                                const newAnswer = { ...currentAnswer, finalAnswer: e.target.value };
+                                setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                                debouncedSave(currentQuestion.id, { finalAnswer: e.target.value } as any);
+                              }}
+                              disabled={currentAnswer.submitted}
+                              placeholder="Your final answer"
+                              className="w-full h-11 px-3 text-[15px] font-medium text-foreground bg-background border border-border rounded-token-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
+                            />
+                          </div>
+                        )}
+
 
                         {/* Docked math keypad — slides in below the slate */}
                         {showMathKeypad && !currentAnswer.submitted && (
