@@ -50,6 +50,20 @@ serve(async (req) => {
 
     const { questionId, setId, answerText, normalizedAnswer, workingOut } = await req.json();
 
+    // Subject-aware marking: fetch the set's subject so English isn't graded
+    // by a "mathematics tutor" persona (the root of pedantic retrieval
+    // marking and level-band drift on essay subjects).
+    let gradeSubject = '';
+    try {
+      const { data: gradeSet } = await supabase
+        .from('practice_question_sets')
+        .select('subject_name, subject_id')
+        .eq('id', setId)
+        .maybeSingle();
+      gradeSubject = String((gradeSet as any)?.subject_name || (gradeSet as any)?.subject_id || '');
+    } catch (_) { /* fall back to generic persona */ }
+    const isHumanitiesMarking = /english|literature|history|religio|sociolog|politics|philosoph/i.test(gradeSubject);
+
     // Fetch question details
     const { data: question, error: questionError } = await supabase
       .from('practice_questions')
@@ -1462,7 +1476,9 @@ serve(async (req) => {
     const displayAnswer = answerText || '(No answer provided)';
 
     // Prepare grading prompt
-    const systemPrompt = `You are a supportive mathematics tutor grading student work. Your role is to:
+    const systemPrompt = `${isHumanitiesMarking
+      ? `You are an experienced ${gradeSubject || 'humanities'} examiner grading student work with levels-based mark schemes.`
+      : 'You are a supportive mathematics tutor grading student work.'} Your role is to:
 - Award partial credit generously for correct methods, even if the final answer is wrong
 - Provide constructive, encouraging feedback that addresses the student directly ("You")
 - Format LaTeX expressions clearly and include decimal equivalents where helpful
@@ -1493,6 +1509,20 @@ For mathematical expressions in feedback:
 - Include brief explanations like "These values satisfy the equation within 0 ≤ x < 2π"
 ${FEEDBACK_FORMATTING_RULE}${MARKING_QUALITY_RULES}`;
 
+    const markingRules = `
+
+MARK-FIRST DISCIPLINE (MANDATORY):
+1. Decide the mark FIRST against the level descriptors, THEN write feedback that justifies exactly that mark. Never write feedback and then pick a mark to match its tone.
+2. ALIGNMENT: mark and feedback must agree mathematically. If your feedback identifies a fundamental misreading of the text or task, the mark MUST fall in the lower half of the levels — never award a top-level mark alongside a critique of core understanding.
+3. RETRIEVAL LENIENCY: for list/identify/retrieval questions, accept any paraphrase that preserves a correct point's meaning. Only demand exact wording when the question explicitly asks for a quotation.${isHumanitiesMarking ? `
+
+ENGLISH/HUMANITIES LEVEL BANDS (levels-based, not point-counting):
+- 8-mark analysis: Level 4 (7-8) perceptive & detailed; Level 3 (5-6) clear & relevant; Level 2 (3-4) some understanding; Level 1 (1-2) simple/limited.
+- 15-20 mark evaluation: the top level requires a perceptive, developed, well-supported judgement; a response built on a misreading of the text is capped at the second level from the bottom regardless of writing quality.
+- Extended writing (e.g. 40 marks): judge content & organisation (about 60% of the marks) and technical accuracy (about 40%) separately, then sum.
+- Interpret the tool fields as: method_marks = analysis/interpretation quality; accuracy_marks = technical accuracy and precision of textual support.` : ''}`;
+
+
     const userPrompt = `Question: ${question.question_text}
 
 Correct Answer: ${question.correct_answer || 'See worked solution'}
@@ -1519,7 +1549,7 @@ Return your grading using the grade_practice_answer function.`;
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'system', content: systemPrompt },
+          { role: 'system', content: systemPrompt + markingRules },
           { role: 'user', content: userPrompt }
         ],
         tools: [{
