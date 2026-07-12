@@ -778,7 +778,7 @@ const TakePracticeQuiz = () => {
       // 3. Initialize blank answers first
       const initialAnswers: Record<string, UserAnswer> = {};
       sortedQuestions.forEach((q) => {
-        initialAnswers[q.id] = { answer: "", workingOut: "", submitted: false };
+        initialAnswers[q.id] = { answer: "", workingOut: "", finalAnswer: "", submitted: false };
       });
 
       // 4. Load submitted answers from database (BEFORE restoring drafts)
