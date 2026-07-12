@@ -153,9 +153,10 @@ interface Question {
 }
 
 interface UserAnswer {
-  answer: string; // Plain text or converted from latex
+  answer: string; // Plain text or converted from latex — the working / primary body
   answerLatex?: string; // LaTeX representation (canonical for math)
   workingOut?: string;
+  finalAnswer?: string; // Distinct final-answer field for multi-mark (>=3) questions
   submitted: boolean;
   isCorrect?: boolean;
   score?: number;
