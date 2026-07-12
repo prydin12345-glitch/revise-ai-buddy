@@ -545,20 +545,18 @@ html.text-scale-large  { font-size: 18px; }
 
 /* Pin KaTeX inline math to prose baseline & colour.
    Display equations (.katex-display) keep a slightly larger optical size. */
+.katex,
+.katex * {
+  color: currentColor !important;
+}
 .katex {
   font-size: 1em !important;
-  color: inherit !important;
   line-height: 1.4;
 }
 .katex-display > .katex {
   font-size: 1.05em !important;
 }
-.katex .mathnormal,
-.katex .mathit,
-.katex .mathrm,
-.katex .mathbf {
-  color: inherit;
-}
+
 
 /* Tabular numerals for exam-grade numeric UI (marks, timers, counters, scores).
    Overrides the global font-feature-settings that disable ligatures. */
@@ -759,3 +757,68 @@ html.text-scale-large  { font-size: 18px; }
 .progress-ring .track { stroke: hsl(var(--border)); }
 .progress-ring .fill  { stroke: var(--subject-accent, hsl(var(--primary))); transition: stroke-dashoffset 400ms ease; }
 
+
+/* =========================================================================
+   CRITICAL: Dark-mode contrast lock for the question card + math surfaces
+   -------------------------------------------------------------------------
+   In dark mode, Tailwind Typography (`prose`) keeps ink-dark greys, so
+   MathRenderer output (which wraps content in `.prose prose-sm`) rendered
+   near-invisible on the dark card. We hard-pin every text node inside
+   .quiz-paper-card / .answer-slate to the card foreground token, and force
+   KaTeX to inherit that colour via currentColor.
+   ========================================================================= */
+.quiz-paper-card,
+.quiz-paper-card p,
+.quiz-paper-card li,
+.quiz-paper-card span,
+.quiz-paper-card strong,
+.quiz-paper-card em,
+.quiz-paper-card h1,
+.quiz-paper-card h2,
+.quiz-paper-card h3,
+.quiz-paper-card h4 {
+  color: hsl(var(--card-foreground));
+}
+.quiz-paper-card .prose,
+.quiz-paper-card .prose * {
+  color: hsl(var(--card-foreground)) !important;
+}
+.quiz-paper-card .text-muted-foreground,
+.quiz-paper-card .quiz-parent-stem,
+.quiz-paper-card .quiz-parent-stem * {
+  color: hsl(var(--muted-foreground)) !important;
+}
+.dark .quiz-paper-card,
+.dark .quiz-paper-card p,
+.dark .quiz-paper-card li,
+.dark .quiz-paper-card span:not(.text-muted-foreground),
+.dark .quiz-paper-card .prose,
+.dark .quiz-paper-card .prose * {
+  color: hsl(210 15% 94%) !important;
+}
+.dark .quiz-paper-card .text-muted-foreground,
+.dark .quiz-paper-card .quiz-parent-stem,
+.dark .quiz-paper-card .quiz-parent-stem * {
+  color: hsl(215 15% 65%) !important;
+}
+
+/* Answer slate inherits the same contrast contract */
+.answer-slate,
+.answer-slate textarea,
+.answer-slate input,
+.answer-slate .prose,
+.answer-slate .prose * {
+  color: hsl(var(--foreground));
+}
+.dark .answer-slate,
+.dark .answer-slate textarea,
+.dark .answer-slate input {
+  color: hsl(210 15% 94%);
+}
+
+/* KaTeX always tracks its container */
+.quiz-paper-card .katex,
+.answer-slate .katex,
+.katex-html {
+  color: currentColor !important;
+}
