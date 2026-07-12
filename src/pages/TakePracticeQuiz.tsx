@@ -1897,19 +1897,28 @@ const TakePracticeQuiz = () => {
         <main className="flex-1 flex flex-col min-h-[calc(100vh-4.5rem)] min-w-0">
           {/* Scrollable question area */}
           <div className="flex-1 p-4 lg:p-6 xl:p-8 overflow-y-auto">
-            <div className="max-w-5xl mx-auto w-full">
-              {/* Question Card */}
-              <Card className="border-l-4" style={{ borderLeftColor: subjectColor }}>
-                <CardContent className="p-5 lg:p-8 space-y-6 lg:space-y-8">
-                  {/* Question header - shows specific question number (e.g., "Question 2c") */}
-                  <div className="flex justify-between items-start gap-4">
-                    <span className="text-lg font-semibold text-foreground">
-                      Question {currentQuestion.question_number}
-                    </span>
-                    <Badge style={{ backgroundColor: subjectColor, color: 'white' }} className="text-sm px-3 py-1 shrink-0">
-                      {currentQuestion.marks} marks
-                    </Badge>
-                  </div>
+            <div className="w-full">
+              {(() => {
+                const qnum = String(currentQuestion.question_number ?? "").trim();
+                const m = qnum.match(/^(\d+)\s*[\(\)]?\s*([a-z]?)\)?/i);
+                const parent = m ? m[1] : qnum;
+                const part = m ? (m[2] || "").toLowerCase() : "";
+                return (
+                  <QuestionCardShell
+                    parent={parent}
+                    part={part || undefined}
+                    subtopic={currentQuestion.subtopic}
+                    marks={currentQuestion.marks}
+                    subjectColor={subjectColor}
+                    active
+                    metadata={{
+                      topic: (currentQuestion as any).topic,
+                      difficulty: (currentQuestion as any).difficulty,
+                      aiGenerated: Boolean((currentQuestion as any).ai_generated ?? true),
+                    }}
+                  >
+                <div className="space-y-6 lg:space-y-8">
+
 
                   <QuizQuestionErrorBoundary questionId={currentQuestion.id}>
                     {/* Question text */}
