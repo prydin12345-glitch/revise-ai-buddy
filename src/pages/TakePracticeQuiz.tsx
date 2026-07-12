@@ -1496,6 +1496,7 @@ const TakePracticeQuiz = () => {
         resetAnswers[q.id] = {
           answer: "",
           workingOut: "",
+          finalAnswer: "",
           submitted: false,
           tableGridAnswers: undefined,
           tableGridInputs: undefined,
