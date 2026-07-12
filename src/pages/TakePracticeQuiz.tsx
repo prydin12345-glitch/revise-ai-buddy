@@ -2938,8 +2938,10 @@ const TakePracticeQuiz = () => {
                       Grading your answer...
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+                  </QuestionCardShell>
+                );
+              })()}
             </div>
           </div>
 
