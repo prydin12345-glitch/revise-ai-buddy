@@ -90,6 +90,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ResourcePack, ResourceItem } from "@/components/practice/ResourcePackUploader";
 import { QuizQuestionErrorBoundary } from "@/components/quiz/QuizQuestionErrorBoundary";
 import PracticeQuizSidebar from "@/components/quiz/PracticeQuizSidebar";
+import QuestionCardShell from "@/components/quiz/QuestionCardShell";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
