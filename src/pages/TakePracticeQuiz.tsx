@@ -153,9 +153,10 @@ interface Question {
 }
 
 interface UserAnswer {
-  answer: string; // Plain text or converted from latex
+  answer: string; // Plain text or converted from latex — the working / primary body
   answerLatex?: string; // LaTeX representation (canonical for math)
   workingOut?: string;
+  finalAnswer?: string; // Distinct final-answer field for multi-mark (>=3) questions
   submitted: boolean;
   isCorrect?: boolean;
   score?: number;
@@ -777,7 +778,7 @@ const TakePracticeQuiz = () => {
       // 3. Initialize blank answers first
       const initialAnswers: Record<string, UserAnswer> = {};
       sortedQuestions.forEach((q) => {
-        initialAnswers[q.id] = { answer: "", workingOut: "", submitted: false };
+        initialAnswers[q.id] = { answer: "", workingOut: "", finalAnswer: "", submitted: false };
       });
 
       // 4. Load submitted answers from database (BEFORE restoring drafts)
@@ -1317,6 +1318,7 @@ const TakePracticeQuiz = () => {
         newAnswers[currentQuestion.id] = {
           answer: "",
           workingOut: "",
+          finalAnswer: "",
           submitted: false,
           answerLatex: undefined,
           useMathInput: undefined,
@@ -1358,6 +1360,7 @@ const TakePracticeQuiz = () => {
           [currentQuestion.id]: {
             answer: "",
             workingOut: "",
+            finalAnswer: "",
             submitted: false,
             graphPlottedPoints: [],
             graphSegments: [],
@@ -1433,6 +1436,7 @@ const TakePracticeQuiz = () => {
           [currentQuestion.id]: {
             answer: "",
             workingOut: "",
+            finalAnswer: "",
             submitted: false,
             tableGridAnswers: undefined,
             tableGridInputs: undefined,
@@ -1492,6 +1496,7 @@ const TakePracticeQuiz = () => {
         resetAnswers[q.id] = {
           answer: "",
           workingOut: "",
+          finalAnswer: "",
           submitted: false,
           tableGridAnswers: undefined,
           tableGridInputs: undefined,
@@ -2822,6 +2827,9 @@ const TakePracticeQuiz = () => {
                             {currentQuestion.marks} {currentQuestion.marks === 1 ? "mark" : "marks"}
                           </span>
                         </div>
+                        {currentQuestion.marks >= 3 && (
+                          <div className="slate-zone-label mb-1.5">Working</div>
+                        )}
                         <Textarea
                           ref={answerTextareaRef}
                           value={currentAnswer.answer}
@@ -2835,8 +2843,28 @@ const TakePracticeQuiz = () => {
                           }}
                           disabled={currentAnswer.submitted}
                           className={`${currentQuestion.marks <= 2 ? "min-h-[100px]" : currentQuestion.marks <= 4 ? "min-h-[160px]" : currentQuestion.marks <= 7 ? "min-h-[220px]" : "min-h-[300px]"} text-[15px] leading-relaxed text-foreground bg-background rounded-token-sm border-border resize-y`}
-                          placeholder="Write your working here."
+                          placeholder={currentQuestion.marks >= 3 ? "Show every step of your working here." : "Write your answer here."}
                         />
+
+                        {/* Final answer — dedicated single-line for multi-mark questions */}
+                        {currentQuestion.marks >= 3 && (
+                          <div className="slate-final mt-4">
+                            <div className="slate-zone-label mb-1.5">Final answer</div>
+                            <input
+                              type="text"
+                              value={currentAnswer.finalAnswer ?? ""}
+                              onChange={(e) => {
+                                const newAnswer = { ...currentAnswer, finalAnswer: e.target.value };
+                                setUserAnswers({ ...userAnswers, [currentQuestion.id]: newAnswer });
+                                debouncedSave(currentQuestion.id, { finalAnswer: e.target.value } as any);
+                              }}
+                              disabled={currentAnswer.submitted}
+                              placeholder="Your final answer"
+                              className="w-full h-11 px-3 text-[15px] font-medium text-foreground bg-background border border-border rounded-token-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
+                            />
+                          </div>
+                        )}
+
 
                         {/* Docked math keypad — slides in below the slate */}
                         {showMathKeypad && !currentAnswer.submitted && (
@@ -2955,95 +2983,106 @@ const TakePracticeQuiz = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Unified action bar — Proposal D: primary + nav docked at bottom-right of the card */}
+                {!isReviewMode && (
+                  <div className="mt-6 pt-4 border-t border-border flex items-center justify-between gap-3">
+                    <Button
+                      onClick={() => guardNavigation(() => { setCurrentIndex(prev => prev - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); })}
+                      disabled={currentIndex === 0}
+                      variant="ghost"
+                      className="rounded-token-sm"
+                    >
+                      <ChevronLeft className="w-4 h-4 mr-1" />
+                      Previous
+                    </Button>
+                    <div className="flex items-center gap-2">
+                      {!currentAnswer.submitted && currentIndex < questions.length - 1 && (
+                        <Button
+                          onClick={() => guardNavigation(() => { setCurrentIndex(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); })}
+                          variant="ghost"
+                          className="rounded-token-sm text-muted-foreground"
+                        >
+                          Skip
+                        </Button>
+                      )}
+                      {currentAnswer.submitted ? (
+                        <Button
+                          onClick={() => guardNavigation(() => { setCurrentIndex(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); })}
+                          disabled={currentIndex === questions.length - 1}
+                          className="rounded-token-sm px-5 font-semibold"
+                          style={{ backgroundColor: subjectColor, color: '#fff' }}
+                        >
+                          Next
+                          <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={handleSubmitAnswer}
+                          disabled={isGrading || (
+                            !currentAnswer.answer.trim() &&
+                            !(currentAnswer.finalAnswer && currentAnswer.finalAnswer.trim()) &&
+                            !(currentAnswer.tableGridAnswers && Object.values(currentAnswer.tableGridAnswers).some(arr => arr.length > 0)) &&
+                            !(currentAnswer.tableGridInputs && Object.values(currentAnswer.tableGridInputs).some(obj => Object.values(obj).some(v => v !== '' && v !== 0)))
+                          )}
+                          className="rounded-token-sm px-5 font-semibold"
+                          style={{ backgroundColor: subjectColor, color: '#fff' }}
+                        >
+                          {isGrading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Grading…
+                            </>
+                          ) : (
+                            "Submit answer"
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
                   </QuestionCardShell>
                 );
               })()}
             </div>
           </div>
 
-          {/* Sticky bottom navigation */}
-          <div className="sticky bottom-0 border-t bg-card/95 backdrop-blur p-3 lg:p-4">
-            <div className="max-w-5xl mx-auto flex gap-3">
-              {/* In review mode: show only navigation buttons + Exit review */}
-              {isReviewMode ? (
-                <>
-                  <Button 
-                    onClick={() => { setCurrentIndex(prev => prev - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
-                    disabled={currentIndex === 0} 
-                    variant="outline" 
-                    size="lg" 
-                    className="flex-1"
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-1 lg:mr-2" />
-                    <span className="hidden sm:inline">Previous</span>
-                    <span className="sm:hidden">Prev</span>
-                  </Button>
-                  <Button 
-                    onClick={() => navigate('/quizzes')} 
-                    variant="default"
-                    size="lg" 
-                    className="flex-1 min-w-0"
-                  >
-                    <span className="truncate">Exit Review</span>
-                  </Button>
-                  <Button 
-                    onClick={() => { setCurrentIndex(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
-                    disabled={currentIndex === questions.length - 1} 
-                    variant="outline" 
-                    size="lg" 
-                    className="flex-1"
-                  >
-                    <span>Next</span>
-                    <ChevronRight className="w-4 h-4 ml-1 lg:ml-2" />
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button 
-                    onClick={() => guardNavigation(() => { setCurrentIndex(prev => prev - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); })} 
-                    disabled={currentIndex === 0} 
-                    variant="outline" 
-                    size="lg" 
-                    className="flex-1"
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-1 lg:mr-2" />
-                    <span className="hidden sm:inline">Previous</span>
-                    <span className="sm:hidden">Prev</span>
-                  </Button>
-                  <Button 
-                    onClick={handleSubmitAnswer} 
-                    disabled={currentAnswer.submitted || isGrading || (
-                      !currentAnswer.answer.trim() && 
-                      !(currentAnswer.tableGridAnswers && Object.values(currentAnswer.tableGridAnswers).some(arr => arr.length > 0)) &&
-                      !(currentAnswer.tableGridInputs && Object.values(currentAnswer.tableGridInputs).some(obj => Object.values(obj).some(v => v !== '' && v !== 0)))
-                    )} 
-                    size="lg" 
-                    className="flex-1 min-w-0" 
-                    style={{ backgroundColor: currentAnswer.submitted ? undefined : subjectColor }}
-                  >
-                    {isGrading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        <span className="hidden sm:inline">Grading...</span>
-                      </>
-                    ) : (
-                      <span className="truncate">Submit Answer</span>
-                    )}
-                  </Button>
-                  <Button 
-                    onClick={() => guardNavigation(() => { setCurrentIndex(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); })} 
-                    disabled={currentIndex === questions.length - 1} 
-                    variant="outline" 
-                    size="lg" 
-                    className="flex-1"
-                  >
-                    <span>Next</span>
-                    <ChevronRight className="w-4 h-4 ml-1 lg:ml-2" />
-                  </Button>
-                </>
-              )}
+          {/* Sticky bottom navigation — review mode only. Active-quiz actions live in the card. */}
+          {isReviewMode && (
+            <div className="sticky bottom-0 border-t bg-card/95 backdrop-blur p-3 lg:p-4">
+              <div className="max-w-5xl mx-auto flex gap-3">
+                <Button
+                  onClick={() => { setCurrentIndex(prev => prev - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  disabled={currentIndex === 0}
+                  variant="outline"
+                  size="lg"
+                  className="flex-1"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1 lg:mr-2" />
+                  <span className="hidden sm:inline">Previous</span>
+                  <span className="sm:hidden">Prev</span>
+                </Button>
+                <Button
+                  onClick={() => navigate('/quizzes')}
+                  variant="default"
+                  size="lg"
+                  className="flex-1 min-w-0"
+                >
+                  <span className="truncate">Exit Review</span>
+                </Button>
+                <Button
+                  onClick={() => { setCurrentIndex(prev => prev + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  disabled={currentIndex === questions.length - 1}
+                  variant="outline"
+                  size="lg"
+                  className="flex-1"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="w-4 h-4 ml-1 lg:ml-2" />
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </main>
       </div>
 
