@@ -545,20 +545,18 @@ html.text-scale-large  { font-size: 18px; }
 
 /* Pin KaTeX inline math to prose baseline & colour.
    Display equations (.katex-display) keep a slightly larger optical size. */
+.katex,
+.katex * {
+  color: currentColor !important;
+}
 .katex {
   font-size: 1em !important;
-  color: inherit !important;
   line-height: 1.4;
 }
 .katex-display > .katex {
   font-size: 1.05em !important;
 }
-.katex .mathnormal,
-.katex .mathit,
-.katex .mathrm,
-.katex .mathbf {
-  color: inherit;
-}
+
 
 /* Tabular numerals for exam-grade numeric UI (marks, timers, counters, scores).
    Overrides the global font-feature-settings that disable ligatures. */
