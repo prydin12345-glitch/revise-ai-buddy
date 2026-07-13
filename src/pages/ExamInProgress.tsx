@@ -1662,37 +1662,20 @@ const ExamInProgress = () => {
                       <h2 className="text-lg lg:text-xl font-bold mb-3 lg:mb-4 mt-2">Question {parentNum}</h2>
                     )}
                     
-                    <Card 
-                      ref={(el) => questionRefs.current[question.id] = el}
-                      className={`p-4 sm:p-6 lg:p-8 shadow-sm ${isSubPart ? 'border-l-4' : ''}`}
-                      style={isSubPart ? { borderLeftColor: subjectColor + '40' } : undefined}
+                    <div ref={(el) => questionRefs.current[question.id] = el}>
+                    <QuestionCardShell
+                      parent={parentNum || String(question.question_number ?? '')}
+                      part={isSubPart ? subPart : undefined}
+                      subtopic={(question as any).subtopic}
+                      marks={question.marks}
+                      subjectColor={subjectColor}
+                      active={true}
+                      metadata={{
+                        topic: (question as any).topic,
+                        difficulty: (question as any).difficulty,
+                      }}
                     >
-                      <div className="flex items-start justify-between mb-3 sm:mb-4 lg:mb-6">
-                        <div className="flex items-center gap-3">
-                          {isSubPart ? (
-                            <span className="text-base lg:text-lg font-semibold text-foreground">
-                              ({subPart})
-                            </span>
-                          ) : (
-                            <Badge 
-                              variant="secondary" 
-                              className="text-base lg:text-lg px-3 lg:px-4 py-1 lg:py-1.5 font-bold border-2 transition-all"
-                              style={{ 
-                                backgroundColor: subjectColor,
-                                borderColor: subjectColor,
-                                color: '#FFFFFF'
-                              }}
-                            >
-                              Q{question.question_number}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <span className="text-xs sm:text-sm font-medium text-muted-foreground">
-                            ({question.marks} {question.marks === 1 ? 'mark' : 'marks'})
-                          </span>
-                        </div>
-                      </div>
+
 
                   <QuizQuestionErrorBoundary questionId={question.id}>
                   {/* Render question text - handle tick/X tables, tables, fill-in-blanks, or standard */}
