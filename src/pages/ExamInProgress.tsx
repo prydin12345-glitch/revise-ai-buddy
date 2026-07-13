@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { InsertPanel } from "@/components/insert/InsertPanel";
+import { QuestionCardShell } from "@/components/quiz/QuestionCardShell";
+import { AnswerSlate } from "@/components/quiz/AnswerSlate";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
