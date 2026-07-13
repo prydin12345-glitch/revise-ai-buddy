@@ -2451,11 +2451,11 @@ const ExamInProgress = () => {
             </div>
           </div>
 
-          {/* Bottom Navigation */}
-          <div className="border-t bg-muted/30 px-3 sm:px-4 lg:px-6 py-3 sm:py-4 flex items-center justify-between">
+          {/* Bottom Navigation — section-level, aligned with practice workspace radius/typography */}
+          <div className="border-t border-border bg-background/80 backdrop-blur-sm px-3 sm:px-4 lg:px-6 py-3 sm:py-4 flex items-center justify-between">
             <Button
-              variant="outline"
-              className="px-3 sm:px-6 min-h-[44px]"
+              variant="ghost"
+              className="rounded-token-sm px-3 sm:px-5 min-h-[44px] text-foreground hover:bg-muted"
               onClick={() => guardNavigation(async () => {
                 await flushCurrentPageSaves();
                 setCurrentPage(prev => prev - 1);
@@ -2463,29 +2463,33 @@ const ExamInProgress = () => {
               disabled={!hasPrevPage}
             >
               <ChevronLeft className="h-4 w-4 shrink-0" />
-              <span className="hidden sm:inline ml-1">Previous Section</span>
+              <span className="hidden sm:inline ml-1.5 font-medium">Previous section</span>
             </Button>
-            
+
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground tabular-nums hidden sm:inline">
+              Section {currentPage + 1} of {questionGroups.length}
+            </span>
+
             {hasNextPage ? (
               <Button
-                className="px-3 sm:px-6 min-h-[44px]"
+                className="rounded-token-sm px-4 sm:px-5 min-h-[44px] font-semibold bg-foreground text-background hover:bg-foreground/90"
                 onClick={() => guardNavigation(async () => {
                   await flushCurrentPageSaves();
                   setCurrentPage(prev => prev + 1);
                 })}
               >
-                <span className="hidden sm:inline mr-1">Next Section</span>
+                <span className="hidden sm:inline mr-1.5">Next section</span>
                 <ChevronRight className="h-4 w-4 shrink-0" />
               </Button>
             ) : !isReadOnly && (
               <Button
-                variant="default"
-                className="px-4 sm:px-8 min-h-[44px]"
+                className="rounded-token-sm px-4 sm:px-6 min-h-[44px] font-semibold"
+                style={{ backgroundColor: subjectColor, color: '#fff' }}
                 onClick={() => guardNavigation(() => setShowSubmitDialog(true))}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Submit Exam
+                Submit exam
               </Button>
             )}
           </div>
