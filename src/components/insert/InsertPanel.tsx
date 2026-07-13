@@ -13,8 +13,15 @@ interface InsertPanelProps {
 export function InsertPanel({ figures, subjectColor }: InsertPanelProps) {
   if (!figures || figures.length === 0) {
     return (
-      <div className="p-8 text-center text-sm text-muted-foreground">
-        This exam has no insert.
+      <div className="max-w-3xl mx-auto p-6 sm:p-10">
+        <div className="rounded-token-lg border border-dashed border-border bg-surface-elevated/40 px-6 py-10 text-center">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            Resource insert
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            No reference figures required for this paper.
+          </p>
+        </div>
       </div>
     );
   }
