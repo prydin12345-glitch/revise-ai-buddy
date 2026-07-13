@@ -163,6 +163,8 @@ export const AnswerSlate: React.FC<AnswerSlateProps> = ({
             </Button>
           </div>
         ) : null}
+      </section>
+
 
       {/* ─── Docked keypad — sits flush under the slate, not floating ─── */}
       {keypadSlot ? (
