@@ -1590,29 +1590,29 @@ const ExamInProgress = () => {
             <h2 className="text-base sm:text-lg font-semibold flex-1 text-center lg:text-left">
               {currentGroup.parent}
             </h2>
-            {insertFigures.length > 0 && (
-              <div className="flex items-center rounded-lg border border-border p-0.5 shrink-0 mr-2" role="tablist" aria-label="Exam view">
-                <button
-                  role="tab"
-                  aria-selected={examView === 'questions'}
-                  onClick={() => setExamView('questions')}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${examView === 'questions' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                  Questions
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={examView === 'insert'}
-                  onClick={() => setExamView('insert')}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors inline-flex items-center gap-1 ${examView === 'insert' ? 'bg-primary text-primary-foreground' : 'text-primary hover:text-primary/80 ring-1 ring-primary/40'}`}
-                >
-                  Insert
-                  <span className={`inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-semibold ${examView === 'insert' ? 'bg-primary-foreground/20' : 'bg-primary/15'}`}>
+            <div className="flex items-center rounded-token-sm border border-border p-0.5 shrink-0 mr-2" role="tablist" aria-label="Exam view">
+              <button
+                role="tab"
+                aria-selected={examView === 'questions'}
+                onClick={() => setExamView('questions')}
+                className={`px-3 py-1 rounded-[6px] text-xs font-medium transition-colors ${examView === 'questions' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Questions
+              </button>
+              <button
+                role="tab"
+                aria-selected={examView === 'insert'}
+                onClick={() => setExamView('insert')}
+                className={`px-3 py-1 rounded-[6px] text-xs font-medium transition-colors inline-flex items-center gap-1.5 ${examView === 'insert' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Insert
+                {insertFigures.length > 0 && (
+                  <span className={`inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-semibold tabular-nums ${examView === 'insert' ? 'bg-background/20' : 'bg-muted'}`}>
                     {insertFigures.length}
                   </span>
-                </button>
-              </div>
-            )}
+                )}
+              </button>
+            </div>
             <span className="text-sm text-muted-foreground shrink-0">
               {currentPage + 1} / {questionGroups.length}
             </span>
