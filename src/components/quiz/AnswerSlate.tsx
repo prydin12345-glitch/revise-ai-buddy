@@ -40,9 +40,9 @@ interface AnswerSlateProps {
   /** Docked keypad slot — rendered directly under the slate. */
   keypadSlot?: React.ReactNode;
 
-  /** Primary CTA. */
-  primaryLabel: string;
-  onPrimary: () => void;
+  /** Primary CTA. Omit to hide the action bar entirely (e.g. section-level nav elsewhere). */
+  primaryLabel?: string;
+  onPrimary?: () => void;
   primaryDisabled?: boolean;
   primaryLoading?: boolean;
   /** Optional secondary CTA (e.g. Previous). Rendered left of primary. */
