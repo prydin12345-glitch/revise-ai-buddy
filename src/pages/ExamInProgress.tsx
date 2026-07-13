@@ -829,14 +829,20 @@ const ExamInProgress = () => {
     const currentSubject = examSubjectRef.current;
     const isMathExam = currentSubject?.toLowerCase().includes('math');
     
-    // Serialize based on exam type
+    // Serialize based on exam type — combine Working + Final Answer when both provided
+    const workingText = (answerData.workingOut || '').trim();
+    const finalText = (answerData.finalAnswer || '').trim();
     let answerText: string;
     if (isMathExam) {
-      // Math exam: save workingOut only (no separate final answer field)
-      answerText = answerData.workingOut || '';
+      // Math exam: primary field is working; append Final Answer when the split is used
+      answerText = finalText
+        ? (workingText ? `${workingText}\n\nFinal answer: ${finalText}` : finalText)
+        : workingText;
     } else {
-      // Non-math: save finalAnswer as plain text
-      answerText = answerData.finalAnswer || answerData.workingOut || '';
+      // Non-math: prefer finalAnswer; include working when both are present (multi-mark split)
+      answerText = workingText && finalText
+        ? `${workingText}\n\nFinal answer: ${finalText}`
+        : (finalText || workingText);
     }
     
     // Normalize the answer for grading (convert Unicode math to plain text)
