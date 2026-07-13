@@ -2443,7 +2443,8 @@ const ExamInProgress = () => {
                     </>
                   )}
                   </QuizQuestionErrorBoundary>
-                </Card>
+                </QuestionCardShell>
+                    </div>
                   </div>
                 );
               })}
