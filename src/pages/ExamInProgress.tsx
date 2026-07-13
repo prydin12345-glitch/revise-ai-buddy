@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { InsertPanel } from "@/components/insert/InsertPanel";
+import { QuestionCardShell } from "@/components/quiz/QuestionCardShell";
+import { AnswerSlate } from "@/components/quiz/AnswerSlate";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -827,14 +829,20 @@ const ExamInProgress = () => {
     const currentSubject = examSubjectRef.current;
     const isMathExam = currentSubject?.toLowerCase().includes('math');
     
-    // Serialize based on exam type
+    // Serialize based on exam type — combine Working + Final Answer when both provided
+    const workingText = (answerData.workingOut || '').trim();
+    const finalText = (answerData.finalAnswer || '').trim();
     let answerText: string;
     if (isMathExam) {
-      // Math exam: save workingOut only (no separate final answer field)
-      answerText = answerData.workingOut || '';
+      // Math exam: primary field is working; append Final Answer when the split is used
+      answerText = finalText
+        ? (workingText ? `${workingText}\n\nFinal answer: ${finalText}` : finalText)
+        : workingText;
     } else {
-      // Non-math: save finalAnswer as plain text
-      answerText = answerData.finalAnswer || answerData.workingOut || '';
+      // Non-math: prefer finalAnswer; include working when both are present (multi-mark split)
+      answerText = workingText && finalText
+        ? `${workingText}\n\nFinal answer: ${finalText}`
+        : (finalText || workingText);
     }
     
     // Normalize the answer for grading (convert Unicode math to plain text)
@@ -1588,29 +1596,29 @@ const ExamInProgress = () => {
             <h2 className="text-base sm:text-lg font-semibold flex-1 text-center lg:text-left">
               {currentGroup.parent}
             </h2>
-            {insertFigures.length > 0 && (
-              <div className="flex items-center rounded-lg border border-border p-0.5 shrink-0 mr-2" role="tablist" aria-label="Exam view">
-                <button
-                  role="tab"
-                  aria-selected={examView === 'questions'}
-                  onClick={() => setExamView('questions')}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${examView === 'questions' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                  Questions
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={examView === 'insert'}
-                  onClick={() => setExamView('insert')}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors inline-flex items-center gap-1 ${examView === 'insert' ? 'bg-primary text-primary-foreground' : 'text-primary hover:text-primary/80 ring-1 ring-primary/40'}`}
-                >
-                  Insert
-                  <span className={`inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-semibold ${examView === 'insert' ? 'bg-primary-foreground/20' : 'bg-primary/15'}`}>
+            <div className="flex items-center rounded-token-sm border border-border p-0.5 shrink-0 mr-2" role="tablist" aria-label="Exam view">
+              <button
+                role="tab"
+                aria-selected={examView === 'questions'}
+                onClick={() => setExamView('questions')}
+                className={`px-3 py-1 rounded-[6px] text-xs font-medium transition-colors ${examView === 'questions' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Questions
+              </button>
+              <button
+                role="tab"
+                aria-selected={examView === 'insert'}
+                onClick={() => setExamView('insert')}
+                className={`px-3 py-1 rounded-[6px] text-xs font-medium transition-colors inline-flex items-center gap-1.5 ${examView === 'insert' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Insert
+                {insertFigures.length > 0 && (
+                  <span className={`inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-semibold tabular-nums ${examView === 'insert' ? 'bg-background/20' : 'bg-muted'}`}>
                     {insertFigures.length}
                   </span>
-                </button>
-              </div>
-            )}
+                )}
+              </button>
+            </div>
             <span className="text-sm text-muted-foreground shrink-0">
               {currentPage + 1} / {questionGroups.length}
             </span>
@@ -1654,37 +1662,20 @@ const ExamInProgress = () => {
                       <h2 className="text-lg lg:text-xl font-bold mb-3 lg:mb-4 mt-2">Question {parentNum}</h2>
                     )}
                     
-                    <Card 
-                      ref={(el) => questionRefs.current[question.id] = el}
-                      className={`p-4 sm:p-6 lg:p-8 shadow-sm ${isSubPart ? 'border-l-4' : ''}`}
-                      style={isSubPart ? { borderLeftColor: subjectColor + '40' } : undefined}
+                    <div ref={(el) => questionRefs.current[question.id] = el}>
+                    <QuestionCardShell
+                      parent={parentNum || String(question.question_number ?? '')}
+                      part={isSubPart ? subPart : undefined}
+                      subtopic={(question as any).subtopic}
+                      marks={question.marks}
+                      subjectColor={subjectColor}
+                      active={true}
+                      metadata={{
+                        topic: (question as any).topic,
+                        difficulty: (question as any).difficulty,
+                      }}
                     >
-                      <div className="flex items-start justify-between mb-3 sm:mb-4 lg:mb-6">
-                        <div className="flex items-center gap-3">
-                          {isSubPart ? (
-                            <span className="text-base lg:text-lg font-semibold text-foreground">
-                              ({subPart})
-                            </span>
-                          ) : (
-                            <Badge 
-                              variant="secondary" 
-                              className="text-base lg:text-lg px-3 lg:px-4 py-1 lg:py-1.5 font-bold border-2 transition-all"
-                              style={{ 
-                                backgroundColor: subjectColor,
-                                borderColor: subjectColor,
-                                color: '#FFFFFF'
-                              }}
-                            >
-                              Q{question.question_number}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <span className="text-xs sm:text-sm font-medium text-muted-foreground">
-                            ({question.marks} {question.marks === 1 ? 'mark' : 'marks'})
-                          </span>
-                        </div>
-                      </div>
+
 
                   <QuizQuestionErrorBoundary questionId={question.id}>
                   {/* Render question text - handle tick/X tables, tables, fill-in-blanks, or standard */}
@@ -2220,250 +2211,165 @@ const ExamInProgress = () => {
                               />
                             </div>
                           );
-                        })() : examSubject.toLowerCase().includes('math') ? (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-base font-medium">Your Answer</Label>
-                        <Button
-                          variant={activeQuestionForMath === question.id ? "secondary" : "ghost"}
-                          size="icon"
-                          onClick={() => setActiveQuestionForMath(
-                            activeQuestionForMath === question.id ? null : question.id
-                          )}
-                          disabled={isReadOnly}
-                          title="Math symbols"
-                        >
-                          <Calculator className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      <Textarea 
+                        })() : (() => {
+                    // ─── Unified default answer surface (text + math text-based subjects) ───
+                    // MCQ / nuclear / graph / drawing / table / physics-override branches are
+                    // handled elsewhere and stay in their current shells until a focused audit.
+                    const isMathExam = examSubject.toLowerCase().includes('math');
+                    const marksHigh = (question.marks ?? 0) >= 3;
+                    const useSplit = isMathExam || marksHigh;
+                    const answer = userAnswers[question.id] || { workingOut: '', finalAnswer: '' };
+                    // When split is active: workingSlot writes to workingOut, finalSlot to finalAnswer
+                    // When no split: single input writes to finalAnswer (non-math) or workingOut (math short)
+                    const primaryField: 'workingOut' | 'finalAnswer' = useSplit
+                      ? 'workingOut'
+                      : (isMathExam ? 'workingOut' : 'finalAnswer');
+                    const primaryValue = primaryField === 'workingOut' ? answer.workingOut : answer.finalAnswer;
+
+                    const setField = (field: 'workingOut' | 'finalAnswer', val: string) => {
+                      if (field === 'finalAnswer' && !useSplit) {
+                        handleAnswerChange(question.id, val);
+                        return;
+                      }
+                      updateAnswer(question.id, { [field]: val });
+                      if (saveTimeouts.current[question.id]) clearTimeout(saveTimeouts.current[question.id]);
+                      saveTimeouts.current[question.id] = setTimeout(() => handleSaveAnswer(question.id), 1000);
+                    };
+
+                    const workingSlot = (
+                      <Textarea
                         ref={(el) => { if (el) answerTextareaRefs.current[question.id] = el; }}
-                        placeholder="Show your working and final answer here… (use the calculator icon for symbols)"
-                        value={userAnswers[question.id]?.workingOut || ''}
-                        onChange={(e) => {
-                          updateAnswer(question.id, { workingOut: e.target.value });
-                          // Trigger debounced save
-                          if (saveTimeouts.current[question.id]) {
-                            clearTimeout(saveTimeouts.current[question.id]);
-                          }
-                          saveTimeouts.current[question.id] = setTimeout(() => {
-                            handleSaveAnswer(question.id);
-                          }, 1000);
-                        }}
+                        placeholder={useSplit ? "Show your working…" : "Type your answer here…"}
+                        value={primaryValue || ''}
+                        onChange={(e) => setField(primaryField, e.target.value)}
                         onFocus={(e) => {
                           e.target.style.borderColor = subjectColor;
-                          e.target.style.borderWidth = '2px';
-                          e.target.style.outline = 'none';
-                          e.target.style.boxShadow = 'none';
                         }}
                         onBlur={async (e) => {
                           e.target.style.borderColor = '';
-                          e.target.style.borderWidth = '';
-                          e.target.style.outline = '';
-                          e.target.style.boxShadow = '';
-                          if (saveTimeouts.current[question.id]) {
-                            clearTimeout(saveTimeouts.current[question.id]);
-                          }
+                          if (saveTimeouts.current[question.id]) clearTimeout(saveTimeouts.current[question.id]);
                           await handleSaveAnswer(question.id);
                         }}
-                        className={`${getAnswerBoxHeight(question.marks, true, isMobileLayout)} resize-y text-base font-mono transition-all text-foreground`}
+                        className={`${getAnswerBoxHeight(question.marks, isMathExam, isMobileLayout)} resize-y text-[15px] leading-[1.6] transition-colors text-foreground bg-background`}
                         disabled={isReadOnly}
                       />
-                      {/* Docked Math Insert Keypad */}
-                      {activeQuestionForMath === question.id && !isReadOnly && (
-                        <MathInsertKeypad
-                          isOpen={true}
-                          onClose={() => setActiveQuestionForMath(null)}
-                          onInsert={(text, caretOffset) => {
-                            const textarea = answerTextareaRefs.current[question.id];
-                            if (!textarea) return;
-                            
-                            const start = textarea.selectionStart;
-                            const end = textarea.selectionEnd;
-                            const currentValue = userAnswers[question.id]?.workingOut || '';
-                            const before = currentValue.substring(0, start);
-                            const after = currentValue.substring(end);
-                            const newValue = before + text + after;
-                            
-                            updateAnswer(question.id, { workingOut: newValue });
-                            
-                            // Trigger save
-                            if (saveTimeouts.current[question.id]) {
-                              clearTimeout(saveTimeouts.current[question.id]);
-                            }
-                            saveTimeouts.current[question.id] = setTimeout(() => {
-                              handleSaveAnswer(question.id);
-                            }, 1000);
-                            
-                            // Restore focus and cursor (inside template if caretOffset provided)
+                    );
+
+                    const finalSlot = useSplit ? (
+                      <Input
+                        value={answer.finalAnswer || ''}
+                        onChange={(e) => {
+                          updateAnswer(question.id, { finalAnswer: e.target.value });
+                          if (saveTimeouts.current[question.id]) clearTimeout(saveTimeouts.current[question.id]);
+                          saveTimeouts.current[question.id] = setTimeout(() => handleSaveAnswer(question.id), 1000);
+                        }}
+                        onBlur={async () => {
+                          if (saveTimeouts.current[question.id]) clearTimeout(saveTimeouts.current[question.id]);
+                          await handleSaveAnswer(question.id);
+                        }}
+                        onFocus={(e) => { e.target.style.borderColor = subjectColor; }}
+                        placeholder="Enter your final answer"
+                        disabled={isReadOnly}
+                        className="text-[15px] font-medium bg-background"
+                      />
+                    ) : undefined;
+
+                    const keypadSlot = activeQuestionForMath === question.id && !isReadOnly ? (
+                      <MathInsertKeypad
+                        isOpen={true}
+                        onClose={() => setActiveQuestionForMath(null)}
+                        onInsert={(text, caretOffset) => {
+                          const textarea = answerTextareaRefs.current[question.id];
+                          if (!textarea) return;
+                          const start = textarea.selectionStart;
+                          const end = textarea.selectionEnd;
+                          const current = primaryField === 'workingOut' ? (answer.workingOut || '') : (answer.finalAnswer || '');
+                          const newValue = current.substring(0, start) + text + current.substring(end);
+                          setField(primaryField, newValue);
+                          requestAnimationFrame(() => {
+                            textarea.focus();
+                            const insertEnd = start + text.length;
+                            const newPos = caretOffset ? insertEnd - caretOffset : insertEnd;
+                            textarea.setSelectionRange(newPos, newPos);
+                          });
+                        }}
+                        onNavigate={(direction) => {
+                          const textarea = answerTextareaRefs.current[question.id];
+                          if (!textarea) return;
+                          const current = primaryField === 'workingOut' ? (answer.workingOut || '') : (answer.finalAnswer || '');
+                          const pos = textarea.selectionStart;
+                          const newPos = direction === 'left' ? Math.max(0, pos - 1) : Math.min(current.length, pos + 1);
+                          textarea.focus();
+                          textarea.setSelectionRange(newPos, newPos);
+                        }}
+                        onDelete={() => {
+                          const textarea = answerTextareaRefs.current[question.id];
+                          if (!textarea) return;
+                          const start = textarea.selectionStart;
+                          const end = textarea.selectionEnd;
+                          const current = primaryField === 'workingOut' ? (answer.workingOut || '') : (answer.finalAnswer || '');
+                          if (start === end && start > 0) {
+                            setField(primaryField, current.substring(0, start - 1) + current.substring(end));
                             requestAnimationFrame(() => {
                               textarea.focus();
-                              const insertEnd = start + text.length;
-                              const newPos = caretOffset ? insertEnd - caretOffset : insertEnd;
-                              textarea.setSelectionRange(newPos, newPos);
+                              textarea.setSelectionRange(start - 1, start - 1);
                             });
-                          }}
-                          onNavigate={(direction) => {
-                            const textarea = answerTextareaRefs.current[question.id];
-                            if (!textarea) return;
-                            const currentValue = userAnswers[question.id]?.workingOut || '';
-                            const pos = textarea.selectionStart;
-                            const newPos = direction === 'left' 
-                              ? Math.max(0, pos - 1) 
-                              : Math.min(currentValue.length, pos + 1);
-                            textarea.focus();
-                            textarea.setSelectionRange(newPos, newPos);
-                          }}
-                          onDelete={() => {
-                            const textarea = answerTextareaRefs.current[question.id];
-                            if (!textarea) return;
-                            const start = textarea.selectionStart;
-                            const end = textarea.selectionEnd;
-                            const currentValue = userAnswers[question.id]?.workingOut || '';
-                            
-                            if (start === end && start > 0) {
-                              const before = currentValue.substring(0, start - 1);
-                              const after = currentValue.substring(end);
-                              updateAnswer(question.id, { workingOut: before + after });
-                              requestAnimationFrame(() => {
-                                textarea.focus();
-                                textarea.setSelectionRange(start - 1, start - 1);
-                              });
-                            } else if (start !== end) {
-                              const before = currentValue.substring(0, start);
-                              const after = currentValue.substring(end);
-                              updateAnswer(question.id, { workingOut: before + after });
-                              requestAnimationFrame(() => {
-                                textarea.focus();
-                                textarea.setSelectionRange(start, start);
-                              });
-                            }
-                          }}
-                          subjectColor={subjectColor}
-                        />
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-base font-medium">Your Answer</Label>
-                        <Button
-                          variant={activeQuestionForMath === question.id ? "secondary" : "ghost"}
-                          size="icon"
-                          onClick={() => setActiveQuestionForMath(
-                            activeQuestionForMath === question.id ? null : question.id
-                          )}
-                          disabled={isReadOnly}
-                          title="Math symbols"
-                        >
-                          <Calculator className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      <Textarea 
-                        ref={(el) => { if (el) answerTextareaRefs.current[question.id] = el; }}
-                        placeholder="Type your answer here…"
-                        value={userAnswers[question.id]?.finalAnswer || ''}
-                        onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                        onFocus={(e) => {
-                          e.target.style.borderColor = subjectColor;
-                          e.target.style.borderWidth = '2px';
-                          e.target.style.outline = 'none';
-                          e.target.style.boxShadow = 'none';
-                        }}
-                        onBlur={async (e) => {
-                          e.target.style.borderColor = '';
-                          e.target.style.borderWidth = '';
-                          e.target.style.outline = '';
-                          e.target.style.boxShadow = '';
-                          if (e.target.value) {
-                            await handleSaveAnswer(question.id);
+                          } else if (start !== end) {
+                            setField(primaryField, current.substring(0, start) + current.substring(end));
+                            requestAnimationFrame(() => {
+                              textarea.focus();
+                              textarea.setSelectionRange(start, start);
+                            });
                           }
                         }}
-                        className={`${getAnswerBoxHeight(question.marks, false, isMobileLayout)} resize-y text-base transition-all text-foreground`}
-                        disabled={isReadOnly}
+                        subjectColor={subjectColor}
                       />
-                      {/* Docked Math Insert Keypad */}
-                      {activeQuestionForMath === question.id && !isReadOnly && (
-                        <MathInsertKeypad
-                          isOpen={true}
-                          onClose={() => setActiveQuestionForMath(null)}
-                          onInsert={(text, caretOffset) => {
-                            const textarea = answerTextareaRefs.current[question.id];
-                            if (!textarea) return;
-                            
-                            const start = textarea.selectionStart;
-                            const end = textarea.selectionEnd;
-                            const currentValue = userAnswers[question.id]?.finalAnswer || '';
-                            const before = currentValue.substring(0, start);
-                            const after = currentValue.substring(end);
-                            const newValue = before + text + after;
-                            
-                            handleAnswerChange(question.id, newValue);
-                            
-                            // Restore focus and cursor (inside template if caretOffset provided)
-                            requestAnimationFrame(() => {
-                              textarea.focus();
-                              const insertEnd = start + text.length;
-                              const newPos = caretOffset ? insertEnd - caretOffset : insertEnd;
-                              textarea.setSelectionRange(newPos, newPos);
-                            });
-                          }}
-                          onNavigate={(direction) => {
-                            const textarea = answerTextareaRefs.current[question.id];
-                            if (!textarea) return;
-                            const currentValue = userAnswers[question.id]?.finalAnswer || '';
-                            const pos = textarea.selectionStart;
-                            const newPos = direction === 'left' 
-                              ? Math.max(0, pos - 1) 
-                              : Math.min(currentValue.length, pos + 1);
-                            textarea.focus();
-                            textarea.setSelectionRange(newPos, newPos);
-                          }}
-                          onDelete={() => {
-                            const textarea = answerTextareaRefs.current[question.id];
-                            if (!textarea) return;
-                            const start = textarea.selectionStart;
-                            const end = textarea.selectionEnd;
-                            const currentValue = userAnswers[question.id]?.finalAnswer || '';
-                            
-                            if (start === end && start > 0) {
-                              const before = currentValue.substring(0, start - 1);
-                              const after = currentValue.substring(end);
-                              handleAnswerChange(question.id, before + after);
-                              requestAnimationFrame(() => {
-                                textarea.focus();
-                                textarea.setSelectionRange(start - 1, start - 1);
-                              });
-                            } else if (start !== end) {
-                              const before = currentValue.substring(0, start);
-                              const after = currentValue.substring(end);
-                              handleAnswerChange(question.id, before + after);
-                              requestAnimationFrame(() => {
-                                textarea.focus();
-                                textarea.setSelectionRange(start, start);
-                              });
-                            }
-                          }}
-                          subjectColor={subjectColor}
+                    ) : undefined;
+
+                    return (
+                      <div className="mt-4">
+                        <div className="flex justify-end mb-2">
+                          <Button
+                            variant={activeQuestionForMath === question.id ? "secondary" : "ghost"}
+                            size="sm"
+                            onClick={() => setActiveQuestionForMath(
+                              activeQuestionForMath === question.id ? null : question.id
+                            )}
+                            disabled={isReadOnly}
+                            className="rounded-token-sm gap-1.5 text-xs h-8"
+                          >
+                            <Calculator className="w-3.5 h-3.5" />
+                            Math symbols
+                          </Button>
+                        </div>
+                        <AnswerSlate
+                          marks={question.marks}
+                          mode="text"
+                          onModeChange={() => {}}
+                          showModeToggle={false}
+                          workingSlot={workingSlot}
+                          finalSlot={finalSlot}
+                          keypadSlot={keypadSlot}
                         />
-                      )}
-                    </div>
-                      )}
+                      </div>
+                    );
+                  })()}
                     </>
                   )}
                   </QuizQuestionErrorBoundary>
-                </Card>
+                </QuestionCardShell>
+                    </div>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Bottom Navigation */}
-          <div className="border-t bg-muted/30 px-3 sm:px-4 lg:px-6 py-3 sm:py-4 flex items-center justify-between">
+          {/* Bottom Navigation — section-level, aligned with practice workspace radius/typography */}
+          <div className="border-t border-border bg-background/80 backdrop-blur-sm px-3 sm:px-4 lg:px-6 py-3 sm:py-4 flex items-center justify-between">
             <Button
-              variant="outline"
-              className="px-3 sm:px-6 min-h-[44px]"
+              variant="ghost"
+              className="rounded-token-sm px-3 sm:px-5 min-h-[44px] text-foreground hover:bg-muted"
               onClick={() => guardNavigation(async () => {
                 await flushCurrentPageSaves();
                 setCurrentPage(prev => prev - 1);
@@ -2471,29 +2377,33 @@ const ExamInProgress = () => {
               disabled={!hasPrevPage}
             >
               <ChevronLeft className="h-4 w-4 shrink-0" />
-              <span className="hidden sm:inline ml-1">Previous Section</span>
+              <span className="hidden sm:inline ml-1.5 font-medium">Previous section</span>
             </Button>
-            
+
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground tabular-nums hidden sm:inline">
+              Section {currentPage + 1} of {questionGroups.length}
+            </span>
+
             {hasNextPage ? (
               <Button
-                className="px-3 sm:px-6 min-h-[44px]"
+                className="rounded-token-sm px-4 sm:px-5 min-h-[44px] font-semibold bg-foreground text-background hover:bg-foreground/90"
                 onClick={() => guardNavigation(async () => {
                   await flushCurrentPageSaves();
                   setCurrentPage(prev => prev + 1);
                 })}
               >
-                <span className="hidden sm:inline mr-1">Next Section</span>
+                <span className="hidden sm:inline mr-1.5">Next section</span>
                 <ChevronRight className="h-4 w-4 shrink-0" />
               </Button>
             ) : !isReadOnly && (
               <Button
-                variant="default"
-                className="px-4 sm:px-8 min-h-[44px]"
+                className="rounded-token-sm px-4 sm:px-6 min-h-[44px] font-semibold"
+                style={{ backgroundColor: subjectColor, color: '#fff' }}
                 onClick={() => guardNavigation(() => setShowSubmitDialog(true))}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Submit Exam
+                Submit exam
               </Button>
             )}
           </div>
