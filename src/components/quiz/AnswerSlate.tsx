@@ -137,31 +137,32 @@ export const AnswerSlate: React.FC<AnswerSlateProps> = ({
           </div>
         ) : null}
 
-        {/* ─── Action bar ─────────────────────────────────────────── */}
-        <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-border">
-          {secondaryLabel ? (
+        {/* ─── Action bar (hidden when no primary action provided) ─── */}
+        {primaryLabel ? (
+          <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-border">
+            {secondaryLabel ? (
+              <Button
+                variant="ghost"
+                onClick={onSecondary}
+                className="rounded-token-sm"
+              >
+                {secondaryLabel}
+              </Button>
+            ) : null}
             <Button
-              variant="ghost"
-              onClick={onSecondary}
-              className="rounded-token-sm"
+              onClick={onPrimary}
+              disabled={primaryDisabled || primaryLoading}
+              className="rounded-token-sm px-5 font-semibold"
+              style={
+                subjectColor
+                  ? { backgroundColor: subjectColor, color: "#fff" }
+                  : undefined
+              }
             >
-              {secondaryLabel}
+              {primaryLoading ? "…" : primaryLabel}
             </Button>
-          ) : null}
-          <Button
-            onClick={onPrimary}
-            disabled={primaryDisabled || primaryLoading}
-            className="rounded-token-sm px-5 font-semibold"
-            style={
-              subjectColor
-                ? { backgroundColor: subjectColor, color: "#fff" }
-                : undefined
-            }
-          >
-            {primaryLoading ? "…" : primaryLabel}
-          </Button>
-        </div>
-      </section>
+          </div>
+        ) : null}
 
       {/* ─── Docked keypad — sits flush under the slate, not floating ─── */}
       {keypadSlot ? (
