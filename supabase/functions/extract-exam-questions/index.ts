@@ -427,10 +427,41 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       if (figResp.ok) {
         const figData = await figResp.json();
         const raw = figData.choices?.[0]?.message?.content || '';
-        const jsonMatch = raw.match(/\[[\s\S]*\]/);
+        let jsonMatch = raw.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) {
+          const objMatch = raw.match(/\{[\s\S]*\}/);
+          if (objMatch) { jsonMatch = [`[${objMatch[0]}]`] as any; console.warn('[insert] model returned a single object — wrapped as array'); }
+        }
         if (jsonMatch) {
           const { figures, rejected } = validateInsertFigures(JSON.parse(jsonMatch[0]));
           if (rejected.length) console.warn('[insert] rejected figures:', rejected.join(' | '));
+          if (figures.length === 0 && rejected.length > 0) {
+            // One regeneration with the rejection reasons fed back — a failed
+            // validation must not silently produce a paper with no insert.
+            console.warn('[insert] all figures rejected — regenerating once with corrections');
+            try {
+              const retryResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${lovableApiKey}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  model: 'google/gemini-2.5-flash',
+                  messages: [{ role: 'user', content: figPrompt + `\n\nYour previous attempt was REJECTED for these reasons — fix them exactly: ${rejected.join('; ')}` }],
+                  temperature: 0.5,
+                }),
+              });
+              if (retryResp.ok) {
+                const retryData = await retryResp.json();
+                const retryRaw = retryData.choices?.[0]?.message?.content || '';
+                let rm = retryRaw.match(/\[[\s\S]*\]/);
+                if (!rm) { const om = retryRaw.match(/\{[\s\S]*\}/); if (om) rm = [`[${om[0]}]`] as any; }
+                if (rm) {
+                  const second = validateInsertFigures(JSON.parse(rm[0]));
+                  if (second.figures.length > 0) { figures.push(...second.figures); console.log('[insert] regeneration succeeded'); }
+                  else console.warn('[insert] regeneration also rejected:', second.rejected.join(' | '));
+                }
+              }
+            } catch (rErr) { console.warn('[insert] regeneration attempt failed:', rErr); }
+          }
           if (figures.length > 0) {
             const { error: figSaveErr } = await supabase.from('exams').update({ insert_figures: figures }).eq('id', draftId);
             if (figSaveErr) {
