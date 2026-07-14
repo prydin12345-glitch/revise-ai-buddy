@@ -4,6 +4,7 @@ import { QuestionCardShell } from "@/components/quiz/QuestionCardShell";
 import { AnswerSlate } from "@/components/quiz/AnswerSlate";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { isQuantitativeSubject } from "@/lib/subjectKind";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -645,7 +646,7 @@ const ExamInProgress = () => {
       }
 
       // Use local variable from examData to determine if math exam (avoids stale state)
-      const isMathExam = examData?.subject_id?.toLowerCase().includes('math');
+      const isMathExam = isQuantitativeSubject(examData?.subject_id);
       console.log('[Load] Subject:', examData?.subject_id, 'isMathExam:', isMathExam);
       
       const answersMap: Record<string, { workingOut: string; finalAnswer: string; answerLatex?: string }> = {};
@@ -719,10 +720,13 @@ const ExamInProgress = () => {
         
         // For math exams, text goes to workingOut; for others, to finalAnswer
         if (isMathExam) {
-          answersMap[ans.question_id] = { 
-            workingOut: answerText, 
-            finalAnswer: ''
-          };
+          // Recover the split on reload: the serializer joins with a
+          // "Final answer:" suffix — split it back so the final input
+          // doesn't arrive empty after a refresh.
+          const parts = answerText.split('\n\nFinal answer: ');
+          answersMap[ans.question_id] = parts.length === 2
+            ? { workingOut: parts[0], finalAnswer: parts[1] }
+            : { workingOut: answerText, finalAnswer: '' };
         } else {
           answersMap[ans.question_id] = { 
             workingOut: '', 
@@ -827,7 +831,7 @@ const ExamInProgress = () => {
     
     // Use ref to get current subject (avoids stale closure)
     const currentSubject = examSubjectRef.current;
-    const isMathExam = currentSubject?.toLowerCase().includes('math');
+    const isMathExam = isQuantitativeSubject(currentSubject);
     
     // Serialize based on exam type — combine Working + Final Answer when both provided
     const workingText = (answerData.workingOut || '').trim();
@@ -2215,9 +2219,12 @@ const ExamInProgress = () => {
                     // ─── Unified default answer surface (text + math text-based subjects) ───
                     // MCQ / nuclear / graph / drawing / table / physics-override branches are
                     // handled elsewhere and stay in their current shells until a focused audit.
-                    const isMathExam = examSubject.toLowerCase().includes('math');
-                    const marksHigh = (question.marks ?? 0) >= 3;
-                    const useSplit = isMathExam || marksHigh;
+                    const isMathExam = isQuantitativeSubject(examSubject);
+                    // Split ONLY for quantitative subjects — an English/History
+                    // 5-marker is one continuous piece of writing, and forcing
+                    // the split here previously corrupted the save/load round
+                    // trip (essay saved via workingOut, reloaded into finalAnswer).
+                    const useSplit = isMathExam && (question.marks ?? 0) >= 3;
                     const answer = userAnswers[question.id] || { workingOut: '', finalAnswer: '' };
                     // When split is active: workingSlot writes to workingOut, finalSlot to finalAnswer
                     // When no split: single input writes to finalAnswer (non-math) or workingOut (math short)
@@ -2328,6 +2335,7 @@ const ExamInProgress = () => {
 
                     return (
                       <div className="mt-4">
+                        {isMathExam && (
                         <div className="flex justify-end mb-2">
                           <Button
                             variant={activeQuestionForMath === question.id ? "secondary" : "ghost"}
@@ -2342,6 +2350,7 @@ const ExamInProgress = () => {
                             Math symbols
                           </Button>
                         </div>
+                        )}
                         <AnswerSlate
                           marks={question.marks}
                           mode="text"
