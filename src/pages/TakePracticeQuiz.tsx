@@ -1,4 +1,3 @@
-
 /**
  * TakePracticeQuiz - Practice quiz taking and review component
  * 
@@ -14,6 +13,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { InsertPanel } from "@/components/insert/InsertPanel";
+import { isQuantitativeSubject } from "@/lib/subjectKind";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -218,6 +218,7 @@ const TakePracticeQuiz = () => {
   const [userAnswers, setUserAnswers] = useState<Record<string, UserAnswer>>({});
   const [loading, setLoading] = useState(true);
   const [quizTitle, setQuizTitle] = useState("");
+  const [quizSubjectName, setQuizSubjectName] = useState("");
   const [insertFigures, setInsertFigures] = useState<any[]>([]);
   const [showFigures, setShowFigures] = useState(false);
   const [subjectColor, setSubjectColor] = useState("#3B82F6");
@@ -706,6 +707,7 @@ const TakePracticeQuiz = () => {
       }
 
       setQuizTitle(quizSet.set_name);
+      setQuizSubjectName(String((quizSet as any).subject_name ?? (quizSet as any).subject ?? ""));
       setInsertFigures(Array.isArray((quizSet as any).insert_figures) ? (quizSet as any).insert_figures : []);
       setSubjectColor(quizSet.subject_id || "#3B82F6");
 
@@ -2797,6 +2799,7 @@ const TakePracticeQuiz = () => {
                     return (
                       <div className="answer-slate" aria-label="Answer area">
                         <div className="flex items-center justify-between mb-3">
+                          {isQuantitativeSubject(quizSubjectName) ? (
                           <div
                             role="tablist"
                             aria-label="Answer mode"
@@ -2823,11 +2826,12 @@ const TakePracticeQuiz = () => {
                               Math
                             </button>
                           </div>
+                          ) : <span />}
                           <span className="text-[11px] uppercase tracking-wider text-muted-foreground tabular-nums">
                             {currentQuestion.marks} {currentQuestion.marks === 1 ? "mark" : "marks"}
                           </span>
                         </div>
-                        {currentQuestion.marks >= 3 && (
+                        {isQuantitativeSubject(quizSubjectName) && currentQuestion.marks >= 3 && (
                           <div className="slate-zone-label mb-1.5">Working</div>
                         )}
                         <Textarea
@@ -2843,11 +2847,11 @@ const TakePracticeQuiz = () => {
                           }}
                           disabled={currentAnswer.submitted}
                           className={`${currentQuestion.marks <= 2 ? "min-h-[100px]" : currentQuestion.marks <= 4 ? "min-h-[160px]" : currentQuestion.marks <= 7 ? "min-h-[220px]" : "min-h-[300px]"} text-[15px] leading-relaxed text-foreground bg-background rounded-token-sm border-border resize-y`}
-                          placeholder={currentQuestion.marks >= 3 ? "Show every step of your working here." : "Write your answer here."}
+                          placeholder={isQuantitativeSubject(quizSubjectName) && currentQuestion.marks >= 3 ? "Show every step of your working here." : "Write your answer here."}
                         />
 
                         {/* Final answer — dedicated single-line for multi-mark questions */}
-                        {currentQuestion.marks >= 3 && (
+                        {isQuantitativeSubject(quizSubjectName) && currentQuestion.marks >= 3 && (
                           <div className="slate-final mt-4">
                             <div className="slate-zone-label mb-1.5">Final answer</div>
                             <input
@@ -2867,7 +2871,7 @@ const TakePracticeQuiz = () => {
 
 
                         {/* Docked math keypad — slides in below the slate */}
-                        {showMathKeypad && !currentAnswer.submitted && (
+                        {isQuantitativeSubject(quizSubjectName) && showMathKeypad && !currentAnswer.submitted && (
                           <div className="docked-keypad mt-3" role="toolbar" aria-label="Math keypad">
                             <MathInsertKeypad
                               isOpen={true}
