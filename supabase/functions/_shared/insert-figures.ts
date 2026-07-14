@@ -411,7 +411,9 @@ Output ONLY JSON:
 /** Split passage text into stable typographic lines (~90 chars) for numbering. */
 export function toNumberedLines(text: string): string[] {
   const lines: string[] = [];
-  for (const para of text.split(/\n{2,}/).map((s) => s.trim()).filter(Boolean)) {
+  let paraSrc = text.split(/\n{2,}/).map((s) => s.trim()).filter(Boolean);
+  if (paraSrc.length < 3) paraSrc = text.split(/\n+/).map((s) => s.trim()).filter(Boolean);
+  for (const para of paraSrc) {
     const words = para.split(/\s+/);
     let cur = "";
     for (const w of words) {
@@ -431,8 +433,14 @@ export function validatePassage(raw: any): { ok: boolean; figure: PassageFigureD
   const wordCount = text ? text.split(/\s+/).length : 0;
   if (wordCount < 350) return { ok: false, figure: null, reasons: [`passage too short (${wordCount} words, min 350)`] };
   if (wordCount > 850) return { ok: false, figure: null, reasons: [`passage too long (${wordCount} words, max 850)`] };
-  const paras = text.split(/\n{2,}/).filter((s: string) => s.trim());
-  if (paras.length < 3) return { ok: false, figure: null, reasons: [`only ${paras.length} paragraphs (min 3)`] };
+  let paras = text.split(/\n{2,}/).filter((s: string) => s.trim());
+  if (paras.length < 3) paras = text.split(/\n+/).filter((s: string) => s.trim());
+  if (paras.length < 3) {
+    // Model gave good-length prose without paragraph breaks — usable, just
+    // renders without blank lines. Log, don't reject (a rejected passage
+    // means a whole English paper with no insert).
+    console.warn(`[passage] only ${paras.length} paragraph(s) detected — accepting (length ok)`);
+  }
   const board = (["aqa", "edexcel", "eduqas"].includes(raw.board) ? raw.board : "aqa") as PassageFigureData["board"];
   return {
     ok: true,
