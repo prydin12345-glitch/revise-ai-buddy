@@ -186,6 +186,14 @@ export function validateInsertFigures(raw: any): { figures: any[]; rejected: str
       const v = validatePassage(f);
       if (v.ok && v.figure) figures.push(v.figure);
       else rejected.push(`passage "${f?.title ?? "?"}": ${v.reasons.join("; ")}`);
+    } else if (f?.type === "source") {
+      const v = validateSourceFigure(f);
+      if (v.ok && v.figure) figures.push(v.figure);
+      else rejected.push(`source "${f?.title ?? "?"}": ${v.reasons.join("; ")}`);
+    } else if (f?.type === "interpretations_pair") {
+      const v = validateInterpretationsPair(f);
+      if (v.ok && v.figure) figures.push(v.figure);
+      else rejected.push(`interpretations "${f?.title ?? "?"}": ${v.reasons.join("; ")}`);
     } else if (f?.type === "text_extract") {
       const v = validateTextExtract(f);
       if (v.ok && v.figure) figures.push(v.figure);
@@ -202,6 +210,11 @@ export function validateInsertFigures(raw: any): { figures: any[]; rejected: str
 export function buildInsertFiguresPrompt(subjectContext: string, topics: string[], board = ""): string {
   // English papers are passage-based, not map/table-based: dispatch to the
   // brief system so each generation is a distinct point in creative space.
+  if (/history/i.test(subjectContext)) {
+    const unit = topics.length > 0 ? topics.join("; ") : "";
+    const brief = buildHistoryBrief(unit);
+    return buildHistoryFiguresPrompt(brief, subjectContext);
+  }
   if (/english/i.test(subjectContext)) {
     const brief = buildPassageBrief(board.toLowerCase());
     return buildPassagePrompt(brief, subjectContext) + "\nReturn ONLY a JSON ARRAY containing that single passage object.";
@@ -277,6 +290,25 @@ export function describeFigureForPrompt(f: any): string {
   }
   if (f.type === "text_extract") {
     return `Figure ${f.figureNumber}: "${f.title}" — qualitative text extract (${f.sourceLine}). Full text: ${f.paragraphs.join(" ")} — Supports source-analysis questions (how the place/issue is represented, tone, perspective, reliability). NO calculations; questions must quote or refer to specific phrases from the extract.`;
+  }
+  if (f.type === "source") {
+    return `Figure ${f.figureNumber}: "${f.title}" — a contemporary source: ${f.form}.
+PROVENANCE: ${f.provenance.author}, ${f.provenance.date}. ${f.provenance.context}
+GROUND TRUTH for utility questions: this source's planted limitation is "${f.plantedLimitation}" — utility/reliability questions should be answerable by reasoning about the provenance and this limitation.
+HISTORY SOURCE LADDER: use this figure for source-skills questions, e.g. "Give two things you can infer from Source ${f.figureNumber} about <topic>" (4 marks) and "How useful is Source ${f.figureNumber} to an historian studying <topic>? Use the source and your own knowledge" (8 marks).
+HARD RULES: any quoted words MUST be verbatim substrings of the source; never invent provenance details beyond those stated.
+FULL SOURCE TEXT:
+${f.paragraphs.join("\n")}`;
+  }
+  if (f.type === "interpretations_pair") {
+    return `Figure ${f.figureNumber}: "${f.title}" — TWO conflicting interpretations of ${f.topic}.
+GROUND TRUTH: they disagree along this crux: "${f.crux}" — difference/why-differ/how-far-agree questions should target exactly this axis.
+INTERPRETATIONS LADDER: "How does Interpretation A differ from Interpretation B about <topic>?" (4 marks); "Why might the authors have different views?" (4 marks); "How far do you agree with Interpretation A about <topic>? Use both interpretations and your own knowledge" (8-16 marks).
+HARD RULES: any quoted words MUST be verbatim substrings of the relevant interpretation; refer to them only as "Interpretation A" and "Interpretation B".
+INTERPRETATION A (${f.interpretations[0].attribution}):
+${f.interpretations[0].text}
+INTERPRETATION B (${f.interpretations[1].attribution}):
+${f.interpretations[1].text}`;
   }
   if (f.type === "passage") {
     const numbered = f.lines.map((ln: string, i: number) => (ln === "" ? "" : `${i + 1}: ${ln}`)).join("\n");
@@ -549,4 +581,138 @@ export function buildBlueprintPrompt(bp: PaperBlueprint): string {
   }).join("\n");
   const totalMarks = bp.sections.reduce((n, s) => n + s.questions.reduce((m, q) => m + q.marks, 0), 0);
   return `\n## PAPER STRUCTURE (MANDATORY — set by the student's exam profile)\nGenerate EXACTLY this paper, in this order, with these exact marks (${qNum} questions, ${totalMarks} marks total). Question numbering continues across sections. No extra questions, no missing questions, no changed marks. Each question must match its stated style/purpose:\n${lines}\nIf a style mentions a figure/extract/source, that question must reference the insert figure appropriately.\n`;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HISTORY SOURCE & INTERPRETATIONS ENGINE
+// Two resource types, assessed differently:
+//  - "source": contemporary evidence with structured provenance and a PLANTED
+//    limitation — ground truth for "how useful is Source A" utility questions.
+//  - "interpretations_pair": two AI-original conflicting historians' accounts
+//    generated AS A PAIR around a planted crux of disagreement — ground truth
+//    for the "how do they differ / why / how far do you agree" ladder.
+// All content is AI-original and attributed as illustrative; real historians'
+// work is never reproduced.
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface SourceFigureData {
+  figureNumber?: string;
+  title: string;
+  type: "source";
+  form: string; // diary entry | private letter | public speech | poster description | newspaper report | official report
+  provenance: { author: string; date: string; context: string };
+  plantedLimitation: string; // ground truth for utility questions
+  paragraphs: string[];
+}
+
+export interface InterpretationsPairData {
+  figureNumber?: string;
+  title: string;
+  type: "interpretations_pair";
+  topic: string;
+  crux: string; // the planted axis of disagreement
+  interpretations: Array<{ label: string; attribution: string; text: string }>;
+}
+
+const SOURCE_FORMS = [
+  "a private diary entry", "a personal letter", "a public speech",
+  "a detailed written description of a propaganda poster", "a newspaper report",
+  "an official government report", "a memoir written years after the events",
+];
+const SOURCE_PERSPECTIVES = [
+  "an ordinary worker", "a government official", "a foreign journalist",
+  "a soldier writing home", "a local doctor", "a factory owner",
+  "a schoolteacher", "an opposition supporter", "a loyal party member",
+  "a farmer", "a mother of a young family", "a newly arrived migrant",
+];
+const PLANTED_LIMITATIONS = [
+  "written for propaganda purposes, so exaggerates successes",
+  "the author only witnessed the aftermath, not the events themselves",
+  "a private diary — no reason to lie, but a narrow personal vantage",
+  "published under censorship, so criticism is muted or coded",
+  "written many years later, so details may be misremembered",
+  "the author had a personal grievance and a motive to exaggerate failings",
+  "an official report designed to reassure superiors",
+  "aimed at a foreign audience unfamiliar with local conditions",
+];
+const INTERP_CRUXES = [
+  "one emphasises economic causes while the other emphasises political leadership",
+  "one is broadly sympathetic to the key figure while the other is sharply critical",
+  "one sees the change as driven from above, the other as forced from below",
+  "one stresses long-term structural factors, the other short-term triggers",
+  "one judges the policy a qualified success, the other a clear failure",
+  "one centres ordinary people's experience, the other high politics",
+];
+
+export interface HistoryBrief {
+  form: string; perspective: string; limitation: string; crux: string; unit: string;
+}
+export function buildHistoryBrief(unit: string): HistoryBrief {
+  const pk = <T,>(a: T[]): T => a[Math.floor(Math.random() * a.length)];
+  return { form: pk(SOURCE_FORMS), perspective: pk(SOURCE_PERSPECTIVES),
+           limitation: pk(PLANTED_LIMITATIONS), crux: pk(INTERP_CRUXES),
+           unit: unit || "the studied period" };
+}
+
+export function buildHistoryFiguresPrompt(brief: HistoryBrief, levelContext: string): string {
+  return `
+## HISTORY EXAM RESOURCES (INSERT)
+Create TWO resources for a History exam (${levelContext}), set within: ${brief.unit}.
+Execute this brief EXACTLY:
+
+RESOURCE 1 — a contemporary SOURCE:
+- Form: ${brief.form}, written from the perspective of ${brief.perspective}.
+- Planted limitation (must genuinely shape the text): ${brief.limitation}.
+- 1-3 paragraphs, 350-900 characters total, period-appropriate voice and detail.
+- Provenance must be specific: a plausible named author, an exact date inside the period, and one sentence of context.
+
+RESOURCE 2 — a PAIR of conflicting INTERPRETATIONS:
+- Two short extracts (200-700 characters each) in the style of later academic histories of the SAME events.
+- They must genuinely disagree along this planted crux: ${brief.crux}.
+- Each needs an attribution in the form "Adapted illustrative extract in the style of an academic history (AI-original), <year>".
+
+ALL text must be ENTIRELY ORIGINAL — never reproduce or closely imitate any real historian's published work. All authors are fictional.
+Output ONLY a JSON array with exactly these two objects:
+[
+ {"type":"source","title":"<short title>","form":"${brief.form}","provenance":{"author":"<fictional name + role>","date":"<date in period>","context":"<one sentence>"},"plantedLimitation":"${brief.limitation}","paragraphs":["..."]},
+ {"type":"interpretations_pair","title":"<short title>","topic":"<the shared events>","crux":"${brief.crux}","interpretations":[{"label":"A","attribution":"...","text":"..."},{"label":"B","attribution":"...","text":"..."}]}
+]`;
+}
+
+export function validateSourceFigure(raw: any): { ok: boolean; figure: SourceFigureData | null; reasons: string[] } {
+  if (!raw || raw.type !== "source") return { ok: false, figure: null, reasons: ["not a source"] };
+  const paragraphs = (Array.isArray(raw.paragraphs) ? raw.paragraphs : [])
+    .filter((t: any) => typeof t === "string" && t.trim()).map((t: string) => t.trim()).slice(0, 3);
+  const total = paragraphs.join(" ").length;
+  if (total < 250) return { ok: false, figure: null, reasons: [`source too short (${total} chars, min 250)`] };
+  if (total > 1400) return { ok: false, figure: null, reasons: [`source too long (${total} chars, max 1400)`] };
+  const prov = raw.provenance || {};
+  if (!prov.author || !prov.date) return { ok: false, figure: null, reasons: ["missing provenance (author/date)"] };
+  return { ok: true, reasons: [], figure: {
+    figureNumber: typeof raw.figureNumber === "string" ? raw.figureNumber : undefined,
+    title: String(raw.title || "Untitled source").trim(), type: "source",
+    form: String(raw.form || "written source"),
+    provenance: { author: String(prov.author), date: String(prov.date), context: String(prov.context || "") },
+    plantedLimitation: String(raw.plantedLimitation || ""), paragraphs,
+  }};
+}
+
+export function validateInterpretationsPair(raw: any): { ok: boolean; figure: InterpretationsPairData | null; reasons: string[] } {
+  if (!raw || raw.type !== "interpretations_pair") return { ok: false, figure: null, reasons: ["not an interpretations_pair"] };
+  const interps = (Array.isArray(raw.interpretations) ? raw.interpretations : [])
+    .filter((i: any) => i && typeof i.text === "string" && i.text.trim().length >= 150)
+    .slice(0, 2)
+    .map((i: any, idx: number) => ({
+      label: String(i.label || (idx === 0 ? "A" : "B")),
+      attribution: String(i.attribution || "Adapted illustrative extract (AI-original)"),
+      text: i.text.trim(),
+    }));
+  if (interps.length !== 2) return { ok: false, figure: null, reasons: [`need exactly 2 substantial interpretations, got ${interps.length}`] };
+  if (interps[0].text.length > 1100 || interps[1].text.length > 1100) return { ok: false, figure: null, reasons: ["interpretation too long (max ~1100 chars)"] };
+  return { ok: true, reasons: [], figure: {
+    figureNumber: typeof raw.figureNumber === "string" ? raw.figureNumber : undefined,
+    title: String(raw.title || "Two interpretations").trim(), type: "interpretations_pair",
+    topic: String(raw.topic || ""), crux: String(raw.crux || ""), interpretations: interps,
+  }};
 }
