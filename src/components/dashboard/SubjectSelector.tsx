@@ -3,7 +3,7 @@
  * 
  * Shows user's saved custom subjects alongside predefined subjects.
  */
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Palette, Plus } from "lucide-react";
+import { Palette, Plus, Search } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -48,13 +48,25 @@ const PRESET_COLORS = [
 export const SubjectSelector = ({ value, color, onValueChange, onColorChange, showLabel = true, persistColor = true }: SubjectSelectorProps) => {
   const [isCustom, setIsCustom] = useState(false);
   const [customSubject, setCustomSubject] = useState("");
+  const [search, setSearch] = useState("");
   const { saveOrUpdateSubject, subjects, getSubjectColor } = useUserSubjects();
 
-  // Derive custom subjects from the user's saved subjects that aren't in predefined list
-  const customUserSubjects = useMemo(() => {
-    const predefinedLower = new Set(PREDEFINED_SUBJECTS.map(s => s.toLowerCase()));
-    return subjects.filter(s => !predefinedLower.has(s.subject_name.toLowerCase()));
-  }, [subjects]);
+  // All of the user's saved subjects (including ones that happen to match predefined names)
+  const myUserSubjects = useMemo(() => subjects, [subjects]);
+
+  // Predefined subjects the user hasn't already saved
+  const remainingPredefined = useMemo(() => {
+    const savedLower = new Set(myUserSubjects.map(s => s.subject_name.toLowerCase()));
+    return PREDEFINED_SUBJECTS.filter(s => !savedLower.has(s.toLowerCase()));
+  }, [myUserSubjects]);
+
+  const q = search.trim().toLowerCase();
+  const filteredMine = q
+    ? myUserSubjects.filter(s => s.subject_name.toLowerCase().includes(q))
+    : myUserSubjects;
+  const filteredPredefined = q
+    ? remainingPredefined.filter(s => s.toLowerCase().includes(q))
+    : remainingPredefined;
 
   const handleColorChange = useCallback(async (newColor: string) => {
     onColorChange(newColor);
@@ -97,51 +109,79 @@ export const SubjectSelector = ({ value, color, onValueChange, onColorChange, sh
             <SelectTrigger className="flex-1">
               <SelectValue placeholder="Select a subject" />
             </SelectTrigger>
-            <SelectContent 
-              className="bg-background border-border z-[100] max-h-[300px] overflow-y-auto" 
-              side="bottom" 
+            <SelectContent
+              className="bg-background border-border z-[100] max-h-[340px] overflow-hidden"
+              side="bottom"
               sideOffset={4}
               align="start"
               avoidCollisions={true}
               collisionPadding={16}
               position="popper"
             >
-              {/* User's custom subjects first */}
-              {customUserSubjects.length > 0 && (
-                <SelectGroup>
-                  <SelectLabel className="text-xs font-semibold text-muted-foreground">My Subjects</SelectLabel>
-                  {customUserSubjects.map((subject) => (
-                    <SelectItem key={`custom-${subject.id}`} value={subject.subject_name}>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{ backgroundColor: subject.subject_color }}
-                        />
-                        {subject.subject_name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              )}
-
-              {/* Standard subjects */}
-              <SelectGroup>
-                {customUserSubjects.length > 0 && (
-                  <SelectLabel className="text-xs font-semibold text-muted-foreground">Standard Subjects</SelectLabel>
-                )}
-                {PREDEFINED_SUBJECTS.map((subject) => (
-                  <SelectItem key={subject} value={subject}>
-                    {subject}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-
-              <SelectItem value="custom" className="font-semibold text-primary">
-                <div className="flex items-center gap-2">
-                  <Plus className="w-4 h-4" />
-                  Add Custom Subject
+              {/* Search bar */}
+              <div
+                className="sticky top-0 z-10 bg-background p-2 border-b border-border"
+                onKeyDown={(e) => {
+                  // prevent Select's built-in typeahead from hijacking keys
+                  e.stopPropagation();
+                }}
+              >
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search subjects…"
+                    className="pl-8 h-8 text-sm"
+                    // Radix Select steals focus back to the list; prevent that
+                    onMouseDown={(e) => e.stopPropagation()}
+                  />
                 </div>
-              </SelectItem>
+              </div>
+
+              <div className="max-h-[260px] overflow-y-auto">
+                {/* User's saved subjects (always shown, including ones matching predefined names) */}
+                {filteredMine.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel className="text-xs font-semibold text-muted-foreground">My Subjects</SelectLabel>
+                    {filteredMine.map((subject) => (
+                      <SelectItem key={`mine-${subject.id}`} value={subject.subject_name}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: subject.subject_color }}
+                          />
+                          {subject.subject_name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
+
+                {filteredPredefined.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel className="text-xs font-semibold text-muted-foreground">Standard Subjects</SelectLabel>
+                    {filteredPredefined.map((subject) => (
+                      <SelectItem key={subject} value={subject}>
+                        {subject}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
+
+                {filteredMine.length === 0 && filteredPredefined.length === 0 && (
+                  <div className="py-6 text-center text-sm text-muted-foreground">
+                    No subjects match "{search}"
+                  </div>
+                )}
+
+                <SelectItem value="custom" className="font-semibold text-primary">
+                  <div className="flex items-center gap-2">
+                    <Plus className="w-4 h-4" />
+                    Add Custom Subject
+                  </div>
+                </SelectItem>
+              </div>
             </SelectContent>
           </Select>
         ) : (
