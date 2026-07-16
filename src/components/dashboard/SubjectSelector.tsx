@@ -3,7 +3,7 @@
  * 
  * Shows user's saved custom subjects alongside predefined subjects.
  */
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Palette, Plus } from "lucide-react";
+import { Palette, Plus, Search } from "lucide-react";
 import {
   Popover,
   PopoverContent,
