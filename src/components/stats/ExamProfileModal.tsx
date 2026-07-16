@@ -69,8 +69,8 @@ const STRUCTURE_PREVIEWS = [
 
 
 // Common board paper layouts — one tap loads the real architecture.
-const BLUEPRINT_PRESETS: Array<{ id: string; label: string; sections: Array<{ title: string; questions: Array<{ marks: number; style: string }> }> }> = [
-  { id: "aqa_lang_p1", label: "AQA English Language Paper 1",
+const BLUEPRINT_PRESETS: Array<{ id: string; label: string; subjects: RegExp; sections: Array<{ title: string; questions: Array<{ marks: number; style: string }> }> }> = [
+  { id: "aqa_lang_p1", label: "AQA English Language Paper 1", subjects: /english|language/i,
     sections: [
       { title: "Section A: Reading", questions: [
         { marks: 4, style: "List / identify from the text" },
@@ -78,7 +78,7 @@ const BLUEPRINT_PRESETS: Array<{ id: string; label: string; sections: Array<{ ti
         { marks: 8, style: "Structure analysis" },
         { marks: 20, style: "Evaluate a statement" } ] },
       { title: "Section B: Writing", questions: [ { marks: 40, style: "Extended writing task" } ] } ] },
-  { id: "edexcel_lang_p1", label: "Edexcel English Language Paper 1",
+  { id: "edexcel_lang_p1", label: "Edexcel English Language Paper 1", subjects: /english|language/i,
     sections: [
       { title: "Section A: Reading", questions: [
         { marks: 1, style: "List / identify from the text" },
@@ -86,7 +86,7 @@ const BLUEPRINT_PRESETS: Array<{ id: string; label: string; sections: Array<{ ti
         { marks: 6, style: "Language analysis" },
         { marks: 15, style: "Evaluate a statement" } ] },
       { title: "Section B: Writing", questions: [ { marks: 40, style: "Extended writing task" } ] } ] },
-  { id: "eduqas_lang_c1", label: "Eduqas English Language Component 1",
+  { id: "eduqas_lang_c1", label: "Eduqas English Language Component 1", subjects: /english|language/i,
     sections: [
       { title: "Section A: Reading", questions: [
         { marks: 5, style: "List / identify from the text" },
@@ -94,11 +94,57 @@ const BLUEPRINT_PRESETS: Array<{ id: string; label: string; sections: Array<{ ti
         { marks: 10, style: "Language analysis" },
         { marks: 10, style: "Evaluate a statement" } ] },
       { title: "Section B: Writing", questions: [ { marks: 40, style: "Extended writing task" } ] } ] },
-  { id: "aqa_lit_p1", label: "AQA English Literature A-level Paper 1",
+  { id: "aqa_lit_p1", label: "AQA English Literature A-level Paper 1", subjects: /english|literature/i,
     sections: [
       { title: "Section A: Shakespeare", questions: [ { marks: 25, style: "Passage-based question with linked essay" } ] },
       { title: "Section B: Unseen poetry", questions: [ { marks: 25, style: "Essay on two unseen poems" } ] },
       { title: "Section C: Comparing texts", questions: [ { marks: 25, style: "Essay comparing two studied texts" } ] } ] },
+  { id: "gcse_hist_interp", label: "GCSE History — interpretations paper (AQA-style)", subjects: /history/i,
+    sections: [
+      { title: "Section A: Interpretations", questions: [
+        { marks: 4, style: "How do the interpretations differ" },
+        { marks: 4, style: "Why might the interpretations differ" },
+        { marks: 8, style: "How far do you agree with an interpretation" } ] },
+      { title: "Section B: Period study", questions: [
+        { marks: 4, style: "Describe / outline" },
+        { marks: 8, style: "Explain / describe" },
+        { marks: 12, style: "Extended judgement essay" } ] } ] },
+  { id: "gcse_hist_sources", label: "GCSE History — source skills paper (Edexcel-style)", subjects: /history/i,
+    sections: [
+      { title: "Section A: Source skills", questions: [
+        { marks: 4, style: "Inference from a source" },
+        { marks: 8, style: "How useful is the source" },
+        { marks: 12, style: "Explain why (causation)" } ] },
+      { title: "Section B: Depth study", questions: [
+        { marks: 4, style: "Describe / outline" },
+        { marks: 16, style: "Extended judgement essay" } ] } ] },
+  { id: "aqa_geog_p2", label: "AQA A-level Geography Paper 2 (Human)", subjects: /geograph/i,
+    sections: [
+      { title: "Section A: Global systems and governance", questions: [
+        { marks: 4, style: "Explain / describe" },
+        { marks: 6, style: "Analyse data / calculation" },
+        { marks: 6, style: "Evaluate a statement" },
+        { marks: 20, style: "Extended judgement essay" } ] },
+      { title: "Section B: Changing places", questions: [
+        { marks: 4, style: "Explain / describe" },
+        { marks: 6, style: "Analyse data / calculation" },
+        { marks: 6, style: "Evaluate a statement" },
+        { marks: 20, style: "Extended judgement essay" } ] },
+      { title: "Section C: Optional unit", questions: [
+        { marks: 4, style: "Explain / describe" },
+        { marks: 6, style: "Analyse data / calculation" },
+        { marks: 9, style: "Evaluate a statement" },
+        { marks: 9, style: "Evaluate a statement" },
+        { marks: 20, style: "Extended judgement essay" } ] } ] },
+  { id: "universal_mixed", label: "Standard mixed paper (short answers building to extended)", subjects: /./,
+    sections: [
+      { title: "Section A", questions: [
+        { marks: 2, style: "List / identify from the text" },
+        { marks: 3, style: "Explain / describe" },
+        { marks: 4, style: "Explain / describe" },
+        { marks: 6, style: "Compare" } ] },
+      { title: "Section B", questions: [
+        { marks: 9, style: "Extended judgement essay" } ] } ] },
 ];
 
 const QUESTION_STYLE_OPTIONS = [
@@ -115,16 +161,59 @@ const QUESTION_STYLE_OPTIONS = [
   "Extended writing task",
 ];
 
-const STUDIED_TEXT_ROLES = [
-  { id: "shakespeare", label: "Shakespeare play" },
-  { id: "pre1900_prose", label: "Pre-1900 prose" },
-  { id: "pre1900_poetry", label: "Pre-1900 poetry" },
-  { id: "modern_prose", label: "Modern prose" },
-  { id: "modern_drama", label: "Modern drama" },
-  { id: "poetry_anthology", label: "Poetry anthology" },
-  { id: "history_unit", label: "History unit / period study" },
-  { id: "other", label: "Other studied content" },
-];
+function getStudiedContentConfig(subjectName: string) {
+  const s = subjectName || "";
+  if (/history/i.test(s)) return {
+    title: "Studied units", hint: "e.g. Germany 1890\u20131945",
+    placeholder: "Unit, e.g. Germany 1890\u20131945",
+    description: "The exact units/periods you study \u2014 sources and questions will be set inside them.",
+    roles: [
+      { id: "period_study", label: "Period study" },
+      { id: "thematic_study", label: "Thematic study" },
+      { id: "british_depth", label: "British depth study" },
+      { id: "world_depth", label: "Wider world depth study" },
+      { id: "historic_environment", label: "Historic environment" },
+      { id: "other", label: "Other studied content" },
+    ],
+  };
+  if (/religio/i.test(s)) return {
+    title: "Studied content", hint: "e.g. Christianity, Islam",
+    placeholder: "e.g. Christianity \u2014 beliefs and practices",
+    description: "The religions and themes you study \u2014 questions will target these.",
+    roles: [
+      { id: "religion_beliefs", label: "Religion \u2014 beliefs" },
+      { id: "religion_practices", label: "Religion \u2014 practices" },
+      { id: "thematic_study", label: "Thematic study" },
+      { id: "textual_study", label: "Textual study" },
+      { id: "other", label: "Other studied content" },
+    ],
+  };
+  if (/english|literature/i.test(s)) return {
+    title: "Studied texts", hint: "e.g. Othello, An Inspector Calls",
+    placeholder: "Title, e.g. Othello",
+    description: "The exact texts you study \u2014 questions will target these. Public-domain texts get real passage questions; in-copyright texts get essay questions.",
+    roles: [
+      { id: "shakespeare", label: "Shakespeare play" },
+      { id: "pre1900_prose", label: "Pre-1900 prose" },
+      { id: "pre1900_poetry", label: "Pre-1900 poetry" },
+      { id: "modern_prose", label: "Modern prose" },
+      { id: "modern_drama", label: "Modern drama" },
+      { id: "poetry_anthology", label: "Poetry anthology" },
+      { id: "other", label: "Other studied content" },
+    ],
+  };
+  return {
+    title: "Studied content", hint: "units, case studies, set works",
+    placeholder: "e.g. a unit, case study or set work",
+    description: "The exact content you study \u2014 questions will target these.",
+    roles: [
+      { id: "studied_unit", label: "Studied unit / topic" },
+      { id: "case_study", label: "Case study" },
+      { id: "set_work", label: "Set work / key text" },
+      { id: "other", label: "Other studied content" },
+    ],
+  };
+}
 
 export interface QuestionStructureSettings {
   questionStructure: string;
@@ -189,8 +278,10 @@ export const ExamProfileModal = ({
   const [levelPopoverOpen, setLevelPopoverOpen] = useState(false);
   const [profileName, setProfileName] = useState("");
   const isTextBasedSubject = /english|literature|history|religio/i.test(subjectName || "");
+  const studiedContentCfg = getStudiedContentConfig(subjectName || "");
+  const availablePresets = BLUEPRINT_PRESETS.filter((pr) => pr.subjects.test(subjectName || ""));
   const [studiedTexts, setStudiedTexts] = useState<Array<{ role: string; title: string }>>([]);
-  const [newTextRole, setNewTextRole] = useState("shakespeare");
+  const [newTextRole, setNewTextRole] = useState(getStudiedContentConfig(subjectName || "").roles[0].id);
   const [newTextTitle, setNewTextTitle] = useState("");
   const [blueprintEnabled, setBlueprintEnabled] = useState(false);
   const [blueprintSections, setBlueprintSections] = useState<Array<{ title: string; questions: Array<{ marks: number; style: string }> }>>([]);
@@ -665,15 +756,15 @@ export const ExamProfileModal = ({
 
           {/* ── Studied texts (text-based subjects) ── */}
           {isTextBasedSubject && (
-            <SectionCard accent={subjectColor} icon={BookOpen} title="Studied texts" hint={studiedTexts.length ? `${studiedTexts.length} added` : "e.g. Othello, An Inspector Calls"}>
+            <SectionCard accent={subjectColor} icon={BookOpen} title={studiedContentCfg.title} hint={studiedTexts.length ? `${studiedTexts.length} added` : studiedContentCfg.hint}>
               <p className="text-[11px] text-muted-foreground -mt-1">
-                The exact texts/units you study — questions will target these. Public-domain texts get real passage questions; in-copyright texts get essay questions.
+                {studiedContentCfg.description}
               </p>
               <div className="space-y-1.5">
                 {studiedTexts.map((t, i) => (
                   <div key={i} className="flex items-center gap-2 rounded-lg border border-border/50 bg-card/60 px-3 py-2">
                     <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0 w-28">
-                      {STUDIED_TEXT_ROLES.find((r) => r.id === t.role)?.label ?? t.role}
+                      {studiedContentCfg.roles.find((r) => r.id === t.role)?.label ?? t.role}
                     </span>
                     <span className="text-xs flex-1 truncate">{t.title}</span>
                     <button type="button" aria-label={`Remove ${t.title}`} onClick={() => setStudiedTexts(studiedTexts.filter((_, j) => j !== i))}>
@@ -688,7 +779,7 @@ export const ExamProfileModal = ({
                   onChange={(e) => setNewTextRole(e.target.value)}
                   className="h-9 rounded-md border border-input bg-background px-2 text-xs w-40 shrink-0"
                 >
-                  {STUDIED_TEXT_ROLES.map((r) => (
+                  {studiedContentCfg.roles.map((r) => (
                     <option key={r.id} value={r.id}>{r.label}</option>
                   ))}
                 </select>
@@ -702,7 +793,7 @@ export const ExamProfileModal = ({
                       setNewTextTitle("");
                     }
                   }}
-                  placeholder="Title, e.g. Othello"
+                  placeholder={studiedContentCfg.placeholder}
                   className="h-9 text-xs"
                 />
                 <Button type="button" size="sm" variant="outline" className="shrink-0"
@@ -745,12 +836,12 @@ export const ExamProfileModal = ({
                     className="h-8 rounded-md border border-input bg-background px-2 text-xs flex-1"
                     value=""
                     onChange={(e) => {
-                      const preset = BLUEPRINT_PRESETS.find((pr) => pr.id === e.target.value);
+                      const preset = availablePresets.find((pr) => pr.id === e.target.value);
                       if (preset) setBlueprintSections(JSON.parse(JSON.stringify(preset.sections)));
                     }}
                   >
                     <option value="">Choose a board paper (or build your own below)…</option>
-                    {BLUEPRINT_PRESETS.map((pr) => (
+                    {availablePresets.map((pr) => (
                       <option key={pr.id} value={pr.id}>{pr.label}</option>
                     ))}
                   </select>
