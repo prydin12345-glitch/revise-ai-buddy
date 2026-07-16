@@ -65,6 +65,31 @@ export function InsertPanel({ figures, subjectColor }: InsertPanelProps) {
               </div>
             </div>
           )}
+          {fig.type === "source" && (
+            <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
+              <div className="mb-3 pb-3 border-b border-border/50">
+                <p className="text-xs font-medium">{fig.provenance.author} · {fig.provenance.date}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{fig.form}{fig.provenance.context ? ` — ${fig.provenance.context}` : ""}</p>
+              </div>
+              <div className="space-y-3">
+                {fig.paragraphs.map((para: string, pi: number) => (
+                  <p key={pi} className="text-sm leading-relaxed font-serif">{para}</p>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-3 italic text-right">Illustrative source (fictional, AI-original)</p>
+            </div>
+          )}
+          {fig.type === "interpretations_pair" && (
+            <div className="space-y-3">
+              {fig.interpretations.map((interp: any) => (
+                <div key={interp.label} className="rounded-xl border border-border bg-card p-4 sm:p-5">
+                  <p className="text-xs font-semibold mb-2">Interpretation {interp.label}</p>
+                  <p className="text-sm leading-relaxed font-serif">{interp.text}</p>
+                  <p className="text-[10px] text-muted-foreground mt-3 italic text-right">— {interp.attribution}</p>
+                </div>
+              ))}
+            </div>
+          )}
           {fig.type === "text_extract" && (
             <div className="rounded-xl border border-border bg-card p-5">
               <div className="border-l-2 border-primary/40 pl-4 space-y-3">
