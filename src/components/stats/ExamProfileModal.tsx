@@ -122,7 +122,8 @@ const BLUEPRINT_PRESETS: Array<{ id: string; label: string; subjects: RegExp; le
     sections: [
       { title: "Section A: Interpretations", questions: [
         { marks: 30, style: "Evaluate the three interpretations" } ] },
-      { title: "Section B: Essays", questions: [
+      { title: "Section B: Essays — answer TWO of the three", questions: [
+        { marks: 25, style: "Extended judgement essay" },
         { marks: 25, style: "Extended judgement essay" },
         { marks: 25, style: "Extended judgement essay" } ] } ] },
   { id: "aqa_geog_p2", label: "AQA A-level Geography Paper 2 (Human)", subjects: /geograph/i, levels: /a[-\s]?level|level\s*3|as\b|a2|year\s*1[23]|sixth/i,
