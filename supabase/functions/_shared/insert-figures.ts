@@ -211,7 +211,9 @@ export function buildInsertFiguresPrompt(subjectContext: string, topics: string[
   // English papers are passage-based, not map/table-based: dispatch to the
   // brief system so each generation is a distinct point in creative space.
   if (/history/i.test(subjectContext)) {
-    const unit = topics.length > 0 ? topics.join("; ") : "";
+    // ONE unit per paper — joining topics once produced a Frankenstein paper
+    // mixing Tudors, Tsarist Russia and the Stalinist era in three questions.
+    const unit = topics.length > 0 ? topics[Math.floor(Math.random() * topics.length)] : "";
     const brief = buildHistoryBrief(unit);
     return buildHistoryFiguresPrompt(brief, subjectContext);
   }
@@ -293,7 +295,7 @@ export function describeFigureForPrompt(f: any): string {
   }
   if (f.type === "source") {
     return `Figure ${f.figureNumber}: "${f.title}" — a contemporary source: ${f.form}.
-PROVENANCE: ${f.provenance.author}, ${f.provenance.date}. ${f.provenance.context}
+PROVENANCE: ${f.provenance.author}, ${f.provenance.date}. ${f.provenance.context}${f.unit ? `\nPAPER LOCK (ABSOLUTE): every question in this ENTIRE paper must sit strictly inside: ${f.unit}.` : ""}
 GROUND TRUTH for utility questions: this source's planted limitation is "${f.plantedLimitation}" — utility/reliability questions should be answerable by reasoning about the provenance and this limitation.
 HISTORY SOURCE LADDER: use this figure for source-skills questions, e.g. "Give two things you can infer from Source ${f.figureNumber} about <topic>" (4 marks) and "How useful is Source ${f.figureNumber} to an historian studying <topic>? Use the source and your own knowledge" (8 marks).
 HARD RULES: any quoted words MUST be verbatim substrings of the source; never invent provenance details beyond those stated.
@@ -301,14 +303,17 @@ FULL SOURCE TEXT:
 ${f.paragraphs.join("\n")}`;
   }
   if (f.type === "interpretations_pair") {
-    return `Figure ${f.figureNumber}: "${f.title}" — TWO conflicting interpretations of ${f.topic}.
-GROUND TRUTH: they disagree along this crux: "${f.crux}" — difference/why-differ/how-far-agree questions should target exactly this axis.
-INTERPRETATIONS LADDER: "How does Interpretation A differ from Interpretation B about <topic>?" (4 marks); "Why might the authors have different views?" (4 marks); "How far do you agree with Interpretation A about <topic>? Use both interpretations and your own knowledge" (8-16 marks).
-HARD RULES: any quoted words MUST be verbatim substrings of the relevant interpretation; refer to them only as "Interpretation A" and "Interpretation B".
-INTERPRETATION A (${f.interpretations[0].attribution}):
-${f.interpretations[0].text}
-INTERPRETATION B (${f.interpretations[1].attribution}):
-${f.interpretations[1].text}`;
+    const n = f.interpretations.length;
+    const lock = f.unit ? `\nPAPER LOCK (ABSOLUTE): every question in this ENTIRE paper must sit strictly inside: ${f.unit}. Never introduce other periods or units.` : "";
+    const ladder = n >= 3
+      ? `A-LEVEL INTERPRETATIONS LADDER: one compulsory 30-mark question: "Using your understanding of the historical context, assess how convincing the arguments in Extracts A, B and C are in relation to <the issue>." All ${n} extracts must be referenced. Contemporary-source utility questions must NOT appear anywhere on this paper — remaining questions are broad thematic essays within the unit.`
+      : `INTERPRETATIONS LADDER: "How does Interpretation A differ from Interpretation B about <topic>?" (4 marks); "Why might the authors have different views?" (4 marks); "How far do you agree with Interpretation A about <topic>? Use both interpretations and your own knowledge" (8-16 marks).`;
+    const bodies = f.interpretations.map((i: any) => `INTERPRETATION ${i.label} (${i.attribution}):\n${i.text}`).join("\n");
+    return `Figure ${f.figureNumber}: "${f.title}" — ${n === 3 ? "THREE" : "TWO"} conflicting interpretations of ${f.topic}.
+GROUND TRUTH: A and B disagree along this crux: "${f.crux}"${n >= 3 ? "; C takes a distinct third position" : ""} — difference/convincingness questions should target exactly this.${lock}
+${ladder}
+HARD RULES: any quoted words MUST be verbatim substrings of the relevant interpretation; refer to them only by their labels.
+${bodies}`;
   }
   if (f.type === "passage") {
     const numbered = f.lines.map((ln: string, i: number) => (ln === "" ? "" : `${i + 1}: ${ln}`)).join("\n");
@@ -600,6 +605,7 @@ export interface SourceFigureData {
   figureNumber?: string;
   title: string;
   type: "source";
+  unit?: string;
   form: string; // diary entry | private letter | public speech | poster description | newspaper report | official report
   provenance: { author: string; date: string; context: string };
   plantedLimitation: string; // ground truth for utility questions
@@ -610,6 +616,7 @@ export interface InterpretationsPairData {
   figureNumber?: string;
   title: string;
   type: "interpretations_pair";
+  unit?: string;
   topic: string;
   crux: string; // the planted axis of disagreement
   interpretations: Array<{ label: string; attribution: string; text: string }>;
@@ -656,9 +663,30 @@ export function buildHistoryBrief(unit: string): HistoryBrief {
 }
 
 export function buildHistoryFiguresPrompt(brief: HistoryBrief, levelContext: string): string {
+  const aLevel = /a[-\s]?level|level\s*3|sixth|year\s*1[23]/i.test(levelContext);
+  const lockRule = `
+PAPER LOCK (ABSOLUTE): every resource AND every question in this entire paper must sit strictly inside: ${brief.unit || "one single coherent historical unit of your choice"}. Never introduce events, figures or periods from any other unit, even if other topics appear elsewhere in the instructions.`;
+  if (aLevel) {
+    return `
+## HISTORY EXAM RESOURCES (INSERT) — A-LEVEL BREADTH PAPER
+Create ONE resource for an A-level History breadth paper (${levelContext}), set within: ${brief.unit || "the studied period"}.
+${lockRule}
+
+RESOURCE — THREE conflicting INTERPRETATIONS (A-level papers use exactly three; contemporary sources belong to depth papers and must NOT be generated):
+- Three extracts (250-700 characters each) in the style of later academic histories of the SAME issue.
+- Extracts A and B must genuinely disagree along this planted crux: ${brief.crux}.
+- Extract C must take a distinct third position (e.g. a qualified middle view, or disagreement on different grounds).
+- Each needs an attribution: "Adapted illustrative extract in the style of an academic history (AI-original), <year>".
+ALL text ENTIRELY ORIGINAL — never reproduce or closely imitate any real historian's published work.
+Output ONLY a JSON array with exactly this one object:
+[
+ {"type":"interpretations_pair","title":"<short title>","unit":"${brief.unit}","topic":"<the shared issue>","crux":"${brief.crux}","interpretations":[{"label":"A","attribution":"...","text":"..."},{"label":"B","attribution":"...","text":"..."},{"label":"C","attribution":"...","text":"..."}]}
+]`;
+  }
   return `
 ## HISTORY EXAM RESOURCES (INSERT)
-Create TWO resources for a History exam (${levelContext}), set within: ${brief.unit}.
+Create TWO resources for a History exam (${levelContext}), set within: ${brief.unit || "the studied period"}.
+${lockRule}
 Execute this brief EXACTLY:
 
 RESOURCE 1 — a contemporary SOURCE:
@@ -675,10 +703,11 @@ RESOURCE 2 — a PAIR of conflicting INTERPRETATIONS:
 ALL text must be ENTIRELY ORIGINAL — never reproduce or closely imitate any real historian's published work. All authors are fictional.
 Output ONLY a JSON array with exactly these two objects:
 [
- {"type":"source","title":"<short title>","form":"${brief.form}","provenance":{"author":"<fictional name + role>","date":"<date in period>","context":"<one sentence>"},"plantedLimitation":"${brief.limitation}","paragraphs":["..."]},
- {"type":"interpretations_pair","title":"<short title>","topic":"<the shared events>","crux":"${brief.crux}","interpretations":[{"label":"A","attribution":"...","text":"..."},{"label":"B","attribution":"...","text":"..."}]}
+ {"type":"source","title":"<short title>","unit":"${brief.unit}","form":"${brief.form}","provenance":{"author":"<fictional name + role>","date":"<date in period>","context":"<one sentence>"},"plantedLimitation":"${brief.limitation}","paragraphs":["..."]},
+ {"type":"interpretations_pair","title":"<short title>","unit":"${brief.unit}","topic":"<the shared events>","crux":"${brief.crux}","interpretations":[{"label":"A","attribution":"...","text":"..."},{"label":"B","attribution":"...","text":"..."}]}
 ]`;
 }
+
 
 export function validateSourceFigure(raw: any): { ok: boolean; figure: SourceFigureData | null; reasons: string[] } {
   if (!raw || raw.type !== "source") return { ok: false, figure: null, reasons: ["not a source"] };
@@ -692,6 +721,7 @@ export function validateSourceFigure(raw: any): { ok: boolean; figure: SourceFig
   return { ok: true, reasons: [], figure: {
     figureNumber: typeof raw.figureNumber === "string" ? raw.figureNumber : undefined,
     title: String(raw.title || "Untitled source").trim(), type: "source",
+    unit: String(raw.unit || ""),
     form: String(raw.form || "written source"),
     provenance: { author: String(prov.author), date: String(prov.date), context: String(prov.context || "") },
     plantedLimitation: String(raw.plantedLimitation || ""), paragraphs,
@@ -702,17 +732,18 @@ export function validateInterpretationsPair(raw: any): { ok: boolean; figure: In
   if (!raw || raw.type !== "interpretations_pair") return { ok: false, figure: null, reasons: ["not an interpretations_pair"] };
   const interps = (Array.isArray(raw.interpretations) ? raw.interpretations : [])
     .filter((i: any) => i && typeof i.text === "string" && i.text.trim().length >= 150)
-    .slice(0, 2)
+    .slice(0, 3)
     .map((i: any, idx: number) => ({
       label: String(i.label || (idx === 0 ? "A" : "B")),
       attribution: String(i.attribution || "Adapted illustrative extract (AI-original)"),
       text: i.text.trim(),
     }));
-  if (interps.length !== 2) return { ok: false, figure: null, reasons: [`need exactly 2 substantial interpretations, got ${interps.length}`] };
-  if (interps[0].text.length > 1100 || interps[1].text.length > 1100) return { ok: false, figure: null, reasons: ["interpretation too long (max ~1100 chars)"] };
+  if (interps.length < 2 || interps.length > 3) return { ok: false, figure: null, reasons: [`need 2 or 3 substantial interpretations, got ${interps.length}`] };
+  if (interps.some((i: any) => i.text.length > 1100)) return { ok: false, figure: null, reasons: ["interpretation too long (max ~1100 chars)"] };
   return { ok: true, reasons: [], figure: {
     figureNumber: typeof raw.figureNumber === "string" ? raw.figureNumber : undefined,
-    title: String(raw.title || "Two interpretations").trim(), type: "interpretations_pair",
+    title: String(raw.title || "Interpretations").trim(), type: "interpretations_pair",
+    unit: String(raw.unit || ""),
     topic: String(raw.topic || ""), crux: String(raw.crux || ""), interpretations: interps,
   }};
 }
