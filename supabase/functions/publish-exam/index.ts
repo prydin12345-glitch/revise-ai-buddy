@@ -304,7 +304,7 @@ serve(async (req) => {
     const { error: clearError } = await supabase
       .from('exam_questions')
       .delete()
-      .eq('exam_id', examId);
+      .eq('exam_id', draftId);
     if (clearError) console.warn('[publish] pre-insert clear failed (continuing):', clearError.message);
 
     const { error: insertError } = await supabase
