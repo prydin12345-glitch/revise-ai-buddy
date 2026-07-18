@@ -597,7 +597,19 @@ const ExamInProgress = () => {
         return q;
       });
 
-      setQuestions(dedupedQuestions);
+      // True dedupe: drop exact repeats (same number + same opening text) that
+      // a non-idempotent publish may have stored. Keeps the first occurrence.
+      const seenQ = new Set<string>();
+      const uniqueQuestions = dedupedQuestions.filter((q: any) => {
+        const key = `${q.question_number}|${String(q.question_text || '').slice(0, 80)}`;
+        if (seenQ.has(key)) return false;
+        seenQ.add(key);
+        return true;
+      });
+      if (uniqueQuestions.length !== dedupedQuestions.length) {
+        console.warn(`[Load] removed ${dedupedQuestions.length - uniqueQuestions.length} duplicate question row(s)`);
+      }
+      setQuestions(uniqueQuestions);
       setIsTeacher(Boolean(data.isTeacher));
       console.log('[Resume Debug] isTeacher:', data.isTeacher, 'isReadOnly:', Boolean(data.isTeacher) && !treatAsStudent);
       setExistingAnswers(data.existingAnswers || []);
