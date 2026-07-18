@@ -2,12 +2,14 @@ import { useNavigate } from "react-router-dom";
 import { ChevronRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { useSubjectAverage } from "@/hooks/useSubjectAverage";
 import { getBoardDisplayName } from "@/lib/board-scrubber";
+import { resolveSubjectIcon } from "@/lib/subjectIcons";
 
 interface SubjectCardProps {
   subject: {
     id: string;
     subject_name: string;
     subject_color?: string | null;
+    subject_icon?: string | null;
     exam_board?: string | null;
     custom_name?: string | null;
   };
@@ -34,52 +36,40 @@ export const SubjectCard = ({ subject, profileCount }: SubjectCardProps) => {
     : trend === "down" ? "text-red-500"
     : "text-muted-foreground";
 
+  const Icon = resolveSubjectIcon(subject.subject_icon, subject.subject_name);
+
   return (
     <button
       onClick={() => navigate(`/my-subjects/${encodeURIComponent(subject.subject_name)}`)}
-      className="group w-full text-left rounded-2xl border border-border/60 bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 overflow-hidden"
+      className="group w-full flex flex-col items-center text-center px-4 py-6 rounded-2xl transition-colors duration-200 hover:bg-white/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <div className="h-1.5 w-full" style={{ backgroundColor: color }} />
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-3 mb-4">
-          <div className="min-w-0 flex-1">
-            <h3 className="text-[15px] font-semibold text-foreground truncate">{displayName}</h3>
-            {boardLabel ? (
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground mt-1">{boardLabel}</p>
-            ) : (
-              <p className="text-[11px] text-muted-foreground/70 mt-1 italic">No exam board set</p>
-            )}
-          </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground/60 group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" />
-        </div>
-
-        <div className="flex items-end justify-between gap-3">
-          <div className="min-w-0">
-            {loading ? (
-              <div className="h-8 w-16 bg-muted rounded animate-pulse" />
-            ) : average !== null ? (
-              <>
-                <div className={`text-2xl font-bold tabular-nums ${scoreColor}`}>{Math.round(average)}%</div>
-                <div className="text-[11px] text-muted-foreground mt-0.5">average score</div>
-              </>
-            ) : (
-              <div className="text-[12px] text-muted-foreground">No attempts yet</div>
-            )}
-          </div>
-
-          <div className="flex flex-col items-end gap-1 shrink-0">
-            {trend && trend !== "neutral" && (
-              <div className={`flex items-center gap-1 text-[11px] font-medium ${trendColor}`}>
-                <TrendIcon className="w-3 h-3" />
-                <span>{trend === "up" ? "Improving" : "Needs work"}</span>
-              </div>
-            )}
-            <div className="text-[11px] text-muted-foreground">
-              {profileCount} {profileCount === 1 ? "profile" : "profiles"}
-            </div>
-          </div>
-        </div>
+      <div
+        className="w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center transition-transform duration-200 group-hover:scale-[1.04] shadow-lg shadow-black/20"
+        style={{ backgroundColor: color }}
+      >
+        <Icon className="w-10 h-10 sm:w-12 sm:h-12 text-white" strokeWidth={1.5} />
       </div>
+
+      <h3 className="mt-5 text-[16px] font-semibold text-foreground tracking-tight">{displayName}</h3>
+      <p className="mt-1 text-[12px] text-muted-foreground">
+        {boardLabel ?? "No board set"}
+      </p>
+
+      <p className="mt-2 text-[11px] text-muted-foreground/70 tabular-nums h-4">
+        {loading ? "" : average !== null
+          ? `${Math.round(average)}% avg · ${profileCount} ${profileCount === 1 ? "profile" : "profiles"}`
+          : profileCount > 0
+            ? `${profileCount} ${profileCount === 1 ? "profile" : "profiles"}`
+            : ""}
+      </p>
+
+      <span
+        className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-[12.5px] font-semibold text-white transition-all duration-200 group-hover:brightness-110"
+        style={{ backgroundColor: color }}
+      >
+        Explore {displayName.split(" ")[0]}
+        <ChevronRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
+      </span>
     </button>
   );
 };
