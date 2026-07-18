@@ -113,7 +113,7 @@ export const ProfileTopicGrid = ({ profileId, profileTopics, subjectName }: Prof
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+    <div className="rounded-2xl border border-[hsl(220_6%_20%)] bg-[hsl(220_8%_13%)] divide-y divide-[hsl(220_6%_20%)]/50 overflow-hidden">
       {topicScores.map(({ topic, score, attempts, source }) => {
         const unstarted = score === -1;
         const displayScore = Math.max(0, score);
@@ -142,31 +142,27 @@ export const ProfileTopicGrid = ({ profileId, profileTopics, subjectName }: Prof
                 `/create-practice-questions?subject=${encodeURIComponent(subjectName)}&subtopic=${encodeURIComponent(topic)}&profileId=${profileId}`
               )
             }
-            className={`group text-left rounded-xl border p-3.5 transition-all duration-150 ${bg} ${unstarted ? "cursor-default" : "hover:shadow-sm"}`}
+            className={`group w-full flex items-center gap-3 px-4 py-3 text-left transition-colors duration-150 ${unstarted ? "cursor-default" : "hover:bg-white/[0.03]"}`}
           >
-            {unstarted ? (
-              <>
-                <div className="text-[12px] font-medium text-foreground line-clamp-2 leading-snug">
-                  {topic}
-                </div>
-                <div className="text-[10.5px] text-muted-foreground mt-2">Not attempted yet</div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-start justify-between gap-1.5">
-                  <div className={`text-2xl font-bold tabular-nums ${textColor}`}>{displayScore}%</div>
-                  <span className="text-[9.5px] uppercase tracking-wider text-muted-foreground rounded-md px-1.5 py-0.5 bg-background/60 border border-border/50 shrink-0 mt-1">
-                    {sourceLabel}
-                  </span>
-                </div>
-                <div className="text-[12px] font-medium text-foreground mt-1 line-clamp-2 leading-snug">
-                  {topic}
-                </div>
-                <div className="text-[10.5px] text-muted-foreground mt-1">
-                  {attempts} attempt{attempts !== 1 ? "s" : ""}
-                </div>
-              </>
+            <span
+              aria-hidden="true"
+              className={`w-2 h-2 rounded-full shrink-0 ${unstarted ? "bg-[hsl(220_6%_26%)]" : displayScore >= 70 ? "bg-green-500" : displayScore >= 50 ? "bg-amber-500" : "bg-red-500"}`}
+            />
+            <span className="min-w-0 flex-1 text-[13px] font-medium text-foreground truncate">{topic}</span>
+            {!unstarted && (
+              <span className={`hidden sm:inline text-[12px] tabular-nums font-semibold ${textColor}`}>{displayScore}%</span>
             )}
+            {!unstarted && (
+              <span className="hidden md:inline text-[10.5px] text-muted-foreground tabular-nums" title={sourceLabel}>{attempts}×</span>
+            )}
+            <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+              unstarted ? "text-muted-foreground/70 border-[hsl(220_6%_22%)] bg-transparent"
+              : displayScore >= 70 ? "text-green-400 border-green-500/25 bg-green-500/[0.07]"
+              : displayScore >= 50 ? "text-amber-400 border-amber-500/25 bg-amber-500/[0.07]"
+              : "text-red-400 border-red-500/25 bg-red-500/[0.07]"
+            }`}>
+              {unstarted ? "Not started" : displayScore >= 70 ? "Mastered" : displayScore >= 50 ? "Improving" : "Review needed"}
+            </span>
           </button>
         );
       })}
