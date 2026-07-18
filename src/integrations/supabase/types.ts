@@ -827,6 +827,7 @@ export type Database = {
           id: string
           insert_figures: Json | null
           is_template: boolean | null
+          paper_blueprint: Json | null
           profile_id: string | null
           qualification_level: string | null
           questions_filtered_count: number | null
@@ -863,6 +864,7 @@ export type Database = {
           id?: string
           insert_figures?: Json | null
           is_template?: boolean | null
+          paper_blueprint?: Json | null
           profile_id?: string | null
           qualification_level?: string | null
           questions_filtered_count?: number | null
@@ -899,6 +901,7 @@ export type Database = {
           id?: string
           insert_figures?: Json | null
           is_template?: boolean | null
+          paper_blueprint?: Json | null
           profile_id?: string | null
           qualification_level?: string | null
           questions_filtered_count?: number | null
