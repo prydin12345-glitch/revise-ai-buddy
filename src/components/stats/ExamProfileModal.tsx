@@ -69,8 +69,8 @@ const STRUCTURE_PREVIEWS = [
 
 
 // Common board paper layouts — one tap loads the real architecture.
-const BLUEPRINT_PRESETS: Array<{ id: string; label: string; subjects: RegExp; levels: RegExp; sections: Array<{ title: string; questions: Array<{ marks: number; style: string }>; answerCount?: number }> }> = [
-  { id: "aqa_lang_p1", label: "AQA English Language Paper 1 (GCSE)", subjects: /english|language/i, levels: /gcse|level\s*2|foundation|higher|ks4|year\s*1[01]/i,
+const BLUEPRINT_PRESETS: Array<{ id: string; label: string; subjects: RegExp; levels: RegExp; boards: RegExp; sections: Array<{ title: string; questions: Array<{ marks: number; style: string }>; answerCount?: number }> }> = [
+  { id: "aqa_lang_p1", label: "AQA English Language Paper 1 (GCSE)", subjects: /english|language/i, boards: /aqa/i, levels: /gcse|level\s*2|foundation|higher|ks4|year\s*1[01]/i,
     sections: [
       { title: "Section A: Reading", questions: [
         { marks: 4, style: "List / identify from the text" },
@@ -78,7 +78,7 @@ const BLUEPRINT_PRESETS: Array<{ id: string; label: string; subjects: RegExp; le
         { marks: 8, style: "Structure analysis" },
         { marks: 20, style: "Evaluate a statement" } ] },
       { title: "Section B: Writing", questions: [ { marks: 40, style: "Extended writing task" } ] } ] },
-  { id: "edexcel_lang_p1", label: "Edexcel English Language Paper 1 (GCSE)", subjects: /english|language/i, levels: /gcse|level\s*2|foundation|higher|ks4|year\s*1[01]/i,
+  { id: "edexcel_lang_p1", label: "Edexcel English Language Paper 1 (GCSE)", subjects: /english|language/i, boards: /edexcel|pearson/i, levels: /gcse|level\s*2|foundation|higher|ks4|year\s*1[01]/i,
     sections: [
       { title: "Section A: Reading", questions: [
         { marks: 1, style: "List / identify from the text" },
@@ -86,7 +86,7 @@ const BLUEPRINT_PRESETS: Array<{ id: string; label: string; subjects: RegExp; le
         { marks: 6, style: "Language analysis" },
         { marks: 15, style: "Evaluate a statement" } ] },
       { title: "Section B: Writing", questions: [ { marks: 40, style: "Extended writing task" } ] } ] },
-  { id: "eduqas_lang_c1", label: "Eduqas English Language Component 1 (GCSE)", subjects: /english|language/i, levels: /gcse|level\s*2|foundation|higher|ks4|year\s*1[01]/i,
+  { id: "eduqas_lang_c1", label: "Eduqas English Language Component 1 (GCSE)", subjects: /english|language/i, boards: /eduqas|wjec/i, levels: /gcse|level\s*2|foundation|higher|ks4|year\s*1[01]/i,
     sections: [
       { title: "Section A: Reading", questions: [
         { marks: 5, style: "List / identify from the text" },
@@ -94,12 +94,12 @@ const BLUEPRINT_PRESETS: Array<{ id: string; label: string; subjects: RegExp; le
         { marks: 10, style: "Language analysis" },
         { marks: 10, style: "Evaluate a statement" } ] },
       { title: "Section B: Writing", questions: [ { marks: 40, style: "Extended writing task" } ] } ] },
-  { id: "aqa_lit_p1", label: "AQA English Literature A-level Paper 1", subjects: /english|literature/i, levels: /a[-\s]?level|level\s*3|as\b|a2|year\s*1[23]|sixth/i,
+  { id: "aqa_lit_p1", label: "AQA English Literature A-level Paper 1", subjects: /english|literature/i, boards: /aqa/i, levels: /a[-\s]?level|level\s*3|as\b|a2|year\s*1[23]|sixth/i,
     sections: [
       { title: "Section A: Shakespeare", questions: [ { marks: 25, style: "Passage-based question with linked essay" } ] },
       { title: "Section B: Unseen poetry", questions: [ { marks: 25, style: "Essay on two unseen poems" } ] },
       { title: "Section C: Comparing texts", questions: [ { marks: 25, style: "Essay comparing two studied texts" } ] } ] },
-  { id: "gcse_hist_interp", label: "GCSE History — interpretations paper (AQA-style)", subjects: /history/i, levels: /gcse|level\s*2|foundation|higher|ks4|year\s*1[01]/i,
+  { id: "gcse_hist_interp", label: "GCSE History — interpretations paper (AQA-style)", subjects: /history/i, boards: /aqa/i, levels: /gcse|level\s*2|foundation|higher|ks4|year\s*1[01]/i,
     sections: [
       { title: "Section A: Interpretations", questions: [
         { marks: 4, style: "How do the interpretations differ" },
@@ -109,7 +109,7 @@ const BLUEPRINT_PRESETS: Array<{ id: string; label: string; subjects: RegExp; le
         { marks: 4, style: "Describe / outline" },
         { marks: 8, style: "Explain / describe" },
         { marks: 12, style: "Extended judgement essay" } ] } ] },
-  { id: "gcse_hist_sources", label: "GCSE History — source skills paper (Edexcel-style)", subjects: /history/i, levels: /gcse|level\s*2|foundation|higher|ks4|year\s*1[01]/i,
+  { id: "gcse_hist_sources", label: "GCSE History — source skills paper (Edexcel-style)", subjects: /history/i, boards: /edexcel|pearson/i, levels: /gcse|level\s*2|foundation|higher|ks4|year\s*1[01]/i,
     sections: [
       { title: "Section A: Source skills", questions: [
         { marks: 4, style: "Inference from a source" },
@@ -118,7 +118,7 @@ const BLUEPRINT_PRESETS: Array<{ id: string; label: string; subjects: RegExp; le
       { title: "Section B: Depth study", questions: [
         { marks: 4, style: "Describe / outline" },
         { marks: 16, style: "Extended judgement essay" } ] } ] },
-  { id: "alevel_hist_essay", label: "A-level History — interpretations & essays (AQA-style)", subjects: /history/i, levels: /a[-\s]?level|level\s*3|as\b|a2|year\s*1[23]|sixth/i,
+  { id: "alevel_hist_essay", label: "A-level History — interpretations & essays (AQA-style)", subjects: /history/i, boards: /aqa/i, levels: /a[-\s]?level|level\s*3|as\b|a2|year\s*1[23]|sixth/i,
     sections: [
       { title: "Section A: Interpretations", questions: [
         { marks: 30, style: "Evaluate the three interpretations" } ] },
@@ -126,7 +126,7 @@ const BLUEPRINT_PRESETS: Array<{ id: string; label: string; subjects: RegExp; le
         { marks: 25, style: "Extended judgement essay" },
         { marks: 25, style: "Extended judgement essay" },
         { marks: 25, style: "Extended judgement essay" } ] } ] },
-  { id: "aqa_geog_p2", label: "AQA A-level Geography Paper 2 (Human)", subjects: /geograph/i, levels: /a[-\s]?level|level\s*3|as\b|a2|year\s*1[23]|sixth/i,
+  { id: "aqa_geog_p2", label: "AQA A-level Geography Paper 2 (Human)", subjects: /geograph/i, boards: /aqa/i, levels: /a[-\s]?level|level\s*3|as\b|a2|year\s*1[23]|sixth/i,
     sections: [
       { title: "Section A: Global systems and governance", questions: [
         { marks: 4, style: "Explain / describe" },
@@ -144,7 +144,7 @@ const BLUEPRINT_PRESETS: Array<{ id: string; label: string; subjects: RegExp; le
         { marks: 9, style: "Evaluate a statement" },
         { marks: 9, style: "Evaluate a statement" },
         { marks: 20, style: "Extended judgement essay" } ] } ] },
-  { id: "universal_mixed", label: "Standard mixed paper (short answers building to extended)", subjects: /./, levels: /./,
+  { id: "universal_mixed", label: "Standard mixed paper (short answers building to extended)", subjects: /./, boards: /./, levels: /./,
     sections: [
       { title: "Section A", questions: [
         { marks: 2, style: "List / identify from the text" },
@@ -237,6 +237,7 @@ interface ExamProfileModalProps {
   onOpenChange: (open: boolean) => void;
   subjectName: string;
   subjectColor: string;
+  examBoard?: string | null;
   availableTopics: string[];
   onSave: (
     profileName: string,
@@ -277,6 +278,7 @@ export const ExamProfileModal = ({
   onOpenChange,
   subjectName,
   subjectColor,
+  examBoard,
   availableTopics,
   onSave,
   initialData,
@@ -408,7 +410,9 @@ export const ExamProfileModal = ({
 
   const finalTier = educationalTier === "other" ? customTier.trim() : educationalTier;
   const availablePresets = BLUEPRINT_PRESETS.filter((pr) =>
-    pr.subjects.test(subjectName || "") && (!finalTier || pr.levels.test(finalTier)));
+    pr.subjects.test(subjectName || "") &&
+    (!finalTier || pr.levels.test(finalTier)) &&
+    (!examBoard || pr.boards.test(examBoard) || pr.boards.source === "."));
   const handleSave = () => {
     if (!profileName.trim() || selectedTopics.length === 0 || !finalTier) return;
     const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
