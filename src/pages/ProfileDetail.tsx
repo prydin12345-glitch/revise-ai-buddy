@@ -243,64 +243,41 @@ export default function ProfileDetail() {
         </div>
 
         {/* SECTION 1 — Stats overview */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="rounded-2xl border border-border/60 bg-card p-4">
-            <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
-              <Target className="w-3 h-3" />
-              Average
-            </div>
-            {stats?.averageScore !== null && stats?.averageScore !== undefined ? (
-              <div className={`text-2xl font-bold tabular-nums mt-1.5 ${scoreColor}`}>
-                {stats.averageScore}%
+        <div className="grid grid-cols-2 lg:grid-cols-4 rounded-2xl bg-[hsl(220_8%_13%)] border border-[hsl(220_6%_20%)] divide-x divide-[hsl(220_6%_20%)]/60 overflow-hidden">
+          {[
+            {
+              label: "Average",
+              value: stats?.averageScore !== null && stats?.averageScore !== undefined ? `${stats.averageScore}%` : "—",
+              cls: stats?.averageScore !== null && stats?.averageScore !== undefined ? scoreColor : "text-muted-foreground/40",
+              sub: null as string | null,
+            },
+            {
+              label: "Best",
+              value: stats?.bestScore !== null && stats?.bestScore !== undefined ? `${stats.bestScore}%` : "—",
+              cls: stats?.bestScore !== null && stats?.bestScore !== undefined ? bestColor : "text-muted-foreground/40",
+              sub: null as string | null,
+            },
+            {
+              label: "Trend",
+              value: stats?.trend ? trendLabel : "—",
+              cls: stats?.trend ? `${trendColor} text-[17px]` : "text-muted-foreground/40",
+              sub: null as string | null,
+            },
+            {
+              label: "Attempts",
+              value: String(totalAttempts),
+              cls: "text-foreground",
+              sub: `${stats?.totalExams ?? 0} exam${(stats?.totalExams ?? 0) !== 1 ? "s" : ""} · ${stats?.totalQuizzes ?? 0} quiz${(stats?.totalQuizzes ?? 0) !== 1 ? "zes" : ""}`,
+            },
+          ].map((mtr) => (
+            <div key={mtr.label} className="px-4 py-4 flex flex-col justify-center min-h-[76px]">
+              <div className="flex items-baseline gap-2">
+                <span className={`text-[22px] font-bold tabular-nums leading-none ${mtr.cls}`}>{mtr.value}</span>
+                <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">{mtr.label}</span>
               </div>
-            ) : (
-              <div className="text-[12px] text-muted-foreground mt-2">No data</div>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-border/60 bg-card p-4">
-            <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
-              <Award className="w-3 h-3" />
-              Best
+              {mtr.sub && <div className="text-[10.5px] text-muted-foreground mt-1.5 tabular-nums">{mtr.sub}</div>}
             </div>
-            {stats?.bestScore !== null && stats?.bestScore !== undefined ? (
-              <div className={`text-2xl font-bold tabular-nums mt-1.5 ${bestColor}`}>
-                {stats.bestScore}%
-              </div>
-            ) : (
-              <div className="text-[12px] text-muted-foreground mt-2">No data</div>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-border/60 bg-card p-4">
-            <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
-              <BarChart3 className="w-3 h-3" />
-              Trend
-            </div>
-            {stats?.trend ? (
-              <div className={`flex items-center gap-1.5 mt-1.5 text-[15px] font-semibold ${trendColor}`}>
-                <TrendIcon className="w-4 h-4" />
-                {trendLabel}
-              </div>
-            ) : (
-              <div className="text-[12px] text-muted-foreground mt-2">Need more data</div>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-border/60 bg-card p-4">
-            <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
-              <FileText className="w-3 h-3" />
-              Attempts
-            </div>
-            <div className="text-2xl font-bold tabular-nums mt-1.5 text-foreground">
-              {totalAttempts}
-            </div>
-            <div className="text-[10.5px] text-muted-foreground mt-0.5">
-              {stats?.totalExams ?? 0} exam{(stats?.totalExams ?? 0) !== 1 ? "s" : ""}
-              {" · "}
-              {stats?.totalQuizzes ?? 0} quiz{(stats?.totalQuizzes ?? 0) !== 1 ? "zes" : ""}
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* SECTION 2 — Score trend */}
