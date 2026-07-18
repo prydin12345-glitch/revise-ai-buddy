@@ -297,6 +297,16 @@ serve(async (req) => {
       };
     });
 
+    // Idempotent publish: a double invocation (double-tap, client retry,
+    // network replay) previously inserted every question TWICE — the paper
+    // rendered Q1, Q1, Q2, Q2... Clear this exam's questions first so
+    // publishing is safe to run any number of times.
+    const { error: clearError } = await supabase
+      .from('exam_questions')
+      .delete()
+      .eq('exam_id', examId);
+    if (clearError) console.warn('[publish] pre-insert clear failed (continuing):', clearError.message);
+
     const { error: insertError } = await supabase
       .from('exam_questions')
       .insert(questionInserts);
