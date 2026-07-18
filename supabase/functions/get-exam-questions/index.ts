@@ -39,7 +39,7 @@ serve(async (req) => {
     // Check if user is exam creator
     const { data: exam } = await supabase
       .from('exams')
-      .select('user_id')
+      .select('user_id, paper_blueprint')
       .eq('id', examId)
       .single();
 
@@ -187,6 +187,7 @@ serve(async (req) => {
         }));
 
     return new Response(JSON.stringify({ 
+      paperBlueprint: (exam as any)?.paper_blueprint ?? null,
       questions: responseQuestions,
       isTeacher,
       timer: timerData?.enabled ? {
