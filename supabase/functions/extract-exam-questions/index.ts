@@ -821,6 +821,21 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       return Array.isArray(meta?.paperBlueprint?.sections) && meta.paperBlueprint.sections.length > 0;
     } catch { return false; }
   })();
+  if (userBlueprintActive) {
+    // Persist the validated blueprint on the exam so the exam-taking UI can
+    // honour choice sections ("answer TWO of the three").
+    try {
+      const metaBp = ((formatData?.profile_metadata ?? exam.exam_format?.[0]?.profile_metadata) ?? {}) as any;
+      const vv = validatePaperBlueprint(metaBp.paperBlueprint);
+      if (vv.ok && vv.blueprint) {
+        const { error: bpSaveErr } = await supabase
+          .from('exams')
+          .update({ paper_blueprint: vv.blueprint })
+          .eq('id', draftId);
+        if (bpSaveErr) console.warn('[blueprint] save to exam failed (is the exam paper_blueprint migration applied?):', bpSaveErr.message);
+      }
+    } catch (e) { console.warn('[blueprint] persist skipped:', e); }
+  }
   if (!userBlueprintActive) {
     const isEssay = (q: any) => (Number(q.marks) || 0) >= 15;
     const isExtended = (q: any) => (Number(q.marks) || 0) >= 9 && (Number(q.marks) || 0) < 15;
