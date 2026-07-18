@@ -126,6 +126,16 @@ const BLUEPRINT_PRESETS: Array<{ id: string; label: string; subjects: RegExp; le
         { marks: 25, style: "Extended judgement essay" },
         { marks: 25, style: "Extended judgement essay" },
         { marks: 25, style: "Extended judgement essay" } ] } ] },
+  { id: "edexcel_alevel_hist_p1", label: "Edexcel A-level History Paper 1", subjects: /history/i, levels: /a[-\s]?level|level\s*3|as\b|a2|year\s*1[23]|sixth/i, boards: /edexcel|pearson/i,
+    sections: [
+      { title: "Section A", answerCount: 1, questions: [
+        { marks: 20, style: "Extended judgement essay" },
+        { marks: 20, style: "Extended judgement essay" } ] },
+      { title: "Section B", answerCount: 1, questions: [
+        { marks: 20, style: "Extended judgement essay" },
+        { marks: 20, style: "Extended judgement essay" } ] },
+      { title: "Section C: Interpretations", questions: [
+        { marks: 20, style: "How far do you agree with an interpretation" } ] } ] },
   { id: "aqa_geog_p2", label: "AQA A-level Geography Paper 2 (Human)", subjects: /geograph/i, boards: /aqa/i, levels: /a[-\s]?level|level\s*3|as\b|a2|year\s*1[23]|sixth/i,
     sections: [
       { title: "Section A: Global systems and governance", questions: [
