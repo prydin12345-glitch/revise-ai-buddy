@@ -57,24 +57,20 @@ export const SubjectsList = () => {
 
   return (
     <div className="w-full space-y-5">
-      <div className="flex items-center gap-2">
-        {subjects.length > 6 && (
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search subjects…"
-              className="pl-9 h-9"
-            />
-          </div>
-        )}
-        <div className="ml-auto">
-          <Button onClick={() => setAddOpen(true)} size="sm" className="gap-1.5">
-            <Plus className="h-4 w-4" />
-            Add subject
-          </Button>
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search subjects…"
+            className="pl-9 h-9 bg-[hsl(220_8%_13%)] border-[hsl(220_6%_20%)] focus-visible:ring-1"
+          />
         </div>
+        <Button onClick={() => setAddOpen(true)} size="sm" className="gap-1.5 h-9 shrink-0">
+          <Plus className="h-4 w-4" />
+          Add subject
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
