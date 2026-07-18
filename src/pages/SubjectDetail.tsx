@@ -169,6 +169,8 @@ const SubjectDetail = () => {
           </div>
         </div>
 
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6 lg:items-start space-y-8 lg:space-y-0">
+        <div className="space-y-8 min-w-0">
         {/* SECTION 1 — Exam Profiles */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
@@ -186,9 +188,10 @@ const SubjectDetail = () => {
           </div>
 
           {profiles.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border/60 p-8 text-center">
-              <p className="text-[13px] text-muted-foreground mb-3">
-                No exam profiles yet. Create one to set up the structure for your exams and practice quizzes.
+            <div className="rounded-2xl border border-dashed border-[hsl(220_6%_20%)] bg-[hsl(220_8%_13%)]/40 p-10 text-center">
+              <FileText className="w-6 h-6 text-muted-foreground/40 mx-auto mb-3" strokeWidth={1.5} />
+              <p className="text-[13px] text-muted-foreground mb-3 max-w-xs mx-auto">
+                No exam profiles yet. A profile stores your topics, tier and paper layout for one exam.
               </p>
               <button
                 onClick={handleOpenCreateProfile}
@@ -198,7 +201,7 @@ const SubjectDetail = () => {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
               {profiles.map((profile) => (
                 <ExamProfileCard
                   key={profile.id}
@@ -213,7 +216,9 @@ const SubjectDetail = () => {
             </div>
           )}
         </section>
+        </div>
 
+        <aside className="space-y-8 lg:sticky lg:top-6">
         {/* SECTION 2 — Topic Mastery */}
         <section className="space-y-4">
           <div>
@@ -265,6 +270,8 @@ const SubjectDetail = () => {
           </div>
           <RecentActivityList subjectName={subject.subject_name} />
         </section>
+        </aside>
+        </div>
 
         <ExamProfileModal
           open={profileModalOpen}
