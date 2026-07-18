@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import { EditSubjectModal } from "@/components/subjects/EditSubjectModal";
+import { EditSubjectModal } from "@/lib/EditSubjectModal";
 import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
