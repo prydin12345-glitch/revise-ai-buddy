@@ -215,7 +215,7 @@ export function buildInsertFiguresPrompt(subjectContext: string, topics: string[
     // mixing Tudors, Tsarist Russia and the Stalinist era in three questions.
     const unit = topics.length > 0 ? topics[Math.floor(Math.random() * topics.length)] : "";
     const brief = buildHistoryBrief(unit);
-    return buildHistoryFiguresPrompt(brief, subjectContext);
+    return buildHistoryFiguresPrompt(brief, subjectContext, board);
   }
   if (/english/i.test(subjectContext)) {
     const brief = buildPassageBrief(board.toLowerCase());
@@ -305,7 +305,9 @@ ${f.paragraphs.join("\n")}`;
   if (f.type === "interpretations_pair") {
     const n = f.interpretations.length;
     const lock = f.unit ? `\nPAPER LOCK (ABSOLUTE): every question in this ENTIRE paper must sit strictly inside: ${f.unit}. Never introduce other periods or units.` : "";
-    const ladder = n >= 3
+    const ladder = f.ladder === "edexcel_alevel"
+      ? `EDEXCEL A-LEVEL INTERPRETATIONS LADDER: exactly ONE compulsory 20-mark essay on this figure, phrased: "How far do you agree with the view in Interpretation ${"${"}"A" or "B"${"}"} that <the central claim of that interpretation>?" The question text MUST end with: "In your answer, you must refer to both interpretations and use your own knowledge of the historical context. (Total = 20 marks)". NEVER generate short-mark (2/3/4/6 mark) retrieval, explanation or comparison questions about these interpretations — A-level papers are essay-only.`
+      : n >= 3
       ? `A-LEVEL INTERPRETATIONS LADDER: one compulsory 30-mark question: "Using your understanding of the historical context, assess how convincing the arguments in Extracts A, B and C are in relation to <the issue>." All ${n} extracts must be referenced. Contemporary-source utility questions must NOT appear anywhere on this paper — remaining questions are broad thematic essays within the unit.`
       : `INTERPRETATIONS LADDER: "How does Interpretation A differ from Interpretation B about <topic>?" (4 marks); "Why might the authors have different views?" (4 marks); "How far do you agree with Interpretation A about <topic>? Use both interpretations and your own knowledge" (8-16 marks).`;
     const bodies = f.interpretations.map((i: any) => `INTERPRETATION ${i.label} (${i.attribution}):\n${i.text}`).join("\n");
@@ -622,6 +624,7 @@ export interface InterpretationsPairData {
   title: string;
   type: "interpretations_pair";
   unit?: string;
+  ladder?: string;
   topic: string;
   crux: string; // the planted axis of disagreement
   interpretations: Array<{ label: string; attribution: string; text: string }>;
@@ -667,10 +670,27 @@ export function buildHistoryBrief(unit: string): HistoryBrief {
            unit: unit || "the studied period" };
 }
 
-export function buildHistoryFiguresPrompt(brief: HistoryBrief, levelContext: string): string {
+export function buildHistoryFiguresPrompt(brief: HistoryBrief, levelContext: string, board = ""): string {
   const aLevel = /a[-\s]?level|level\s*3|sixth|year\s*1[23]/i.test(levelContext);
+  const edexcel = /edexcel|pearson/i.test(board);
   const lockRule = `
 PAPER LOCK (ABSOLUTE): every resource AND every question in this entire paper must sit strictly inside: ${brief.unit || "one single coherent historical unit of your choice"}. Never introduce events, figures or periods from any other unit, even if other topics appear elsewhere in the instructions.`;
+  if (aLevel && edexcel) {
+    return `
+## HISTORY EXAM RESOURCES (INSERT) — EDEXCEL A-LEVEL PAPER
+Create ONE resource for an Edexcel A-level History paper (${levelContext}), set within: ${brief.unit || "the studied period"}.
+${lockRule}
+
+RESOURCE — exactly TWO conflicting INTERPRETATIONS (Edexcel uses two extracts, never three; contemporary sources belong to other papers and must NOT be generated):
+- Two extracts (300-800 characters each) in the style of later academic histories of the SAME issue.
+- They must genuinely disagree along this planted crux: ${brief.crux}.
+- Each needs an attribution: "Adapted illustrative extract in the style of an academic history (AI-original), <year>".
+ALL text ENTIRELY ORIGINAL — never reproduce or closely imitate any real historian's published work.
+Output ONLY a JSON array with exactly this one object:
+[
+ {"type":"interpretations_pair","ladder":"edexcel_alevel","title":"<short title>","unit":"${brief.unit}","topic":"<the shared issue>","crux":"${brief.crux}","interpretations":[{"label":"A","attribution":"...","text":"..."},{"label":"B","attribution":"...","text":"..."}]}
+]`;
+  }
   if (aLevel) {
     return `
 ## HISTORY EXAM RESOURCES (INSERT) — A-LEVEL BREADTH PAPER
@@ -685,7 +705,7 @@ RESOURCE — THREE conflicting INTERPRETATIONS (A-level papers use exactly three
 ALL text ENTIRELY ORIGINAL — never reproduce or closely imitate any real historian's published work.
 Output ONLY a JSON array with exactly this one object:
 [
- {"type":"interpretations_pair","title":"<short title>","unit":"${brief.unit}","topic":"<the shared issue>","crux":"${brief.crux}","interpretations":[{"label":"A","attribution":"...","text":"..."},{"label":"B","attribution":"...","text":"..."},{"label":"C","attribution":"...","text":"..."}]}
+ {"type":"interpretations_pair","ladder":"aqa_alevel","title":"<short title>","unit":"${brief.unit}","topic":"<the shared issue>","crux":"${brief.crux}","interpretations":[{"label":"A","attribution":"...","text":"..."},{"label":"B","attribution":"...","text":"..."},{"label":"C","attribution":"...","text":"..."}]}
 ]`;
   }
   return `
@@ -749,6 +769,7 @@ export function validateInterpretationsPair(raw: any): { ok: boolean; figure: In
     figureNumber: typeof raw.figureNumber === "string" ? raw.figureNumber : undefined,
     title: String(raw.title || "Interpretations").trim(), type: "interpretations_pair",
     unit: String(raw.unit || ""),
+    ladder: ["edexcel_alevel", "aqa_alevel"].includes(raw.ladder) ? raw.ladder : undefined,
     topic: String(raw.topic || ""), crux: String(raw.crux || ""), interpretations: interps,
   }};
 }
