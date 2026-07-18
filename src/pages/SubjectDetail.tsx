@@ -21,7 +21,7 @@ const SubjectDetail = () => {
   const subjectNameParam = raw ? decodeURIComponent(raw) : "";
   const navigate = useNavigate();
 
-  const { subjects, isLoading: subjectsLoading } = useUserSubjects();
+  const { subjects, isLoading: subjectsLoading, refetch: refetchSubjects } = useUserSubjects();
   const [editSubjectOpen, setEditSubjectOpen] = useState(false);
   const {
     getTopicsForSubject,
@@ -289,7 +289,7 @@ const SubjectDetail = () => {
           open={editSubjectOpen}
           onOpenChange={setEditSubjectOpen}
           subject={subject as any}
-          onSaved={() => window.location.reload()}
+          onSaved={() => refetchSubjects()}
         />
 
         <ExamProfileModal
@@ -297,6 +297,7 @@ const SubjectDetail = () => {
           onOpenChange={setProfileModalOpen}
           subjectName={subject.subject_name}
           subjectColor={subject.subject_color}
+          examBoard={subject.exam_board}
           availableTopics={topicNames}
           onSave={handleSaveProfile}
           initialData={editingProfile || undefined}
