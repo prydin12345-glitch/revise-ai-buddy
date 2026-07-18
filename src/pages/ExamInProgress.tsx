@@ -154,6 +154,7 @@ const ExamInProgress = () => {
   const [searchParams] = useSearchParams();
   const modeParam = searchParams.get('mode');
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [paperBlueprint, setPaperBlueprint] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [userAnswers, setUserAnswers] = useState<Record<string, { workingOut: string; finalAnswer: string }>>({});
   const [tableAnswers, setTableAnswers] = useState<Record<string, Record<string, string | boolean>>>({});
@@ -609,6 +610,7 @@ const ExamInProgress = () => {
       if (uniqueQuestions.length !== dedupedQuestions.length) {
         console.warn(`[Load] removed ${dedupedQuestions.length - uniqueQuestions.length} duplicate question row(s)`);
       }
+      setPaperBlueprint((data as any).paperBlueprint ?? null);
       setQuestions(uniqueQuestions);
       setIsTeacher(Boolean(data.isTeacher));
       console.log('[Resume Debug] isTeacher:', data.isTeacher, 'isReadOnly:', Boolean(data.isTeacher) && !treatAsStudent);
@@ -1124,7 +1126,20 @@ const ExamInProgress = () => {
     const hasTableAnswer = tableAnswer && Object.keys(tableAnswer).length > 0;
     return hasTextAnswer || hasTableAnswer;
   }).length;
-  const unansweredCount = questions.length - answeredCount;
+  // Choice sections ("answer TWO of the three") lower the number of answers
+  // actually required — a student exercising their choice must not be warned.
+  const requiredAnswerCount = (() => {
+    const sections = paperBlueprint?.sections;
+    if (!Array.isArray(sections) || sections.length === 0) return questions.length;
+    const fromBlueprint = sections.reduce((n: number, s: any) => {
+      const m = Array.isArray(s.questions) ? s.questions.length : 0;
+      return n + (s.answerCount && s.answerCount < m ? s.answerCount : m);
+    }, 0);
+    // Sub-parts can make DB questions outnumber blueprint slots; never require
+    // more than exist, and fall back cleanly if the shapes disagree.
+    return Math.min(questions.length, Math.max(fromBlueprint, 1));
+  })();
+  const unansweredCount = Math.max(0, requiredAnswerCount - answeredCount);
 
   // Helper to extract parent question number (e.g., "1a" -> "1", "2b(i)" -> "2")
   const getParentQuestionNumber = (questionNumber: string): string => {
@@ -2441,7 +2456,7 @@ const ExamInProgress = () => {
                 <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 text-destructive">
                   <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
                   <span className="text-sm">
-                    You have <strong>{unansweredCount}</strong> unanswered question{unansweredCount > 1 ? 's' : ''}. 
+                    You have <strong>{unansweredCount}</strong> required question{unansweredCount > 1 ? 's' : ''} still unanswered{requiredAnswerCount < questions.length ? ` (this paper requires ${requiredAnswerCount} of its ${questions.length} questions)` : ''}. 
                     These will be marked as incorrect.
                   </span>
                 </div>
