@@ -69,7 +69,7 @@ const STRUCTURE_PREVIEWS = [
 
 
 // Common board paper layouts — one tap loads the real architecture.
-const BLUEPRINT_PRESETS: Array<{ id: string; label: string; subjects: RegExp; levels: RegExp; sections: Array<{ title: string; questions: Array<{ marks: number; style: string }> }> }> = [
+const BLUEPRINT_PRESETS: Array<{ id: string; label: string; subjects: RegExp; levels: RegExp; sections: Array<{ title: string; questions: Array<{ marks: number; style: string }>; answerCount?: number }> }> = [
   { id: "aqa_lang_p1", label: "AQA English Language Paper 1 (GCSE)", subjects: /english|language/i, levels: /gcse|level\s*2|foundation|higher|ks4|year\s*1[01]/i,
     sections: [
       { title: "Section A: Reading", questions: [
@@ -122,7 +122,7 @@ const BLUEPRINT_PRESETS: Array<{ id: string; label: string; subjects: RegExp; le
     sections: [
       { title: "Section A: Interpretations", questions: [
         { marks: 30, style: "Evaluate the three interpretations" } ] },
-      { title: "Section B: Essays — answer TWO of the three", questions: [
+      { title: "Section B: Essays", answerCount: 2, questions: [
         { marks: 25, style: "Extended judgement essay" },
         { marks: 25, style: "Extended judgement essay" },
         { marks: 25, style: "Extended judgement essay" } ] } ] },
@@ -291,7 +291,7 @@ export const ExamProfileModal = ({
   const [newTextRole, setNewTextRole] = useState(getStudiedContentConfig(subjectName || "").roles[0].id);
   const [newTextTitle, setNewTextTitle] = useState("");
   const [blueprintEnabled, setBlueprintEnabled] = useState(false);
-  const [blueprintSections, setBlueprintSections] = useState<Array<{ title: string; questions: Array<{ marks: number; style: string }> }>>([]);
+  const [blueprintSections, setBlueprintSections] = useState<Array<{ title: string; questions: Array<{ marks: number; style: string }>; answerCount?: number }>>([]);
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [writtenCount, setWrittenCount] = useState(10);
   const [mcqCount, setMcqCount] = useState(0);
@@ -318,6 +318,11 @@ export const ExamProfileModal = ({
   // parents are a subset of the written questions.
   const blueprintTotalQuestions = blueprintSections.reduce((n, s) => n + s.questions.length, 0);
   const blueprintTotalMarks = blueprintSections.reduce((n, s) => n + s.questions.reduce((m, q) => m + (Number(q.marks) || 0), 0), 0);
+  const blueprintCountedMarks = blueprintSections.reduce((n, s) => {
+    const marks = s.questions.map((q) => Number(q.marks) || 0).sort((a, b) => b - a);
+    const take = s.answerCount && s.answerCount < marks.length ? s.answerCount : marks.length;
+    return n + marks.slice(0, take).reduce((m, v) => m + v, 0);
+  }, 0);
   const blueprintActive = blueprintEnabled && blueprintTotalQuestions > 0;
   const structureLocksWritten = (!isMcqOnlyProfile && questionStructure === "sub_questions") || blueprintActive;
   useEffect(() => {
@@ -908,6 +913,21 @@ export const ExamProfileModal = ({
                       onClick={() => setBlueprintSections(blueprintSections.map((s, j) => j === si ? { ...s, questions: [...s.questions, { marks: 6, style: "" }] } : s))}>
                       + Add question
                     </Button>
+                    {sec.questions.length > 1 && (
+                      <div className="flex items-center gap-2 pt-1">
+                        <Label className="text-[11px] text-muted-foreground">Students answer</Label>
+                        <Input type="number" min={1} max={sec.questions.length}
+                          value={sec.answerCount ?? sec.questions.length}
+                          onChange={(e) => {
+                            const v = parseInt(e.target.value);
+                            setBlueprintSections(blueprintSections.map((s, j) => j === si
+                              ? { ...s, answerCount: Number.isFinite(v) && v >= 1 && v < s.questions.length ? v : undefined }
+                              : s));
+                          }}
+                          className="h-7 w-14 text-xs text-center" aria-label="Number of questions students answer in this section" />
+                        <span className="text-[11px] text-muted-foreground">of {sec.questions.length} question{sec.questions.length === 1 ? "" : "s"}{sec.answerCount && sec.answerCount < sec.questions.length ? " (their choice)" : " (all)"}</span>
+                      </div>
+                    )}
                   </div>
                 ))}
                 <div className="flex items-center justify-between">
@@ -915,7 +935,7 @@ export const ExamProfileModal = ({
                     onClick={() => setBlueprintSections([...blueprintSections, { title: "", questions: [{ marks: 4, style: "" }] }])}>
                     + Add section
                   </Button>
-                  <p className="text-[11px] text-muted-foreground tabular-nums">{blueprintTotalQuestions} questions · {blueprintTotalMarks} marks</p>
+                  <p className="text-[11px] text-muted-foreground tabular-nums">{blueprintTotalQuestions} questions · {blueprintCountedMarks < blueprintTotalMarks ? `${blueprintCountedMarks} marks counted (of ${blueprintTotalMarks} printed)` : `${blueprintTotalMarks} marks`}</p>
                 </div>
                 {blueprintTotalQuestions > 0 && (
                   <p className="text-[11px] text-muted-foreground tabular-nums rounded-md bg-muted/40 px-2.5 py-1.5">
