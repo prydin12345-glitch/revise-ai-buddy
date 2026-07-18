@@ -180,6 +180,7 @@ export const useUserSubjects = () => {
   return {
     subjects,
     isLoading,
+    refetch: fetchSubjects,
     getSubjectColor,
     getSubjectExamBoard,
     saveOrUpdateSubject,
