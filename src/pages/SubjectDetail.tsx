@@ -1,6 +1,8 @@
 import { useState, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { EditSubjectModal } from "@/components/subjects/EditSubjectModal";
+import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, BookOpen, Plus, Target, FileText, ListChecks, Activity } from "lucide-react";
@@ -20,6 +22,7 @@ const SubjectDetail = () => {
   const navigate = useNavigate();
 
   const { subjects, isLoading: subjectsLoading } = useUserSubjects();
+  const [editSubjectOpen, setEditSubjectOpen] = useState(false);
   const {
     getTopicsForSubject,
     getProfilesForSubject,
@@ -137,7 +140,7 @@ const SubjectDetail = () => {
 
   return (
     <DashboardLayout>
-      <div className="p-4 sm:p-6 space-y-8 max-w-5xl mx-auto w-full">
+      <div className="py-6 px-6 md:px-12 lg:px-16 space-y-8 w-full max-w-[1300px] mx-auto">
         {/* Back */}
         <Link
           to="/my-subjects"
@@ -155,9 +158,18 @@ const SubjectDetail = () => {
             aria-hidden
           />
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-              {displayName}
-            </h1>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+                {displayName}
+              </h1>
+              <button
+                onClick={() => setEditSubjectOpen(true)}
+                aria-label="Edit subject"
+                className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.05] transition-colors"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+            </div>
             <p className="text-[13px] text-muted-foreground mt-1">
               {percentage !== null ? `Average ${percentage}%` : "Not yet tested"}
               {" · "}
@@ -272,6 +284,13 @@ const SubjectDetail = () => {
         </section>
         </aside>
         </div>
+
+        <EditSubjectModal
+          open={editSubjectOpen}
+          onOpenChange={setEditSubjectOpen}
+          subject={subject as any}
+          onSaved={() => window.location.reload()}
+        />
 
         <ExamProfileModal
           open={profileModalOpen}
