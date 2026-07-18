@@ -2881,6 +2881,7 @@ export type Database = {
           proficiency_estimate: number | null
           subject_category: string | null
           subject_color: string
+          subject_icon: string | null
           subject_id: string | null
           subject_name: string
           updated_at: string
@@ -2896,6 +2897,7 @@ export type Database = {
           proficiency_estimate?: number | null
           subject_category?: string | null
           subject_color?: string
+          subject_icon?: string | null
           subject_id?: string | null
           subject_name: string
           updated_at?: string
@@ -2911,6 +2913,7 @@ export type Database = {
           proficiency_estimate?: number | null
           subject_category?: string | null
           subject_color?: string
+          subject_icon?: string | null
           subject_id?: string | null
           subject_name?: string
           updated_at?: string
