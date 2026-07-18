@@ -161,7 +161,7 @@ export default function ProfileDetail() {
 
   return (
     <DashboardLayout>
-      <div className="p-4 sm:p-6 space-y-6 max-w-5xl mx-auto w-full">
+      <div className="py-6 px-6 md:px-12 lg:px-16 space-y-8 w-full max-w-[1300px] mx-auto">
         {/* Breadcrumb */}
         <div className="flex items-center gap-1 text-[12.5px] text-muted-foreground flex-wrap">
           <button onClick={() => navigate("/my-subjects")} className="hover:text-foreground transition-colors">
@@ -243,7 +243,7 @@ export default function ProfileDetail() {
         </div>
 
         {/* SECTION 1 — Stats overview */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 rounded-2xl bg-[hsl(220_8%_13%)] border border-[hsl(220_6%_20%)] divide-x divide-[hsl(220_6%_20%)]/60 overflow-hidden">
+        <div className="grid grid-cols-2 lg:grid-cols-4 border-y border-[hsl(220_6%_20%)]/70 divide-x divide-[hsl(220_6%_20%)]/50">
           {[
             {
               label: "Average",
