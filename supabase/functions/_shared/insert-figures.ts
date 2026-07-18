@@ -552,7 +552,7 @@ export function buildStudiedTextsPrompt(texts: StudiedText[]): string {
 // questions with fixed marks and a style hint. When present, the blueprint is
 // AUTHORITATIVE: it overrides count sliders and the generic mark caps.
 export interface BlueprintQuestion { marks: number; style: string; }
-export interface BlueprintSection { title: string; questions: BlueprintQuestion[]; }
+export interface BlueprintSection { title: string; questions: BlueprintQuestion[]; answerCount?: number; }
 export interface PaperBlueprint { sections: BlueprintSection[]; }
 
 export function validatePaperBlueprint(raw: any): { ok: boolean; blueprint: PaperBlueprint | null; totalQuestions: number; totalMarks: number; reasons: string[] } {
@@ -566,7 +566,9 @@ export function validatePaperBlueprint(raw: any): { ok: boolean; blueprint: Pape
       questions.push({ marks: Math.round(marks), style: typeof q?.style === "string" ? q.style.trim() : "" });
     }
     if (questions.length === 0) { reasons.push(`section "${s?.title ?? "?"}" empty — dropped`); continue; }
-    sections.push({ title: typeof s?.title === "string" && s.title.trim() ? s.title.trim() : `Section ${sections.length + 1}`, questions });
+    const rawAC = Number(s?.answerCount);
+    const answerCount = Number.isFinite(rawAC) && rawAC >= 1 && rawAC < questions.length ? Math.round(rawAC) : undefined;
+    sections.push({ title: typeof s?.title === "string" && s.title.trim() ? s.title.trim() : `Section ${sections.length + 1}`, questions, ...(answerCount ? { answerCount } : {}) });
   }
   const totalQuestions = sections.reduce((n, s) => n + s.questions.length, 0);
   const totalMarks = sections.reduce((n, s) => n + s.questions.reduce((m, q) => m + q.marks, 0), 0);
@@ -582,7 +584,10 @@ export function buildBlueprintPrompt(bp: PaperBlueprint): string {
       qNum++;
       return `  Q${qNum} (${q.marks} marks)${q.style ? `: ${q.style}` : ""}`;
     }).join("\n");
-    return `${s.title}\n${qs}`;
+    const choiceNote = s.answerCount && s.answerCount < s.questions.length
+      ? ` (CHOICE SECTION: students answer ${s.answerCount} of these ${s.questions.length} — you must still GENERATE ALL ${s.questions.length}, as genuine alternatives of equal demand)`
+      : "";
+    return `${s.title}${choiceNote}\n${qs}`;
   }).join("\n");
   const totalMarks = bp.sections.reduce((n, s) => n + s.questions.reduce((m, q) => m + q.marks, 0), 0);
   return `\n## PAPER STRUCTURE (MANDATORY — set by the student's exam profile)\nGenerate EXACTLY this paper, in this order, with these exact marks (${qNum} questions, ${totalMarks} marks total). Question numbering continues across sections. No extra questions, no missing questions, no changed marks. Each question must match its stated style/purpose:\n${lines}\nIf a style mentions a figure/extract/source, that question must reference the insert figure appropriately.\n`;
