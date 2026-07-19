@@ -783,6 +783,11 @@ export const ExamProfileModal = ({
                     ))}
                   </select>
                 </div>
+                {availablePresets.length === 1 && availablePresets[0].id === "universal_mixed" && (
+                  <p className="text-[11px] text-muted-foreground">
+                    No exact preset exists yet for this subject, board and level combination — the standard paper is a safe starting shape, and every question below stays fully editable.
+                  </p>
+                )}
                 {blueprintSections.map((sec, si) => (
                   <div key={si} className="rounded-lg border border-border/40 bg-muted/30 p-3 space-y-2">
                     <div className="flex items-center gap-2">
