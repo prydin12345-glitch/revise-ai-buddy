@@ -185,6 +185,5 @@ export const useUserSubjects = () => {
     getSubjectExamBoard,
     saveOrUpdateSubject,
     getAffectedEntityCounts,
-    refetch: fetchSubjects,
   };
 };
