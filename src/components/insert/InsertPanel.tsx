@@ -65,6 +65,35 @@ export function InsertPanel({ figures, subjectColor }: InsertPanelProps) {
               </div>
             </div>
           )}
+          {fig.type === "unseen_poems" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {fig.poems.map((pm: any) => {
+                let ln = 0;
+                return (
+                  <div key={pm.label} className="rounded-xl border border-border bg-card p-4 sm:p-5">
+                    <p className="text-xs font-semibold">Poem {pm.label}: {pm.title}</p>
+                    <p className="text-[11px] text-muted-foreground italic mb-3">by {pm.poet} <span className="not-italic">(fictional poet, AI-original)</span></p>
+                    <div className="space-y-0.5">
+                      {pm.lines.map((line: string, i: number) =>
+                        line === "" ? (
+                          <div key={i} className="h-3.5" />
+                        ) : (
+                          (() => { ln++; return (
+                            <div key={i} className="flex gap-2.5">
+                              <span className="w-5 shrink-0 text-right text-[9px] leading-relaxed text-muted-foreground/60 tabular-nums select-none pt-[3px]">
+                                {ln % 5 === 0 ? ln : ""}
+                              </span>
+                              <p className="text-[13px] leading-relaxed font-serif flex-1">{line}</p>
+                            </div>
+                          ); })()
+                        )
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {fig.type === "data_texts" && (
             <div className="space-y-4">
               {fig.texts.map((t: any) => (
