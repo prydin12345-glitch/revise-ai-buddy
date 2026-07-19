@@ -186,6 +186,10 @@ export function validateInsertFigures(raw: any): { figures: any[]; rejected: str
       const v = validatePassage(f);
       if (v.ok && v.figure) figures.push(v.figure);
       else rejected.push(`passage "${f?.title ?? "?"}": ${v.reasons.join("; ")}`);
+    } else if (f?.type === "data_texts") {
+      const v = validateDataTexts(f);
+      if (v.ok && v.figure) figures.push(v.figure);
+      else rejected.push(`data_texts "${f?.title ?? "?"}": ${v.reasons.join("; ")}`);
     } else if (f?.type === "source") {
       const v = validateSourceFigure(f);
       if (v.ok && v.figure) figures.push(v.figure);
@@ -218,6 +222,12 @@ export function buildInsertFiguresPrompt(subjectContext: string, topics: string[
     return buildHistoryFiguresPrompt(brief, subjectContext, board);
   }
   if (/english/i.test(subjectContext)) {
+    const aLevelEnglish = /a[-\s_]?level|level[\s_]*3|sixth|year[\s_]*1[23]/i.test(subjectContext);
+    const literature = /literature/i.test(subjectContext);
+    if (aLevelEnglish && !literature) {
+      // A-level English Language analyses non-fiction data, never fiction.
+      return buildDataTextsPrompt(subjectContext, topics.join("; "));
+    }
     const brief = buildPassageBrief(board.toLowerCase());
     return buildPassagePrompt(brief, subjectContext) + "\nReturn ONLY a JSON ARRAY containing that single passage object.";
   }
@@ -292,6 +302,19 @@ export function describeFigureForPrompt(f: any): string {
   }
   if (f.type === "text_extract") {
     return `Figure ${f.figureNumber}: "${f.title}" — qualitative text extract (${f.sourceLine}). Full text: ${f.paragraphs.join(" ")} — Supports source-analysis questions (how the place/issue is represented, tone, perspective, reliability). NO calculations; questions must quote or refer to specific phrases from the extract.`;
+  }
+  if (f.type === "data_texts") {
+    const bodies = f.texts.map((t: any) =>
+      `TEXT ${t.label} — ${t.textType}\nContext: ${t.meta.author}; audience: ${t.meta.audience}; purpose: ${t.meta.purpose}; date: ${t.meta.date}. (${t.wordCount} words, ${t.lines.length} lines)\n${t.lines.map((ln: string, i: number) => (ln === "" ? "" : `${i + 1}: ${ln}`)).join("\n")}`
+    ).join("\n\n");
+    return `Figure ${f.figureNumber}: "${f.title}" — TWO non-fiction DATA TEXTS on the shared theme "${f.theme}", from contrasting eras/contexts.
+A-LEVEL ENGLISH LANGUAGE LADDER (follow EXACTLY — this is a linguistics paper, not literature):
+Q1 (15 marks): "Analyse how language is used in Text A." Must direct students to linguistic frameworks (lexis, grammar and syntax, discourse structure, graphology/phonology where relevant) and context.
+Q2 (15 marks): "Analyse how language is used in Text B." Same framework demand.
+Q3 (15 marks): "Compare how language is used in Text A and Text B", referencing how contexts of production and reception shape the variation.
+NEVER generate 1/2/4/6-mark retrieval or feature-spotting sub-questions; NEVER ask about literary concepts (tension, atmosphere, character); NEVER treat these as fiction.
+HARD RULES: any quoted words MUST be verbatim substrings of the relevant text; line references within each text's numbered range.
+${bodies}`;
   }
   if (f.type === "source") {
     return `Figure ${f.figureNumber}: "${f.title}" — a contemporary source: ${f.form}.
@@ -771,5 +794,91 @@ export function validateInterpretationsPair(raw: any): { ok: boolean; figure: In
     unit: String(raw.unit || ""),
     ladder: ["edexcel_alevel", "aqa_alevel"].includes(raw.ladder) ? raw.ladder : undefined,
     topic: String(raw.topic || ""), crux: String(raw.crux || ""), interpretations: interps,
+  }};
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// A-LEVEL ENGLISH LANGUAGE DATA-TEXT ENGINE
+// A-level Language analyses REAL-WORLD-style non-fiction data, never fiction:
+// two texts (A and B) on a shared theme from contrasting eras/contexts, each
+// with the contextual metadata the discipline demands (author/speaker,
+// audience, purpose, date). Questions target linguistic frameworks — lexis,
+// grammar/syntax, discourse, pragmatics — not literary effect.
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface DataTextMeta { author: string; audience: string; purpose: string; date: string; }
+export interface DataTextsFigureData {
+  figureNumber?: string;
+  title: string;
+  type: "data_texts";
+  theme: string;
+  texts: Array<{ label: string; textType: string; meta: DataTextMeta; lines: string[]; wordCount: number }>;
+}
+
+const DATATEXT_THEMES = [
+  "attitudes to new technology", "food and eating", "travel and unfamiliar places",
+  "advice to the young", "advertising a product", "illness and remedies",
+  "local pride and dialect", "weather and the seasons", "work and working life",
+  "manners and politeness", "sport and spectacle", "romance and courtship",
+];
+const DATATEXT_PAIRS: Array<[string, string]> = [
+  ["a personal letter from the 1750s", "a personal blog post from the 2020s"],
+  ["a Victorian newspaper advertisement", "a modern social media advert caption thread"],
+  ["an 18th-century conduct-guide extract", "a modern advice column"],
+  ["a Victorian newspaper opinion column", "a present-day online opinion piece"],
+  ["a 19th-century travel journal entry", "a modern travel vlog transcript (spoken features)"],
+  ["an early printed recipe with instructions", "a modern food-blog recipe introduction"],
+  ["a formal 19th-century public notice", "a present-day community social media post"],
+  ["a transcription of a formal 1950s radio broadcast", "a transcription of a modern podcast segment (spoken features)"],
+];
+
+export function buildDataTextsPrompt(levelContext: string, unit: string): string {
+  const pk = <T,>(a: T[]): T => a[Math.floor(Math.random() * a.length)];
+  const theme = pk(DATATEXT_THEMES);
+  const [typeA, typeB] = pk(DATATEXT_PAIRS);
+  return `
+## A-LEVEL ENGLISH LANGUAGE DATA TEXTS (INSERT)
+Create the paired data texts for an A-level English Language paper (${levelContext}${unit ? `; topic focus: ${unit}` : ""}).
+ABSOLUTE RULES:
+- NEVER write fiction, short stories, or novel extracts — A-level Language analyses non-fiction linguistic data only.
+- Both texts share ONE theme: ${theme}.
+- Text A: ${typeA}. Text B: ${typeB}. Each 250-450 words, written with era-authentic and genre-authentic linguistic features (orthography, lexis, syntax, discourse conventions of its type — transcripts include spoken features like fillers and false starts).
+- ENTIRELY ORIGINAL writing; all authors fictional; never reproduce a real published text.
+- Each text needs full contextual metadata: a plausible named author/speaker, target audience, purpose, and a specific date.
+Output ONLY a JSON array with exactly this one object:
+[
+ {"type":"data_texts","title":"<short title naming the theme>","theme":"${theme}","texts":[
+   {"label":"A","textType":"${typeA}","meta":{"author":"...","audience":"...","purpose":"...","date":"..."},"text":"<full text with \\n\\n between paragraphs>"},
+   {"label":"B","textType":"${typeB}","meta":{"author":"...","audience":"...","purpose":"...","date":"..."},"text":"..."}
+ ]}
+]`;
+}
+
+export function validateDataTexts(raw: any): { ok: boolean; figure: DataTextsFigureData | null; reasons: string[] } {
+  if (!raw || raw.type !== "data_texts") return { ok: false, figure: null, reasons: ["not data_texts"] };
+  const texts: DataTextsFigureData["texts"] = [];
+  for (const t of (Array.isArray(raw.texts) ? raw.texts : []).slice(0, 2)) {
+    const body = typeof t?.text === "string" ? t.text.trim() : "";
+    const wordCount = body ? body.split(/\s+/).length : 0;
+    if (wordCount < 180) return { ok: false, figure: null, reasons: [`Text ${t?.label ?? "?"} too short (${wordCount} words, min 180)`] };
+    if (wordCount > 600) return { ok: false, figure: null, reasons: [`Text ${t?.label ?? "?"} too long (${wordCount} words, max 600)`] };
+    const meta = t?.meta || {};
+    if (!meta.author || !meta.audience || !meta.purpose || !meta.date) {
+      return { ok: false, figure: null, reasons: [`Text ${t?.label ?? "?"} missing contextual metadata (author/audience/purpose/date)`] };
+    }
+    texts.push({
+      label: String(t.label || (texts.length === 0 ? "A" : "B")),
+      textType: String(t.textType || "non-fiction text"),
+      meta: { author: String(meta.author), audience: String(meta.audience), purpose: String(meta.purpose), date: String(meta.date) },
+      lines: toNumberedLines(body),
+      wordCount,
+    });
+  }
+  if (texts.length !== 2) return { ok: false, figure: null, reasons: [`need exactly 2 data texts, got ${texts.length}`] };
+  return { ok: true, reasons: [], figure: {
+    figureNumber: typeof raw.figureNumber === "string" ? raw.figureNumber : undefined,
+    title: String(raw.title || "Data texts").trim(), type: "data_texts",
+    theme: String(raw.theme || ""), texts,
   }};
 }
