@@ -186,6 +186,10 @@ export function validateInsertFigures(raw: any): { figures: any[]; rejected: str
       const v = validatePassage(f);
       if (v.ok && v.figure) figures.push(v.figure);
       else rejected.push(`passage "${f?.title ?? "?"}": ${v.reasons.join("; ")}`);
+    } else if (f?.type === "unseen_poems") {
+      const v = validateUnseenPoems(f);
+      if (v.ok && v.figure) figures.push(v.figure);
+      else rejected.push(`unseen_poems "${f?.title ?? "?"}": ${v.reasons.join("; ")}`);
     } else if (f?.type === "data_texts") {
       const v = validateDataTexts(f);
       if (v.ok && v.figure) figures.push(v.figure);
@@ -222,6 +226,13 @@ export function buildInsertFiguresPrompt(subjectContext: string, topics: string[
     return buildHistoryFiguresPrompt(brief, subjectContext, board);
   }
   if (/english/i.test(subjectContext)) {
+    // Unseen poetry: triggered when the paper's topic scope says so (e.g. a
+    // profile topic "Unseen poetry") — the natural signal until figure
+    // selection becomes blueprint-aware.
+    if (/unseen\s*poetry|\bpoem|\bpoetry\b/i.test(topics.join(" "))) {
+      const brief = buildUnseenPoemsBrief();
+      return buildUnseenPoemsPrompt(brief, subjectContext);
+    }
     const aLevelEnglish = /a[-\s_]?level|level[\s_]*3|sixth|year[\s_]*1[23]/i.test(subjectContext);
     const literature = /literature/i.test(subjectContext);
     if (aLevelEnglish && !literature) {
@@ -302,6 +313,23 @@ export function describeFigureForPrompt(f: any): string {
   }
   if (f.type === "text_extract") {
     return `Figure ${f.figureNumber}: "${f.title}" — qualitative text extract (${f.sourceLine}). Full text: ${f.paragraphs.join(" ")} — Supports source-analysis questions (how the place/issue is represented, tone, perspective, reliability). NO calculations; questions must quote or refer to specific phrases from the extract.`;
+  }
+  if (f.type === "unseen_poems") {
+    const bodies = f.poems.map((pm: any) => {
+      let n = 0;
+      const numbered = pm.lines.map((ln: string) => (ln === "" ? "" : `${++n}: ${ln}`)).join("\n");
+      return `POEM ${pm.label}: "${pm.title}" by ${pm.poet} (fictional poet, AI-original)\nForm: ${pm.form}. PLANTED DEVICE (ground truth for method questions): ${pm.plantedDevice}.\n${numbered}`;
+    }).join("\n\n");
+    return `Figure ${f.figureNumber}: "${f.title}" — TWO thematically linked UNSEEN POEMS on ${f.theme}.
+COMPARATIVE CRUX (ground truth for comparison questions): ${f.crux}.
+QUESTION RULES for this figure:
+- Question marks and count come from the PAPER STRUCTURE — do not invent a ladder.
+- Single-poem analysis questions target POEM A ("In '<Poem A title>', how does the poet present <the theme>?").
+- Comparison questions must compare BOTH poems through the crux ("Compare how the poets present <theme> in the two poems").
+- Method/structure questions should be answerable via each poem's planted device.
+- Any quoted words MUST be verbatim substrings of the relevant poem; line references within that poem's numbered range.
+- Never invent biographical context for the fictional poets; poems are analysed on the page alone.
+${bodies}`;
   }
   if (f.type === "data_texts") {
     const bodies = f.texts.map((t: any) =>
@@ -880,5 +908,135 @@ export function validateDataTexts(raw: any): { ok: boolean; figure: DataTextsFig
     figureNumber: typeof raw.figureNumber === "string" ? raw.figureNumber : undefined,
     title: String(raw.title || "Data texts").trim(), type: "data_texts",
     theme: String(raw.theme || ""), texts,
+  }};
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UNSEEN POETRY ENGINE
+// Always a thematically linked PAIR of entirely original poems by fictional
+// poets: single-poem questions target Poem A; comparison questions compare
+// A and B through a planted comparative crux. Each poem carries a planted
+// device — ground truth for method questions. Marks/ladder come from the
+// paper blueprint; this figure supplies the material and the hard rules.
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface UnseenPoemData {
+  label: string; title: string; poet: string; form: string;
+  plantedDevice: string; lines: string[]; wordCount: number;
+}
+export interface UnseenPoemsFigureData {
+  figureNumber?: string;
+  title: string;
+  type: "unseen_poems";
+  theme: string;
+  crux: string;
+  poems: UnseenPoemData[];
+}
+
+const POEM_THEMES = [
+  "the loss of a grandparent", "leaving a childhood home", "a caged or freed bird",
+  "the city seen from a train", "remembrance of a distant war", "the end of a first love",
+  "a parent's aging hands", "the sea as a keeper of memory", "an absent father",
+  "arriving in a new country", "an old photograph", "winter standing in for grief",
+  "a tree outlasting a family", "a hospital window at night", "learning a grandmother's recipe",
+  "a river returned to after years",
+];
+const POEM_FORM_PAIRS: Array<[string, string]> = [
+  ["free verse with heavy enjambment and irregular stanzas", "regular quatrains with a steady, controlled rhythm"],
+  ["a compact sonnet-like 14-line form with a turn", "loose fragmented lines with white space and short bursts"],
+  ["a dramatic monologue addressing a silent listener", "a quiet third-person lyric of observation"],
+  ["long flowing lines with catalogue-like repetition", "terse two-line stanzas with heavy end-stopping"],
+];
+const POEM_VOICES = [
+  "an adult looking back on childhood", "a child's limited but vivid perspective",
+  "a speaker addressing an absent 'you'", "a detached observer who cracks at the end",
+  "a speaker in the present tense, mid-experience",
+];
+const POEM_DEVICES = [
+  "an extended metaphor sustained across the whole poem",
+  "a volta (turn) in the final third that reframes what came before",
+  "a repeated motif that changes meaning on each return",
+  "a shift from past to present tense at the emotional peak",
+  "caesura used to fracture the lines at moments of strain",
+  "an ambiguous final image that withholds resolution",
+  "sound patterning (assonance/sibilance) that mirrors the subject",
+];
+const POEM_CRUXES = [
+  "Poem A moves toward consolation while Poem B refuses it",
+  "Poem A treats the subject publicly and formally; Poem B is private and intimate",
+  "Poem A finds meaning in nature's indifference; Poem B finds nature complicit in feeling",
+  "Poem A's speaker reaches acceptance; Poem B's speaker stays angry",
+  "Poem A dwells in memory; Poem B insists on the present moment",
+  "Poem A speaks with certainty; Poem B is full of doubt and qualification",
+];
+
+export interface UnseenPoemsBrief {
+  theme: string; formA: string; formB: string;
+  voiceA: string; voiceB: string; deviceA: string; deviceB: string; crux: string;
+}
+export function buildUnseenPoemsBrief(): UnseenPoemsBrief {
+  const pk = <T,>(a: T[]): T => a[Math.floor(Math.random() * a.length)];
+  const [formA, formB] = pk(POEM_FORM_PAIRS);
+  const voiceA = pk(POEM_VOICES);
+  let voiceB = pk(POEM_VOICES);
+  if (voiceB === voiceA) voiceB = POEM_VOICES[(POEM_VOICES.indexOf(voiceA) + 2) % POEM_VOICES.length];
+  const deviceA = pk(POEM_DEVICES);
+  let deviceB = pk(POEM_DEVICES);
+  if (deviceB === deviceA) deviceB = POEM_DEVICES[(POEM_DEVICES.indexOf(deviceA) + 3) % POEM_DEVICES.length];
+  return { theme: pk(POEM_THEMES), formA, formB, voiceA, voiceB, deviceA, deviceB, crux: pk(POEM_CRUXES) };
+}
+
+export function buildUnseenPoemsPrompt(brief: UnseenPoemsBrief, levelContext: string): string {
+  return `
+## UNSEEN POETRY (INSERT)
+Write TWO original poems for an English Literature exam (${levelContext}).
+Execute this brief EXACTLY:
+- Shared theme for both poems: ${brief.theme}.
+- POEM A: ${brief.formA}; voice: ${brief.voiceA}; planted device (must genuinely operate in the poem): ${brief.deviceA}.
+- POEM B: ${brief.formB}; voice: ${brief.voiceB}; planted device: ${brief.deviceB}.
+- Comparative crux (both poems must genuinely embody their side): ${brief.crux}.
+Requirements:
+- Each poem 14-28 lines, 80-230 words, in the register of a contemporary exam anthology — precise images, earned emotion, NO sing-song AABB doggerel unless the form demands rhyme, no clichés (hearts soaring, tears like rain).
+- Mark stanza breaks with an empty line in the lines array.
+- ENTIRELY ORIGINAL: fictional poets, never imitate an identifiable real poem or poet.
+Output ONLY a JSON array with exactly this one object:
+[
+ {"type":"unseen_poems","title":"<theme phrase>","theme":"${brief.theme}","crux":"${brief.crux}","poems":[
+   {"label":"A","title":"<poem title>","poet":"<fictional name>","form":"${brief.formA}","plantedDevice":"${brief.deviceA}","lines":["line 1","line 2","","line after stanza break","..."]},
+   {"label":"B","title":"<poem title>","poet":"<fictional name>","form":"${brief.formB}","plantedDevice":"${brief.deviceB}","lines":["..."]}
+ ]}
+]`;
+}
+
+export function validateUnseenPoems(raw: any): { ok: boolean; figure: UnseenPoemsFigureData | null; reasons: string[] } {
+  if (!raw || raw.type !== "unseen_poems") return { ok: false, figure: null, reasons: ["not unseen_poems"] };
+  const poems: UnseenPoemData[] = [];
+  for (const pm of (Array.isArray(raw.poems) ? raw.poems : []).slice(0, 2)) {
+    const lines = (Array.isArray(pm?.lines) ? pm.lines : [])
+      .map((l: any) => (typeof l === "string" ? l.replace(/\s+$/g, "") : ""))
+      .filter((l: string, i: number, arr: string[]) => !(l === "" && arr[i - 1] === ""));
+    while (lines.length && lines[0] === "") lines.shift();
+    while (lines.length && lines[lines.length - 1] === "") lines.pop();
+    const contentLines = lines.filter((l: string) => l !== "");
+    const wordCount = contentLines.join(" ").split(/\s+/).filter(Boolean).length;
+    if (contentLines.length < 10) return { ok: false, figure: null, reasons: [`Poem ${pm?.label ?? "?"} too short (${contentLines.length} lines, min 10)`] };
+    if (contentLines.length > 34) return { ok: false, figure: null, reasons: [`Poem ${pm?.label ?? "?"} too long (${contentLines.length} lines, max 34)`] };
+    if (wordCount < 55) return { ok: false, figure: null, reasons: [`Poem ${pm?.label ?? "?"} too thin (${wordCount} words)`] };
+    if (!pm?.title || !pm?.poet) return { ok: false, figure: null, reasons: [`Poem ${pm?.label ?? "?"} missing title or poet attribution`] };
+    poems.push({
+      label: String(pm.label || (poems.length === 0 ? "A" : "B")),
+      title: String(pm.title).trim(),
+      poet: String(pm.poet).trim(),
+      form: String(pm.form || ""),
+      plantedDevice: String(pm.plantedDevice || ""),
+      lines, wordCount,
+    });
+  }
+  if (poems.length !== 2) return { ok: false, figure: null, reasons: [`need exactly 2 poems, got ${poems.length}`] };
+  return { ok: true, reasons: [], figure: {
+    figureNumber: typeof raw.figureNumber === "string" ? raw.figureNumber : undefined,
+    title: String(raw.title || "Unseen poems").trim(), type: "unseen_poems",
+    theme: String(raw.theme || ""), crux: String(raw.crux || ""), poems,
   }};
 }
