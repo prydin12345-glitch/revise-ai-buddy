@@ -65,6 +65,34 @@ export function InsertPanel({ figures, subjectColor }: InsertPanelProps) {
               </div>
             </div>
           )}
+          {fig.type === "data_texts" && (
+            <div className="space-y-4">
+              {fig.texts.map((t: any) => (
+                <div key={t.label} className="rounded-xl border border-border bg-card p-3 sm:p-5">
+                  <p className="text-xs font-semibold mb-1.5">Text {t.label} — <span className="font-normal text-muted-foreground">{t.textType}</span></p>
+                  <div className="mb-3 pb-3 border-b border-border/50 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 text-[11px] text-muted-foreground">
+                    <span><span className="text-foreground/70">Author/speaker:</span> {t.meta.author}</span>
+                    <span><span className="text-foreground/70">Date:</span> {t.meta.date}</span>
+                    <span><span className="text-foreground/70">Audience:</span> {t.meta.audience}</span>
+                    <span><span className="text-foreground/70">Purpose:</span> {t.meta.purpose}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    {t.lines.map((ln: string, i: number) =>
+                      ln === "" ? (
+                        <div key={i} className="h-3" />
+                      ) : (
+                        <div key={i} className="flex gap-2 sm:gap-3">
+                          <span className="w-6 sm:w-7 shrink-0 text-right text-[9px] sm:text-[10px] leading-[1.6] text-muted-foreground/70 tabular-nums select-none pt-[3px]">{i + 1}</span>
+                          <p className="text-[13px] sm:text-sm leading-[1.6] font-serif flex-1 break-words">{ln}</p>
+                        </div>
+                      )
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-3 italic text-right">Illustrative data text (fictional, AI-original)</p>
+                </div>
+              ))}
+            </div>
+          )}
           {fig.type === "source" && (
             <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
               <div className="mb-3 pb-3 border-b border-border/50">
