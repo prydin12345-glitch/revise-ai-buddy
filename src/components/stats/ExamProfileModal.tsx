@@ -771,15 +771,15 @@ export const ExamProfileModal = ({
                   <Label className="text-[11px] text-muted-foreground shrink-0">Start from a preset</Label>
                   <select
                     className="h-8 rounded-md border border-input bg-background px-2 text-xs flex-1"
-                    value={formData.structurePreset && formData.structurePreset !== "custom" ? formData.structurePreset : ""}
+                    value={advanced.structurePreset && advanced.structurePreset !== "custom" ? advanced.structurePreset : ""}
                     onChange={(e) => {
                       const id = e.target.value;
                       const preset = availablePresets.find((pr) => pr.id === id);
                       if (preset) {
                         setBlueprintSections(JSON.parse(JSON.stringify(preset.sections)));
-                        setFormData((prev) => ({ ...prev, structurePreset: id }));
+                        setAdvanced((prev) => ({ ...prev, structurePreset: id }));
                       } else {
-                        setFormData((prev) => ({ ...prev, structurePreset: "custom" }));
+                        setAdvanced((prev) => ({ ...prev, structurePreset: "custom" }));
                       }
                     }}
                   >
