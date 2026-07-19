@@ -22,8 +22,8 @@ export interface PaperPreset {
   sections: PresetSection[];
 }
 
-const GCSE = /gcse|level\s*2|foundation|higher|ks4|year\s*1[01]/i;
-const ALEVEL = /a[-\s]?level|level\s*3|as\b|a2|year\s*1[23]|sixth/i;
+const GCSE = /gcse|igcse|level[\s_]*2|foundation|higher|ks[\s_]?4|myp|year[\s_]*1[01]/i;
+const ALEVEL = /a[-\s_]?level|level[\s_]*3|\bas\b|\ba2\b|\bib\b|year[\s_]*1[23]|sixth/i;
 const ANY = /./;
 
 const essay = "Extended judgement essay";
@@ -256,6 +256,21 @@ export const BLUEPRINT_PRESETS: PaperPreset[] = [
         { marks: 10, style: "Analyse using the case material" }, { marks: 15, style: "Evaluate using the case material" } ] },
       { title: "Section B: Essays", answerCount: 1, questions: [
         { marks: 25, style: essay }, { marks: 25, style: essay } ] } ] },
+
+  { id: "alevel_lit_style", label: "A-level English Literature-style paper (all boards)", subjects: /english|literature/i, levels: ALEVEL, boards: ANY,
+    sections: [
+      { title: "Section A: Studied text", questions: [
+        { marks: 25, style: "Passage-based question with linked essay" } ] },
+      { title: "Section B: Second studied text", questions: [
+        { marks: 25, style: "Essay on a studied text" } ] },
+      { title: "Section C: Comparison or unseen", questions: [
+        { marks: 25, style: "Essay comparing two studied texts" } ] } ] },
+  { id: "alevel_lang_style", label: "A-level English Language-style paper (all boards)", subjects: /english|language/i, levels: ALEVEL, boards: ANY,
+    sections: [
+      { title: "Section A: Textual analysis", questions: [
+        { marks: 25, style: "Analyse how language is used in the provided data texts" } ] },
+      { title: "Section B: Language discussion", questions: [
+        { marks: 25, style: "Discursive essay evaluating a view about language" } ] } ] },
 
   // ═══ UNIVERSAL FLOOR ═══
   { id: "universal_mixed", label: "Standard mixed paper (short answers building to extended)", subjects: ANY, levels: ANY, boards: ANY,
