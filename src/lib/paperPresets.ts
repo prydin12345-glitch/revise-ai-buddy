@@ -59,28 +59,64 @@ export const BLUEPRINT_PRESETS: PaperPreset[] = [
         { marks: 6, style: "Language analysis" },
         { marks: 15, style: "Evaluate a statement" } ] },
       { title: "Section B: Writing", answerCount: 1, questions: [
-        { marks: 40, style: "Imaginative writing task" },
-        { marks: 40, style: "Imaginative writing task" } ] } ] },
-  { id: "eduqas_lang_c1", label: "Eduqas English Language Component 1", subjects: /english|language/i, levels: GCSE, boards: /eduqas|wjec/i,
+        { marks: 40, style: "Imaginative writing from a narrative prompt (36 + 4 SPaG)" },
+        { marks: 40, style: "Imaginative writing from a narrative prompt (36 + 4 SPaG)" } ] } ] },
+  { id: "edexcel_lang_p2", label: "Edexcel GCSE English Language Paper 2 (1EN0/02)", subjects: /english|language/i, levels: GCSE, boards: /edexcel|pearson/i,
+    sections: [
+      { title: "Section A: Reading (two non-fiction texts)", questions: [
+        { marks: 2, style: "Text 1: short retrieval" },
+        { marks: 2, style: "Text 1: short inference" },
+        { marks: 15, style: "Text 1: language and structure analysis" },
+        { marks: 1, style: "Text 2: ultra-short retrieval" },
+        { marks: 1, style: "Text 2: ultra-short retrieval" },
+        { marks: 15, style: "Text 2: critical evaluation" },
+        { marks: 6, style: "Both texts: synthesis of similarities" },
+        { marks: 14, style: "Both texts: comparative analysis of ideas and perspectives" } ] },
+      { title: "Section B: Transactional Writing", answerCount: 1, questions: [
+        { marks: 40, style: "Transactional writing (article, speech or formal letter)" },
+        { marks: 40, style: "Transactional writing (article, speech or formal letter)" } ] } ] },
+  { id: "eduqas_lang_c1", label: "Eduqas GCSE English Language Component 1", subjects: /english|language/i, levels: GCSE, boards: /eduqas|wjec/i,
+    sections: [
+      { title: "Section A: Reading (20th-century literature)", questions: [
+        { marks: 5, style: "Short retrieval from the opening lines" },
+        { marks: 5, style: "Inference and explanation" },
+        { marks: 10, style: "Language feature analysis" },
+        { marks: 10, style: "Structure and tension-building analysis" },
+        { marks: 10, style: "Whole-text evaluation of a statement" } ] },
+      { title: "Section B: Writing", questions: [
+        { marks: 40, style: "Creative writing (choice of narrative titles)" } ] } ] },
+  { id: "eduqas_lang_c2", label: "Eduqas GCSE English Language Component 2", subjects: /english|language/i, levels: GCSE, boards: /eduqas|wjec/i,
+    sections: [
+      { title: "Section A: Reading (19th & 21st-century non-fiction)", questions: [
+        { marks: 3, style: "Text 1 (19th century): short retrieval" },
+        { marks: 10, style: "Text 1: language and structure analysis" },
+        { marks: 3, style: "Text 2 (21st century): short retrieval" },
+        { marks: 10, style: "Text 2: evaluation of writer intention" },
+        { marks: 4, style: "Both texts: synthesis across both eras" },
+        { marks: 10, style: "Both texts: comparison of viewpoints" } ] },
+      { title: "Section B: Transactional Writing (both compulsory)", questions: [
+        { marks: 20, style: "Transactional task 1 (formal report or letter)" },
+        { marks: 20, style: "Transactional task 2 (persuasive speech or article)" } ] } ] },
+  { id: "ocr_lang_p1", label: "OCR GCSE English Language Paper 1 (J351/01)", subjects: /english|language/i, levels: GCSE, boards: /ocr/i,
     sections: [
       { title: "Section A: Reading", questions: [
-        { marks: 5, style: "List / identify from the text" },
-        { marks: 5, style: explain },
-        { marks: 10, style: "Language analysis" },
-        { marks: 10, style: "Evaluate a statement" } ] },
+        { marks: 4, style: "Text 1: short retrieval and summary" },
+        { marks: 6, style: "Language and structure analysis of a selected passage" },
+        { marks: 12, style: "Text 2: how the writer influences the reader" },
+        { marks: 18, style: "Both texts: comparative analysis of ideas and perspectives" } ] },
+      { title: "Section B: Writing", answerCount: 1, questions: [
+        { marks: 40, style: "Transactional writing for audience and purpose" },
+        { marks: 40, style: "Transactional writing for audience and purpose" } ] } ] },
+  { id: "ocr_lang_p2", label: "OCR GCSE English Language Paper 2 (J351/02)", subjects: /english|language/i, levels: GCSE, boards: /ocr/i,
+    sections: [
+      { title: "Section A: Reading", questions: [
+        { marks: 4, style: "Text 1: short retrieval and meaning identification" },
+        { marks: 6, style: "Analysis of specific language choices" },
+        { marks: 12, style: "Text 2: analysis of character/setting development" },
+        { marks: 18, style: "Both texts: comparative analysis of how impact is achieved" } ] },
       { title: "Section B: Writing", answerCount: 1, questions: [
         { marks: 40, style: "Narrative writing task" },
-        { marks: 40, style: "Narrative writing task" } ] } ] },
-  { id: "ocr_lang_gcse", label: "OCR English Language-style paper (GCSE)", subjects: /english|language/i, levels: GCSE, boards: /ocr/i,
-    sections: [
-      { title: "Section A: Reading", questions: [
-        { marks: 4, style: "List / identify from the text" },
-        { marks: 6, style: "Language analysis" },
-        { marks: 6, style: "Compare" },
-        { marks: 12, style: "Evaluate a statement" } ] },
-      { title: "Section B: Writing", answerCount: 1, questions: [
-        { marks: 40, style: "Extended writing task" },
-        { marks: 40, style: "Extended writing task" } ] } ] },
+        { marks: 40, style: "Descriptive writing task" } ] } ] },
 
   // ═══ ENGLISH LITERATURE ═══
   { id: "aqa_lit_gcse_p1", label: "AQA English Literature Paper 1 (GCSE)", subjects: /english|literature/i, levels: GCSE, boards: /aqa/i,
