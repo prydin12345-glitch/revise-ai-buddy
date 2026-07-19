@@ -257,6 +257,14 @@ export const BLUEPRINT_PRESETS: PaperPreset[] = [
       { title: "Section B: Essays", answerCount: 1, questions: [
         { marks: 25, style: essay }, { marks: 25, style: essay } ] } ] },
 
+  { id: "edexcel_alevel_lang_p1", label: "Edexcel A-level English Language Paper 1 (9EN0/01)", subjects: /english|language/i, levels: ALEVEL, boards: /edexcel|pearson/i,
+    sections: [
+      { title: "Section A: Individual variation", questions: [
+        { marks: 15, style: "Analyse how language is used in Text A (linguistic frameworks)" },
+        { marks: 15, style: "Analyse how language is used in Text B (linguistic frameworks)" },
+        { marks: 15, style: "Compare how language is used in Text A and Text B" } ] },
+      { title: "Section B: Variation over time and diversity", questions: [
+        { marks: 30, style: "Evaluative essay on language variation, change or diversity" } ] } ] },
   { id: "alevel_lit_style", label: "A-level English Literature-style paper (all boards)", subjects: /english|literature/i, levels: ALEVEL, boards: ANY,
     sections: [
       { title: "Section A: Studied text", questions: [
