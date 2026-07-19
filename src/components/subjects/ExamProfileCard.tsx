@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { ChevronRight, Pencil, FileText, Hash, ListChecks } from "lucide-react";
+import { ChevronRight, Pencil } from "lucide-react";
+import { formatEducationalTier } from "@/lib/level-display";
 
 interface ExamProfileCardProps {
   profile: {
@@ -9,6 +10,7 @@ interface ExamProfileCardProps {
     question_count: number;
     educational_tier: string | null;
     exam_board?: string | null;
+    paper_blueprint?: any;
   };
   subjectName: string;
   onEdit: () => void;
@@ -16,83 +18,75 @@ interface ExamProfileCardProps {
 
 export const ExamProfileCard = ({ profile, subjectName, onEdit }: ExamProfileCardProps) => {
   const navigate = useNavigate();
+  const tierLabel = formatEducationalTier(profile.educational_tier);
+  const hasBlueprint = Array.isArray(profile.paper_blueprint?.sections) && profile.paper_blueprint.sections.length > 0;
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-card hover:border-primary/40 hover:shadow-sm transition-all duration-200 overflow-hidden">
+    <div className="group relative rounded-2xl border border-[hsl(220_6%_20%)] bg-[hsl(220_8%_13%)]/60 hover:border-[hsl(220_6%_28%)] hover:bg-[hsl(220_8%_14%)] transition-colors">
       <button
-        onClick={() =>
-          navigate(`/my-subjects/${encodeURIComponent(subjectName)}/${profile.id}`)
-        }
-        className="w-full text-left p-4 group"
+        onClick={() => navigate(`/my-subjects/${encodeURIComponent(subjectName)}/${profile.id}`)}
+        className="w-full text-left p-5"
       >
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <FileText className="w-3.5 h-3.5 text-primary" />
-              </div>
-              <h3 className="text-[14px] font-semibold text-foreground truncate">{profile.profile_name}</h3>
-            </div>
+          <h3 className="text-[15px] font-semibold text-foreground leading-tight truncate">
+            {profile.profile_name}
+          </h3>
+          <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" />
+        </div>
 
-            <div className="flex items-center gap-3 text-[11.5px] text-muted-foreground pl-9">
-              <span className="flex items-center gap-1">
-                <Hash className="w-3 h-3" />
-                {profile.question_count} questions
-              </span>
-              {Array.isArray((profile as any).paper_blueprint?.sections) && (profile as any).paper_blueprint.sections.length > 0 && (
-                <span className="flex items-center gap-1 text-primary">
-                  <ListChecks className="w-3 h-3" />
-                  Custom layout
-                </span>
-              )}
-              {profile.topics.length > 0 && (
-                <span className="flex items-center gap-1">
-                  <ListChecks className="w-3 h-3" />
-                  {profile.topics.length} topics
-                </span>
-              )}
-              {profile.educational_tier && (
-                <span className="uppercase tracking-wider text-[10px]">
-                  {profile.educational_tier}
-                </span>
-              )}
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground/60 group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0" />
+        <div className="flex flex-wrap items-center gap-1.5 mt-3">
+          <Badge>{profile.question_count} questions</Badge>
+          {profile.topics.length > 0 && <Badge>{profile.topics.length} topics</Badge>}
+          {tierLabel && <Badge>{tierLabel}</Badge>}
+          {hasBlueprint && <Badge accent>Custom layout</Badge>}
         </div>
 
         {profile.topics.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-3 pl-9">
-            {profile.topics.slice(0, 3).map((topic) => (
+          <div className="flex flex-wrap gap-1.5 mt-4">
+            {profile.topics.slice(0, 4).map((topic) => (
               <span
                 key={topic}
-                className="px-2 py-0.5 rounded-md bg-muted text-[10.5px] text-muted-foreground"
+                className="px-2.5 py-1 rounded-full bg-white/[0.04] text-[11.5px] text-foreground/80 border border-white/[0.06]"
               >
                 {topic}
               </span>
             ))}
-            {profile.topics.length > 3 && (
-              <span className="px-2 py-0.5 rounded-md text-[10.5px] text-muted-foreground">
-                +{profile.topics.length - 3} more
+            {profile.topics.length > 4 && (
+              <span className="px-2.5 py-1 rounded-full text-[11.5px] text-muted-foreground">
+                +{profile.topics.length - 4} more
               </span>
             )}
           </div>
         )}
       </button>
 
-      <div className="flex items-center justify-between px-4 py-2.5 border-t border-border/50 bg-muted/20">
-        <span className="text-[10.5px] text-muted-foreground">Click card to view exam history</span>
+      <div className="flex items-center justify-between px-5 py-2.5 border-t border-[hsl(220_6%_20%)]/60">
+        <span className="text-[11px] text-muted-foreground">Tap to view exam history</span>
         <button
           onClick={(e) => {
             e.stopPropagation();
             onEdit();
           }}
-          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary transition-colors"
+          className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground hover:text-foreground transition-colors"
         >
           <Pencil className="w-3 h-3" />
-          Edit profile
+          Edit
         </button>
       </div>
     </div>
   );
 };
+
+function Badge({ children, accent = false }: { children: React.ReactNode; accent?: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium border ${
+        accent
+          ? "bg-primary/10 text-primary border-primary/20"
+          : "bg-white/[0.03] text-muted-foreground border-white/[0.06]"
+      }`}
+    >
+      {children}
+    </span>
+  );
+}

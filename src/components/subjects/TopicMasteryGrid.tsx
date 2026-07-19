@@ -3,7 +3,7 @@ import { useTopicPerformance } from "@/hooks/useTopicPerformance";
 
 interface TopicMasteryGridProps {
   subjectName: string;
-  topics: string[]; // full topic list for this subject
+  topics: string[];
 }
 
 export const TopicMasteryGrid = ({ subjectName, topics }: TopicMasteryGridProps) => {
@@ -12,9 +12,9 @@ export const TopicMasteryGrid = ({ subjectName, topics }: TopicMasteryGridProps)
 
   if (loading) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+      <div className="space-y-1">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="h-24 rounded-xl bg-muted/50 animate-pulse" />
+          <div key={i} className="h-12 rounded-lg bg-muted/40 animate-pulse" />
         ))}
       </div>
     );
@@ -22,7 +22,7 @@ export const TopicMasteryGrid = ({ subjectName, topics }: TopicMasteryGridProps)
 
   if (!topics || topics.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border/60 p-6 text-center">
+      <div className="rounded-xl border border-dashed border-[hsl(220_6%_20%)] p-6 text-center">
         <p className="text-[13px] text-muted-foreground">
           No topics added yet. Add topics to this subject to see performance data.
         </p>
@@ -35,7 +35,6 @@ export const TopicMasteryGrid = ({ subjectName, topics }: TopicMasteryGridProps)
     return { topic, score: perf.percentage, attempts: perf.questionsAttempted };
   });
 
-  // Weakest (attempted) first, then untested at the end
   const sorted = scored.sort((a, b) => {
     if (a.attempts === 0 && b.attempts > 0) return 1;
     if (b.attempts === 0 && a.attempts > 0) return -1;
@@ -43,50 +42,72 @@ export const TopicMasteryGrid = ({ subjectName, topics }: TopicMasteryGridProps)
   });
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+    <ul className="divide-y divide-[hsl(220_6%_20%)]/70">
       {sorted.map(({ topic, score, attempts }) => {
         const untested = attempts === 0;
-        const bg = untested
-          ? "bg-muted/40 border-border/60"
-          : score >= 70
-          ? "bg-green-500/10 border-green-500/20"
-          : score >= 50
-          ? "bg-amber-500/10 border-amber-500/20"
-          : "bg-red-500/10 border-red-500/20";
-        const textColor = untested
-          ? "text-muted-foreground"
-          : score >= 70
-          ? "text-green-600"
-          : score >= 50
-          ? "text-amber-600"
-          : "text-red-500";
+        const displayScore = Math.max(0, Math.round(score));
+
+        const dot = untested
+          ? "bg-[hsl(220_6%_28%)]"
+          : displayScore >= 70
+          ? "bg-emerald-500"
+          : displayScore >= 50
+          ? "bg-amber-500"
+          : "bg-red-500";
+
+        const barFill = untested
+          ? "bg-[hsl(220_6%_24%)]"
+          : displayScore >= 70
+          ? "bg-emerald-500/70"
+          : displayScore >= 50
+          ? "bg-amber-500/70"
+          : "bg-red-500/70";
+
+        const pctColor = untested
+          ? "text-muted-foreground/70"
+          : displayScore >= 70
+          ? "text-emerald-400"
+          : displayScore >= 50
+          ? "text-amber-400"
+          : "text-red-400";
 
         return (
-          <button
-            key={topic}
-            onClick={() =>
-              navigate(
-                `/create-practice-questions?source=weak_topics&subject=${encodeURIComponent(
-                  subjectName
-                )}&subtopic=${encodeURIComponent(topic)}`
-              )
-            }
-            className={`group text-left rounded-xl border p-3.5 hover:shadow-sm transition-all duration-150 ${bg}`}
-          >
-            <div className={`text-2xl font-bold tabular-nums ${textColor}`}>
-              {untested ? "—" : `${Math.round(score)}%`}
-            </div>
-            <div className="text-[12px] font-medium text-foreground mt-1 line-clamp-2 leading-snug">
-              {topic}
-            </div>
-            <div className="text-[10.5px] text-muted-foreground mt-1">
-              {untested
-                ? "No attempts"
-                : `${attempts} attempt${attempts !== 1 ? "s" : ""}`}
-            </div>
-          </button>
+          <li key={topic}>
+            <button
+              onClick={() =>
+                navigate(
+                  `/create-practice-questions?source=weak_topics&subject=${encodeURIComponent(
+                    subjectName
+                  )}&subtopic=${encodeURIComponent(topic)}`
+                )
+              }
+              className="group w-full flex items-center gap-4 py-3 px-1 text-left hover:bg-white/[0.02] rounded-md transition-colors"
+            >
+              <span aria-hidden className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`} />
+              <span className="min-w-0 flex-1 text-[13.5px] font-medium text-foreground leading-snug break-words">
+                {topic}
+              </span>
+
+              <div className="hidden sm:block w-24 h-1 rounded-full bg-[hsl(220_6%_18%)] overflow-hidden shrink-0">
+                <div
+                  className={`h-full ${barFill} transition-all`}
+                  style={{ width: `${untested ? 0 : displayScore}%` }}
+                />
+              </div>
+
+              <span
+                className={`w-24 text-right shrink-0 text-[12px] tabular-nums ${pctColor} ${
+                  untested ? "font-normal" : "font-semibold"
+                }`}
+              >
+                {untested
+                  ? "No attempts yet"
+                  : `${displayScore}% · ${attempts}`}
+              </span>
+            </button>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 };
