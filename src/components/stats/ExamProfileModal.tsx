@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/popover";
 import { getLocalSubtopics } from "@/lib/subtopic-dictionary";
 import { BLUEPRINT_PRESETS } from "@/lib/paperPresets";
+import { getTopicSuggestions } from "@/lib/topicSuggestions";
 import { TimeWheelPicker } from "./TimeWheelPicker";
 import { TopicPickerDialog } from "./TopicPickerDialog";
 import { ExamProfileAdvanced, DEFAULT_ADVANCED, type AdvancedSettings } from "./ExamProfileAdvanced";
@@ -682,6 +683,27 @@ export const ExamProfileModal = ({
             title="Topics"
             hint={selectedTopics.length ? `${selectedTopics.length} selected` : "pick at least one"}
           >
+            {(() => {
+              const suggestions = getTopicSuggestions(subjectName || "", finalTier || "").filter((t) => !selectedTopics.includes(t));
+              if (suggestions.length === 0) return null;
+              return (
+                <div className="space-y-1.5">
+                  <p className="text-[11px] text-muted-foreground">Quick add — common areas for {subjectName}:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {suggestions.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setSelectedTopics([...selectedTopics, t])}
+                        className="rounded-full border border-border/60 bg-card/60 px-2.5 py-1 text-[11.5px] text-muted-foreground hover:text-foreground hover:border-border transition-colors"
+                      >
+                        + {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
             <TopicPickerDialog
               allTopics={allTopics}
               selectedTopics={selectedTopics}
