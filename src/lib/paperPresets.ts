@@ -39,9 +39,8 @@ export const BLUEPRINT_PRESETS: PaperPreset[] = [
         { marks: 8, style: "Language analysis" },
         { marks: 8, style: "Structure analysis" },
         { marks: 20, style: "Evaluate a statement" } ] },
-      { title: "Section B: Writing", answerCount: 1, questions: [
-        { marks: 40, style: "Descriptive writing task" },
-        { marks: 40, style: "Narrative writing task" } ] } ] },
+      { title: "Section B: Writing", questions: [
+        { marks: 40, style: "ONE question offering an internal choice — phrase it as 'Either: <descriptive task linked to the source>  Or: <narrative task>' inside this single question" } ] } ] },
   { id: "aqa_lang_p2", label: "AQA English Language Paper 2", subjects: /english|language/i, levels: GCSE, boards: /aqa/i,
     sections: [
       { title: "Section A: Reading", questions: [
