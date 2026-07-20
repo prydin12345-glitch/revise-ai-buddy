@@ -398,7 +398,13 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   const INSERT_CAPABLE = /geograph|history|environment|earth science|english/i;
   let insertFigures: any[] = [];
   let insertPromptBlock = '';
-  console.log(`[insert] includeInsert=${includeInsert} subject="${exam.subject_id}" capable=${INSERT_CAPABLE.test(String(exam.subject_id || ''))}`);  if (includeInsert && INSERT_CAPABLE.test(String(exam.subject_id || ''))) {
+    // English reading papers are BUILT on a stimulus — without an insert the
+  // model improvises a short extract into Q1 and the insert booklet stays
+  // empty. Force it on for English regardless of the toggle.
+  const stimulusMandatory = /english/i.test(String(exam.subject_id || ''));
+  const effectiveIncludeInsert = includeInsert || stimulusMandatory;
+  console.log(`[insert] includeInsert=${includeInsert} effective=${effectiveIncludeInsert} subject="${exam.subject_id}" capable=${INSERT_CAPABLE.test(String(exam.subject_id || ''))}`);
+  if (effectiveIncludeInsert && INSERT_CAPABLE.test(String(exam.subject_id || ''))) {
     try {
       const topicsForFigures: string[] = (Array.isArray(bodyTopics) && bodyTopics.length > 0)
         ? bodyTopics
@@ -2563,7 +2569,13 @@ Match genuine AQA/Edexcel/OCR A-level standard:
   const blueprintBlock = bpValidation.ok && bpValidation.blueprint ? buildBlueprintPrompt(bpValidation.blueprint) : '';
   if (blueprintBlock) console.log(`[blueprint] active: ${bpValidation.totalQuestions} questions, ${bpValidation.totalMarks} marks`);
 
+  const antiInlineBlock = insertFigures.length > 0
+    ? `\n## INSERT SEPARATION (MANDATORY)\nThe stimulus (extract/passage/source/data) is printed in a SEPARATE resource insert the student reads alongside the paper. NEVER reproduce the stimulus text inside any question's text, and never open a question with "Read the following extract…" followed by the passage. Questions refer to it as "the source" or "Figure N" and quote at most a short phrase. Question 1 must be the paper's first ACTUAL question, not a container for the text.\n`
+    : '';
+  if (antiInlineBlock) console.log('[insert] anti-inline contract active');
+
   const userPrompt = [
+    antiInlineBlock,
     blueprintBlock,
     studiedTextsBlock,
     insertPromptBlock,
