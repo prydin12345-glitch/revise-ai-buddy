@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/popover";
 import { getLocalSubtopics } from "@/lib/subtopic-dictionary";
 import { BLUEPRINT_PRESETS } from "@/lib/paperPresets";
-import { getTopicSuggestions } from "@/lib/topicSuggestions";
+import { getTopicSuggestions, hasTopicSuggestions } from "@/lib/topicSuggestions";
 import { TimeWheelPicker } from "./TimeWheelPicker";
 import { TopicPickerDialog } from "./TopicPickerDialog";
 import { ExamProfileAdvanced, DEFAULT_ADVANCED, type AdvancedSettings } from "./ExamProfileAdvanced";
@@ -684,11 +684,22 @@ export const ExamProfileModal = ({
             hint={selectedTopics.length ? `${selectedTopics.length} selected` : "pick at least one"}
           >
             {(() => {
-              const suggestions = getTopicSuggestions(subjectName || "", finalTier || "").filter((t) => !selectedTopics.includes(t));
+              if (!hasTopicSuggestions(subjectName || "")) return null;
+              if (!finalTier) {
+                return (
+                  <p className="text-[11px] text-muted-foreground rounded-md bg-muted/40 px-2.5 py-1.5">
+                    Choose your level in Basics above and suggested areas for {subjectName} will appear here.
+                  </p>
+                );
+              }
+              const isAdvanced = /a[-\s_]?level|level[\s_]*3|\bas\b|\ba2\b|year[\s_]*1[23]|sixth/i.test(finalTier);
+              const suggestions = getTopicSuggestions(subjectName || "", finalTier).filter((t) => !selectedTopics.includes(t));
               if (suggestions.length === 0) return null;
               return (
                 <div className="space-y-1.5">
-                  <p className="text-[11px] text-muted-foreground">Quick add — common areas for {subjectName}:</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Quick add — common {isAdvanced ? "A-level" : "GCSE"} areas for {subjectName}:
+                  </p>
                   <div className="flex flex-wrap gap-1.5">
                     {suggestions.map((t) => (
                       <button
