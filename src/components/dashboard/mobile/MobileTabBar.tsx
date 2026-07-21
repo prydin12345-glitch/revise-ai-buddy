@@ -1,7 +1,7 @@
 // src/components/dashboard/mobile/MobileTabBar.tsx
-import { LayoutGrid, FileText, ListChecks, Users, User, BookOpen, type LucideIcon } from "lucide-react";
+import { LayoutGrid, FileText, ListChecks, Users, TrendingUp, BookOpen, type LucideIcon } from "lucide-react";
 
-export type TabKey = "home" | "exams" | "quizzes" | "subjects" | "classes" | "profile";
+export type TabKey = "home" | "exams" | "quizzes" | "subjects" | "classes" | "stats";
 
 const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
   { key: "home", label: "Home", icon: LayoutGrid },
@@ -9,7 +9,7 @@ const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
   { key: "quizzes", label: "Quizzes", icon: ListChecks },
   { key: "subjects", label: "Subjects", icon: BookOpen },
   { key: "classes", label: "Classes", icon: Users },
-  { key: "profile", label: "Profile", icon: User },
+  { key: "stats", label: "Stats", icon: TrendingUp },
 ];
 
 interface MobileTabBarProps {
