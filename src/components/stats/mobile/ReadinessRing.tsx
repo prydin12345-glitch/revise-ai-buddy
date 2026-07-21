@@ -44,7 +44,7 @@ const Ring = ({
         strokeDasharray={c}
         initial={{ strokeDashoffset: c }}
         animate={{ strokeDashoffset: c * (1 - pct) }}
-        transition={{ duration: 1.1, delay, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 1.1, delay, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
         style={{ filter: `drop-shadow(0 0 6px ${color}88)` }}
         transform={`rotate(-90 ${CENTER} ${CENTER})`}
       />
