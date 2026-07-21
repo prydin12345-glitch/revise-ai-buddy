@@ -7,8 +7,7 @@ import { SubjectPerformanceChart } from "@/components/stats/SubjectPerformanceCh
 import { WeeklyStudyChart } from "@/components/stats/WeeklyStudyChart";
 import { RecentExamsTable } from "@/components/stats/RecentExamsTable";
 import { AccuracyTrendChart } from "@/components/stats/AccuracyTrendChart";
-import { MobileStatsHero } from "@/components/stats/MobileStatsHero";
-import { MobileChartSwitcher } from "@/components/stats/MobileChartSwitcher";
+import { MobileStatsTelemetry } from "@/components/stats/mobile/MobileStatsTelemetry";
 import { useExamStats } from "@/hooks/useExamStats";
 import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
 import { StatsDrilldownDrawer } from "@/components/dashboard/StatsDrilldownDrawer";
@@ -139,37 +138,17 @@ const Stats = () => {
           {/* Stats tab */}
           <TabsContent value="stats" className="mt-0">
             {isMobile ? (
-              // ────────── MOBILE LAYOUT ──────────
-              <div className="space-y-3">
-                <MobileStatsHero avgScore={avgScore} />
-
-                <TopStatsCards
-                  totalExams={totalExams}
-                  completedExams={completedExams}
-                  inProgressExams={inProgressExams}
-                  currentStreak={currentStreak}
-                  longestStreak={longestStreak}
-                  avgScore={avgScore}
-                  totalStudyHours={totalStudyHours}
-                  bestSubject={bestSubject}
-                  onCardClick={drilldown.openDrawer}
-                  variant="grid-no-score"
-                />
-
-                <MobileChartSwitcher
-                  studyActivityData={studyActivityData}
-                  subjects={subjects}
-                  examResultsData={examResultsData}
-                  subjectPerformanceData={subjectPerformanceData}
-                  timeRange={timeRange}
-                  setTimeRange={setTimeRange}
-                  pieChartMode={pieChartMode}
-                  setPieChartMode={setPieChartMode}
-                  revisionGoals={revisionGoals}
-                />
-
-                <RecentExamsTable exams={recentExams} />
-              </div>
+              <MobileStatsTelemetry
+                avgScore={avgScore}
+                currentStreak={currentStreak}
+                longestStreak={longestStreak}
+                subjectPerformanceData={subjectPerformanceData}
+                examResultsData={examResultsData}
+                studyActivityData={studyActivityData}
+                timeRange={timeRange}
+                setTimeRange={setTimeRange}
+                topics={topics}
+              />
             ) : (
               // ────────── DESKTOP LAYOUT (unchanged) ──────────
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4" style={{ alignItems: "stretch" }}>
