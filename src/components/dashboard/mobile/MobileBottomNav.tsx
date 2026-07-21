@@ -10,7 +10,7 @@ const ROUTE_FOR_TAB: Record<TabKey, string> = {
   quizzes: "/quizzes",
   subjects: "/my-subjects",
   classes: "/my-classes",
-  profile: "/settings",
+  stats: "/stats",
 };
 
 function activeTabFor(pathname: string): TabKey {
@@ -18,7 +18,7 @@ function activeTabFor(pathname: string): TabKey {
   if (pathname.startsWith("/quizzes") || pathname.startsWith("/practice")) return "quizzes";
   if (pathname.startsWith("/my-subjects")) return "subjects";
   if (pathname.startsWith("/my-classes")) return "classes";
-  if (pathname.startsWith("/settings")) return "profile";
+  if (pathname.startsWith("/stats")) return "stats";
   return "home";
 }
 
