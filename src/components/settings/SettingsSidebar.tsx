@@ -1,4 +1,12 @@
 import { cn } from "@/lib/utils";
+import {
+  User,
+  Palette,
+  SlidersHorizontal,
+  ShieldCheck,
+  Sparkles,
+  type LucideIcon,
+} from "lucide-react";
 
 export type SettingsTabId =
   | "account"
@@ -9,21 +17,21 @@ export type SettingsTabId =
 
 export const SETTINGS_GROUPS: {
   label: string;
-  items: { id: SettingsTabId; label: string }[];
+  items: { id: SettingsTabId; label: string; icon: LucideIcon }[];
 }[] = [
   {
     label: "Personal",
     items: [
-      { id: "account", label: "Account" },
-      { id: "personalization", label: "Personalization" },
-      { id: "advanced", label: "Advanced" },
+      { id: "account", label: "Account", icon: User },
+      { id: "personalization", label: "Personalization", icon: Palette },
+      { id: "advanced", label: "Advanced", icon: SlidersHorizontal },
     ],
   },
   {
     label: "Data & AI",
     items: [
-      { id: "privacy", label: "Privacy & Security" },
-      { id: "ai", label: "AI Usage" },
+      { id: "privacy", label: "Privacy & Security", icon: ShieldCheck },
+      { id: "ai", label: "AI Usage", icon: Sparkles },
     ],
   },
 ];
@@ -61,11 +69,17 @@ interface SettingsSidebarProps {
 
 export const SettingsSidebar = ({ active, onSelect }: SettingsSidebarProps) => {
   return (
-    <nav aria-label="Settings" className="w-[240px] shrink-0 py-8 pr-6">
+    <nav
+      aria-label="Settings"
+      className="sticky top-6 self-start pr-2"
+    >
       <div className="mb-6">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
           Settings
         </h1>
+        <p className="text-xs text-muted-foreground mt-1">
+          Manage your account and preferences
+        </p>
       </div>
 
       <div className="space-y-6">
@@ -77,20 +91,27 @@ export const SettingsSidebar = ({ active, onSelect }: SettingsSidebarProps) => {
             <ul className="space-y-0.5">
               {group.items.map((item) => {
                 const isActive = item.id === active;
+                const Icon = item.icon;
                 return (
                   <li key={item.id}>
                     <button
                       type="button"
                       onClick={() => onSelect(item.id)}
                       className={cn(
-                        "w-full text-left rounded-md pl-3 pr-2 py-1.5 text-sm transition-colors relative",
-                        "border-l-2",
+                        "w-full flex items-center gap-2.5 text-left rounded-md pl-3 pr-2 py-2 text-sm transition-colors relative border-l-2",
                         isActive
                           ? "bg-muted/60 text-foreground font-medium border-primary"
                           : "text-muted-foreground hover:text-foreground hover:bg-muted/40 border-transparent",
                       )}
                     >
-                      {item.label}
+                      <Icon
+                        className={cn(
+                          "w-4 h-4 shrink-0",
+                          isActive ? "text-primary" : "text-muted-foreground",
+                        )}
+                        strokeWidth={2}
+                      />
+                      <span className="truncate">{item.label}</span>
                     </button>
                   </li>
                 );
@@ -102,3 +123,4 @@ export const SettingsSidebar = ({ active, onSelect }: SettingsSidebarProps) => {
     </nav>
   );
 };
+

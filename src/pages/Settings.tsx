@@ -71,18 +71,24 @@ const Settings = () => {
     <DashboardLayout>
       <div className="min-h-screen bg-background">
         {isLg ? (
-          // ─── Desktop: sidebar + focused content pane ─────────────────────
-          <div className="mx-auto max-w-5xl px-6 flex gap-6">
-            <SettingsSidebar
-              active={effectiveTab ?? "account"}
-              onSelect={setTab}
-            />
-            <main className="flex-1 min-w-0 py-8">
-              <div className="max-w-2xl">
-                <SectionHeader tab={effectiveTab ?? "account"} />
-                <div className="mt-8">{renderSection(effectiveTab ?? "account")}</div>
-              </div>
-            </main>
+          // ─── Desktop: sticky sidebar rail + focused content pane ─────────
+          <div className="mx-auto max-w-6xl px-8 xl:px-10 py-8">
+            <div className="lg:grid lg:grid-cols-12 lg:gap-10 xl:gap-12">
+              <aside className="lg:col-span-3">
+                <SettingsSidebar
+                  active={effectiveTab ?? "account"}
+                  onSelect={setTab}
+                />
+              </aside>
+              <main className="lg:col-span-9 min-w-0">
+                <div className="max-w-2xl">
+                  <SectionHeader tab={effectiveTab ?? "account"} />
+                  <div className="mt-8 pt-8 border-t border-border/40">
+                    {renderSection(effectiveTab ?? "account")}
+                  </div>
+                </div>
+              </main>
+            </div>
           </div>
         ) : effectiveTab ? (
           // ─── Mobile: drilled-down section ────────────────────────────────
@@ -147,10 +153,12 @@ const SectionHeader = ({ tab }: { tab: SettingsTabId }) => {
   const meta = SETTINGS_META[tab];
   return (
     <header>
-      <h2 className="text-xl font-semibold tracking-tight text-foreground">
+      <h2 className="text-[22px] font-semibold tracking-tight text-foreground">
         {meta.title}
       </h2>
-      <p className="text-xs text-muted-foreground mt-1">{meta.description}</p>
+      <p className="text-sm text-muted-foreground mt-1.5 max-w-xl">
+        {meta.description}
+      </p>
     </header>
   );
 };
