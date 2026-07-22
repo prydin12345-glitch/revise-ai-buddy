@@ -1,48 +1,66 @@
-import { TELEMETRY, clampPct, masteryColor } from "./tokens";
+import { TELEMETRY, clampPct, scoreStatusColor, scoreStatusLabel } from "./tokens";
 import type { UnifiedTopicScore } from "@/hooks/useUnifiedTopicPerformance";
 
-export const TopicTelemetryRow = ({ topic }: { topic: UnifiedTopicScore }) => {
-  const color = masteryColor(topic.mastery);
-  const pct = clampPct(topic.unifiedScore);
+interface Props {
+  topic: UnifiedTopicScore;
+  compact?: boolean;
+}
+
+export const TopicTelemetryRow = ({ topic, compact = false }: Props) => {
   const attempts = topic.examQuestionCount + topic.practiceQuestionCount;
+  const pct = clampPct(topic.unifiedScore);
+  const color = scoreStatusColor(pct, attempts);
+  const status = scoreStatusLabel(pct, attempts);
 
   return (
     <div
-      className="flex items-center gap-3 py-2.5"
+      className="flex items-start gap-3 py-3"
       style={{ borderBottom: `1px solid ${TELEMETRY.borderSoft}` }}
     >
       <span
-        className="inline-block w-1.5 h-6 rounded-full flex-shrink-0"
-        style={{ background: color, boxShadow: `0 0 8px ${color}66` }}
+        className="inline-block w-1 rounded-full flex-shrink-0 mt-1"
+        style={{
+          height: 32,
+          background: color,
+          boxShadow: attempts > 0 ? `0 0 8px ${color}66` : undefined,
+        }}
       />
       <div className="flex-1 min-w-0">
         <div
-          className="text-[13px] font-medium truncate capitalize"
-          style={{ color: TELEMETRY.text }}
+          className={`text-[13px] font-medium capitalize break-words ${
+            compact ? "line-clamp-1" : "line-clamp-2"
+          }`}
+          style={{ color: TELEMETRY.text, lineHeight: 1.3 }}
         >
           {topic.topic}
         </div>
-        {topic.subjectId && (
-          <div
-            className="text-[9px] uppercase tracking-wider mt-0.5 truncate"
-            style={{ color: TELEMETRY.muted }}
+        <div className="flex items-center gap-2 mt-1">
+          <span
+            className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded"
+            style={{
+              color,
+              background: `${color}14`,
+              border: `1px solid ${color}33`,
+            }}
           >
-            {topic.subjectId}
-          </div>
-        )}
+            {status}
+          </span>
+          {topic.subjectId && (
+            <span
+              className="text-[9px] uppercase tracking-wider truncate"
+              style={{ color: TELEMETRY.muted }}
+            >
+              {topic.subjectId}
+            </span>
+          )}
+        </div>
       </div>
-      <div className="w-16 h-1 rounded-full overflow-hidden flex-shrink-0" style={{ background: TELEMETRY.border }}>
-        <div
-          className="h-full rounded-full"
-          style={{ width: `${pct}%`, background: color, boxShadow: `0 0 6px ${color}88` }}
-        />
-      </div>
-      <div className="text-right flex-shrink-0 w-12">
-        <div className="text-[13px] font-semibold tabular-nums" style={{ color: TELEMETRY.text }}>
-          {pct}%
+      <div className="text-right flex-shrink-0 w-14">
+        <div className="text-[14px] font-semibold tabular-nums" style={{ color: TELEMETRY.text }}>
+          {attempts > 0 ? `${pct}%` : "—"}
         </div>
         <div className="text-[9px] tabular-nums" style={{ color: TELEMETRY.muted }}>
-          {attempts}x
+          {attempts > 0 ? `${attempts} tried` : "no data"}
         </div>
       </div>
     </div>

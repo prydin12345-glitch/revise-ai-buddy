@@ -32,10 +32,10 @@ export const ScoreTrendCard = ({ data, timeRange, onTimeRangeChange }: Props) =>
       <div className="flex items-center justify-between mb-3">
         <div>
           <div className="text-[10px] uppercase tracking-wider" style={{ color: TELEMETRY.muted }}>
-            Signal
+            Score Trends
           </div>
           <div className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>
-            Score Progress
+            Performance Over Time
           </div>
         </div>
         <RangeChips value={timeRange} onChange={onTimeRangeChange} />
