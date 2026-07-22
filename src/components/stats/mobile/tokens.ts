@@ -14,6 +14,7 @@ export const TELEMETRY = {
   magenta: "hsl(320 90% 62%)",
   amber: "hsl(38 95% 60%)",
   red: "hsl(0 84% 62%)",
+  gray: "hsl(220 6% 40%)",
 };
 
 export const clampPct = (n: number) => Math.max(0, Math.min(100, Number.isFinite(n) ? n : 0));
@@ -23,8 +24,31 @@ export const masteryColor = (m: UnifiedMastery): string => {
     case "strong": return TELEMETRY.lime;
     case "developing": return TELEMETRY.amber;
     case "weak": return TELEMETRY.magenta;
-    default: return TELEMETRY.muted;
+    default: return TELEMETRY.gray;
   }
+};
+
+/**
+ * Status colour driven by *actual score + attempts*, not just the mastery bucket.
+ * - Unattempted (no data)          → muted gray
+ * - Needs Review (<40 or 0 w/ tries)→ magenta
+ * - Developing (40–69)              → cyan/amber (cyan for cool contrast)
+ * - High mastery (≥70)              → neon lime
+ */
+export const scoreStatusColor = (score: number, attempts: number): string => {
+  if (attempts === 0) return TELEMETRY.gray;
+  const p = clampPct(score);
+  if (p >= 70) return TELEMETRY.lime;
+  if (p >= 40) return TELEMETRY.cyan;
+  return TELEMETRY.magenta;
+};
+
+export const scoreStatusLabel = (score: number, attempts: number): string => {
+  if (attempts === 0) return "Unattempted";
+  const p = clampPct(score);
+  if (p >= 70) return "Mastered";
+  if (p >= 40) return "Developing";
+  return "Needs review";
 };
 
 export const scoreColor = (pct: number): string => {
@@ -51,7 +75,6 @@ export const buildSparklinePath = (values: number[], width: number, height: numb
     const y = pad + (1 - (v - min) / range) * (height - pad * 2);
     return [x, y] as const;
   });
-  // simple smooth path with quadratic midpoints
   let d = `M ${pts[0][0]} ${pts[0][1]}`;
   for (let i = 1; i < pts.length; i++) {
     const [px, py] = pts[i - 1];
