@@ -9,6 +9,7 @@ interface Props {
   deltaTone?: "up" | "down" | "neutral";
   accent?: string;
   sparkline?: number[];
+  onClick?: () => void;
 }
 
 export const SparklineCard = ({
@@ -19,6 +20,7 @@ export const SparklineCard = ({
   deltaTone = "neutral",
   accent = TELEMETRY.lime,
   sparkline = [],
+  onClick,
 }: Props) => {
   const W = 96;
   const H = 28;
@@ -28,9 +30,15 @@ export const SparklineCard = ({
   const deltaColor =
     deltaTone === "up" ? TELEMETRY.lime : deltaTone === "down" ? TELEMETRY.magenta : TELEMETRY.muted;
 
+  const Element: any = onClick ? "button" : "div";
+
   return (
-    <div
-      className="rounded-2xl p-3.5 flex flex-col justify-between min-h-[128px]"
+    <Element
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      className={`text-left w-full rounded-2xl p-3.5 flex flex-col justify-between min-h-[128px] transition-transform ${
+        onClick ? "active:scale-[0.98] cursor-pointer" : ""
+      }`}
       style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}` }}
     >
       <div className="flex items-center justify-between">
@@ -66,6 +74,6 @@ export const SparklineCard = ({
           <path d={d} stroke={accent} strokeWidth={1.5} fill="none" strokeLinecap="round" />
         </svg>
       )}
-    </div>
+    </Element>
   );
 };

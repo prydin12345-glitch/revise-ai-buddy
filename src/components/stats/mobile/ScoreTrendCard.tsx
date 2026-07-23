@@ -1,4 +1,5 @@
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { AnimatePresence, motion } from "framer-motion";
 import { RangeChips } from "./RangeChips";
 import { TELEMETRY } from "./tokens";
 
@@ -41,83 +42,94 @@ export const ScoreTrendCard = ({ data, timeRange, onTimeRangeChange }: Props) =>
         <RangeChips value={timeRange} onChange={onTimeRangeChange} />
       </div>
 
-      <div style={{ height: 180 }}>
-        {hasData ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={flat} margin={{ top: 6, right: 10, left: -18, bottom: 0 }}>
-              <defs>
-                <linearGradient id="scoreFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={TELEMETRY.lime} stopOpacity={0.4} />
-                  <stop offset="100%" stopColor={TELEMETRY.lime} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke={TELEMETRY.border} strokeDasharray="2 4" vertical={false} />
-              <XAxis
-                dataKey="period"
-                tick={{ fill: TELEMETRY.muted, fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                domain={[0, 100]}
-                tick={{ fill: TELEMETRY.muted, fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                width={28}
-              />
-              <Tooltip
-                cursor={{ stroke: TELEMETRY.borderSoft, strokeWidth: 1 }}
-                contentStyle={{
-                  background: TELEMETRY.cardAlt,
-                  border: `1px solid ${TELEMETRY.border}`,
-                  borderRadius: 10,
-                  color: TELEMETRY.text,
-                  fontSize: 12,
-                }}
-                labelStyle={{ color: TELEMETRY.muted, fontSize: 10, textTransform: "uppercase", letterSpacing: 1 }}
-                formatter={(v: any) => [`${v}%`, "Score"]}
-              />
-              <Area
-                type="monotone"
-                dataKey="score"
-                stroke={TELEMETRY.lime}
-                strokeWidth={2}
-                fill="url(#scoreFill)"
-                dot={(props: any) =>
-                  props.index === lastIdx ? (
-                    <g key={props.index}>
-                      <circle
-                        cx={props.cx}
-                        cy={props.cy}
-                        r={7}
-                        fill={TELEMETRY.lime}
-                        opacity={0.18}
-                      />
-                      <circle
-                        cx={props.cx}
-                        cy={props.cy}
-                        r={3.5}
-                        fill={TELEMETRY.lime}
-                        stroke={TELEMETRY.bg}
-                        strokeWidth={1.5}
-                      />
-                    </g>
-                  ) : (
-                    <g key={props.index} />
-                  )
-                }
-                activeDot={{ r: 5, fill: TELEMETRY.lime, stroke: TELEMETRY.bg, strokeWidth: 2 }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        ) : (
-          <div
-            className="h-full flex items-center justify-center text-xs"
-            style={{ color: TELEMETRY.muted }}
+      <div style={{ height: 180 }} className="relative">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={timeRange}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="absolute inset-0"
           >
-            No scores in this range yet
-          </div>
-        )}
+            {hasData ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={flat} margin={{ top: 6, right: 10, left: -18, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="scoreFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={TELEMETRY.lime} stopOpacity={0.4} />
+                      <stop offset="100%" stopColor={TELEMETRY.lime} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke={TELEMETRY.border} strokeDasharray="2 4" vertical={false} />
+                  <XAxis
+                    dataKey="period"
+                    tick={{ fill: TELEMETRY.muted, fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    domain={[0, 100]}
+                    tick={{ fill: TELEMETRY.muted, fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={28}
+                  />
+                  <Tooltip
+                    cursor={{ stroke: TELEMETRY.borderSoft, strokeWidth: 1 }}
+                    contentStyle={{
+                      background: TELEMETRY.cardAlt,
+                      border: `1px solid ${TELEMETRY.border}`,
+                      borderRadius: 10,
+                      color: TELEMETRY.text,
+                      fontSize: 12,
+                    }}
+                    labelStyle={{
+                      color: TELEMETRY.muted,
+                      fontSize: 10,
+                      textTransform: "uppercase",
+                      letterSpacing: 1,
+                    }}
+                    formatter={(v: any) => [`${v}%`, "Score"]}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="score"
+                    stroke={TELEMETRY.lime}
+                    strokeWidth={2}
+                    fill="url(#scoreFill)"
+                    isAnimationActive={false}
+                    dot={(props: any) =>
+                      props.index === lastIdx ? (
+                        <g key={props.index}>
+                          <circle cx={props.cx} cy={props.cy} r={7} fill={TELEMETRY.lime} opacity={0.18} />
+                          <circle
+                            cx={props.cx}
+                            cy={props.cy}
+                            r={3.5}
+                            fill={TELEMETRY.lime}
+                            stroke={TELEMETRY.bg}
+                            strokeWidth={1.5}
+                          />
+                        </g>
+                      ) : (
+                        <g key={props.index} />
+                      )
+                    }
+                    activeDot={{ r: 5, fill: TELEMETRY.lime, stroke: TELEMETRY.bg, strokeWidth: 2 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div
+                className="h-full flex items-center justify-center text-xs"
+                style={{ color: TELEMETRY.muted }}
+              >
+                No scores in this range yet
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );

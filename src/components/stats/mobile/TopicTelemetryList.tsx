@@ -31,8 +31,9 @@ export const TopicTelemetryList = ({
             {title}
           </div>
         </div>
-        {hasMore && onViewAll && (
+        {(hasMore || onViewAll) && onViewAll && (
           <button
+            type="button"
             onClick={onViewAll}
             className="min-h-[36px] flex items-center gap-0.5 text-[11px] font-semibold"
             style={{ color: TELEMETRY.cyan }}
