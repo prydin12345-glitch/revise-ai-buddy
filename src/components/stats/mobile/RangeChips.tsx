@@ -23,10 +23,15 @@ export const RangeChips = ({ value, onChange }: Props) => (
       return (
         <button
           key={o.key}
+          type="button"
           role="tab"
           aria-selected={active}
-          onClick={() => onChange(o.key)}
-          className="min-h-[44px] px-4 rounded-full text-xs font-semibold tracking-wide transition-colors"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!active) onChange(o.key);
+          }}
+          className="min-h-[36px] px-4 rounded-full text-xs font-semibold tracking-wide transition-colors"
           style={{
             color: active ? "hsl(220 10% 6%)" : TELEMETRY.mutedStrong,
             background: active ? TELEMETRY.lime : "transparent",

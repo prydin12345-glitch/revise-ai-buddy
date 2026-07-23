@@ -10,6 +10,10 @@ interface Props {
   avgTimePerQ: number | null;    // seconds; null if not enough data
   timeSeries: number[];
   velocitySeries: number[];      // recent scores
+  onOpenAccuracy?: () => void;
+  onOpenStreak?: () => void;
+  onOpenTiming?: () => void;
+  onOpenVelocity?: () => void;
 }
 
 const formatTime = (sec: number) => {
@@ -27,8 +31,11 @@ export const QuickStatsGrid = ({
   avgTimePerQ,
   timeSeries,
   velocitySeries,
+  onOpenAccuracy,
+  onOpenStreak,
+  onOpenTiming,
+  onOpenVelocity,
 }: Props) => {
-  // Mastery velocity — slope over recent scores
   let velocityDisplay = "Building…";
   let velocityDelta: string | undefined;
   let velocityTone: "up" | "down" | "neutral" = "neutral";
@@ -42,8 +49,7 @@ export const QuickStatsGrid = ({
     velocityTone = diff > 0 ? "up" : diff < 0 ? "down" : "neutral";
   }
 
-  const streakDelta =
-    longestStreak > 0 ? `best ${longestStreak}d` : undefined;
+  const streakDelta = longestStreak > 0 ? `best ${longestStreak}d` : undefined;
 
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -54,6 +60,7 @@ export const QuickStatsGrid = ({
         accent={TELEMETRY.lime}
         sparkline={accuracySeries}
         delta={accuracySeries.length >= 2 ? undefined : "—"}
+        onClick={onOpenAccuracy}
       />
       <SparklineCard
         icon={Flame}
@@ -62,6 +69,7 @@ export const QuickStatsGrid = ({
         accent={TELEMETRY.magenta}
         sparkline={[]}
         delta={streakDelta}
+        onClick={onOpenStreak}
       />
       <SparklineCard
         icon={Timer}
@@ -69,6 +77,7 @@ export const QuickStatsGrid = ({
         value={avgTimePerQ != null ? formatTime(avgTimePerQ) : "—"}
         accent={TELEMETRY.cyan}
         sparkline={timeSeries}
+        onClick={onOpenTiming}
       />
       <SparklineCard
         icon={TrendingUp}
@@ -78,6 +87,7 @@ export const QuickStatsGrid = ({
         sparkline={velocitySeries}
         delta={velocityDelta}
         deltaTone={velocityTone}
+        onClick={onOpenVelocity}
       />
     </div>
   );
