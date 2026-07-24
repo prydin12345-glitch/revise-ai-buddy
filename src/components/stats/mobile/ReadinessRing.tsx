@@ -1,13 +1,15 @@
 import { motion } from "framer-motion";
+import { Info } from "lucide-react";
 import { TELEMETRY, clampPct } from "./tokens";
 
 interface Props {
   overall: number;      // 0..100
   coverage: number;     // 0..100
   consistency: number;  // 0..100
+  onInfo?: () => void;
 }
 
-const SIZE = 220;
+const SIZE = 208;
 const CENTER = SIZE / 2;
 
 const Ring = ({
@@ -30,7 +32,7 @@ const Ring = ({
         cy={CENTER}
         r={radius}
         stroke={TELEMETRY.border}
-        strokeWidth={10}
+        strokeWidth={8}
         fill="none"
       />
       <motion.circle
@@ -38,59 +40,76 @@ const Ring = ({
         cy={CENTER}
         r={radius}
         stroke={color}
-        strokeWidth={10}
+        strokeWidth={8}
         strokeLinecap="round"
         fill="none"
         strokeDasharray={c}
         initial={{ strokeDashoffset: c }}
         animate={{ strokeDashoffset: c * (1 - pct) }}
-        transition={{ duration: 1.1, delay, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
-        style={{ filter: `drop-shadow(0 0 6px ${color}88)` }}
+        transition={{ duration: 1.0, delay, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
         transform={`rotate(-90 ${CENTER} ${CENTER})`}
       />
     </>
   );
 };
 
-export const ReadinessRing = ({ overall, coverage, consistency }: Props) => {
+export const ReadinessRing = ({ overall, coverage, consistency, onInfo }: Props) => {
   const overallSafe = clampPct(overall);
   return (
     <div
-      className="relative flex flex-col items-center justify-center rounded-3xl overflow-hidden"
+      className="relative flex flex-col items-center justify-center rounded-3xl"
       style={{
-        background:
-          "radial-gradient(120% 80% at 50% 0%, hsl(220 12% 12%) 0%, hsl(220 10% 7%) 60%, hsl(220 10% 6%) 100%)",
+        background: TELEMETRY.card,
         border: `1px solid ${TELEMETRY.border}`,
         padding: 20,
       }}
     >
+      {onInfo && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onInfo();
+          }}
+          aria-label="How readiness is calculated"
+          className="absolute top-3 right-3 h-8 w-8 rounded-full flex items-center justify-center"
+          style={{
+            background: TELEMETRY.cardAlt,
+            border: `1px solid ${TELEMETRY.border}`,
+            color: TELEMETRY.mutedStrong,
+          }}
+        >
+          <Info size={14} />
+        </button>
+      )}
+
+      <div
+        className="text-[10px] uppercase tracking-[0.2em] mb-3"
+        style={{ color: TELEMETRY.muted }}
+      >
+        Exam Readiness
+      </div>
+
       <div className="relative flex items-center justify-center">
         <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-          <Ring radius={96} value={overallSafe} color={TELEMETRY.lime} delay={0} />
-          <Ring radius={76} value={coverage} color={TELEMETRY.cyan} delay={0.15} />
-          <Ring radius={56} value={consistency} color={TELEMETRY.magenta} delay={0.3} />
+          <Ring radius={92} value={overallSafe} color={TELEMETRY.lime} delay={0} />
+          <Ring radius={72} value={coverage} color={TELEMETRY.cyan} delay={0.12} />
+          <Ring radius={52} value={consistency} color={TELEMETRY.magenta} delay={0.24} />
         </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-6">
           <span
-            className="text-[11px] uppercase tracking-[0.18em]"
-            style={{ color: TELEMETRY.muted }}
-          >
-            Readiness
-          </span>
-          <span
-            className="text-5xl font-bold tabular-nums leading-none mt-1"
+            className="text-4xl font-bold tabular-nums tracking-tight leading-none"
             style={{ color: TELEMETRY.text }}
           >
             {Math.round(overallSafe)}
-            <span className="text-xl align-top ml-0.5" style={{ color: TELEMETRY.muted }}>
+            <span className="text-lg font-semibold ml-0.5" style={{ color: TELEMETRY.muted }}>
               %
             </span>
           </span>
         </div>
       </div>
 
-      {/* Legend — moved BELOW the ring, no more overlap with arcs */}
-      <div className="mt-5 flex items-center justify-center gap-4">
+      <div className="mt-5 flex items-center justify-center gap-5">
         {[
           { c: TELEMETRY.lime, l: "Mastery" },
           { c: TELEMETRY.cyan, l: "Coverage" },
@@ -99,7 +118,7 @@ export const ReadinessRing = ({ overall, coverage, consistency }: Props) => {
           <div key={x.l} className="flex items-center gap-1.5">
             <span
               className="inline-block w-1.5 h-1.5 rounded-full"
-              style={{ background: x.c, boxShadow: `0 0 6px ${x.c}` }}
+              style={{ background: x.c }}
             />
             <span
               className="text-[10px] uppercase tracking-wider"
