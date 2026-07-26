@@ -1,5 +1,5 @@
 import { LucideIcon } from "lucide-react";
-import { useTelemetry, buildSparklinePath } from "./tokens";
+import { useTelemetry, alpha, buildSparklinePath } from "./tokens";
 
 interface Props {
   icon: LucideIcon;
@@ -7,6 +7,8 @@ interface Props {
   value: string;
   delta?: string;
   deltaTone?: "up" | "down" | "neutral";
+  /** Defaults to the telemetry lime. Resolved inside the component because the
+   *  palette is theme-dependent and can't be read in a default parameter. */
   accent?: string;
   sparkline?: number[];
   onClick?: () => void;
@@ -23,7 +25,8 @@ export const SparklineCard = ({
   onClick,
 }: Props) => {
   const TELEMETRY = useTelemetry();
-  const resolvedAccent = accent ?? TELEMETRY.lime;
+  const tone = accent ?? TELEMETRY.lime;
+
   const W = 96;
   const H = 28;
   const d = buildSparklinePath(sparkline, W, H);
@@ -46,9 +49,9 @@ export const SparklineCard = ({
       <div className="flex items-center justify-between">
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center"
-          style={{ background: `${resolvedAccent}1a`, border: `1px solid ${resolvedAccent}33` }}
+          style={{ background: alpha(tone, 0.1), border: `1px solid ${alpha(tone, 0.2)}` }}
         >
-          <Icon size={16} strokeWidth={2} style={{ color: resolvedAccent }} />
+          <Icon size={16} strokeWidth={2} style={{ color: tone }} />
         </div>
         {delta && (
           <span className="text-[10px] font-semibold tabular-nums" style={{ color: deltaColor }}>
@@ -68,12 +71,12 @@ export const SparklineCard = ({
         <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="mt-1">
           <defs>
             <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={resolvedAccent} stopOpacity="0.35" />
-              <stop offset="100%" stopColor={resolvedAccent} stopOpacity="0" />
+              <stop offset="0%" stopColor={tone} stopOpacity="0.35" />
+              <stop offset="100%" stopColor={tone} stopOpacity="0" />
             </linearGradient>
           </defs>
           <path d={`${d} L ${W} ${H} L 0 ${H} Z`} fill={`url(#${gid})`} />
-          <path d={d} stroke={resolvedAccent} strokeWidth={1.5} fill="none" strokeLinecap="round" />
+          <path d={d} stroke={tone} strokeWidth={1.5} fill="none" strokeLinecap="round" />
         </svg>
       )}
     </Element>
