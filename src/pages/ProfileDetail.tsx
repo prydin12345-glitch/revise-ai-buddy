@@ -132,15 +132,15 @@ export default function ProfileDetail() {
 
   const scoreColor =
     stats?.averageScore == null ? "text-muted-foreground"
-    : stats.averageScore >= 70 ? "text-green-500"
-    : stats.averageScore >= 50 ? "text-amber-500"
-    : "text-red-500";
+    : stats.averageScore >= 70 ? "text-success"
+    : stats.averageScore >= 50 ? "text-warning"
+    : "text-danger";
 
   const bestColor =
     stats?.bestScore == null ? "text-muted-foreground"
-    : stats.bestScore >= 70 ? "text-green-500"
-    : stats.bestScore >= 50 ? "text-amber-500"
-    : "text-red-500";
+    : stats.bestScore >= 70 ? "text-success"
+    : stats.bestScore >= 50 ? "text-warning"
+    : "text-danger";
 
   const TrendIcon =
     stats?.trend === "up" ? TrendingUp
@@ -148,8 +148,8 @@ export default function ProfileDetail() {
     : Minus;
 
   const trendColor =
-    stats?.trend === "up" ? "text-green-500"
-    : stats?.trend === "down" ? "text-red-500"
+    stats?.trend === "up" ? "text-success"
+    : stats?.trend === "down" ? "text-danger"
     : "text-muted-foreground";
 
   const trendLabel =
@@ -163,7 +163,7 @@ export default function ProfileDetail() {
     <DashboardLayout>
       <div className="py-6 px-6 md:px-12 lg:px-16 space-y-8 w-full max-w-[1300px] mx-auto">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-1 text-[12.5px] text-muted-foreground flex-wrap">
+        <div className="flex items-center gap-1 text-xs text-muted-foreground flex-wrap">
           <button onClick={() => navigate("/my-subjects")} className="hover:text-foreground transition-colors">
             Subjects
           </button>
@@ -191,14 +191,14 @@ export default function ProfileDetail() {
               </h1>
               <div className="flex flex-wrap items-center gap-2 mt-1.5">
                 {profile.exam_board && (
-                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <span className="text-11 uppercase tracking-wider text-muted-foreground">
                     {getBoardDisplayName(profile.exam_board)}
                   </span>
                 )}
                 {profile.educational_tier && (
                   <>
                     <span className="text-muted-foreground/50">·</span>
-                    <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    <span className="text-11 uppercase tracking-wider text-muted-foreground">
                       {profile.educational_tier}
                     </span>
                   </>
@@ -206,14 +206,14 @@ export default function ProfileDetail() {
                 {profile.time_limit_minutes && (
                   <>
                     <span className="text-muted-foreground/50">·</span>
-                    <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    <span className="text-11 text-muted-foreground flex items-center gap-1">
                       <Clock className="w-3 h-3" />
                       {profile.time_limit_minutes} min
                     </span>
                   </>
                 )}
                 <span className="text-muted-foreground/50">·</span>
-                <span className="text-[11px] text-muted-foreground">
+                <span className="text-11 text-muted-foreground">
                   {profile.question_count} questions
                 </span>
               </div>
@@ -225,7 +225,7 @@ export default function ProfileDetail() {
               onClick={() =>
                 navigate(`/create-practice-questions?profileId=${profileId}&subject=${encodeURIComponent(decodedSubject)}`)
               }
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-border text-[12.5px] font-semibold text-muted-foreground hover:border-primary/50 hover:text-primary transition-all"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:border-primary/50 hover:text-primary transition-all"
             >
               <ListChecks className="w-3.5 h-3.5" />
               Practice quiz
@@ -234,7 +234,7 @@ export default function ProfileDetail() {
               onClick={() =>
                 navigate(`/upload?profileId=${profileId}&subject=${encodeURIComponent(decodedSubject)}`)
               }
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-[12.5px] font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
             >
               <Plus className="w-3.5 h-3.5" />
               New exam
@@ -243,7 +243,7 @@ export default function ProfileDetail() {
         </div>
 
         {/* SECTION 1 — Stats overview */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 border-y border-[hsl(220_6%_20%)]/70 divide-x divide-[hsl(220_6%_20%)]/50">
+        <div className="grid grid-cols-2 lg:grid-cols-4 border-y border-border/70 divide-x divide-border/50">
           {[
             {
               label: "Average",
@@ -260,7 +260,7 @@ export default function ProfileDetail() {
             {
               label: "Trend",
               value: stats?.trend ? trendLabel : "—",
-              cls: stats?.trend ? `${trendColor} text-[17px]` : "text-muted-foreground/40",
+              cls: stats?.trend ? `${trendColor} text-17` : "text-muted-foreground/40",
               sub: null as string | null,
             },
             {
@@ -272,10 +272,10 @@ export default function ProfileDetail() {
           ].map((mtr) => (
             <div key={mtr.label} className="px-4 py-4 flex flex-col justify-center min-h-[76px]">
               <div className="flex items-baseline gap-2">
-                <span className={`text-[22px] font-bold tabular-nums leading-none ${mtr.cls}`}>{mtr.value}</span>
-                <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">{mtr.label}</span>
+                <span className={`text-22 font-bold tabular-nums leading-none ${mtr.cls}`}>{mtr.value}</span>
+                <span className="text-10 uppercase tracking-[0.14em] text-muted-foreground/70">{mtr.label}</span>
               </div>
-              {mtr.sub && <div className="text-[10.5px] text-muted-foreground mt-1.5 tabular-nums">{mtr.sub}</div>}
+              {mtr.sub && <div className="text-10 text-muted-foreground mt-1.5 tabular-nums">{mtr.sub}</div>}
             </div>
           ))}
         </div>
@@ -283,7 +283,7 @@ export default function ProfileDetail() {
         {/* SECTION 2 — Score trend */}
         {(stats?.totalExams ?? 0) > 1 && (
           <section className="space-y-3">
-            <h2 className="text-[15px] font-semibold text-foreground">Score Trend</h2>
+            <h2 className="text-15 font-semibold text-foreground">Score Trend</h2>
             <div className="rounded-2xl border border-border/60 bg-card p-4">
               <ProfileScoreTrend profileId={profileId!} />
             </div>
@@ -293,8 +293,8 @@ export default function ProfileDetail() {
         {/* SECTION 3 — Topic mastery */}
         <section className="space-y-3">
           <div>
-            <h2 className="text-[15px] font-semibold text-foreground">Topic Performance</h2>
-            <p className="text-[12px] text-muted-foreground mt-1">
+            <h2 className="text-15 font-semibold text-foreground">Topic Performance</h2>
+            <p className="text-xs text-muted-foreground mt-1">
               Based on questions from this profile only
             </p>
           </div>
@@ -307,7 +307,7 @@ export default function ProfileDetail() {
 
         {/* SECTION 4 — Exam history */}
         <section className="space-y-3">
-          <h2 className="text-[15px] font-semibold text-foreground">Exam History</h2>
+          <h2 className="text-15 font-semibold text-foreground">Exam History</h2>
           <ProfileExamList profileId={profileId!} subjectName={decodedSubject} />
         </section>
       </div>
