@@ -204,9 +204,21 @@ export const MobileStatsTelemetry = ({
     [hoursSeries]
   );
 
-  const tabs: { key: TabKey; label: string }[] = [
+  // Same rule MobileWeakTopics uses for its "Needs review" bucket — marked
+  // work scoring under 40% — so the badge and the list can't disagree.
+  const reviewCount = useMemo(
+    () =>
+      topics.filter(
+        (t) =>
+          t.examQuestionCount + t.practiceQuestionCount > 0 &&
+          clampPct(t.unifiedScore) < 40
+      ).length,
+    [topics]
+  );
+
+  const tabs: { key: TabKey; label: string; count?: number }[] = [
     { key: "overview", label: "Overview" },
-    { key: "topics", label: "Topics" },
+    { key: "topics", label: "Topics", count: reviewCount },
     { key: "performance", label: "Performance" },
   ];
 
@@ -291,13 +303,25 @@ export const MobileStatsTelemetry = ({
                   key={t.key}
                   type="button"
                   onClick={() => setTab(t.key)}
-                  className="min-h-[36px] rounded-full text-xs font-semibold transition-colors"
+                  className="min-h-[36px] rounded-full text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
                   style={{
                     color: active ? TELEMETRY.onAccent : TELEMETRY.mutedStrong,
                     background: active ? TELEMETRY.text : "transparent",
                   }}
                 >
                   {t.label}
+                  {t.count !== undefined && t.count > 0 && (
+                    <span
+                      aria-label={`${t.count} topics need review`}
+                      className="text-[10px] font-bold tabular-nums rounded-full px-1.5 leading-[16px] min-w-[16px] text-center"
+                      style={{
+                        color: active ? TELEMETRY.card : TELEMETRY.onAccent,
+                        background: TELEMETRY.magenta,
+                      }}
+                    >
+                      {t.count}
+                    </span>
+                  )}
                 </button>
               );
             })}
