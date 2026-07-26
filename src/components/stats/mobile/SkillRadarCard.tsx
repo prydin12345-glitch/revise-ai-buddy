@@ -1,12 +1,13 @@
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from "recharts";
 import { Radar as RadarIcon } from "lucide-react";
-import { TELEMETRY, truncate } from "./tokens";
+import { useTelemetry, truncate } from "./tokens";
 
 interface Props {
   subjects: { name: string; avgScore: number }[];
 }
 
 export const SkillRadarCard = ({ subjects }: Props) => {
+  const TELEMETRY = useTelemetry();
   const top = subjects.slice(0, 6).map((s) => ({
     axis: truncate(s.name, 12),
     score: Math.round(Math.max(0, Math.min(100, s.avgScore))),
@@ -35,7 +36,7 @@ export const SkillRadarCard = ({ subjects }: Props) => {
         <div style={{ height: 220 }}>
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart data={top} outerRadius="65%">
-              <PolarGrid stroke="hsl(220 8% 20%)" />
+              <PolarGrid stroke={TELEMETRY.border} />
               <PolarAngleAxis
                 dataKey="axis"
                 tick={{ fill: TELEMETRY.muted, fontSize: 10 }}
