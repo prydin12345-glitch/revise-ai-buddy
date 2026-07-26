@@ -166,7 +166,7 @@ const WrongAnswers = ({ topic }: { topic: string }) => {
           style={{ background: TELEMETRY.cardAlt, border: `1px solid ${TELEMETRY.border}` }}
         >
           <div className="flex items-center justify-between gap-2 mb-1.5">
-            <span className="text-[10px] uppercase tracking-wider" style={{ color: TELEMETRY.muted }}>
+            <span className="text-[11px]" style={{ color: TELEMETRY.muted }}>
               {timeAgo(r.submittedAt)}
             </span>
             <span
@@ -271,7 +271,7 @@ export const MobileWeakTopics = ({ topics, loading }: Props) => {
         </div>
 
         <div className="mt-4">
-          <div className="flex items-center justify-between text-[10px] uppercase tracking-wider mb-1.5" style={{ color: TELEMETRY.muted }}>
+          <div className="flex items-center justify-between text-[11px] mb-1.5" style={{ color: TELEMETRY.muted }}>
             <span>Coverage</span>
             <span className="tabular-nums">{attempted} / {counts.all} attempted</span>
           </div>
@@ -295,7 +295,7 @@ export const MobileWeakTopics = ({ topics, loading }: Props) => {
               style={{ background: TELEMETRY.cardAlt, border: `1px solid ${TELEMETRY.border}` }}
             >
               <div className="text-[17px] font-semibold tabular-nums" style={{ color: colour }}>{value}</div>
-              <div className="text-[9px] uppercase tracking-wider mt-0.5" style={{ color: TELEMETRY.muted }}>{label}</div>
+              <div className="text-[10px] mt-0.5" style={{ color: TELEMETRY.muted }}>{label}</div>
             </div>
           ))}
         </div>
@@ -344,7 +344,7 @@ export const MobileWeakTopics = ({ topics, loading }: Props) => {
 
       {/* Sort */}
       <div className="flex items-center gap-2">
-        <span className="text-[10px] uppercase tracking-wider shrink-0" style={{ color: TELEMETRY.muted }}>Sort</span>
+        <span className="text-[11px] shrink-0" style={{ color: TELEMETRY.muted }}>Sort</span>
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
           {SORTS.map((s) => {
             const active = sort === s.key;
@@ -419,7 +419,7 @@ export const MobileWeakTopics = ({ topics, loading }: Props) => {
                   <div className="text-[34px] font-bold tabular-nums leading-none" style={{ color: colour }}>
                     {attempts > 0 ? `${pct}%` : "—"}
                   </div>
-                  <div className="text-[11px] font-semibold uppercase tracking-wider mt-1.5" style={{ color: colour }}>
+                  <div className="text-[11px] font-semibold mt-1.5" style={{ color: colour }}>
                     {scoreStatusLabel(pct, attempts)}
                   </div>
                 </div>
@@ -430,7 +430,7 @@ export const MobileWeakTopics = ({ topics, loading }: Props) => {
                   ] as const).map(([label, score, count]) => (
                     <div key={label}>
                       <div className="flex items-center justify-between text-[10px] mb-1" style={{ color: TELEMETRY.muted }}>
-                        <span className="uppercase tracking-wider">{label}</span>
+                        <span>{label}</span>
                         <span className="tabular-nums">
                           {count > 0 && score !== null ? `${Math.round(score)}% · ${count}q` : "none"}
                         </span>
@@ -455,14 +455,14 @@ export const MobileWeakTopics = ({ topics, loading }: Props) => {
                   <div className="text-[13px] font-semibold mt-1.5" style={{ color: TELEMETRY.text }}>
                     {timeAgo(selected.lastAttempted)}
                   </div>
-                  <div className="text-[10px] uppercase tracking-wider" style={{ color: TELEMETRY.muted }}>Last attempted</div>
+                  <div className="text-[11px]" style={{ color: TELEMETRY.muted }}>Last attempted</div>
                 </div>
                 <div className="rounded-xl p-3" style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}` }}>
                   <Layers size={13} style={{ color: TELEMETRY.muted }} />
                   <div className="text-[13px] font-semibold mt-1.5" style={{ color: TELEMETRY.text }}>
                     {attempts} {attempts === 1 ? "question" : "questions"}
                   </div>
-                  <div className="text-[10px] uppercase tracking-wider" style={{ color: TELEMETRY.muted }}>Total attempted</div>
+                  <div className="text-[11px]" style={{ color: TELEMETRY.muted }}>Total attempted</div>
                 </div>
               </div>
 
@@ -480,7 +480,7 @@ export const MobileWeakTopics = ({ topics, loading }: Props) => {
               )}
 
               <div>
-                <h4 className="text-[11px] uppercase tracking-wider mb-2" style={{ color: TELEMETRY.muted }}>
+                <h4 className="text-[11px] mb-2" style={{ color: TELEMETRY.muted }}>
                   Recent dropped marks
                 </h4>
                 <WrongAnswers topic={selected.topic} />
