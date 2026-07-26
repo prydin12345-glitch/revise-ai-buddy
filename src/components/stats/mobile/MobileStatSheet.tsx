@@ -2,7 +2,7 @@ import { ReactNode, useEffect } from "react";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
-import { TELEMETRY } from "./tokens";
+import { useTelemetry } from "./tokens";
 
 interface Props {
   open: boolean;
@@ -13,6 +13,8 @@ interface Props {
 }
 
 export const MobileStatSheet = ({ open, onClose, title, subtitle, children }: Props) => {
+  const TELEMETRY = useTelemetry();
+
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
