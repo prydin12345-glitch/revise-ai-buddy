@@ -1,6 +1,6 @@
 import { Target, Flame, GraduationCap, CheckCircle2 } from "lucide-react";
 import { SparklineCard } from "./SparklineCard";
-import { TELEMETRY } from "./tokens";
+import { useTelemetry } from "./tokens";
 
 export const scoreToGradeTier = (pct: number): { grade: string; band: string } => {
   if (pct >= 90) return { grade: "9", band: "A**" };
@@ -43,6 +43,7 @@ export const QuickStatsGrid = ({
   onOpenMastered,
   onOpenStreak,
 }: Props) => {
+  const TELEMETRY = useTelemetry();
   const current = scoreToGradeTier(currentPct);
   const goal = scoreToGradeTier(goalPct);
   const gradeDelta =
