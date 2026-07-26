@@ -128,7 +128,7 @@ export const GradeTrendCard = ({ data, subjects, defaultScaleId }: Props) => {
             <div className="text-xl font-bold tabular-nums leading-none" style={{ color: active.color }}>
               {latest.value}
             </div>
-            <div className="text-[10px] uppercase tracking-wider mt-1" style={{ color: TELEMETRY.muted }}>
+            <div className="text-[11px] mt-1" style={{ color: TELEMETRY.muted }}>
               latest
             </div>
           </div>
