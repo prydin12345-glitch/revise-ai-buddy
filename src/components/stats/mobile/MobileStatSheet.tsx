@@ -66,7 +66,7 @@ export const MobileStatSheet = ({ open, onClose, title, subtitle, children }: Pr
             >
               <div className="min-w-0">
                 <div
-                  className="text-[10px] uppercase tracking-[0.18em]"
+                  className="text-[11px]"
                   style={{ color: TELEMETRY.muted }}
                 >
                   Detail
