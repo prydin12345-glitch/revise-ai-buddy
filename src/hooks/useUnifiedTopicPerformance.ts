@@ -12,6 +12,9 @@ export interface UnifiedTopicScore {
   practiceScore: number | null;
   examQuestionCount: number;
   practiceQuestionCount: number;
+  /** Answered but not yet marked — counted separately so they never score 0%.
+   *  Optional: other call sites (e.g. SubjectDonut) build this shape by hand. */
+  pendingQuestionCount?: number;
   mastery: UnifiedMastery;
   lastAttempted: string | null;
   practicedSinceLastExam: boolean;
@@ -41,14 +44,37 @@ export const useUnifiedTopicPerformance = (
 
     try {
       // ---- Exam performance ----
-      const { data: examAnswers } = await supabase
+      // A row lands in student_answers the moment a question is answered, long
+      // before the paper is submitted or marked. Counting those treated an
+      // in-progress exam as a pile of zeros ("0% · 9 tried"), so only answers
+      // belonging to a graded submission contribute to a score. The rest are
+      // tracked separately as pending.
+      const { data: gradedSubmissions } = await supabase
+        .from("exam_submissions")
+        .select("exam_id")
+        .eq("student_id", studentId)
+        .eq("status", "graded");
+
+      const gradedExamIds = new Set(
+        (gradedSubmissions || []).map((s) => s.exam_id).filter(Boolean)
+      );
+
+      const { data: allExamAnswers } = await supabase
         .from("student_answers")
-        .select("score, is_correct, submitted_at, question_id")
+        .select("score, is_correct, submitted_at, question_id, exam_id")
         .eq("student_id", studentId);
 
-      // Fetch the related exam_questions for topic_tag + marks
+      const examAnswers = (allExamAnswers || []).filter(
+        (a) => gradedExamIds.has(a.exam_id) && a.score !== null
+      );
+      const pendingExamAnswers = (allExamAnswers || []).filter(
+        (a) => !gradedExamIds.has(a.exam_id) || a.score === null
+      );
+
+      // Question lookups still need to cover pending rows so they can be
+      // attributed to the right topic.
       const examQIds = [
-        ...new Set(examAnswers?.map((a) => a.question_id).filter(Boolean) || []),
+        ...new Set((allExamAnswers || []).map((a) => a.question_id).filter(Boolean)),
       ];
 
       let examQuestions: any[] = [];
@@ -72,14 +98,22 @@ export const useUnifiedTopicPerformance = (
       }
 
       // ---- Practice performance ----
-      const { data: practiceAnswers } = await supabase
+      const { data: allPracticeAnswers } = await supabase
         .from("practice_question_answers")
         .select("score, is_correct, submitted_at, question_id")
         .eq("user_id", studentId);
 
+      // Same rule for practice: unmarked or unsubmitted answers don't score.
+      const practiceAnswers = (allPracticeAnswers || []).filter(
+        (a) => a.score !== null && a.submitted_at !== null
+      );
+      const pendingPracticeAnswers = (allPracticeAnswers || []).filter(
+        (a) => a.score === null || a.submitted_at === null
+      );
+
       const practiceQIds = [
         ...new Set(
-          practiceAnswers?.map((a) => a.question_id).filter(Boolean) || []
+          (allPracticeAnswers || []).map((a) => a.question_id).filter(Boolean)
         ),
       ];
 
@@ -113,6 +147,9 @@ export const useUnifiedTopicPerformance = (
       ];
       const normMap = await normaliseTopicTags(rawTags);
 
+      // ---- Tally pending (answered, not yet marked) work per topic ----
+      const pendingByTopic: Record<string, number> = {};
+
       // ---- Group exam scores by canonical topic ----
       const examByTopic: Record<
         string,
@@ -121,7 +158,14 @@ export const useUnifiedTopicPerformance = (
 
       const examQMap = new Map(examQuestions.map((q) => [q.id, q]));
 
-      examAnswers?.forEach((answer) => {
+      pendingExamAnswers.forEach((answer) => {
+        const q = examQMap.get(answer.question_id);
+        if (!q || !q.topic_tag) return;
+        const canonical = normMap[q.topic_tag] ?? q.topic_tag;
+        pendingByTopic[canonical] = (pendingByTopic[canonical] || 0) + 1;
+      });
+
+      examAnswers.forEach((answer) => {
         const q = examQMap.get(answer.question_id);
         if (!q || !q.topic_tag) return;
         const canonical = normMap[q.topic_tag] ?? q.topic_tag;
@@ -144,7 +188,13 @@ export const useUnifiedTopicPerformance = (
 
       const practiceQMap = new Map(practiceQuestions.map((q) => [q.id, q]));
 
-      practiceAnswers?.forEach((answer) => {
+      pendingPracticeAnswers.forEach((answer) => {
+        const q = practiceQMap.get(answer.question_id);
+        if (!q || !q.subtopic) return;
+        pendingByTopic[q.subtopic] = (pendingByTopic[q.subtopic] || 0) + 1;
+      });
+
+      practiceAnswers.forEach((answer) => {
         const q = practiceQMap.get(answer.question_id);
         if (!q || !q.subtopic) return;
         const topic = q.subtopic;
@@ -165,6 +215,7 @@ export const useUnifiedTopicPerformance = (
       const allTopicNames = new Set([
         ...Object.keys(examByTopic),
         ...Object.keys(practiceByTopic),
+        ...Object.keys(pendingByTopic),
       ]);
 
       const unified: UnifiedTopicScore[] = [];
@@ -223,6 +274,7 @@ export const useUnifiedTopicPerformance = (
         unified.push({
           topic,
           subjectId,
+          pendingQuestionCount: pendingByTopic[topic] || 0,
           unifiedScore: Math.round(unifiedScore),
           examScore: examScore !== null ? Math.round(examScore) : null,
           practiceScore: practiceScore !== null ? Math.round(practiceScore) : null,
