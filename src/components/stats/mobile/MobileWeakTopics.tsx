@@ -7,6 +7,7 @@ import { MathRenderer } from "@/components/MathRenderer";
 import { MobileStatSheet } from "./MobileStatSheet";
 import { TopicTelemetryRow } from "./TopicTelemetryRow";
 import { useTelemetry, alpha, clampPct, scoreStatusColor, scoreStatusLabel } from "./tokens";
+import { ScoreDistribution } from "./ScoreDistribution";
 import type { UnifiedTopicScore } from "@/hooks/useUnifiedTopicPerformance";
 
 interface Props {
@@ -14,13 +15,14 @@ interface Props {
   loading: boolean;
 }
 
-type FilterKey = "all" | "review" | "developing" | "mastered" | "untouched";
+type FilterKey = "all" | "review" | "developing" | "mastered" | "pending" | "untouched";
 type SortKey = "weakest" | "attempts" | "recent";
 
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: "review", label: "Needs review" },
   { key: "developing", label: "Developing" },
   { key: "mastered", label: "Mastered" },
+  { key: "pending", label: "Awaiting marking" },
   { key: "untouched", label: "Untouched" },
   { key: "all", label: "All" },
 ];
@@ -40,7 +42,11 @@ const attemptsOf = (t: UnifiedTopicScore) => t.examQuestionCount + t.practiceQue
  * "weak" on one screen and "developing" on another.
  */
 const bucketOf = (t: UnifiedTopicScore): Exclude<FilterKey, "all"> => {
-  if (attemptsOf(t) === 0) return "untouched";
+  if (attemptsOf(t) === 0) {
+    // Answered but unmarked is not the same as never attempted — it used to
+    // land in "untouched" scoring 0%, which read as a failed topic.
+    return (t.pendingQuestionCount ?? 0) > 0 ? "pending" : "untouched";
+  }
   const pct = clampPct(t.unifiedScore);
   if (pct >= 70) return "mastered";
   if (pct >= 40) return "developing";
@@ -198,7 +204,7 @@ export const MobileWeakTopics = ({ topics, loading }: Props) => {
   const [selected, setSelected] = useState<UnifiedTopicScore | null>(null);
 
   const counts = useMemo(() => {
-    const c = { review: 0, developing: 0, mastered: 0, untouched: 0, all: topics.length };
+    const c = { review: 0, developing: 0, mastered: 0, pending: 0, untouched: 0, all: topics.length };
     topics.forEach((t) => { c[bucketOf(t)] += 1; });
     return c;
   }, [topics]);
@@ -295,10 +301,26 @@ export const MobileWeakTopics = ({ topics, loading }: Props) => {
         </div>
       </div>
 
+      {/* Distribution */}
+      <div
+        className="rounded-2xl p-4"
+        style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}` }}
+      >
+        <div className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>
+          Score spread
+        </div>
+        <div className="text-[11px] mt-0.5 mb-4" style={{ color: TELEMETRY.muted }}>
+          Every marked topic, plotted by score
+        </div>
+        <ScoreDistribution
+          values={topics.filter((t) => attemptsOf(t) > 0).map((t) => clampPct(t.unifiedScore))}
+        />
+      </div>
+
       {/* Filters */}
       <div className="-mx-1 overflow-x-auto no-scrollbar">
         <div className="flex items-center gap-2 px-1 pb-1">
-          {FILTERS.map((f) => {
+          {FILTERS.filter((f) => f.key !== "pending" || counts.pending > 0).map((f) => {
             const active = filter === f.key;
             return (
               <button
