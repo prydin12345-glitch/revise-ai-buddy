@@ -16,7 +16,7 @@ import { ScoreTrendCard } from "./ScoreTrendCard";
 import { TopicTelemetryRow } from "./TopicTelemetryRow";
 import { SkillRadarCard } from "./SkillRadarCard";
 import { MobileStatSheet } from "./MobileStatSheet";
-import { TELEMETRY, clampPct, buildSparklinePath } from "./tokens";
+import { useTelemetry, alpha, clampPct, buildSparklinePath } from "./tokens";
 import { supabase } from "@/integrations/supabase/client";
 import type { UnifiedTopicScore } from "@/hooks/useUnifiedTopicPerformance";
 
@@ -66,6 +66,7 @@ export const MobileStatsTelemetry = ({
   setTimeRange,
   topics,
 }: Props) => {
+  const TELEMETRY = useTelemetry();
   const [tab, setTab] = useState<TabKey>("overview");
   const [sheet, setSheet] = useState<SheetKey>(null);
   const [expandedRow, setExpandedRow] = useState<ReadinessRow>(null);
@@ -236,12 +237,13 @@ export const MobileStatsTelemetry = ({
     return { strong, developing, review };
   }, [attemptedTopics]);
 
-  // 14-day streak grid derived from studyActivityData
-  const streakGrid = useMemo(() => {
-    const tail = hoursSeries.slice(-14);
-    while (tail.length < 14) tail.unshift(0);
-    return tail.map((v) => v > 0);
-  }, [hoursSeries]);
+  // studyActivityData only ever covers the current Mon-Sun week, so this is a
+  // 7-day grid. It previously claimed 14 days and padded the missing half with
+  // *leading* zeros, so the first row of cells was permanently blank.
+  const streakGrid = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => (hoursSeries[i] ?? 0) > 0),
+    [hoursSeries]
+  );
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: "overview", label: "Overview" },
@@ -262,7 +264,7 @@ export const MobileStatsTelemetry = ({
         <div
           className="sticky top-0 z-30 -mx-3 px-3 pt-1 pb-3 mb-4"
           style={{
-            background: `${TELEMETRY.bg}f2`,
+            background: alpha(TELEMETRY.bg, 0.95),
             backdropFilter: "blur(10px)",
             WebkitBackdropFilter: "blur(10px)",
           }}
@@ -283,7 +285,7 @@ export const MobileStatsTelemetry = ({
                   onClick={() => setTab(t.key)}
                   className="min-h-[36px] rounded-full text-xs font-semibold transition-colors"
                   style={{
-                    color: active ? "hsl(220 10% 6%)" : TELEMETRY.mutedStrong,
+                    color: active ? TELEMETRY.onAccent : TELEMETRY.mutedStrong,
                     background: active ? TELEMETRY.text : "transparent",
                   }}
                 >
@@ -367,7 +369,7 @@ export const MobileStatsTelemetry = ({
             <div
               className="sticky top-[68px] z-20 -mx-3 px-4 pt-2 pb-3 space-y-2"
               style={{
-                background: `${TELEMETRY.bg}f2`,
+                background: alpha(TELEMETRY.bg, 0.95),
                 backdropFilter: "blur(10px)",
                 WebkitBackdropFilter: "blur(10px)",
                 borderBottom: `1px solid ${TELEMETRY.borderSoft}`,
@@ -407,9 +409,9 @@ export const MobileStatsTelemetry = ({
                       onClick={() => setFilter(c.key)}
                       className="whitespace-nowrap px-3 h-8 rounded-full text-[11px] font-semibold transition-colors flex-shrink-0"
                       style={{
-                        color: active ? "hsl(220 10% 6%)" : c.color,
+                        color: active ? TELEMETRY.onAccent : c.color,
                         background: active ? c.color : "transparent",
-                        border: `1px solid ${active ? c.color : `${c.color}44`}`,
+                        border: `1px solid ${active ? c.color : alpha(c.color, 0.27)}`,
                       }}
                     >
                       {c.label}
@@ -544,7 +546,7 @@ export const MobileStatsTelemetry = ({
             >
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: `${TELEMETRY.magenta}1a`, border: `1px solid ${TELEMETRY.magenta}33` }}
+                style={{ background: alpha(TELEMETRY.magenta, 0.1), border: `1px solid ${alpha(TELEMETRY.magenta, 0.2)}` }}
               >
                 <RadarIcon size={18} style={{ color: TELEMETRY.magenta }} />
               </div>
@@ -712,7 +714,7 @@ export const MobileStatsTelemetry = ({
                     style={{ borderTop: `1px solid ${TELEMETRY.borderSoft}` }}
                   >
                     <div className="text-[10px] uppercase tracking-wider mb-2" style={{ color: TELEMETRY.muted }}>
-                      Last 14 days
+                      This week
                     </div>
                     <div className="grid grid-cols-7 gap-1.5">
                       {streakGrid.map((active, i) => (
@@ -720,7 +722,7 @@ export const MobileStatsTelemetry = ({
                           key={i}
                           className="aspect-square rounded-md flex items-center justify-center"
                           style={{
-                            background: active ? `${TELEMETRY.magenta}22` : TELEMETRY.cardAlt,
+                            background: active ? alpha(TELEMETRY.magenta, 0.13) : TELEMETRY.cardAlt,
                             border: `1px solid ${active ? TELEMETRY.magenta : TELEMETRY.border}`,
                           }}
                         >
@@ -889,7 +891,7 @@ export const MobileStatsTelemetry = ({
             style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}` }}
           >
             <div className="text-[10px] uppercase tracking-wider mb-2" style={{ color: TELEMETRY.muted }}>
-              Last 14 days
+              This week
             </div>
             <div className="grid grid-cols-7 gap-1.5">
               {streakGrid.map((active, i) => (
@@ -897,7 +899,7 @@ export const MobileStatsTelemetry = ({
                   key={i}
                   className="aspect-square rounded-md flex items-center justify-center"
                   style={{
-                    background: active ? `${TELEMETRY.magenta}22` : TELEMETRY.cardAlt,
+                    background: active ? alpha(TELEMETRY.magenta, 0.13) : TELEMETRY.cardAlt,
                     border: `1px solid ${active ? TELEMETRY.magenta : TELEMETRY.border}`,
                   }}
                 >
