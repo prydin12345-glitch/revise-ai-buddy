@@ -46,9 +46,9 @@ export const SparklineCard = ({
       <div className="flex items-center justify-between">
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center"
-          style={{ background: `${accent}1a`, border: `1px solid ${accent}33` }}
+          style={{ background: `${resolvedAccent}1a`, border: `1px solid ${resolvedAccent}33` }}
         >
-          <Icon size={16} strokeWidth={2} style={{ color: accent }} />
+          <Icon size={16} strokeWidth={2} style={{ color: resolvedAccent }} />
         </div>
         {delta && (
           <span className="text-[10px] font-semibold tabular-nums" style={{ color: deltaColor }}>
@@ -68,12 +68,12 @@ export const SparklineCard = ({
         <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="mt-1">
           <defs>
             <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={accent} stopOpacity="0.35" />
-              <stop offset="100%" stopColor={accent} stopOpacity="0" />
+              <stop offset="0%" stopColor={resolvedAccent} stopOpacity="0.35" />
+              <stop offset="100%" stopColor={resolvedAccent} stopOpacity="0" />
             </linearGradient>
           </defs>
           <path d={`${d} L ${W} ${H} L 0 ${H} Z`} fill={`url(#${gid})`} />
-          <path d={d} stroke={accent} strokeWidth={1.5} fill="none" strokeLinecap="round" />
+          <path d={d} stroke={resolvedAccent} strokeWidth={1.5} fill="none" strokeLinecap="round" />
         </svg>
       )}
     </Element>
