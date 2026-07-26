@@ -1,6 +1,6 @@
 import { Layers, ChevronRight } from "lucide-react";
 import { TopicTelemetryRow } from "./TopicTelemetryRow";
-import { TELEMETRY } from "./tokens";
+import { useTelemetry } from "./tokens";
 import type { UnifiedTopicScore } from "@/hooks/useUnifiedTopicPerformance";
 
 interface Props {
@@ -16,6 +16,7 @@ export const TopicTelemetryList = ({
   onViewAll,
   title = "Topic Mastery",
 }: Props) => {
+  const TELEMETRY = useTelemetry();
   const rows = typeof limit === "number" ? topics.slice(0, limit) : topics;
   const hasMore = typeof limit === "number" && topics.length > rows.length;
 
