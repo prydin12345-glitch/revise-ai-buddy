@@ -12,7 +12,6 @@ import { useExamStats } from "@/hooks/useExamStats";
 import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
 import { StatsDrilldownDrawer } from "@/components/dashboard/StatsDrilldownDrawer";
 import { WeakTopicsTab } from "@/components/stats/WeakTopicsTab";
-import { MobileWeakTopics } from "@/components/stats/mobile/MobileWeakTopics";
 import { useUnifiedTopicPerformance } from "@/hooks/useUnifiedTopicPerformance";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -80,6 +79,11 @@ const Stats = () => {
 
   const weakCount = topics.filter((t) => t.mastery === "weak").length;
 
+  // Deep links to ?tab=weak-topics land on the Topics tab of the single
+  // mobile segmented control.
+  const mobileInitialTab =
+    searchParams.get("tab") === "weak-topics" ? "topics" : "overview";
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -98,60 +102,50 @@ const Stats = () => {
   return (
     <DashboardLayout>
       <div className="max-w-[1200px] mx-auto px-3 sm:px-6 pb-10 pt-4 sm:pt-6">
-        <Tabs defaultValue={defaultTab} className="w-full">
-          {/* Tab navigation — sticky equal-width segmented on mobile, inline pills on desktop */}
-          <div
-            className={
-              isMobile
-                ? "sticky top-0 z-20 -mx-3 px-3 py-2 mb-3 bg-background/85 backdrop-blur border-b border-border"
-                : "mb-5"
-            }
-          >
-            <TabsList
-              className={
-                isMobile
-                  ? "bg-card border border-border rounded-[10px] p-1 gap-1 grid grid-cols-2 w-full h-auto"
-                  : "bg-card border border-border rounded-[10px] p-1 gap-1 h-auto w-auto inline-flex overflow-x-auto"
-              }
-            >
-              <TabsTrigger
-                value="stats"
-                className="rounded-lg px-4 py-2 text-sm gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
-              >
-                <BarChart3 className="w-3.5 h-3.5" />
-                Stats
-              </TabsTrigger>
-              <TabsTrigger
-                value="weak-topics"
-                className="rounded-lg px-4 py-2 text-sm gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
-              >
-                <AlertTriangle className="w-3.5 h-3.5" />
-                Weak Topics
-                {weakCount > 0 && (
-                  <span className="text-[9px] font-bold bg-destructive text-destructive-foreground rounded-full px-1.5 py-px ml-0.5">
-                    {weakCount}
-                  </span>
-                )}
-              </TabsTrigger>
-            </TabsList>
-          </div>
+        {isMobile ? (
+          /* One tab layer on mobile. The outer Stats / Weak Topics tabs wrapped
+             a component that already had its own Overview / Topics / Performance
+             control, and the outer "Weak Topics" tab duplicated the inner one. */
+          <MobileStatsTelemetry
+            avgScore={avgScore}
+            currentStreak={currentStreak}
+            longestStreak={longestStreak}
+            subjectPerformanceData={subjectPerformanceData}
+            examResultsData={examResultsData}
+            studyActivityData={studyActivityData}
+            timeRange={timeRange}
+            setTimeRange={setTimeRange}
+            topics={topics}
+            weakTopicsLoading={weakTopicsLoading}
+            initialTab={mobileInitialTab}
+          />
+        ) : (
+          <Tabs defaultValue={defaultTab} className="w-full">
+            <div className="mb-5">
+              <TabsList className="bg-card border border-border rounded-[10px] p-1 gap-1 h-auto w-auto inline-flex overflow-x-auto">
+                <TabsTrigger
+                  value="stats"
+                  className="rounded-lg px-4 py-2 text-sm gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
+                >
+                  <BarChart3 className="w-3.5 h-3.5" />
+                  Stats
+                </TabsTrigger>
+                <TabsTrigger
+                  value="weak-topics"
+                  className="rounded-lg px-4 py-2 text-sm gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
+                >
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  Weak Topics
+                  {weakCount > 0 && (
+                    <span className="text-[9px] font-bold bg-destructive text-destructive-foreground rounded-full px-1.5 py-px ml-0.5">
+                      {weakCount}
+                    </span>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-          {/* Stats tab */}
-          <TabsContent value="stats" className="mt-0">
-            {isMobile ? (
-              <MobileStatsTelemetry
-                avgScore={avgScore}
-                currentStreak={currentStreak}
-                longestStreak={longestStreak}
-                subjectPerformanceData={subjectPerformanceData}
-                examResultsData={examResultsData}
-                studyActivityData={studyActivityData}
-                timeRange={timeRange}
-                setTimeRange={setTimeRange}
-                topics={topics}
-              />
-            ) : (
-              // ────────── DESKTOP LAYOUT (unchanged) ──────────
+            <TabsContent value="stats" className="mt-0">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4" style={{ alignItems: "stretch" }}>
                 <div className="md:col-span-2 lg:col-span-12">
                   <TopStatsCards
@@ -195,18 +189,13 @@ const Stats = () => {
                   <RecentExamsTable exams={recentExams} />
                 </div>
               </div>
-            )}
-          </TabsContent>
+            </TabsContent>
 
-          {/* Weak topics tab */}
-          <TabsContent value="weak-topics" className="mt-0">
-            {isMobile ? (
-              <MobileWeakTopics topics={topics} loading={weakTopicsLoading} />
-            ) : (
+            <TabsContent value="weak-topics" className="mt-0">
               <WeakTopicsTab topics={topics} loading={weakTopicsLoading} />
-            )}
-          </TabsContent>
-        </Tabs>
+            </TabsContent>
+          </Tabs>
+        )}
 
         {/* Stats Drilldown Drawer */}
         <StatsDrilldownDrawer
