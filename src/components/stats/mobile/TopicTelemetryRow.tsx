@@ -9,9 +9,14 @@ interface Props {
 export const TopicTelemetryRow = ({ topic, compact = false }: Props) => {
   const TELEMETRY = useTelemetry();
   const attempts = topic.examQuestionCount + topic.practiceQuestionCount;
+  const pending = topic.pendingQuestionCount ?? 0;
   const pct = clampPct(topic.unifiedScore);
-  const color = scoreStatusColor(pct, attempts, TELEMETRY);
-  const status = scoreStatusLabel(pct, attempts);
+
+  // Answered but unmarked work has no score yet — showing it as 0% read as a
+  // failed topic when the paper simply hadn't been submitted.
+  const awaiting = attempts === 0 && pending > 0;
+  const color = awaiting ? TELEMETRY.amber : scoreStatusColor(pct, attempts, TELEMETRY);
+  const status = awaiting ? "Awaiting marking" : scoreStatusLabel(pct, attempts);
 
   return (
     <div
@@ -23,7 +28,7 @@ export const TopicTelemetryRow = ({ topic, compact = false }: Props) => {
         style={{
           height: 32,
           background: color,
-          boxShadow: attempts > 0 ? `0 0 8px ${alpha(color, 0.4)}` : undefined,
+          boxShadow: attempts > 0 || awaiting ? `0 0 8px ${alpha(color, 0.4)}` : undefined,
         }}
       />
       <div className="flex-1 min-w-0">
@@ -57,11 +62,18 @@ export const TopicTelemetryRow = ({ topic, compact = false }: Props) => {
         </div>
       </div>
       <div className="text-right flex-shrink-0 w-14">
-        <div className="text-[14px] font-semibold tabular-nums" style={{ color: TELEMETRY.text }}>
-          {attempts > 0 ? `${pct}%` : "—"}
+        <div
+          className="text-[14px] font-semibold tabular-nums"
+          style={{ color: awaiting ? TELEMETRY.amber : TELEMETRY.text }}
+        >
+          {attempts > 0 ? `${pct}%` : awaiting ? "··" : "—"}
         </div>
         <div className="text-[9px] tabular-nums" style={{ color: TELEMETRY.muted }}>
-          {attempts > 0 ? `${attempts} tried` : "no data"}
+          {attempts > 0
+            ? `${attempts} marked`
+            : awaiting
+            ? `${pending} pending`
+            : "no data"}
         </div>
       </div>
     </div>
