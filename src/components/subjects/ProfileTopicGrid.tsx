@@ -105,7 +105,7 @@ export const ProfileTopicGrid = ({ profileId, profileTopics, subjectName }: Prof
   if (topicScores.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border/60 p-6 text-center">
-        <p className="text-[13px] text-muted-foreground">
+        <p className="text-13 text-muted-foreground">
           No topic data yet for this profile. Complete an exam or practice quiz to see performance by topic.
         </p>
       </div>
@@ -113,22 +113,22 @@ export const ProfileTopicGrid = ({ profileId, profileTopics, subjectName }: Prof
   }
 
   return (
-    <div className="rounded-2xl border border-[hsl(220_6%_20%)] bg-[hsl(220_8%_13%)] divide-y divide-[hsl(220_6%_20%)]/50 overflow-hidden">
+    <div className="rounded-2xl border border-border bg-card divide-y divide-border/50 overflow-hidden">
       {topicScores.map(({ topic, score, attempts, source }) => {
         const unstarted = score === -1;
         const displayScore = Math.max(0, score);
 
         const bg = unstarted
           ? "bg-muted/30 border-border/40"
-          : displayScore >= 70 ? "bg-green-500/10 border-green-500/20"
-          : displayScore >= 50 ? "bg-amber-500/10 border-amber-500/20"
-          : "bg-red-500/10 border-red-500/20";
+          : displayScore >= 70 ? "bg-success/10 border-success/20"
+          : displayScore >= 50 ? "bg-warning/10 border-warning/20"
+          : "bg-danger/10 border-danger/20";
 
         const textColor = unstarted
           ? "text-muted-foreground"
-          : displayScore >= 70 ? "text-green-600"
-          : displayScore >= 50 ? "text-amber-600"
-          : "text-red-500";
+          : displayScore >= 70 ? "text-success"
+          : displayScore >= 50 ? "text-warning"
+          : "text-danger";
 
         const sourceLabel = source === "both" ? "exam + quiz" : source;
 
@@ -142,24 +142,24 @@ export const ProfileTopicGrid = ({ profileId, profileTopics, subjectName }: Prof
                 `/create-practice-questions?subject=${encodeURIComponent(subjectName)}&subtopic=${encodeURIComponent(topic)}&profileId=${profileId}`
               )
             }
-            className={`group w-full flex items-center gap-3 px-4 py-3 text-left transition-colors duration-150 ${unstarted ? "cursor-default" : "hover:bg-white/[0.03]"}`}
+            className={`group w-full flex items-center gap-3 px-4 py-3 text-left transition-colors duration-150 ${unstarted ? "cursor-default" : "hover:bg-foreground/[0.03]"}`}
           >
             <span
               aria-hidden="true"
-              className={`w-2 h-2 rounded-full shrink-0 ${unstarted ? "bg-[hsl(220_6%_26%)]" : displayScore >= 70 ? "bg-green-500" : displayScore >= 50 ? "bg-amber-500" : "bg-red-500"}`}
+              className={`w-2 h-2 rounded-full shrink-0 ${unstarted ? "bg-border-strong" : displayScore >= 70 ? "bg-success" : displayScore >= 50 ? "bg-warning" : "bg-danger"}`}
             />
-            <span className="min-w-0 flex-1 text-[13px] font-medium text-foreground truncate">{topic}</span>
+            <span className="min-w-0 flex-1 text-13 font-medium text-foreground truncate">{topic}</span>
             {!unstarted && (
-              <span className={`hidden sm:inline text-[12px] tabular-nums font-semibold ${textColor}`}>{displayScore}%</span>
+              <span className={`hidden sm:inline text-xs tabular-nums font-semibold ${textColor}`}>{displayScore}%</span>
             )}
             {!unstarted && (
-              <span className="hidden md:inline text-[10.5px] text-muted-foreground tabular-nums" title={sourceLabel}>{attempts}×</span>
+              <span className="hidden md:inline text-10 text-muted-foreground tabular-nums" title={sourceLabel}>{attempts}×</span>
             )}
-            <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
-              unstarted ? "text-muted-foreground/70 border-[hsl(220_6%_22%)] bg-transparent"
-              : displayScore >= 70 ? "text-green-400 border-green-500/25 bg-green-500/[0.07]"
-              : displayScore >= 50 ? "text-amber-400 border-amber-500/25 bg-amber-500/[0.07]"
-              : "text-red-400 border-red-500/25 bg-red-500/[0.07]"
+            <span className={`shrink-0 rounded-full border px-2 py-0.5 text-10 font-medium ${
+              unstarted ? "text-muted-foreground/70 border-border-strong bg-transparent"
+              : displayScore >= 70 ? "text-success border-success/25 bg-success/[0.07]"
+              : displayScore >= 50 ? "text-warning border-warning/25 bg-warning/[0.07]"
+              : "text-danger border-danger/25 bg-danger/[0.07]"
             }`}>
               {unstarted ? "Not started" : displayScore >= 70 ? "Mastered" : displayScore >= 50 ? "Improving" : "Review needed"}
             </span>
