@@ -1,65 +1,101 @@
-import { useEffect, useState } from "react";
+import { useState, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Plus, BookOpen, Search } from "lucide-react";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
-import { supabase } from "@/integrations/supabase/client";
-import { SubjectCard } from "./SubjectCard";
-import { BookOpen } from "lucide-react";
+import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
+import { AddSubjectModal } from "./AddSubjectModal";
+import { SubjectCard } from "@/components/subjects/SubjectCard";
 
 export const SubjectsList = () => {
-  const { subjects, isLoading } = useUserSubjects();
-  const [profileCounts, setProfileCounts] = useState<Record<string, number>>({});
+  const { subjects, isLoading: subjectsLoading, refetch: refetchSubjects } = useUserSubjects();
+  const { getProfilesForSubject, loading: profilesLoading } = useSubjectProfiles();
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase
-        .from("subject_exam_profiles")
-        .select("subject_name")
-        .eq("user_id", user.id);
-      if (cancelled || !data) return;
-      const counts: Record<string, number> = {};
-      for (const row of data as any[]) {
-        const k = row.subject_name;
-        counts[k] = (counts[k] || 0) + 1;
-      }
-      setProfileCounts(counts);
-    };
-    load();
-    return () => { cancelled = true; };
-  }, []);
+  const [addOpen, setAddOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
-  if (isLoading) {
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return subjects;
+    return subjects.filter((s) => s.subject_name.toLowerCase().includes(q));
+  }, [subjects, query]);
+
+  if (subjectsLoading || profilesLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="h-32 rounded-2xl bg-muted/50 animate-pulse" />
-        ))}
+      <div className="flex items-center justify-center py-16">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   if (subjects.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border/60 p-10 text-center">
-        <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
-          <BookOpen className="w-5 h-5 text-muted-foreground" />
+      <>
+        <div className="rounded-2xl border-2 border-dashed border-border/60 py-16 px-6 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+            <BookOpen className="w-8 h-8 text-primary" />
+          </div>
+          <h2 className="text-lg font-semibold text-foreground mb-2">No subjects yet</h2>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
+            Add your subjects to start generating practice questions and tracking your progress topic by topic.
+          </p>
+          <Button onClick={() => setAddOpen(true)} className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            Add your first subject
+          </Button>
         </div>
-        <div className="text-sm font-semibold text-foreground mb-1">No subjects yet</div>
-        <p className="text-xs text-muted-foreground">Add a subject from the dashboard to get started.</p>
-      </div>
+        <AddSubjectModal
+          open={addOpen}
+          onOpenChange={setAddOpen}
+          existingSubjectNames={[]}
+          existingColours={[]}
+          onSubjectAdded={refetchSubjects}
+        />
+      </>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {subjects.map((s) => (
-        <SubjectCard
-          key={s.id}
-          subject={s as any}
-          profileCount={profileCounts[s.subject_name] || 0}
-        />
-      ))}
+    <div className="w-full space-y-5">
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search subjects…"
+            className="pl-9 h-9 bg-card border-border focus-visible:ring-1"
+          />
+        </div>
+        <Button onClick={() => setAddOpen(true)} size="sm" className="gap-1.5 h-9 shrink-0">
+          <Plus className="h-4 w-4" />
+          Add subject
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-8">
+        {filtered.map((subject) => (
+          <SubjectCard
+            key={subject.id}
+            subject={subject}
+            profileCount={getProfilesForSubject(subject.subject_name).length}
+          />
+        ))}
+      </div>
+
+      {filtered.length === 0 && (
+        <div className="py-10 text-center text-sm text-muted-foreground">
+          No subjects match "{query}"
+        </div>
+      )}
+
+      <AddSubjectModal
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        existingSubjectNames={subjects.map((s) => s.subject_name)}
+        existingColours={subjects.map((s) => s.subject_color)}
+        onSubjectAdded={refetchSubjects}
+      />
     </div>
   );
 };
