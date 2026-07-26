@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, ArrowUpRight, Sparkles, Clock, Layers } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +14,8 @@ import type { UnifiedTopicScore } from "@/hooks/useUnifiedTopicPerformance";
 interface Props {
   topics: UnifiedTopicScore[];
   loading: boolean;
+  /** For subject badge colours on the topic cards. */
+  subjects?: { name: string; color: string }[];
 }
 
 type FilterKey = "all" | "review" | "developing" | "mastered" | "pending" | "untouched";
@@ -196,12 +199,28 @@ const WrongAnswers = ({ topic }: { topic: string }) => {
 
 /* ------------------------------------------------------------------ */
 
-export const MobileWeakTopics = ({ topics, loading }: Props) => {
+export const MobileWeakTopics = ({ topics, loading, subjects = [] }: Props) => {
   const TELEMETRY = useTelemetry();
   const navigate = useNavigate();
   const [filter, setFilter] = useState<FilterKey>("review");
   const [sort, setSort] = useState<SortKey>("weakest");
   const [selected, setSelected] = useState<UnifiedTopicScore | null>(null);
+
+  const bandColour = (key: FilterKey) =>
+    key === "review"
+      ? TELEMETRY.magenta
+      : key === "developing"
+      ? TELEMETRY.cyan
+      : key === "mastered"
+      ? TELEMETRY.lime
+      : key === "pending"
+      ? TELEMETRY.amber
+      : TELEMETRY.mutedStrong;
+
+  const subjectColours = useMemo(
+    () => new Map(subjects.map((s) => [s.name, s.color])),
+    [subjects]
+  );
 
   const counts = useMemo(() => {
     const c = { review: 0, developing: 0, mastered: 0, pending: 0, untouched: 0, all: topics.length };
@@ -245,58 +264,70 @@ export const MobileWeakTopics = ({ topics, loading }: Props) => {
 
   return (
     <div className="space-y-4" style={{ background: TELEMETRY.bg }}>
-      {/* Priority band */}
+      {/* Priority band — compact: headline count, coverage ring, inline stats. */}
       <div
         className="rounded-2xl p-4"
         style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}` }}
       >
-        <div className="flex items-start gap-3">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-            style={{
-              background: alpha(TELEMETRY.magenta, 0.1),
-              border: `1px solid ${alpha(TELEMETRY.magenta, 0.2)}`,
-            }}
-          >
-            <AlertTriangle size={17} style={{ color: TELEMETRY.magenta }} />
-          </div>
+        <div className="flex items-center gap-4">
           <div className="flex-1 min-w-0">
-            <div className="text-[28px] font-bold tabular-nums leading-none" style={{ color: TELEMETRY.text }}>
-              {counts.review}
+            <div className="flex items-baseline gap-2">
+              <span
+                className="text-[36px] font-bold tabular-nums leading-none"
+                style={{ color: counts.review > 0 ? TELEMETRY.magenta : TELEMETRY.lime }}
+              >
+                {counts.review}
+              </span>
+              <span className="text-[13px] font-medium" style={{ color: TELEMETRY.text }}>
+                {counts.review === 1 ? "topic needs" : "topics need"} review
+              </span>
             </div>
-            <div className="text-[12px] mt-1" style={{ color: TELEMETRY.muted }}>
-              {counts.review === 1 ? "topic needs" : "topics need"} review
+            <div className="text-[11px] mt-1.5" style={{ color: TELEMETRY.muted }}>
+              {attempted} of {counts.all} topics attempted
+            </div>
+          </div>
+
+          {/* Coverage ring */}
+          <div className="relative shrink-0" style={{ width: 60, height: 60 }}>
+            <svg width={60} height={60} style={{ transform: "rotate(-90deg)" }}>
+              <circle cx={30} cy={30} r={25} fill="none" stroke={TELEMETRY.cardAlt} strokeWidth={6} />
+              <circle
+                cx={30}
+                cy={30}
+                r={25}
+                fill="none"
+                stroke={TELEMETRY.lime}
+                strokeWidth={6}
+                strokeLinecap="round"
+                strokeDasharray={`${(coverage / 100) * 2 * Math.PI * 25} ${2 * Math.PI * 25}`}
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-[13px] font-bold tabular-nums" style={{ color: TELEMETRY.text }}>
+                {coverage}%
+              </span>
             </div>
           </div>
         </div>
 
-        <div className="mt-4">
-          <div className="flex items-center justify-between text-[11px] mb-1.5" style={{ color: TELEMETRY.muted }}>
-            <span>Coverage</span>
-            <span className="tabular-nums">{attempted} / {counts.all} attempted</span>
-          </div>
-          <div className="h-2 rounded-full overflow-hidden" style={{ background: TELEMETRY.cardAlt }}>
-            <div
-              className="h-full rounded-full transition-all"
-              style={{ width: `${coverage}%`, background: TELEMETRY.lime }}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 mt-4">
+        <div
+          className="flex items-center justify-between mt-3.5 pt-3"
+          style={{ borderTop: `1px solid ${TELEMETRY.border}` }}
+        >
           {([
             ["Mastered", counts.mastered, TELEMETRY.lime],
             ["Developing", counts.developing, TELEMETRY.cyan],
             ["Untouched", counts.untouched, TELEMETRY.gray],
           ] as const).map(([label, value, colour]) => (
-            <div
-              key={label}
-              className="rounded-xl px-2 py-2.5 text-center"
-              style={{ background: TELEMETRY.cardAlt, border: `1px solid ${TELEMETRY.border}` }}
-            >
-              <div className="text-[17px] font-semibold tabular-nums" style={{ color: colour }}>{value}</div>
-              <div className="text-[10px] mt-0.5" style={{ color: TELEMETRY.muted }}>{label}</div>
-            </div>
+            <span key={label} className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: colour }} />
+              <span className="text-[11px]" style={{ color: TELEMETRY.muted }}>
+                {label}
+              </span>
+              <span className="text-[13px] font-semibold tabular-nums" style={{ color: TELEMETRY.text }}>
+                {value}
+              </span>
+            </span>
           ))}
         </div>
       </div>
@@ -317,25 +348,35 @@ export const MobileWeakTopics = ({ topics, loading }: Props) => {
         />
       </div>
 
-      {/* Filters */}
+      {/* Filters — each pill takes its own band colour when active, so the
+          worst bucket never lights up in the "good" colour. */}
       <div className="-mx-1 overflow-x-auto no-scrollbar">
         <div className="flex items-center gap-2 px-1 pb-1">
           {FILTERS.filter((f) => f.key !== "pending" || counts.pending > 0).map((f) => {
             const active = filter === f.key;
+            const tone = bandColour(f.key);
             return (
               <button
                 key={f.key}
                 type="button"
                 onClick={() => setFilter(f.key)}
-                className="shrink-0 min-h-[36px] px-3 rounded-full text-[12px] font-semibold whitespace-nowrap transition-colors"
+                className="shrink-0 min-h-[38px] px-3.5 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all active:scale-[0.96] flex items-center gap-2"
                 style={{
                   color: active ? TELEMETRY.onAccent : TELEMETRY.mutedStrong,
-                  background: active ? TELEMETRY.lime : TELEMETRY.cardAlt,
-                  border: `1px solid ${active ? TELEMETRY.lime : TELEMETRY.border}`,
+                  background: active ? tone : TELEMETRY.card,
+                  border: `1px solid ${active ? tone : TELEMETRY.border}`,
                 }}
               >
                 {f.label}
-                <span className="ml-1.5 tabular-nums opacity-70">{counts[f.key]}</span>
+                <span
+                  className="tabular-nums text-[11px] font-bold rounded-full px-1.5 leading-[17px] min-w-[18px] text-center"
+                  style={{
+                    color: active ? tone : TELEMETRY.text,
+                    background: active ? TELEMETRY.onAccent : TELEMETRY.cardAlt,
+                  }}
+                >
+                  {counts[f.key]}
+                </span>
               </button>
             );
           })}
@@ -353,7 +394,7 @@ export const MobileWeakTopics = ({ topics, loading }: Props) => {
                 key={s.key}
                 type="button"
                 onClick={() => setSort(s.key)}
-                className="shrink-0 min-h-[32px] px-2.5 rounded-lg text-[11px] font-medium whitespace-nowrap"
+                className="shrink-0 min-h-[34px] px-2.5 rounded-lg text-[11px] font-medium whitespace-nowrap transition-colors"
                 style={{
                   color: active ? TELEMETRY.text : TELEMETRY.muted,
                   background: active ? TELEMETRY.cardAlt : "transparent",
@@ -367,7 +408,7 @@ export const MobileWeakTopics = ({ topics, loading }: Props) => {
         </div>
       </div>
 
-      {/* List */}
+      {/* List — individual elevated cards with subject badges and tap feedback. */}
       {visible.length === 0 ? (
         <div
           className="rounded-2xl p-8 text-center"
@@ -380,20 +421,83 @@ export const MobileWeakTopics = ({ topics, loading }: Props) => {
           </p>
         </div>
       ) : (
-        <div
-          className="rounded-2xl px-4"
-          style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}` }}
-        >
-          {visible.map((t) => (
-            <button
-              key={`${t.subjectId ?? "x"}-${t.topic}`}
-              type="button"
-              onClick={() => setSelected(t)}
-              className="w-full text-left active:opacity-70 transition-opacity"
-            >
-              <TopicTelemetryRow topic={t} />
-            </button>
-          ))}
+        <div className="space-y-2">
+          {visible.map((t, i) => {
+            const attempts = attemptsOf(t);
+            const pending = t.pendingQuestionCount ?? 0;
+            const awaiting = attempts === 0 && pending > 0;
+            const pct = clampPct(t.unifiedScore);
+            const colour = awaiting ? TELEMETRY.amber : scoreStatusColor(pct, attempts, TELEMETRY);
+            const label = awaiting ? "Awaiting marking" : scoreStatusLabel(pct, attempts);
+            const subjectColour =
+              subjectColours.get(t.subjectId ?? "") ?? TELEMETRY.gray;
+
+            return (
+              <motion.button
+                key={`${t.subjectId ?? "x"}-${t.topic}`}
+                type="button"
+                onClick={() => setSelected(t)}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: Math.min(i * 0.03, 0.24), duration: 0.2 }}
+                whileTap={{ scale: 0.985 }}
+                className="w-full text-left rounded-2xl p-3.5"
+                style={{
+                  background: TELEMETRY.card,
+                  border: `1px solid ${TELEMETRY.border}`,
+                  borderLeft: `3px solid ${colour}`,
+                }}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div
+                      className="text-[14px] font-semibold capitalize leading-tight break-words line-clamp-2"
+                      style={{ color: TELEMETRY.text }}
+                    >
+                      {t.topic}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                      <span
+                        className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                        style={{ color: colour, background: alpha(colour, 0.12) }}
+                      >
+                        {label}
+                      </span>
+                      {t.subjectId && (
+                        <span
+                          className="text-[10px] px-1.5 py-0.5 rounded capitalize"
+                          style={{ color: subjectColour, background: alpha(subjectColour, 0.12) }}
+                        >
+                          {t.subjectId}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <div
+                      className="text-[20px] font-bold tabular-nums leading-none"
+                      style={{ color: awaiting ? TELEMETRY.amber : TELEMETRY.text }}
+                    >
+                      {attempts > 0 ? `${pct}%` : awaiting ? "··" : "—"}
+                    </div>
+                    <div className="text-[10px] tabular-nums mt-1" style={{ color: TELEMETRY.muted }}>
+                      {attempts > 0 ? `${attempts} marked` : awaiting ? `${pending} pending` : "no data"}
+                    </div>
+                  </div>
+                </div>
+
+                {attempts > 0 && (
+                  <div
+                    className="h-1 rounded-full overflow-hidden mt-3"
+                    style={{ background: TELEMETRY.cardAlt }}
+                  >
+                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: colour }} />
+                  </div>
+                )}
+              </motion.button>
+            );
+          })}
         </div>
       )}
 
