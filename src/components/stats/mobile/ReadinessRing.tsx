@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Info } from "lucide-react";
-import { TELEMETRY, clampPct } from "./tokens";
+import { useTelemetry, clampPct } from "./tokens";
 
 interface Props {
   overall: number;      // 0..100
@@ -23,6 +23,7 @@ const Ring = ({
   color: string;
   delay: number;
 }) => {
+  const TELEMETRY = useTelemetry();
   const c = 2 * Math.PI * radius;
   const pct = clampPct(value) / 100;
   return (
@@ -54,6 +55,7 @@ const Ring = ({
 };
 
 export const ReadinessRing = ({ overall, coverage, consistency, onInfo }: Props) => {
+  const TELEMETRY = useTelemetry();
   const overallSafe = clampPct(overall);
   return (
     <div
