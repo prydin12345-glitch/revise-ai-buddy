@@ -111,7 +111,7 @@ export const GradeProjectionPanel = ({ subjects, defaultScaleId }: Props) => {
                     </span>
                   )}
                 </span>
-                <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: status.color }}>
+                <span className="text-[11px] font-semibold" style={{ color: status.color }}>
                   {status.label}
                 </span>
               </span>
@@ -140,7 +140,7 @@ export const GradeProjectionPanel = ({ subjects, defaultScaleId }: Props) => {
               <div className="px-4 pb-4 space-y-4" style={{ borderTop: `1px solid ${TELEMETRY.border}` }}>
                 <div className="grid grid-cols-2 gap-3 pt-4">
                   <label className="block">
-                    <span className="block text-[10px] uppercase tracking-wider mb-1.5" style={{ color: TELEMETRY.muted }}>
+                    <span className="block text-[11px] mb-1.5" style={{ color: TELEMETRY.muted }}>
                       Grade scale
                     </span>
                     <select
@@ -165,7 +165,7 @@ export const GradeProjectionPanel = ({ subjects, defaultScaleId }: Props) => {
                   </label>
 
                   <label className="block">
-                    <span className="block text-[10px] uppercase tracking-wider mb-1.5" style={{ color: TELEMETRY.muted }}>
+                    <span className="block text-[11px] mb-1.5" style={{ color: TELEMETRY.muted }}>
                       Target grade
                     </span>
                     <select
@@ -187,7 +187,7 @@ export const GradeProjectionPanel = ({ subjects, defaultScaleId }: Props) => {
 
                 {scale.tiers && (
                   <label className="block">
-                    <span className="block text-[10px] uppercase tracking-wider mb-1.5" style={{ color: TELEMETRY.muted }}>
+                    <span className="block text-[11px] mb-1.5" style={{ color: TELEMETRY.muted }}>
                       Entry tier
                     </span>
                     <select
@@ -208,7 +208,7 @@ export const GradeProjectionPanel = ({ subjects, defaultScaleId }: Props) => {
 
                 {scale.grades.length > 0 && (
                   <div>
-                    <span className="block text-[10px] uppercase tracking-wider mb-2" style={{ color: TELEMETRY.muted }}>
+                    <span className="block text-[11px] mb-2" style={{ color: TELEMETRY.muted }}>
                       Grade boundaries (minimum %)
                     </span>
                     <div className="grid grid-cols-3 gap-2">
