@@ -86,7 +86,7 @@ export const ReadinessRing = ({ overall, coverage, consistency, onInfo }: Props)
       )}
 
       <div
-        className="text-[10px] uppercase tracking-[0.2em] mb-3"
+        className="text-[11px] mb-3"
         style={{ color: TELEMETRY.muted }}
       >
         Exam Readiness
@@ -123,7 +123,7 @@ export const ReadinessRing = ({ overall, coverage, consistency, onInfo }: Props)
               style={{ background: x.c }}
             />
             <span
-              className="text-[10px] uppercase tracking-wider"
+              className="text-[11px]"
               style={{ color: TELEMETRY.muted }}
             >
               {x.l}
