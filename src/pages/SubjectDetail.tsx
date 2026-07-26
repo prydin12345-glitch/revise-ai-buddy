@@ -144,7 +144,7 @@ const SubjectDetail = () => {
         {/* Back */}
         <Link
           to="/my-subjects"
-          className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-1.5 text-13 text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           All subjects
@@ -165,12 +165,12 @@ const SubjectDetail = () => {
               <button
                 onClick={() => setEditSubjectOpen(true)}
                 aria-label="Edit subject"
-                className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.05] transition-colors"
+                className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-foreground/[0.05] transition-colors"
               >
                 <Pencil className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-[13px] text-muted-foreground mt-1">
+            <p className="text-13 text-muted-foreground mt-1">
               {percentage !== null ? `Average ${percentage}%` : "Not yet tested"}
               {" · "}
               {topics.length} {topics.length === 1 ? "topic" : "topics"}
@@ -188,11 +188,11 @@ const SubjectDetail = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-[15px] font-semibold text-foreground">Exam Profiles</h2>
+              <h2 className="text-15 font-semibold text-foreground">Exam Profiles</h2>
             </div>
             <button
               onClick={handleOpenCreateProfile}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary/10 text-primary text-[12.5px] font-semibold hover:bg-primary/20 transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               New profile
@@ -200,14 +200,14 @@ const SubjectDetail = () => {
           </div>
 
           {profiles.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-[hsl(220_6%_20%)] bg-[hsl(220_8%_13%)]/40 p-10 text-center">
+            <div className="rounded-2xl border border-dashed border-border bg-card/40 p-10 text-center">
               <FileText className="w-6 h-6 text-muted-foreground/40 mx-auto mb-3" strokeWidth={1.5} />
-              <p className="text-[13px] text-muted-foreground mb-3 max-w-xs mx-auto">
+              <p className="text-13 text-muted-foreground mb-3 max-w-xs mx-auto">
                 No exam profiles yet. A profile stores your topics, tier and paper layout for one exam.
               </p>
               <button
                 onClick={handleOpenCreateProfile}
-                className="text-[13px] text-primary font-semibold hover:underline"
+                className="text-13 text-primary font-semibold hover:underline"
               >
                 Create your first profile
               </button>
@@ -236,23 +236,23 @@ const SubjectDetail = () => {
           <div>
             <div className="flex items-center gap-2">
               <ListChecks className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-[15px] font-semibold text-foreground">Topic Performance</h2>
+              <h2 className="text-15 font-semibold text-foreground">Topic Performance</h2>
             </div>
-            <p className="text-[12px] text-muted-foreground mt-1 ml-6">
+            <p className="text-xs text-muted-foreground mt-1 ml-6">
               Across all your exams and practice for {displayName}
             </p>
           </div>
 
           {weakestTopic && (
-            <div className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
-              <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0">
-                <Target className="w-4 h-4 text-amber-600" />
+            <div className="flex items-start gap-3 rounded-2xl border border-warning/30 bg-warning/5 p-4">
+              <div className="w-8 h-8 rounded-lg bg-warning/15 flex items-center justify-center shrink-0">
+                <Target className="w-4 h-4 text-warning" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-semibold text-foreground">
+                <div className="text-13 font-semibold text-foreground">
                   Focus area: {weakestTopic.topic}
                 </div>
-                <div className="text-[12px] text-muted-foreground mt-0.5">
+                <div className="text-xs text-muted-foreground mt-0.5">
                   Your average on this topic is {Math.round(weakestTopic.score)}%. A targeted practice session could help.
                 </div>
               </div>
@@ -264,7 +264,7 @@ const SubjectDetail = () => {
                     )}&subtopic=${encodeURIComponent(weakestTopic.topic)}`
                   )
                 }
-                className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 text-white text-[12px] font-semibold hover:bg-amber-500/90 transition-colors whitespace-nowrap"
+                className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-warning text-warning-foreground text-xs font-semibold hover:bg-warning/90 transition-colors whitespace-nowrap"
               >
                 Practice now
               </button>
@@ -278,7 +278,7 @@ const SubjectDetail = () => {
         <section className="space-y-4">
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-[15px] font-semibold text-foreground">Recent Activity</h2>
+            <h2 className="text-15 font-semibold text-foreground">Recent Activity</h2>
           </div>
           <RecentActivityList subjectName={subject.subject_name} />
         </section>
