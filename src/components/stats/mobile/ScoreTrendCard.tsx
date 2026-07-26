@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { RangeChips } from "./RangeChips";
-import { TELEMETRY } from "./tokens";
+import { useTelemetry } from "./tokens";
 
 interface Props {
   data: Array<Record<string, any>>;
@@ -21,6 +21,7 @@ const flatten = (rows: Props["data"]) =>
   });
 
 export const ScoreTrendCard = ({ data, timeRange, onTimeRangeChange }: Props) => {
+  const TELEMETRY = useTelemetry();
   // Memoised so recharts doesn't churn on every parent render
   const flat = useMemo(() => flatten(data), [data]);
   const hasData = flat.some((r) => !r._empty);
