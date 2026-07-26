@@ -16,6 +16,7 @@ import { GradeProjectionPanel } from "./GradeProjectionPanel";
 import { StudyLoadCard } from "./StudyLoadCard";
 import { SubjectGaugeCard } from "./SubjectGaugeCard";
 import { GradeTrendCard } from "./GradeTrendCard";
+import { AccuracyBreakdownPanel } from "./AccuracyBreakdownPanel";
 import { useGradeSettings } from "@/hooks/useGradeSettings";
 import { useProfileDefaults } from "@/hooks/useProfileDefaults";
 import { getScale, projectGrade, resolveScaleId, targetStatus } from "@/lib/grade-scales";
@@ -828,41 +829,9 @@ export const MobileStatsTelemetry = ({
         open={sheet === "accuracy"}
         onClose={() => setSheet(null)}
         title="Accuracy Breakdown"
-        subtitle="Your average score per subject across attempted questions."
+        subtitle="How your marked topics are distributed, not just the average."
       >
-        {subjectAccuracy.length === 0 ? (
-          <div className="text-xs text-center py-6" style={{ color: TELEMETRY.muted }}>
-            No attempted questions yet.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {subjectAccuracy.map((s) => (
-              <div
-                key={s.name}
-                className="rounded-2xl p-4"
-                style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}` }}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
-                    <span className="text-sm font-semibold truncate" style={{ color: TELEMETRY.text }}>
-                      {s.name}
-                    </span>
-                  </div>
-                  <span className="text-sm font-bold tabular-nums" style={{ color: s.color }}>
-                    {Math.round(s.avgScore)}%
-                  </span>
-                </div>
-                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: TELEMETRY.border }}>
-                  <div className="h-full rounded-full" style={{ width: `${clampPct(s.avgScore)}%`, background: s.color }} />
-                </div>
-                <div className="text-[10px] uppercase tracking-wider mt-2" style={{ color: TELEMETRY.muted }}>
-                  {s.count} question{s.count === 1 ? "" : "s"} attempted
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <AccuracyBreakdownPanel topics={topics} subjects={subjectPerformanceData} />
       </MobileStatSheet>
 
       {/* Grade Projection */}
