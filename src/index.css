@@ -92,6 +92,11 @@ All colors MUST be HSL.
     --input: 216 24% 89%;
     --ring: 231 91% 65%;
 
+    /* Emphasis border — hover states and idle/unstarted indicators */
+    --border-strong: 216 24% 78%;
+    /* Inert groove behind progress bars */
+    --track: 216 24% 90%;
+
     /* Custom surfaces — unified panel used for chat AND review paper */
     --surface-panel: 0 0% 100%;
     --surface-panel-2: 216 38% 97%;
@@ -187,6 +192,11 @@ All colors MUST be HSL.
     --border: 220 6% 20%;
     --input: 220 6% 20%;
     --ring: 231 91% 68%;
+
+    /* Emphasis border — hover states and idle/unstarted indicators */
+    --border-strong: 220 6% 28%;
+    /* Inert groove behind progress bars */
+    --track: 220 6% 18%;
 
     /* Elevated surface — keypads, popovers, tooltips */
     --surface-elevated: 220 8% 16%;
