@@ -42,7 +42,7 @@ export const TopicTelemetryRow = ({ topic, compact = false }: Props) => {
         </div>
         <div className="flex items-center gap-2 mt-1">
           <span
-            className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded"
+            className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
             style={{
               color,
               background: alpha(color, 0.08),
@@ -53,7 +53,7 @@ export const TopicTelemetryRow = ({ topic, compact = false }: Props) => {
           </span>
           {topic.subjectId && (
             <span
-              className="text-[9px] uppercase tracking-wider truncate"
+              className="text-[10px] truncate"
               style={{ color: TELEMETRY.muted }}
             >
               {topic.subjectId}
