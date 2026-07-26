@@ -12,6 +12,7 @@ import { useExamStats } from "@/hooks/useExamStats";
 import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
 import { StatsDrilldownDrawer } from "@/components/dashboard/StatsDrilldownDrawer";
 import { WeakTopicsTab } from "@/components/stats/WeakTopicsTab";
+import { MobileWeakTopics } from "@/components/stats/mobile/MobileWeakTopics";
 import { useUnifiedTopicPerformance } from "@/hooks/useUnifiedTopicPerformance";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -199,7 +200,11 @@ const Stats = () => {
 
           {/* Weak topics tab */}
           <TabsContent value="weak-topics" className="mt-0">
-            <WeakTopicsTab topics={topics} loading={weakTopicsLoading} />
+            {isMobile ? (
+              <MobileWeakTopics topics={topics} loading={weakTopicsLoading} />
+            ) : (
+              <WeakTopicsTab topics={topics} loading={weakTopicsLoading} />
+            )}
           </TabsContent>
         </Tabs>
 
