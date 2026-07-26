@@ -13,6 +13,9 @@ import {
 import { ReadinessRing } from "./ReadinessRing";
 import { QuickStatsGrid } from "./QuickStatsGrid";
 import { GradeProjectionPanel } from "./GradeProjectionPanel";
+import { StudyLoadCard } from "./StudyLoadCard";
+import { SubjectGaugeCard } from "./SubjectGaugeCard";
+import { GradeTrendCard } from "./GradeTrendCard";
 import { useGradeSettings } from "@/hooks/useGradeSettings";
 import { useProfileDefaults } from "@/hooks/useProfileDefaults";
 import { getScale, projectGrade, resolveScaleId, targetStatus } from "@/lib/grade-scales";
@@ -264,6 +267,23 @@ export const MobileStatsTelemetry = ({
   );
   const { get: getGradeSettings } = useGradeSettings();
 
+  const topicStatsFor = useMemo(() => {
+    const bySubject = new Map<string, { mastered: number; developing: number; review: number }>();
+    topics.forEach((t) => {
+      const key = t.subjectId ?? "";
+      if (!bySubject.has(key)) bySubject.set(key, { mastered: 0, developing: 0, review: 0 });
+      const entry = bySubject.get(key)!;
+      const attempts = t.examQuestionCount + t.practiceQuestionCount;
+      if (attempts === 0) return;
+      const pct = clampPct(t.unifiedScore);
+      if (pct >= 70) entry.mastered += 1;
+      else if (pct >= 40) entry.developing += 1;
+      else entry.review += 1;
+    });
+    return (subject: string) =>
+      bySubject.get(subject) ?? { mastered: 0, developing: 0, review: 0 };
+  }, [topics]);
+
   const gradeSummary = useMemo(() => {
     const withTargets = subjectPerformanceData
       .map((s) => {
@@ -362,6 +382,14 @@ export const MobileStatsTelemetry = ({
                 onOpenMastered={() => setSheet("mastered")}
                 onOpenStreak={() => setSheet("streak")}
               />
+            </motion.div>
+
+            <motion.div {...section(0.08)}>
+              <StudyLoadCard data={studyActivityData} subjects={subjectPerformanceData} />
+            </motion.div>
+
+            <motion.div {...section(0.1)}>
+              <SubjectGaugeCard subjects={subjectPerformanceData} topicStats={topicStatsFor} />
             </motion.div>
 
             {/* Top Revision Priorities */}
@@ -515,6 +543,14 @@ export const MobileStatsTelemetry = ({
                 subjects={subjectPerformanceData}
                 timeRange={timeRange}
                 onTimeRangeChange={setTimeRange}
+              />
+            </motion.div>
+
+            <motion.div {...section(0.03)}>
+              <GradeTrendCard
+                data={examResultsData}
+                subjects={subjectPerformanceData}
+                defaultScaleId={defaultScaleId}
               />
             </motion.div>
 
