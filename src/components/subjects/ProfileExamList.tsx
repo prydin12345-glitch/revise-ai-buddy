@@ -112,8 +112,8 @@ export const ProfileExamList = ({ profileId, subjectName: _subject }: ProfileExa
         <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
           <BookOpen className="w-5 h-5 text-muted-foreground" />
         </div>
-        <div className="text-[13px] font-semibold text-foreground mb-1">No exams yet</div>
-        <p className="text-[12px] text-muted-foreground max-w-sm mx-auto">
+        <div className="text-13 font-semibold text-foreground mb-1">No exams yet</div>
+        <p className="text-xs text-muted-foreground max-w-sm mx-auto">
           Exams and quizzes created under this profile will appear here.
           Exams created before this feature launched show in the general subject history.
         </p>
@@ -126,20 +126,20 @@ export const ProfileExamList = ({ profileId, subjectName: _subject }: ProfileExa
   const bestPct = scoredPcts.length ? Math.max(...scoredPcts) : null;
 
   return (
-    <div className="rounded-2xl border border-[hsl(220_6%_20%)] bg-[hsl(220_8%_13%)] overflow-hidden">
-      <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 px-4 py-2.5 border-b border-[hsl(220_6%_20%)]/70">
-        <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">Attempt</span>
-        <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 hidden sm:block w-24 text-right">Date</span>
-        <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 w-14 text-right">Score</span>
+    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 px-4 py-2.5 border-b border-border/70">
+        <span className="text-10 uppercase tracking-[0.14em] text-muted-foreground/70">Attempt</span>
+        <span className="text-10 uppercase tracking-[0.14em] text-muted-foreground/70 hidden sm:block w-24 text-right">Date</span>
+        <span className="text-10 uppercase tracking-[0.14em] text-muted-foreground/70 w-14 text-right">Score</span>
         <span className="w-4" aria-hidden="true" />
       </div>
-      <div className="divide-y divide-[hsl(220_6%_20%)]/50">
+      <div className="divide-y divide-border/50">
       {displayed.map((item) => {
         const scoreColor =
           item.pct === null ? ""
-          : item.pct >= 70 ? "text-green-500"
-          : item.pct >= 50 ? "text-amber-500"
-          : "text-red-500";
+          : item.pct >= 70 ? "text-success"
+          : item.pct >= 50 ? "text-warning"
+          : "text-danger";
         const isBest = bestPct !== null && item.pct === bestPct;
         const minutes = item.timeTaken ? Math.floor(item.timeTaken / 60) : null;
 
@@ -150,7 +150,7 @@ export const ProfileExamList = ({ profileId, subjectName: _subject }: ProfileExa
               if (item.type === "exam") navigate(`/exam/${item.id}/review`);
               else navigate(`/practice-questions/${item.id}/preview`);
             }}
-            className="w-full text-left grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 px-4 py-3 hover:bg-white/[0.03] transition-colors duration-150 group"
+            className="w-full text-left grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 px-4 py-3 hover:bg-foreground/[0.03] transition-colors duration-150 group"
           >
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
@@ -159,10 +159,10 @@ export const ProfileExamList = ({ profileId, subjectName: _subject }: ProfileExa
                 ) : (
                   <ListChecks className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
                 )}
-                <span className="text-[13px] font-medium text-foreground truncate">{item.title}</span>
-                {isBest && <Trophy className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
+                <span className="text-13 font-medium text-foreground truncate">{item.title}</span>
+                {isBest && <Trophy className="w-3.5 h-3.5 text-warning shrink-0" />}
               </div>
-              <div className="text-[10.5px] text-muted-foreground mt-0.5 pl-5 flex items-center gap-2">
+              <div className="text-10 text-muted-foreground mt-0.5 pl-5 flex items-center gap-2">
                 <span>{item.type === "exam" ? "Exam" : "Quiz"}</span>
                 {minutes !== null && (
                   <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{minutes}m</span>
@@ -172,14 +172,14 @@ export const ProfileExamList = ({ profileId, subjectName: _subject }: ProfileExa
                 </span>
               </div>
             </div>
-            <span className="hidden sm:block w-24 text-right text-[11.5px] text-muted-foreground tabular-nums">
+            <span className="hidden sm:block w-24 text-right text-11 text-muted-foreground tabular-nums">
               {new Date(item.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
             </span>
             <span className="w-14 text-right">
               {item.pct !== null ? (
-                <span className={`text-[13px] font-semibold tabular-nums ${scoreColor}`}>{item.pct}%</span>
+                <span className={`text-13 font-semibold tabular-nums ${scoreColor}`}>{item.pct}%</span>
               ) : (
-                <span className="text-[12px] text-muted-foreground/40">—</span>
+                <span className="text-xs text-muted-foreground/40">—</span>
               )}
             </span>
             <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 transition-all duration-200 shrink-0" />
@@ -191,7 +191,7 @@ export const ProfileExamList = ({ profileId, subjectName: _subject }: ProfileExa
       {items.length > 6 && (
         <button
           onClick={() => setShowAll((s) => !s)}
-          className="w-full py-2.5 text-[12.5px] text-primary font-semibold hover:text-primary/80 transition-colors text-center"
+          className="w-full py-2.5 text-xs text-primary font-semibold hover:text-primary/80 transition-colors text-center"
         >
           {showAll ? "Show less" : `Show all ${items.length} attempts`}
         </button>
