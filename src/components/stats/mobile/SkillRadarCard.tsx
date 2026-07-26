@@ -24,7 +24,7 @@ export const SkillRadarCard = ({ subjects }: Props) => {
           Skill Balance
         </div>
       </div>
-      <div className="text-[10px] uppercase tracking-wider mb-2" style={{ color: TELEMETRY.muted }}>
+      <div className="text-[11px] mb-2" style={{ color: TELEMETRY.muted }}>
         Performance across subjects
       </div>
 
