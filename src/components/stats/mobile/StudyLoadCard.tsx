@@ -70,7 +70,7 @@ export const StudyLoadCard = ({ data, subjects }: Props) => {
           <div className="text-xl font-semibold tabular-nums leading-none" style={{ color: TELEMETRY.text }}>
             {total > 0 ? fmt(total) : "—"}
           </div>
-          <div className="text-[10px] uppercase tracking-wider mt-1" style={{ color: TELEMETRY.muted }}>
+          <div className="text-[11px] mt-1" style={{ color: TELEMETRY.muted }}>
             total
           </div>
         </div>
