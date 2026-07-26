@@ -1,4 +1,4 @@
-import { TELEMETRY, clampPct, scoreStatusColor, scoreStatusLabel } from "./tokens";
+import { useTelemetry, alpha, clampPct, scoreStatusColor, scoreStatusLabel } from "./tokens";
 import type { UnifiedTopicScore } from "@/hooks/useUnifiedTopicPerformance";
 
 interface Props {
@@ -7,9 +7,10 @@ interface Props {
 }
 
 export const TopicTelemetryRow = ({ topic, compact = false }: Props) => {
+  const TELEMETRY = useTelemetry();
   const attempts = topic.examQuestionCount + topic.practiceQuestionCount;
   const pct = clampPct(topic.unifiedScore);
-  const color = scoreStatusColor(pct, attempts);
+  const color = scoreStatusColor(pct, attempts, TELEMETRY);
   const status = scoreStatusLabel(pct, attempts);
 
   return (
@@ -22,7 +23,7 @@ export const TopicTelemetryRow = ({ topic, compact = false }: Props) => {
         style={{
           height: 32,
           background: color,
-          boxShadow: attempts > 0 ? `0 0 8px ${color}66` : undefined,
+          boxShadow: attempts > 0 ? `0 0 8px ${alpha(color, 0.4)}` : undefined,
         }}
       />
       <div className="flex-1 min-w-0">
@@ -39,8 +40,8 @@ export const TopicTelemetryRow = ({ topic, compact = false }: Props) => {
             className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded"
             style={{
               color,
-              background: `${color}14`,
-              border: `1px solid ${color}33`,
+              background: alpha(color, 0.08),
+              border: `1px solid ${alpha(color, 0.2)}`,
             }}
           >
             {status}
