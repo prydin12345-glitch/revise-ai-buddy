@@ -114,7 +114,7 @@ export const SubjectGaugeCard = ({ subjects, topicStats }: Props) => {
         </svg>
 
         <div className="absolute inset-x-0 flex flex-col items-center" style={{ top: "46%" }}>
-          <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: tone }}>
+          <span className="text-[11px] font-semibold" style={{ color: tone }}>
             {bandLabel(pct)}
           </span>
           <span className="text-[34px] font-bold tabular-nums leading-none mt-0.5" style={{ color: TELEMETRY.text }}>
@@ -134,7 +134,7 @@ export const SubjectGaugeCard = ({ subjects, topicStats }: Props) => {
         ] as const).map(([label, value, colour]) => (
           <div key={label} className="text-center">
             <div className="text-[17px] font-semibold tabular-nums" style={{ color: colour }}>{value}</div>
-            <div className="text-[9px] uppercase tracking-wider mt-0.5" style={{ color: TELEMETRY.muted }}>{label}</div>
+            <div className="text-[10px] mt-0.5" style={{ color: TELEMETRY.muted }}>{label}</div>
           </div>
         ))}
       </div>
