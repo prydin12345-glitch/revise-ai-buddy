@@ -11,7 +11,11 @@ import {
   Circle,
 } from "lucide-react";
 import { ReadinessRing } from "./ReadinessRing";
-import { QuickStatsGrid, scoreToGradeTier } from "./QuickStatsGrid";
+import { QuickStatsGrid } from "./QuickStatsGrid";
+import { GradeProjectionPanel } from "./GradeProjectionPanel";
+import { useGradeSettings } from "@/hooks/useGradeSettings";
+import { useProfileDefaults } from "@/hooks/useProfileDefaults";
+import { getScale, projectGrade, resolveScaleId, targetStatus } from "@/lib/grade-scales";
 import { ScoreTrendCard } from "./ScoreTrendCard";
 import { TopicTelemetryRow } from "./TopicTelemetryRow";
 import { SkillRadarCard } from "./SkillRadarCard";
@@ -47,7 +51,6 @@ type FilterKey = "all" | "review" | "developing" | "mastered";
 type SortKey = "lowest" | "highest" | "attempts" | "alpha";
 type ReadinessRow = "mastery" | "coverage" | "streak" | null;
 
-const GOAL_PCT = 80; // Default goal until per-user goal wiring lands.
 
 const section = (delay: number) => ({
   initial: { opacity: 0, y: 8 },
@@ -251,8 +254,40 @@ export const MobileStatsTelemetry = ({
     { key: "performance", label: "Performance" },
   ];
 
-  const currentGrade = scoreToGradeTier(accuracy);
-  const goalGrade = scoreToGradeTier(GOAL_PCT);
+  // Grades belong to a subject, not to an account — a single number across
+  // Maths and History means nothing. This counts how many subjects are meeting
+  // the target the student set for each.
+  const { defaults: profileDefaults } = useProfileDefaults();
+  const defaultScaleId = useMemo(
+    () => resolveScaleId(profileDefaults.educationalLevel, profileDefaults.curriculumRegion),
+    [profileDefaults.educationalLevel, profileDefaults.curriculumRegion]
+  );
+  const { get: getGradeSettings } = useGradeSettings();
+
+  const gradeSummary = useMemo(() => {
+    const withTargets = subjectPerformanceData
+      .map((s) => {
+        const settings = getGradeSettings(s.name);
+        if (!settings.targetGrade) return null;
+        const scale = getScale(settings.scaleId ?? defaultScaleId);
+        const predicted = projectGrade(s.avgScore, scale, {
+          overrides: settings.boundaries,
+          tierId: settings.tierId,
+        });
+        return targetStatus(scale, predicted.grade, settings.targetGrade);
+      })
+      .filter((v): v is ReturnType<typeof targetStatus> => v !== null);
+
+    if (withTargets.length === 0) {
+      return { value: "Not set", delta: "tap to set targets", tone: "neutral" as const };
+    }
+    const met = withTargets.filter((s) => s === "met").length;
+    return {
+      value: `${met} / ${withTargets.length}`,
+      delta: met === withTargets.length ? "all on target" : `${withTargets.length - met} to go`,
+      tone: met === withTargets.length ? ("up" as const) : ("down" as const),
+    };
+  }, [subjectPerformanceData, getGradeSettings, defaultScaleId]);
 
   return (
     <div
@@ -315,8 +350,9 @@ export const MobileStatsTelemetry = ({
               <QuickStatsGrid
                 accuracy={accuracy}
                 accuracySeries={scoreSeries.slice(-7)}
-                currentPct={accuracy}
-                goalPct={GOAL_PCT}
+                gradeValue={gradeSummary.value}
+                gradeDelta={gradeSummary.delta}
+                gradeTone={gradeSummary.tone}
                 masteredCount={masteredCount}
                 totalAttempted={attemptedTopics.length}
                 streak={currentStreak}
@@ -798,44 +834,12 @@ export const MobileStatsTelemetry = ({
         open={sheet === "grade"}
         onClose={() => setSheet(null)}
         title="Grade Projection"
-        subtitle="Your current predicted exam tier vs your goal."
+        subtitle="Predicted grade per subject, on the scale that subject actually uses."
       >
-        <div className="space-y-3">
-          <div
-            className="rounded-2xl p-5 flex items-center justify-between"
-            style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}` }}
-          >
-            <div>
-              <div className="text-[10px] uppercase tracking-wider" style={{ color: TELEMETRY.muted }}>
-                Predicted
-              </div>
-              <div className="text-3xl font-bold tabular-nums mt-1" style={{ color: TELEMETRY.lime }}>
-                G{currentGrade.grade}
-              </div>
-              <div className="text-[11px] tabular-nums" style={{ color: TELEMETRY.muted }}>
-                {Math.round(accuracy)}%
-              </div>
-            </div>
-            <ChevronRight size={18} style={{ color: TELEMETRY.muted }} />
-            <div className="text-right">
-              <div className="text-[10px] uppercase tracking-wider" style={{ color: TELEMETRY.muted }}>
-                Goal
-              </div>
-              <div className="text-3xl font-bold tabular-nums mt-1" style={{ color: TELEMETRY.cyan }}>
-                G{goalGrade.grade}
-              </div>
-              <div className="text-[11px] tabular-nums" style={{ color: TELEMETRY.muted }}>
-                {GOAL_PCT}%
-              </div>
-            </div>
-          </div>
-          <div
-            className="rounded-2xl p-4 text-xs leading-relaxed"
-            style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}`, color: TELEMETRY.muted }}
-          >
-            Your predicted grade is derived from your rolling accuracy across attempted questions. Close the gap by clearing the "Needs Review" topics in the Topics tab.
-          </div>
-        </div>
+        <GradeProjectionPanel
+          subjects={subjectPerformanceData}
+          defaultScaleId={defaultScaleId}
+        />
       </MobileStatSheet>
 
       {/* Mastered / Retention */}
