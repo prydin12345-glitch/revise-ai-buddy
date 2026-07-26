@@ -1,5 +1,5 @@
 import { LucideIcon } from "lucide-react";
-import { TELEMETRY, buildSparklinePath } from "./tokens";
+import { useTelemetry, buildSparklinePath } from "./tokens";
 
 interface Props {
   icon: LucideIcon;
@@ -18,10 +18,12 @@ export const SparklineCard = ({
   value,
   delta,
   deltaTone = "neutral",
-  accent = TELEMETRY.lime,
+  accent,
   sparkline = [],
   onClick,
 }: Props) => {
+  const TELEMETRY = useTelemetry();
+  const resolvedAccent = accent ?? TELEMETRY.lime;
   const W = 96;
   const H = 28;
   const d = buildSparklinePath(sparkline, W, H);
