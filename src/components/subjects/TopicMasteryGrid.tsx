@@ -22,8 +22,8 @@ export const TopicMasteryGrid = ({ subjectName, topics }: TopicMasteryGridProps)
 
   if (!topics || topics.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-[hsl(220_6%_20%)] p-6 text-center">
-        <p className="text-[13px] text-muted-foreground">
+      <div className="rounded-xl border border-dashed border-border p-6 text-center">
+        <p className="text-13 text-muted-foreground">
           No topics added yet. Add topics to this subject to see performance data.
         </p>
       </div>
@@ -42,34 +42,34 @@ export const TopicMasteryGrid = ({ subjectName, topics }: TopicMasteryGridProps)
   });
 
   return (
-    <ul className="divide-y divide-[hsl(220_6%_20%)]/70">
+    <ul className="divide-y divide-border/70">
       {sorted.map(({ topic, score, attempts }) => {
         const untested = attempts === 0;
         const displayScore = Math.max(0, Math.round(score));
 
         const dot = untested
-          ? "bg-[hsl(220_6%_28%)]"
+          ? "bg-border-strong"
           : displayScore >= 70
-          ? "bg-emerald-500"
+          ? "bg-success"
           : displayScore >= 50
-          ? "bg-amber-500"
-          : "bg-red-500";
+          ? "bg-warning"
+          : "bg-danger";
 
         const barFill = untested
-          ? "bg-[hsl(220_6%_24%)]"
+          ? "bg-border-strong"
           : displayScore >= 70
-          ? "bg-emerald-500/70"
+          ? "bg-success/70"
           : displayScore >= 50
-          ? "bg-amber-500/70"
-          : "bg-red-500/70";
+          ? "bg-warning/70"
+          : "bg-danger/70";
 
         const pctColor = untested
           ? "text-muted-foreground/70"
           : displayScore >= 70
-          ? "text-emerald-400"
+          ? "text-success"
           : displayScore >= 50
-          ? "text-amber-400"
-          : "text-red-400";
+          ? "text-warning"
+          : "text-danger";
 
         return (
           <li key={topic}>
@@ -81,14 +81,14 @@ export const TopicMasteryGrid = ({ subjectName, topics }: TopicMasteryGridProps)
                   )}&subtopic=${encodeURIComponent(topic)}`
                 )
               }
-              className="group w-full flex items-center gap-4 py-3 px-1 text-left hover:bg-white/[0.02] rounded-md transition-colors"
+              className="group w-full flex items-center gap-4 py-3 px-1 text-left hover:bg-foreground/[0.02] rounded-md transition-colors"
             >
               <span aria-hidden className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`} />
-              <span className="min-w-0 flex-1 text-[13.5px] font-medium text-foreground leading-snug break-words">
+              <span className="min-w-0 flex-1 text-13 font-medium text-foreground leading-snug break-words">
                 {topic}
               </span>
 
-              <div className="hidden sm:block w-24 h-1 rounded-full bg-[hsl(220_6%_18%)] overflow-hidden shrink-0">
+              <div className="hidden sm:block w-24 h-1 rounded-full bg-track overflow-hidden shrink-0">
                 <div
                   className={`h-full ${barFill} transition-all`}
                   style={{ width: `${untested ? 0 : displayScore}%` }}
@@ -96,7 +96,7 @@ export const TopicMasteryGrid = ({ subjectName, topics }: TopicMasteryGridProps)
               </div>
 
               <span
-                className={`w-24 text-right shrink-0 text-[12px] tabular-nums ${pctColor} ${
+                className={`w-24 text-right shrink-0 text-xs tabular-nums ${pctColor} ${
                   untested ? "font-normal" : "font-semibold"
                 }`}
               >
