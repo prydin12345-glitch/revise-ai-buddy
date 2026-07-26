@@ -3,6 +3,27 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { RangeChips } from "./RangeChips";
 import { useTelemetry } from "./tokens";
 
+/**
+ * Module-scope so Recharts sees a stable component type. The previous inline
+ * `dot={(props) => ...}` produced a new function identity on every render,
+ * which defeats Recharts' memoisation and re-renders the whole series.
+ */
+const TrendDot = (props: any) => {
+  const { cx, cy, index, lastIdx, colour, ring } = props;
+  if (index !== lastIdx || cx == null || cy == null) return <g key={index} />;
+  return (
+    <circle
+      key={index}
+      cx={cx}
+      cy={cy}
+      r={3.5}
+      fill={colour}
+      stroke={ring}
+      strokeWidth={1.5}
+    />
+  );
+};
+
 interface Props {
   data: Array<Record<string, any>>;
   subjects: { name: string; color: string }[];
@@ -34,11 +55,11 @@ export const ScoreTrendCard = ({ data, timeRange, onTimeRangeChange }: Props) =>
     >
       <div className="flex items-center justify-between mb-3">
         <div>
-          <div className="text-[10px] uppercase tracking-wider" style={{ color: TELEMETRY.muted }}>
-            Score Trends
-          </div>
           <div className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>
-            Performance Over Time
+            Performance over time
+          </div>
+          <div className="text-xs mt-0.5" style={{ color: TELEMETRY.muted }}>
+            Average score per period
           </div>
         </div>
         <RangeChips value={timeRange} onChange={onTimeRangeChange} />
@@ -51,7 +72,7 @@ export const ScoreTrendCard = ({ data, timeRange, onTimeRangeChange }: Props) =>
             <AreaChart data={flat} margin={{ top: 6, right: 10, left: -18, bottom: 0 }}>
               <defs>
                 <linearGradient id="scoreFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={TELEMETRY.lime} stopOpacity={0.35} />
+                  <stop offset="0%" stopColor={TELEMETRY.lime} stopOpacity={0.08} />
                   <stop offset="100%" stopColor={TELEMETRY.lime} stopOpacity={0} />
                 </linearGradient>
               </defs>
@@ -93,23 +114,7 @@ export const ScoreTrendCard = ({ data, timeRange, onTimeRangeChange }: Props) =>
                 strokeWidth={2}
                 fill="url(#scoreFill)"
                 isAnimationActive={false}
-                dot={(props: any) =>
-                  props.index === lastIdx ? (
-                    <g key={props.index}>
-                      <circle cx={props.cx} cy={props.cy} r={6} fill={TELEMETRY.lime} opacity={0.18} />
-                      <circle
-                        cx={props.cx}
-                        cy={props.cy}
-                        r={3.5}
-                        fill={TELEMETRY.lime}
-                        stroke={TELEMETRY.bg}
-                        strokeWidth={1.5}
-                      />
-                    </g>
-                  ) : (
-                    <g key={props.index} />
-                  )
-                }
+                dot={<TrendDot lastIdx={lastIdx} colour={TELEMETRY.lime} ring={TELEMETRY.card} />}
                 activeDot={{ r: 5, fill: TELEMETRY.lime, stroke: TELEMETRY.bg, strokeWidth: 2 }}
               />
             </AreaChart>
