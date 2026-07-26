@@ -15,6 +15,8 @@ export default {
     extend: {
       colors: {
         border: "hsl(var(--border))",
+        "border-strong": "hsl(var(--border-strong))",
+        track: "hsl(var(--track))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
@@ -91,6 +93,19 @@ export default {
       fontFamily: {
         sans: ["Manrope", "ui-sans-serif", "system-ui", "sans-serif"],
         serif: ['"Source Serif 4"', "Georgia", "serif"],
+      },
+      /* Named steps for the sub-14px range the UI actually uses.
+         Prefer these over text-[11px] etc — they carry a line-height,
+         so rows line up instead of inheriting whatever is nearby.
+         Tailwind's own xs/sm/base/lg scale is untouched. */
+      fontSize: {
+        "9": ["0.5625rem", { lineHeight: "0.75rem" }],
+        "10": ["0.625rem", { lineHeight: "0.875rem" }],
+        "11": ["0.6875rem", { lineHeight: "1rem" }],
+        "13": ["0.8125rem", { lineHeight: "1.125rem" }],
+        "15": ["0.9375rem", { lineHeight: "1.375rem" }],
+        "17": ["1.0625rem", { lineHeight: "1.5rem" }],
+        "22": ["1.375rem", { lineHeight: "1.75rem" }],
       },
       borderRadius: {
         lg: "var(--radius)",
