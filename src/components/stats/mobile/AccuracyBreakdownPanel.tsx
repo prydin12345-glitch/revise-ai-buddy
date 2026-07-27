@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, ArrowUpRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowUpRight, Pointer } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTelemetry, alpha, clampPct, scoreStatusColor, scoreStatusLabel } from "./tokens";
 import { SubjectStackedBars, buildSubjectStacks } from "./SubjectStackedBars";
@@ -22,8 +22,8 @@ export const AccuracyBreakdownPanel = ({ topics, subjects, trendData = [] }: Pro
   const [drill, setDrill] = useState<string | null>(null);
 
   const stacks = useMemo(
-    () => buildSubjectStacks(topics, subjects, TELEMETRY.gray),
-    [topics, subjects, TELEMETRY.gray]
+    () => buildSubjectStacks(topics, subjects, TELEMETRY.idle),
+    [topics, subjects, TELEMETRY.idle]
   );
 
   const active = stacks.find((s) => s.name === drill) ?? null;
@@ -163,17 +163,20 @@ export const AccuracyBreakdownPanel = ({ topics, subjects, trendData = [] }: Pro
             <div className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>
               Where your topics sit
             </div>
-            <div className="text-[11px] mt-0.5 mb-4" style={{ color: TELEMETRY.muted }}>
-              Topics per subject, stacked by mastery — tap a bar to drill in
+            <div className="flex items-center gap-1.5 mt-0.5 mb-4">
+              <span className="text-[11px]" style={{ color: TELEMETRY.muted }}>
+                Topics per subject, stacked by mastery
+              </span>
+              <Pointer size={11} style={{ color: TELEMETRY.muted }} />
             </div>
 
             <SubjectStackedBars topics={topics} subjects={subjects} onSelect={setDrill} />
 
             <div className="flex items-center gap-3 mt-4 pt-3" style={{ borderTop: `1px solid ${TELEMETRY.border}` }}>
               {([
-                ["Needs review", TELEMETRY.magenta],
-                ["Developing", TELEMETRY.cyan],
-                ["Mastered", TELEMETRY.lime],
+                ["Needs review", TELEMETRY.review],
+                ["Developing", TELEMETRY.developing],
+                ["Mastered", TELEMETRY.mastered],
               ] as const).map(([label, colour]) => (
                 <span key={label} className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-sm" style={{ background: colour }} />
@@ -202,9 +205,9 @@ export const AccuracyBreakdownPanel = ({ topics, subjects, trendData = [] }: Pro
                   </span>
                   <span className="flex items-center gap-2 mt-1.5">
                     {([
-                      [s.mastered, TELEMETRY.lime],
-                      [s.developing, TELEMETRY.cyan],
-                      [s.review, TELEMETRY.magenta],
+                      [s.mastered, TELEMETRY.mastered],
+                      [s.developing, TELEMETRY.developing],
+                      [s.review, TELEMETRY.review],
                     ] as const)
                       .filter(([n]) => n > 0)
                       .map(([n, colour], i) => (
