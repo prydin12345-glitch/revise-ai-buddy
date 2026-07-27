@@ -64,7 +64,7 @@ export const SubjectGaugeCard = ({ subjects, topicStats }: Props) => {
       style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}` }}
     >
       <div className="flex items-center gap-1.5 mb-1">
-        <Gauge size={13} style={{ color: TELEMETRY.lime }} />
+        <Gauge size={13} style={{ color: TELEMETRY.mastered }} />
         <span className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>
           Subject accuracy
         </span>
@@ -129,8 +129,8 @@ export const SubjectGaugeCard = ({ subjects, topicStats }: Props) => {
       >
         {([
           ["Exams", String(active.count), TELEMETRY.text],
-          ["Mastered", stats ? String(stats.mastered) : "—", TELEMETRY.lime],
-          ["To review", stats ? String(stats.review) : "—", TELEMETRY.magenta],
+          ["Mastered", stats ? String(stats.mastered) : "—", TELEMETRY.mastered],
+          ["To review", stats ? String(stats.review) : "—", TELEMETRY.review],
         ] as const).map(([label, value, colour]) => (
           <div key={label} className="text-center">
             <div className="text-[17px] font-semibold tabular-nums" style={{ color: colour }}>{value}</div>
