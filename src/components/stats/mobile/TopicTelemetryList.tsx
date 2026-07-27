@@ -27,7 +27,7 @@ export const TopicTelemetryList = ({
     >
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
-          <Layers size={14} style={{ color: TELEMETRY.cyan }} />
+          <Layers size={14} style={{ color: TELEMETRY.info }} />
           <div className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>
             {title}
           </div>
@@ -37,7 +37,7 @@ export const TopicTelemetryList = ({
             type="button"
             onClick={onViewAll}
             className="min-h-[36px] flex items-center gap-0.5 text-[11px] font-semibold"
-            style={{ color: TELEMETRY.cyan }}
+            style={{ color: TELEMETRY.info }}
           >
             View all topics <ChevronRight size={12} />
           </button>
