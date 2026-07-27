@@ -96,7 +96,7 @@ export const ReadinessRing = ({ overall, coverage, consistency, onInfo }: Props)
         <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
           <Ring radius={92} value={overallSafe} color={TELEMETRY.mastered} delay={0} />
           <Ring radius={72} value={coverage} color={TELEMETRY.info} delay={0.12} />
-          <Ring radius={52} value={consistency} color={TELEMETRY.review} delay={0.24} />
+          <Ring radius={52} value={consistency} color={TELEMETRY.info} delay={0.24} />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-6">
           <span
@@ -115,7 +115,7 @@ export const ReadinessRing = ({ overall, coverage, consistency, onInfo }: Props)
         {[
           { c: TELEMETRY.mastered, l: "Mastery" },
           { c: TELEMETRY.info, l: "Coverage" },
-          { c: TELEMETRY.review, l: "Streak" },
+          { c: TELEMETRY.info, l: "Streak" },
         ].map((x) => (
           <div key={x.l} className="flex items-center gap-1.5">
             <span
