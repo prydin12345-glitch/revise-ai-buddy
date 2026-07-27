@@ -114,7 +114,7 @@ export const GradeTrendCard = ({ data, subjects, defaultScaleId }: Props) => {
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-1.5">
-            <TrendingUp size={13} style={{ color: TELEMETRY.magenta }} />
+            <TrendingUp size={13} style={{ color: TELEMETRY.review }} />
             <span className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>
               Grade trend
             </span>
@@ -200,7 +200,7 @@ export const GradeTrendCard = ({ data, subjects, defaultScaleId }: Props) => {
                 y1={model.targetY}
                 x2={W - PAD_R}
                 y2={model.targetY}
-                stroke={TELEMETRY.cyan}
+                stroke={TELEMETRY.info}
                 strokeWidth={1.5}
                 strokeDasharray="5 4"
               />
@@ -210,7 +210,7 @@ export const GradeTrendCard = ({ data, subjects, defaultScaleId }: Props) => {
                 textAnchor="end"
                 fontSize={9}
                 fontWeight={600}
-                fill={TELEMETRY.cyan}
+                fill={TELEMETRY.info}
               >
                 target {model.targetGrade}
               </text>
@@ -263,8 +263,8 @@ export const GradeTrendCard = ({ data, subjects, defaultScaleId }: Props) => {
           className="text-[11px] mt-2 rounded-lg px-2.5 py-2"
           style={{
             color: TELEMETRY.mutedStrong,
-            background: alpha(TELEMETRY.cyan, 0.08),
-            border: `1px solid ${alpha(TELEMETRY.cyan, 0.2)}`,
+            background: alpha(TELEMETRY.info, 0.08),
+            border: `1px solid ${alpha(TELEMETRY.info, 0.2)}`,
           }}
         >
           Set a target grade for {active.name} in Grade Projection to see it plotted here.
