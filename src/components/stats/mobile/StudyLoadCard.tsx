@@ -25,7 +25,7 @@ export const StudyLoadCard = ({ data, subjects }: Props) => {
         .map(([name, hours]) => ({
           name,
           hours: hours as number,
-          color: colourOf.get(name) ?? TELEMETRY.gray,
+          color: colourOf.get(name) ?? TELEMETRY.idle,
         }))
         .sort((a, b) => b.hours - a.hours);
 
@@ -45,7 +45,7 @@ export const StudyLoadCard = ({ data, subjects }: Props) => {
     const present = [...new Set(days.flatMap((d) => d.segments.map((s) => s.name)))];
 
     return { days, max, total, busiest, present };
-  }, [data, subjects, TELEMETRY.gray]);
+  }, [data, subjects, TELEMETRY.idle]);
 
   const fmt = (h: number) => (h >= 1 ? `${h.toFixed(1)}h` : `${Math.round(h * 60)}m`);
 
@@ -57,7 +57,7 @@ export const StudyLoadCard = ({ data, subjects }: Props) => {
       <div className="flex items-start justify-between mb-4">
         <div>
           <div className="flex items-center gap-1.5">
-            <Activity size={13} style={{ color: TELEMETRY.cyan }} />
+            <Activity size={13} style={{ color: TELEMETRY.info }} />
             <span className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>
               Study load
             </span>
@@ -121,7 +121,7 @@ export const StudyLoadCard = ({ data, subjects }: Props) => {
             style={{ borderTop: `1px solid ${TELEMETRY.border}` }}
           >
             {present.map((name) => {
-              const colour = subjects.find((s) => s.name === name)?.color ?? TELEMETRY.gray;
+              const colour = subjects.find((s) => s.name === name)?.color ?? TELEMETRY.idle;
               return (
                 <span key={name} className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-sm" style={{ background: colour }} />
