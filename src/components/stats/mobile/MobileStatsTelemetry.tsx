@@ -276,6 +276,26 @@ export const MobileStatsTelemetry = ({
     };
   }, [subjectPerformanceData, getGradeSettings, defaultScaleId]);
 
+  const gradeProgress = useMemo(() => {
+    const m = gradeSummary.value.match(/^(\d+)\s*\/\s*(\d+)/);
+    if (!m) return null;
+    const met = Number(m[1]);
+    const total = Number(m[2]);
+    return total > 0 ? Math.round((met / total) * 100) : null;
+  }, [gradeSummary.value]);
+
+  const gradeAccent = subjectPerformanceData[0]?.color ?? TELEMETRY.cyan;
+
+  const subjectStacks = useMemo(
+    () =>
+      buildSubjectStacks(
+        topics,
+        subjectPerformanceData.map((s) => ({ name: s.name, color: s.color })),
+        TELEMETRY.gray
+      ),
+    [topics, subjectPerformanceData, TELEMETRY.gray]
+  );
+
   return (
     <div
       className="stats-telemetry -mx-3 px-3 pt-3 pb-32 min-h-screen"
