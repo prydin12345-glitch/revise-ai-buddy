@@ -8,6 +8,7 @@ import { StudyLoadCard } from "./StudyLoadCard";
 import { SubjectGaugeCard } from "./SubjectGaugeCard";
 import { GradeTrendCard } from "./GradeTrendCard";
 import { AccuracyBreakdownPanel } from "./AccuracyBreakdownPanel";
+import { buildSubjectStacks } from "./SubjectStackedBars";
 import { MobileWeakTopics } from "./MobileWeakTopics";
 import { MasteryRing } from "./MasteryRing";
 import { CoveragePanel } from "./CoveragePanel";
