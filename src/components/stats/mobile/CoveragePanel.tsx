@@ -35,13 +35,13 @@ export const CoveragePanel = ({ topics, subjects }: Props) => {
       bySubject: [...map.entries()]
         .map(([name, v]) => ({
           name,
-          colour: subjects.find((s) => s.name === name)?.color ?? TELEMETRY.gray,
+          colour: subjects.find((s) => s.name === name)?.color ?? TELEMETRY.idle,
           ...v,
           pct: v.total > 0 ? (v.done / v.total) * 100 : 0,
         }))
         .sort((a, b) => a.pct - b.pct),
     };
-  }, [topics, subjects, TELEMETRY.gray]);
+  }, [topics, subjects, TELEMETRY.idle]);
 
   return (
     <div className="space-y-3">
@@ -65,18 +65,18 @@ export const CoveragePanel = ({ topics, subjects }: Props) => {
 
         <div className="flex h-2.5 rounded-full overflow-hidden" style={{ background: TELEMETRY.cardAlt }}>
           {attempted.length > 0 && (
-            <div style={{ width: `${(attempted.length / topics.length) * 100}%`, background: TELEMETRY.lime }} />
+            <div style={{ width: `${(attempted.length / topics.length) * 100}%`, background: TELEMETRY.mastered }} />
           )}
           {pending.length > 0 && (
-            <div style={{ width: `${(pending.length / topics.length) * 100}%`, background: TELEMETRY.amber }} />
+            <div style={{ width: `${(pending.length / topics.length) * 100}%`, background: TELEMETRY.info }} />
           )}
         </div>
 
         <div className="grid grid-cols-3 gap-2 mt-3">
           {([
-            ["Marked", attempted.length, TELEMETRY.lime],
-            ["Awaiting", pending.length, TELEMETRY.amber],
-            ["Untouched", untouched.length, TELEMETRY.gray],
+            ["Marked", attempted.length, TELEMETRY.mastered],
+            ["Awaiting", pending.length, TELEMETRY.info],
+            ["Untouched", untouched.length, TELEMETRY.idle],
           ] as const).map(([label, n, colour]) => (
             <div
               key={label}
@@ -125,7 +125,7 @@ export const CoveragePanel = ({ topics, subjects }: Props) => {
                   <span
                     key={m}
                     className="text-[10px] px-1.5 py-0.5 rounded capitalize"
-                    style={{ color: TELEMETRY.mutedStrong, background: alpha(TELEMETRY.gray, 0.12) }}
+                    style={{ color: TELEMETRY.mutedStrong, background: alpha(TELEMETRY.idle, 0.12) }}
                   >
                     {m}
                   </span>
