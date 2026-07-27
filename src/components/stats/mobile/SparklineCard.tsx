@@ -26,7 +26,7 @@ export const SparklineCard = ({
   onClick,
 }: Props) => {
   const TELEMETRY = useTelemetry();
-  const tone = accent ?? TELEMETRY.lime;
+  const tone = accent ?? TELEMETRY.mastered;
 
   // useId keeps gradient ids unique — deriving them from the label collided
   // whenever the same card appeared twice (e.g. "Accuracy" on the overview and
@@ -39,7 +39,7 @@ export const SparklineCard = ({
   const d = hasSeries ? buildSparklinePath(sparkline, W, H) : "";
 
   const deltaColor =
-    deltaTone === "up" ? TELEMETRY.lime : deltaTone === "down" ? TELEMETRY.magenta : TELEMETRY.muted;
+    deltaTone === "up" ? TELEMETRY.mastered : deltaTone === "down" ? TELEMETRY.review : TELEMETRY.muted;
 
   const Element: any = onClick ? "button" : "div";
 
