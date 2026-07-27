@@ -31,7 +31,7 @@ export const ScoreDistribution = ({ values, height = 72, showLegend = true }: Pr
     const max = Math.max(...counts, 1);
 
     const colourAt = (upper: number) =>
-      upper <= 40 ? TELEMETRY.magenta : upper <= 70 ? TELEMETRY.cyan : TELEMETRY.lime;
+      upper <= 40 ? TELEMETRY.review : upper <= 70 ? TELEMETRY.developing : TELEMETRY.mastered;
 
     return {
       bars: counts.map((count, i) => ({
@@ -47,7 +47,7 @@ export const ScoreDistribution = ({ values, height = 72, showLegend = true }: Pr
       },
       total: clean.length,
     };
-  }, [values, TELEMETRY.magenta, TELEMETRY.cyan, TELEMETRY.lime]);
+  }, [values, TELEMETRY.review, TELEMETRY.developing, TELEMETRY.mastered]);
 
   if (total === 0) {
     return (
@@ -107,9 +107,9 @@ export const ScoreDistribution = ({ values, height = 72, showLegend = true }: Pr
       {showLegend && (
         <div className="flex items-center gap-3 mt-2.5">
           {([
-            ["Needs review", bands.review, TELEMETRY.magenta],
-            ["Developing", bands.developing, TELEMETRY.cyan],
-            ["Mastered", bands.mastered, TELEMETRY.lime],
+            ["Needs review", bands.review, TELEMETRY.review],
+            ["Developing", bands.developing, TELEMETRY.developing],
+            ["Mastered", bands.mastered, TELEMETRY.mastered],
           ] as const).map(([label, count, colour]) => (
             <span key={label} className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-sm" style={{ background: colour }} />
