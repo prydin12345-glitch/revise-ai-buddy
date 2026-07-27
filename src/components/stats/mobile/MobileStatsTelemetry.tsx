@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronRight, ChevronDown, Radar as RadarIcon, TrendingUp, ArrowUpDown, CheckCircle2, Circle } from "lucide-react";
-import { ReadinessRing } from "./ReadinessRing";
+import { ExamTargetHero } from "./ExamTargetHero";
 import { QuickStatsGrid } from "./QuickStatsGrid";
 import { GradeProjectionPanel } from "./GradeProjectionPanel";
 import { StudyLoadCard } from "./StudyLoadCard";
@@ -92,6 +92,15 @@ export const MobileStatsTelemetry = ({
     const base = Math.max(longestStreak, 7);
     return clampPct((currentStreak / base) * 100);
   }, [currentStreak, longestStreak]);
+
+  // The old hero displayed avgScore and called it "readiness", while the sheet
+  // described it as a blend of accuracy, coverage and streak. It wasn't one.
+  // This makes the label true — accuracy dominates because it's the strongest
+  // signal, with coverage and consistency as modifiers.
+  const readinessScore = useMemo(
+    () => clampPct(avgScore) * 0.6 + clampPct(coverage) * 0.25 + clampPct(consistency) * 0.15,
+    [avgScore, coverage, consistency]
+  );
 
   const accuracy = useMemo(() => {
     if (attemptedTopics.length === 0) return avgScore;
@@ -354,12 +363,43 @@ export const MobileStatsTelemetry = ({
         {tab === "overview" && (
           <div className="space-y-4">
             <motion.div {...section(0)}>
-              <ReadinessRing
-                overall={avgScore}
-                coverage={coverage}
-                consistency={consistency}
-                onInfo={() => setSheet("readiness")}
+              <ExamTargetHero
+                subjects={subjectPerformanceData}
+                defaultScaleId={defaultScaleId}
               />
+            </motion.div>
+
+            <motion.div {...section(0.03)}>
+              <button
+                type="button"
+                onClick={() => setSheet("readiness")}
+                className="w-full rounded-2xl p-3.5 flex items-center gap-3 active:opacity-80 transition-opacity"
+                style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}` }}
+              >
+                <span className="flex-1 min-w-0 text-left">
+                  <span className="flex items-baseline gap-2">
+                    <span className="text-[13px] font-semibold" style={{ color: TELEMETRY.text }}>
+                      Exam readiness
+                    </span>
+                    <span className="text-[17px] font-bold tabular-nums" style={{ color: TELEMETRY.mastered }}>
+                      {Math.round(readinessScore)}%
+                    </span>
+                  </span>
+                  <span
+                    className="block h-1.5 rounded-full overflow-hidden mt-2"
+                    style={{ background: TELEMETRY.cardAlt }}
+                  >
+                    <span
+                      className="block h-full rounded-full"
+                      style={{ width: `${clampPct(readinessScore)}%`, background: TELEMETRY.mastered }}
+                    />
+                  </span>
+                  <span className="block text-[11px] mt-1.5" style={{ color: TELEMETRY.muted }}>
+                    {Math.round(avgScore)}% accuracy · {Math.round(coverage)}% coverage · {currentStreak}d streak
+                  </span>
+                </span>
+                <ChevronRight size={16} className="shrink-0" style={{ color: TELEMETRY.muted }} />
+              </button>
             </motion.div>
 
             <motion.div {...section(0.05)}>
