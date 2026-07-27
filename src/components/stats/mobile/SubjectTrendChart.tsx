@@ -85,7 +85,7 @@ export const SubjectTrendChart = ({ data, subject, colour, height = 110 }: Props
   }
 
   const dirColour = (dir: string) =>
-    dir === "up" ? TELEMETRY.lime : dir === "down" ? TELEMETRY.magenta : colour;
+    dir === "up" ? TELEMETRY.mastered : dir === "down" ? TELEMETRY.review : colour;
 
   return (
     <div>
@@ -141,7 +141,7 @@ export const SubjectTrendChart = ({ data, subject, colour, height = 110 }: Props
           className="text-[11px] font-semibold tabular-nums"
           style={{
             color:
-              model.delta > 1 ? TELEMETRY.lime : model.delta < -1 ? TELEMETRY.magenta : TELEMETRY.muted,
+              model.delta > 1 ? TELEMETRY.mastered : model.delta < -1 ? TELEMETRY.review : TELEMETRY.muted,
           }}
         >
           {model.delta > 0 ? "+" : ""}
