@@ -89,9 +89,9 @@ const AccuracyMiniStacks = ({
       {shown.map((s) => {
         const h = Math.max(14, (s.total / max) * H);
         const segs = [
-          { n: s.review, c: p.magenta },
-          { n: s.developing, c: p.cyan },
-          { n: s.mastered, c: p.lime },
+          { n: s.review, c: p.review },
+          { n: s.developing, c: p.developing },
+          { n: s.mastered, c: p.mastered },
         ].filter((seg) => seg.n > 0);
         return (
           <div
@@ -191,13 +191,13 @@ const MasteryTrend = ({
     <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
       <defs>
         <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={p.lime} stopOpacity="0.32" />
-          <stop offset="100%" stopColor={p.lime} stopOpacity="0" />
+          <stop offset="0%" stopColor={p.mastered} stopOpacity="0.32" />
+          <stop offset="100%" stopColor={p.mastered} stopOpacity="0" />
         </linearGradient>
       </defs>
       <path d={`${d} L ${W} ${H} L 0 ${H} Z`} fill={`url(#${gid})`} />
-      <path d={d} stroke={p.lime} strokeWidth={1.6} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={lastX} cy={lastY} r={2.4} fill={p.lime} />
+      <path d={d} stroke={p.mastered} strokeWidth={1.6} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lastX} cy={lastY} r={2.4} fill={p.mastered} />
     </svg>
   );
 };
@@ -223,7 +223,7 @@ const StreakBars = ({
               className="flex-1 rounded-[3px]"
               style={{
                 height: h,
-                background: active ? p.magenta : alpha(p.muted, 0.2),
+                background: active ? p.review : alpha(p.muted, 0.2),
               }}
             />
           );
@@ -269,7 +269,7 @@ export const QuickStatsGrid = ({
   const p = useTelemetry();
 
   const gradeToneColor =
-    gradeTone === "up" ? p.lime : gradeTone === "down" ? p.magenta : p.muted;
+    gradeTone === "up" ? p.mastered : gradeTone === "down" ? p.review : p.muted;
 
   const masteredValue = totalAttempted > 0 ? `${masteredCount} / ${totalAttempted}` : "0";
   const streakDelta = longestStreak > 0 ? `best ${longestStreak}d` : undefined;
