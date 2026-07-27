@@ -30,9 +30,9 @@ export const GradeProjectionPanel = ({ subjects, defaultScaleId }: Props) => {
   const [editing, setEditing] = useState<string | null>(null);
 
   const statusStyle = (s: ReturnType<typeof targetStatus>) => {
-    if (s === "met") return { label: "On target", color: TELEMETRY.lime };
-    if (s === "close") return { label: "Close", color: TELEMETRY.amber };
-    if (s === "behind") return { label: "Behind", color: TELEMETRY.magenta };
+    if (s === "met") return { label: "On target", color: TELEMETRY.mastered };
+    if (s === "close") return { label: "Close", color: TELEMETRY.developing };
+    if (s === "behind") return { label: "Behind", color: TELEMETRY.review };
     return { label: "Set a target", color: TELEMETRY.muted };
   };
 
@@ -57,12 +57,11 @@ export const GradeProjectionPanel = ({ subjects, defaultScaleId }: Props) => {
     <div className="space-y-3">
       <div
         className="flex items-start gap-2 rounded-xl p-3"
-        style={{ background: alpha(TELEMETRY.cyan, 0.08), border: `1px solid ${alpha(TELEMETRY.cyan, 0.2)}` }}
+        style={{ background: alpha(TELEMETRY.info, 0.08), border: `1px solid ${alpha(TELEMETRY.info, 0.2)}` }}
       >
-        <Info size={14} className="mt-0.5 shrink-0" style={{ color: TELEMETRY.cyan }} />
+        <Info size={14} className="mt-0.5 shrink-0" style={{ color: TELEMETRY.info }} />
         <p className="text-[12px] leading-snug" style={{ color: TELEMETRY.mutedStrong }}>
-          These are estimates. Real grade boundaries change every year and differ by board and
-          subject — set your own from a recent past paper for a projection you can trust.
+          Estimates — set your own boundaries from a past paper for a projection you can trust.
         </p>
       </div>
 
@@ -124,7 +123,7 @@ export const GradeProjectionPanel = ({ subjects, defaultScaleId }: Props) => {
             </button>
 
             {projection.cappedByTier && (
-              <p className="px-4 pb-3 -mt-1 text-[11px]" style={{ color: TELEMETRY.amber }}>
+              <p className="px-4 pb-3 -mt-1 text-[11px]" style={{ color: TELEMETRY.developing }}>
                 Capped at {projection.grade} by the tier you're entered for.
               </p>
             )}
@@ -209,41 +208,56 @@ export const GradeProjectionPanel = ({ subjects, defaultScaleId }: Props) => {
                 {scale.grades.length > 0 && (
                   <div>
                     <span className="block text-[11px] mb-2" style={{ color: TELEMETRY.muted }}>
-                      Grade boundaries (minimum %)
+                      Grade boundaries — minimum % for each grade
                     </span>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {scale.grades
                         .filter((g) => bounds[g] !== undefined)
-                        .map((g) => (
-                          <label
-                            key={g}
-                            className="flex items-center gap-1.5 rounded-lg px-2 h-10"
-                            style={{ background: TELEMETRY.cardAlt, border: `1px solid ${TELEMETRY.border}` }}
-                          >
-                            <span className="text-[12px] font-semibold w-6 shrink-0" style={{ color: TELEMETRY.text }}>
-                              {g}
-                            </span>
-                            <input
-                              type="number"
-                              inputMode="numeric"
-                              min={0}
-                              max={100}
-                              value={bounds[g]}
-                              onChange={(e) =>
-                                setBoundary(
-                                  subject.name,
-                                  g,
-                                  e.target.value === "" ? null : Number(e.target.value)
-                                )
-                              }
-                              className="w-full bg-transparent text-[13px] tabular-nums outline-none min-w-0"
-                              style={{ color: TELEMETRY.text }}
-                            />
-                            <span className="text-[11px] shrink-0" style={{ color: TELEMETRY.muted }}>
-                              %
-                            </span>
-                          </label>
-                        ))}
+                        .map((g) => {
+                          const edited = settings.boundaries?.[g] !== undefined;
+                          return (
+                            <label
+                              key={g}
+                              className="group flex items-center rounded-full h-9 pl-1 pr-2.5 transition-colors focus-within:ring-2"
+                              style={{
+                                background: TELEMETRY.cardAlt,
+                                border: `1px solid ${edited ? TELEMETRY.info : TELEMETRY.border}`,
+                              }}
+                            >
+                              {/* Grade sits in its own disc so the pill reads as
+                                  "grade = value" rather than a labelled box. */}
+                              <span
+                                className="w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-bold shrink-0"
+                                style={{
+                                  background: edited ? TELEMETRY.info : TELEMETRY.card,
+                                  color: edited ? TELEMETRY.onAccent : TELEMETRY.text,
+                                }}
+                              >
+                                {g}
+                              </span>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={0}
+                                max={100}
+                                value={bounds[g]}
+                                onChange={(e) =>
+                                  setBoundary(
+                                    subject.name,
+                                    g,
+                                    e.target.value === "" ? null : Number(e.target.value)
+                                  )
+                                }
+                                aria-label={`Minimum percentage for grade ${g}`}
+                                className="w-9 bg-transparent text-[13px] font-semibold tabular-nums text-right outline-none ml-1.5"
+                                style={{ color: TELEMETRY.text }}
+                              />
+                              <span className="text-[11px] ml-0.5" style={{ color: TELEMETRY.muted }}>
+                                %
+                              </span>
+                            </label>
+                          );
+                        })}
                     </div>
                   </div>
                 )}
