@@ -72,8 +72,8 @@ export const ScoreTrendCard = ({ data, timeRange, onTimeRangeChange }: Props) =>
             <AreaChart data={flat} margin={{ top: 6, right: 10, left: -18, bottom: 0 }}>
               <defs>
                 <linearGradient id="scoreFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={TELEMETRY.lime} stopOpacity={0.08} />
-                  <stop offset="100%" stopColor={TELEMETRY.lime} stopOpacity={0} />
+                  <stop offset="0%" stopColor={TELEMETRY.mastered} stopOpacity={0.08} />
+                  <stop offset="100%" stopColor={TELEMETRY.mastered} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid stroke={TELEMETRY.border} strokeDasharray="2 4" vertical={false} />
@@ -110,12 +110,12 @@ export const ScoreTrendCard = ({ data, timeRange, onTimeRangeChange }: Props) =>
               <Area
                 type="monotone"
                 dataKey="score"
-                stroke={TELEMETRY.lime}
+                stroke={TELEMETRY.mastered}
                 strokeWidth={2}
                 fill="url(#scoreFill)"
                 isAnimationActive={false}
-                dot={<TrendDot lastIdx={lastIdx} colour={TELEMETRY.lime} ring={TELEMETRY.card} />}
-                activeDot={{ r: 5, fill: TELEMETRY.lime, stroke: TELEMETRY.bg, strokeWidth: 2 }}
+                dot={<TrendDot lastIdx={lastIdx} colour={TELEMETRY.mastered} ring={TELEMETRY.card} />}
+                activeDot={{ r: 5, fill: TELEMETRY.mastered, stroke: TELEMETRY.bg, strokeWidth: 2 }}
               />
             </AreaChart>
           </ResponsiveContainer>
