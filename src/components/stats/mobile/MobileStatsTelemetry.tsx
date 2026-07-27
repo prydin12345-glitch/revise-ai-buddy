@@ -344,14 +344,19 @@ export const MobileStatsTelemetry = ({
             <motion.div {...section(0.05)}>
               <QuickStatsGrid
                 accuracy={accuracy}
-                accuracySeries={scoreSeries.slice(-7)}
+                accuracySessions={scoreSeries.slice(-7)}
                 gradeValue={gradeSummary.value}
                 gradeDelta={gradeSummary.delta}
                 gradeTone={gradeSummary.tone}
-                masteredCount={masteredCount}
+                gradeTrajectory={scoreSeries.slice(-8)}
+                masteredCount={masteryBands.strong.length}
+                developingCount={masteryBands.developing.length}
+                reviewCount={masteryBands.review.length}
                 totalAttempted={attemptedTopics.length}
                 streak={currentStreak}
                 longestStreak={longestStreak}
+                streakDays={streakGrid}
+                streakLoads={hoursSeries.slice(0, 7)}
                 onOpenAccuracy={() => setSheet("accuracy")}
                 onOpenGrade={() => setSheet("grade")}
                 onOpenMastered={() => setSheet("mastered")}
