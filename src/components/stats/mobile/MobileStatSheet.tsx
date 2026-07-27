@@ -99,7 +99,12 @@ export const MobileStatSheet = ({ open, onClose, title, subtitle, children }: Pr
                 <X size={16} />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 py-4 pb-10">{children}</div>
+            <div
+              className="flex-1 overflow-y-auto no-scrollbar px-4 py-4 pb-10"
+              style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}
+            >
+              {children}
+            </div>
           </motion.div>
         </>
       )}
