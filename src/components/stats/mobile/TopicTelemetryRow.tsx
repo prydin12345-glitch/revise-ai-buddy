@@ -15,7 +15,7 @@ export const TopicTelemetryRow = ({ topic, compact = false }: Props) => {
   // Answered but unmarked work has no score yet — showing it as 0% read as a
   // failed topic when the paper simply hadn't been submitted.
   const awaiting = attempts === 0 && pending > 0;
-  const color = awaiting ? TELEMETRY.amber : scoreStatusColor(pct, attempts, TELEMETRY);
+  const color = awaiting ? TELEMETRY.info : scoreStatusColor(pct, attempts, TELEMETRY);
   const status = awaiting ? "Awaiting marking" : scoreStatusLabel(pct, attempts);
 
   return (
@@ -64,7 +64,7 @@ export const TopicTelemetryRow = ({ topic, compact = false }: Props) => {
       <div className="text-right flex-shrink-0 w-14">
         <div
           className="text-[14px] font-semibold tabular-nums"
-          style={{ color: awaiting ? TELEMETRY.amber : TELEMETRY.text }}
+          style={{ color: awaiting ? TELEMETRY.info : TELEMETRY.text }}
         >
           {attempts > 0 ? `${pct}%` : awaiting ? "··" : "—"}
         </div>
