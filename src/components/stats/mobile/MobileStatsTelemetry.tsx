@@ -284,16 +284,16 @@ export const MobileStatsTelemetry = ({
     return total > 0 ? Math.round((met / total) * 100) : null;
   }, [gradeSummary.value]);
 
-  const gradeAccent = subjectPerformanceData[0]?.color ?? TELEMETRY.cyan;
+  const gradeAccent = subjectPerformanceData[0]?.color ?? TELEMETRY.info;
 
   const subjectStacks = useMemo(
     () =>
       buildSubjectStacks(
         topics,
         subjectPerformanceData.map((s) => ({ name: s.name, color: s.color })),
-        TELEMETRY.gray
+        TELEMETRY.idle
       ),
-    [topics, subjectPerformanceData, TELEMETRY.gray]
+    [topics, subjectPerformanceData, TELEMETRY.idle]
   );
 
   return (
@@ -338,7 +338,7 @@ export const MobileStatsTelemetry = ({
                       className="text-[10px] font-bold tabular-nums rounded-full px-1.5 leading-[16px] min-w-[16px] text-center"
                       style={{
                         color: active ? TELEMETRY.card : TELEMETRY.onAccent,
-                        background: TELEMETRY.magenta,
+                        background: TELEMETRY.review,
                       }}
                     >
                       {t.count}
@@ -411,7 +411,7 @@ export const MobileStatsTelemetry = ({
                     type="button"
                     onClick={() => setTab("topics")}
                     className="text-[11px] font-semibold flex items-center gap-0.5"
-                    style={{ color: TELEMETRY.cyan }}
+                    style={{ color: TELEMETRY.info }}
                   >
                     View all <ChevronRight size={12} />
                   </button>
@@ -463,7 +463,7 @@ export const MobileStatsTelemetry = ({
                 style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}` }}
               >
                 <div className="flex items-center gap-2 mb-3">
-                  <TrendingUp size={14} style={{ color: TELEMETRY.lime }} />
+                  <TrendingUp size={14} style={{ color: TELEMETRY.mastered }} />
                   <div className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>
                     Subject Accuracy
                   </div>
@@ -521,9 +521,9 @@ export const MobileStatsTelemetry = ({
             >
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: alpha(TELEMETRY.magenta, 0.1), border: `1px solid ${alpha(TELEMETRY.magenta, 0.2)}` }}
+                style={{ background: alpha(TELEMETRY.review, 0.1), border: `1px solid ${alpha(TELEMETRY.review, 0.2)}` }}
               >
-                <RadarIcon size={18} style={{ color: TELEMETRY.magenta }} />
+                <RadarIcon size={18} style={{ color: TELEMETRY.review }} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-[11px]" style={{ color: TELEMETRY.muted }}>
@@ -535,7 +535,7 @@ export const MobileStatsTelemetry = ({
               </div>
               {sparkPath && (
                 <svg width={64} height={28} viewBox="0 0 140 36" preserveAspectRatio="none" className="flex-shrink-0">
-                  <path d={sparkPath} fill="none" stroke={TELEMETRY.lime} strokeWidth={2} />
+                  <path d={sparkPath} fill="none" stroke={TELEMETRY.mastered} strokeWidth={2} />
                 </svg>
               )}
               <ChevronRight size={16} style={{ color: TELEMETRY.muted }} className="flex-shrink-0" />
@@ -567,9 +567,9 @@ export const MobileStatsTelemetry = ({
             <MasteryRing
               score={accuracy}
               bands={[
-                { label: "Mastered ≥70%", count: masteryBands.strong.length, colour: TELEMETRY.lime },
-                { label: "Developing 40–69%", count: masteryBands.developing.length, colour: TELEMETRY.cyan },
-                { label: "Review <40%", count: masteryBands.review.length, colour: TELEMETRY.magenta },
+                { label: "Mastered ≥70%", count: masteryBands.strong.length, colour: TELEMETRY.mastered },
+                { label: "Developing 40–69%", count: masteryBands.developing.length, colour: TELEMETRY.developing },
+                { label: "Review <40%", count: masteryBands.review.length, colour: TELEMETRY.review },
               ]}
             />
           </div>
@@ -584,7 +584,7 @@ export const MobileStatsTelemetry = ({
               <span className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>
                 Revision streak
               </span>
-              <span className="text-lg font-bold tabular-nums" style={{ color: TELEMETRY.magenta }}>
+              <span className="text-lg font-bold tabular-nums" style={{ color: TELEMETRY.review }}>
                 {currentStreak}d
               </span>
             </div>
@@ -593,7 +593,7 @@ export const MobileStatsTelemetry = ({
                 className="h-full rounded-full"
                 style={{
                   width: `${longestStreak > 0 ? Math.min(100, (currentStreak / longestStreak) * 100) : 0}%`,
-                  background: TELEMETRY.magenta,
+                  background: TELEMETRY.review,
                 }}
               />
             </div>
@@ -646,7 +646,7 @@ export const MobileStatsTelemetry = ({
         open={sheet === "mastered"}
         onClose={() => setSheet(null)}
         title="Question Retention"
-        subtitle="What you still hold onto, and what's fading."
+        subtitle="Topic decay & memory freshness"
       >
         <RetentionPanel topics={topics} subjects={subjectPerformanceData} />
       </MobileStatSheet>
@@ -672,11 +672,11 @@ export const MobileStatsTelemetry = ({
                   key={i}
                   className="aspect-square rounded-md flex items-center justify-center"
                   style={{
-                    background: active ? alpha(TELEMETRY.magenta, 0.13) : TELEMETRY.cardAlt,
-                    border: `1px solid ${active ? TELEMETRY.magenta : TELEMETRY.border}`,
+                    background: active ? alpha(TELEMETRY.review, 0.13) : TELEMETRY.cardAlt,
+                    border: `1px solid ${active ? TELEMETRY.review : TELEMETRY.border}`,
                   }}
                 >
-                  {active && <CheckCircle2 size={12} style={{ color: TELEMETRY.magenta }} />}
+                  {active && <CheckCircle2 size={12} style={{ color: TELEMETRY.review }} />}
                 </div>
               ))}
             </div>
