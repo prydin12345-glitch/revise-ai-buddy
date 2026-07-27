@@ -39,7 +39,7 @@ export const RangeChips = ({ value, onChange }: Props) => {
             className="min-h-[36px] px-4 rounded-full text-xs font-semibold tracking-wide transition-colors"
             style={{
               color: active ? TELEMETRY.onAccent : TELEMETRY.mutedStrong,
-              background: active ? TELEMETRY.lime : "transparent",
+              background: active ? TELEMETRY.mastered : "transparent",
             }}
           >
             {o.label}
