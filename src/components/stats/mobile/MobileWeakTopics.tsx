@@ -175,8 +175,8 @@ const WrongAnswers = ({ topic }: { topic: string }) => {
             <span
               className="text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded"
               style={{
-                color: TELEMETRY.magenta,
-                background: alpha(TELEMETRY.magenta, 0.1),
+                color: TELEMETRY.review,
+                background: alpha(TELEMETRY.review, 0.1),
               }}
             >
               {r.score}/{r.marks}
@@ -187,7 +187,7 @@ const WrongAnswers = ({ topic }: { topic: string }) => {
           </div>
           {r.correctAnswer && (
             <div className="mt-2 pt-2 text-[11px] leading-snug" style={{ borderTop: `1px solid ${TELEMETRY.border}`, color: TELEMETRY.mutedStrong }}>
-              <span className="font-semibold" style={{ color: TELEMETRY.lime }}>Expected: </span>
+              <span className="font-semibold" style={{ color: TELEMETRY.mastered }}>Expected: </span>
               <MathRenderer content={r.correctAnswer} />
             </div>
           )}
@@ -208,13 +208,13 @@ export const MobileWeakTopics = ({ topics, loading, subjects = [] }: Props) => {
 
   const bandColour = (key: FilterKey) =>
     key === "review"
-      ? TELEMETRY.magenta
+      ? TELEMETRY.review
       : key === "developing"
-      ? TELEMETRY.cyan
+      ? TELEMETRY.developing
       : key === "mastered"
-      ? TELEMETRY.lime
+      ? TELEMETRY.mastered
       : key === "pending"
-      ? TELEMETRY.amber
+      ? TELEMETRY.info
       : TELEMETRY.mutedStrong;
 
   const subjectColours = useMemo(
@@ -274,7 +274,7 @@ export const MobileWeakTopics = ({ topics, loading, subjects = [] }: Props) => {
             <div className="flex items-baseline gap-2">
               <span
                 className="text-[36px] font-bold tabular-nums leading-none"
-                style={{ color: counts.review > 0 ? TELEMETRY.magenta : TELEMETRY.lime }}
+                style={{ color: counts.review > 0 ? TELEMETRY.review : TELEMETRY.mastered }}
               >
                 {counts.review}
               </span>
@@ -296,7 +296,7 @@ export const MobileWeakTopics = ({ topics, loading, subjects = [] }: Props) => {
                 cy={30}
                 r={25}
                 fill="none"
-                stroke={TELEMETRY.lime}
+                stroke={TELEMETRY.mastered}
                 strokeWidth={6}
                 strokeLinecap="round"
                 strokeDasharray={`${(coverage / 100) * 2 * Math.PI * 25} ${2 * Math.PI * 25}`}
@@ -315,9 +315,9 @@ export const MobileWeakTopics = ({ topics, loading, subjects = [] }: Props) => {
           style={{ borderTop: `1px solid ${TELEMETRY.border}` }}
         >
           {([
-            ["Mastered", counts.mastered, TELEMETRY.lime],
-            ["Developing", counts.developing, TELEMETRY.cyan],
-            ["Untouched", counts.untouched, TELEMETRY.gray],
+            ["Mastered", counts.mastered, TELEMETRY.mastered],
+            ["Developing", counts.developing, TELEMETRY.developing],
+            ["Untouched", counts.untouched, TELEMETRY.idle],
           ] as const).map(([label, value, colour]) => (
             <span key={label} className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: colour }} />
@@ -414,7 +414,7 @@ export const MobileWeakTopics = ({ topics, loading, subjects = [] }: Props) => {
           className="rounded-2xl p-8 text-center"
           style={{ background: TELEMETRY.card, border: `1px dashed ${TELEMETRY.border}` }}
         >
-          <Sparkles size={22} className="mx-auto mb-2" style={{ color: TELEMETRY.lime }} />
+          <Sparkles size={22} className="mx-auto mb-2" style={{ color: TELEMETRY.mastered }} />
           <p className="text-[13px] font-medium" style={{ color: TELEMETRY.text }}>Nothing here</p>
           <p className="text-[12px] mt-1" style={{ color: TELEMETRY.muted }}>
             No topics in this band right now.
@@ -427,10 +427,10 @@ export const MobileWeakTopics = ({ topics, loading, subjects = [] }: Props) => {
             const pending = t.pendingQuestionCount ?? 0;
             const awaiting = attempts === 0 && pending > 0;
             const pct = clampPct(t.unifiedScore);
-            const colour = awaiting ? TELEMETRY.amber : scoreStatusColor(pct, attempts, TELEMETRY);
+            const colour = awaiting ? TELEMETRY.info : scoreStatusColor(pct, attempts, TELEMETRY);
             const label = awaiting ? "Awaiting marking" : scoreStatusLabel(pct, attempts);
             const subjectColour =
-              subjectColours.get(t.subjectId ?? "") ?? TELEMETRY.gray;
+              subjectColours.get(t.subjectId ?? "") ?? TELEMETRY.idle;
 
             return (
               <motion.button
@@ -477,7 +477,7 @@ export const MobileWeakTopics = ({ topics, loading, subjects = [] }: Props) => {
                   <div className="text-right shrink-0">
                     <div
                       className="text-[20px] font-bold tabular-nums leading-none"
-                      style={{ color: awaiting ? TELEMETRY.amber : TELEMETRY.text }}
+                      style={{ color: awaiting ? TELEMETRY.info : TELEMETRY.text }}
                     >
                       {attempts > 0 ? `${pct}%` : awaiting ? "··" : "—"}
                     </div>
@@ -544,7 +544,7 @@ export const MobileWeakTopics = ({ topics, loading, subjects = [] }: Props) => {
                           className="h-full rounded-full"
                           style={{
                             width: `${count > 0 && score !== null ? clampPct(score) : 0}%`,
-                            background: label === "Exam" ? TELEMETRY.cyan : TELEMETRY.lime,
+                            background: label === "Exam" ? TELEMETRY.info : TELEMETRY.mastered,
                           }}
                         />
                       </div>
@@ -575,8 +575,8 @@ export const MobileWeakTopics = ({ topics, loading, subjects = [] }: Props) => {
                   className="text-[12px] rounded-xl p-3"
                   style={{
                     color: TELEMETRY.mutedStrong,
-                    background: alpha(TELEMETRY.cyan, 0.08),
-                    border: `1px solid ${alpha(TELEMETRY.cyan, 0.2)}`,
+                    background: alpha(TELEMETRY.info, 0.08),
+                    border: `1px solid ${alpha(TELEMETRY.info, 0.2)}`,
                   }}
                 >
                   You've practised this since your last exam — the exam figure above may be out of date.
@@ -594,7 +594,7 @@ export const MobileWeakTopics = ({ topics, loading, subjects = [] }: Props) => {
                 type="button"
                 onClick={() => practise(selected)}
                 className="w-full min-h-[48px] rounded-xl font-semibold text-[14px] flex items-center justify-center gap-2 active:scale-[0.99] transition-transform"
-                style={{ background: TELEMETRY.lime, color: TELEMETRY.onAccent }}
+                style={{ background: TELEMETRY.mastered, color: TELEMETRY.onAccent }}
               >
                 Practise this topic
                 <ArrowUpRight size={16} />
