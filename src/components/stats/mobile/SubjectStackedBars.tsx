@@ -76,7 +76,7 @@ export const SubjectStackedBars = ({ topics, subjects, onSelect, selected }: Pro
 
   return (
     <div>
-      <div className="flex items-end justify-around gap-3" style={{ height: 132 }}>
+      <div className="flex items-end justify-around gap-4" style={{ height: 148 }}>
         {stacks.map((s) => {
           const heightPct = (s.total / max) * 100;
           const isDim = selected != null && selected !== s.name;
@@ -93,18 +93,19 @@ export const SubjectStackedBars = ({ topics, subjects, onSelect, selected }: Pro
               type="button"
               onClick={() => onSelect?.(s.name)}
               disabled={!onSelect}
-              className="flex-1 max-w-[64px] h-full flex flex-col items-center justify-end gap-2 transition-opacity active:scale-[0.97]"
+              className="flex-1 max-w-[48px] h-full flex flex-col items-center justify-end gap-2 transition-opacity active:scale-[0.97]"
               style={{ opacity: isDim ? 0.35 : 1 }}
             >
               <span className="text-[11px] font-semibold tabular-nums" style={{ color: TELEMETRY.text }}>
                 {s.total}
               </span>
               <div
-                className="w-full rounded-full overflow-hidden flex flex-col"
+                className="rounded-full overflow-hidden flex flex-col"
                 style={{
+                  width: 14,
                   height: `${Math.max(heightPct, 12)}%`,
                   background: TELEMETRY.cardAlt,
-                  border: selected === s.name ? `1.5px solid ${s.colour}` : undefined,
+                  boxShadow: selected === s.name ? `0 0 0 1.5px ${s.colour}` : undefined,
                 }}
               >
                 {segments.map((seg, i) => (

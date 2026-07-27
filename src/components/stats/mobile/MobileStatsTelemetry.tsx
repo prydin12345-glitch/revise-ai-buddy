@@ -8,6 +8,7 @@ import { StudyLoadCard } from "./StudyLoadCard";
 import { SubjectGaugeCard } from "./SubjectGaugeCard";
 import { GradeTrendCard } from "./GradeTrendCard";
 import { AccuracyBreakdownPanel } from "./AccuracyBreakdownPanel";
+import { buildSubjectStacks } from "./SubjectStackedBars";
 import { MobileWeakTopics } from "./MobileWeakTopics";
 import { MasteryRing } from "./MasteryRing";
 import { CoveragePanel } from "./CoveragePanel";
@@ -275,6 +276,26 @@ export const MobileStatsTelemetry = ({
     };
   }, [subjectPerformanceData, getGradeSettings, defaultScaleId]);
 
+  const gradeProgress = useMemo(() => {
+    const m = gradeSummary.value.match(/^(\d+)\s*\/\s*(\d+)/);
+    if (!m) return null;
+    const met = Number(m[1]);
+    const total = Number(m[2]);
+    return total > 0 ? Math.round((met / total) * 100) : null;
+  }, [gradeSummary.value]);
+
+  const gradeAccent = subjectPerformanceData[0]?.color ?? TELEMETRY.cyan;
+
+  const subjectStacks = useMemo(
+    () =>
+      buildSubjectStacks(
+        topics,
+        subjectPerformanceData.map((s) => ({ name: s.name, color: s.color })),
+        TELEMETRY.gray
+      ),
+    [topics, subjectPerformanceData, TELEMETRY.gray]
+  );
+
   return (
     <div
       className="stats-telemetry -mx-3 px-3 pt-3 pb-32 min-h-screen"
@@ -345,14 +366,18 @@ export const MobileStatsTelemetry = ({
               <QuickStatsGrid
                 accuracy={accuracy}
                 accuracySessions={scoreSeries.slice(-7)}
+                subjectStacks={subjectStacks}
                 gradeValue={gradeSummary.value}
                 gradeDelta={gradeSummary.delta}
                 gradeTone={gradeSummary.tone}
+                gradeProgress={gradeProgress}
+                gradeAccent={gradeAccent}
                 gradeTrajectory={scoreSeries.slice(-8)}
                 masteredCount={masteryBands.strong.length}
                 developingCount={masteryBands.developing.length}
                 reviewCount={masteryBands.review.length}
                 totalAttempted={attemptedTopics.length}
+                masteredHistory={scoreSeries.slice(-12)}
                 streak={currentStreak}
                 longestStreak={longestStreak}
                 streakDays={streakGrid}

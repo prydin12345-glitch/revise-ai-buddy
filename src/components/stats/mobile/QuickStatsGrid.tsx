@@ -1,23 +1,26 @@
 import { useId } from "react";
 import { Target, Flame, GraduationCap, CheckCircle2, LucideIcon } from "lucide-react";
 import { useTelemetry, buildSparklinePath, alpha, TelemetryPalette } from "./tokens";
+import type { SubjectStack } from "./SubjectStackedBars";
 
 interface Props {
   accuracy: number;                    // 0..100
-  accuracySessions: number[];          // recent 0..100 session scores (up to 7)
+  accuracySessions: number[];          // (unused now — kept for API compat)
+  subjectStacks: SubjectStack[];       // for the Accuracy mini-viz
   gradeValue: string;                  // e.g. "1 / 1"
-  gradeDelta?: string;                 // e.g. "all on target"
+  gradeDelta?: string;
   gradeTone?: "up" | "down" | "neutral";
-  gradeTrajectory: number[];           // recent avg % across subjects with targets
+  gradeProgress: number | null;        // 0..100 or null when no targets set
+  gradeAccent: string;                 // subject-tinted fill colour
+  gradeTrajectory: number[];           // kept for API compat
   masteredCount: number;
   developingCount: number;
   reviewCount: number;
   totalAttempted: number;
+  masteredHistory: number[];           // mastery trend sparkline data
   streak: number;
   longestStreak: number;
-  /** 7 booleans (Mon..Sun of current week) — true if the student studied. */
   streakDays: boolean[];
-  /** Matching 7 numeric loads (0..1 normalised or raw hrs) for bar heights. */
   streakLoads?: number[];
   onOpenAccuracy?: () => void;
   onOpenGrade?: () => void;
@@ -34,7 +37,7 @@ interface ShellProps {
   valueColor?: string;
   topRight?: React.ReactNode;
   onClick?: () => void;
-  children: React.ReactNode;                   // the micro-viz
+  children: React.ReactNode;
   p: TelemetryPalette;
 }
 
@@ -60,47 +63,52 @@ const CardShell = ({ icon: Icon, label, value, valueColor, topRight, onClick, ch
       >
         {value}
       </div>
-      <div className="mt-3">{children}</div>
+      <div className="mt-auto pt-3">{children}</div>
     </Element>
   );
 };
 
-/* ───────────────────────── 1. Accuracy — stacked mini bars ───────────────────────── */
+/* ───── 1. Accuracy — mini stacked mastery capsules per subject ───── */
 
-const AccuracyBars = ({ series, p }: { series: number[]; p: TelemetryPalette }) => {
-  // Pad to 7 slots so the rhythm is stable even with a single recent session.
-  const slots: (number | null)[] = Array.from({ length: 7 }, (_, i) => {
-    const v = series[series.length - 7 + i];
-    return typeof v === "number" ? Math.max(0, Math.min(100, v)) : null;
-  });
+const AccuracyMiniStacks = ({
+  stacks, p,
+}: { stacks: SubjectStack[]; p: TelemetryPalette }) => {
+  if (stacks.length === 0) {
+    return (
+      <div
+        className="w-full rounded-full"
+        style={{ height: 4, background: alpha(p.muted, 0.18) }}
+      />
+    );
+  }
+  const shown = stacks.slice(0, 6);
+  const max = Math.max(...shown.map((s) => s.total), 1);
   const H = 34;
   return (
-    <div className="flex items-end gap-[5px] h-[34px]">
-      {slots.map((v, i) => {
-        if (v == null) {
-          return (
-            <div
-              key={i}
-              className="flex-1 rounded-[3px]"
-              style={{ height: 4, background: alpha(p.muted, 0.18) }}
-            />
-          );
-        }
-        // Split into a "hit" band (correct) and a "miss" band above it.
-        const hit = Math.max(3, (v / 100) * H);
-        const miss = Math.max(0, H - hit);
+    <div className="flex items-end justify-start gap-2" style={{ height: H }}>
+      {shown.map((s) => {
+        const h = Math.max(14, (s.total / max) * H);
+        const segs = [
+          { n: s.review, c: p.magenta },
+          { n: s.developing, c: p.cyan },
+          { n: s.mastered, c: p.lime },
+        ].filter((seg) => seg.n > 0);
         return (
-          <div key={i} className="flex-1 flex flex-col justify-end" style={{ height: H }}>
-            {miss > 2 && (
+          <div
+            key={s.name}
+            className="rounded-full overflow-hidden flex flex-col"
+            style={{
+              width: 6,
+              height: h,
+              background: alpha(p.muted, 0.16),
+            }}
+          >
+            {segs.map((seg, i) => (
               <div
-                className="rounded-t-[3px]"
-                style={{ height: miss, background: alpha(p.cyan, 0.22) }}
+                key={i}
+                style={{ height: `${(seg.n / s.total) * 100}%`, background: seg.c }}
               />
-            )}
-            <div
-              className={miss > 2 ? "rounded-b-[3px]" : "rounded-[3px]"}
-              style={{ height: hit, background: p.lime }}
-            />
+            ))}
           </div>
         );
       })}
@@ -108,25 +116,74 @@ const AccuracyBars = ({ series, p }: { series: number[]; p: TelemetryPalette }) 
   );
 };
 
-/* ───────────────────────── 2. Target grades — area line ───────────────────────── */
+/* ───── 2. Target grades — pill progress with striped remainder ───── */
 
-const GradeArea = ({ series, p }: { series: number[]; p: TelemetryPalette }) => {
-  const gid = `garea-${useId().replace(/:/g, "")}`;
-  const W = 120;
-  const H = 34;
-  const has = series.length > 1;
-  const d = has ? buildSparklinePath(series, W, H) : "";
+const GradePillProgress = ({
+  pct, accent, p,
+}: { pct: number | null; accent: string; p: TelemetryPalette }) => {
+  const sid = `gs-${useId().replace(/:/g, "")}`;
+  const value = pct ?? 0;
+  const H = 12;
+  return (
+    <div className="w-full">
+      <div className="relative w-full overflow-hidden rounded-full" style={{ height: H, background: p.cardAlt }}>
+        <svg className="absolute inset-0 w-full h-full" aria-hidden>
+          <defs>
+            <pattern id={sid} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <rect width="6" height="6" fill={alpha(p.muted, 0.06)} />
+              <line x1="0" y1="0" x2="0" y2="6" stroke={alpha(p.muted, 0.35)} strokeWidth="1.2" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill={`url(#${sid})`} />
+        </svg>
+        {value > 0 && (
+          <div
+            className="absolute inset-y-0 left-0 rounded-full"
+            style={{
+              width: `${Math.max(4, Math.min(100, value))}%`,
+              background: `linear-gradient(90deg, ${alpha(accent, 0.85)}, ${accent})`,
+              boxShadow: `0 0 12px ${alpha(accent, 0.45)}`,
+            }}
+          />
+        )}
+      </div>
+      <div className="flex justify-center mt-2">
+        <span
+          className="text-[10px] font-semibold tabular-nums rounded-full px-2 py-0.5"
+          style={{
+            color: pct == null ? p.muted : p.text,
+            background: pct == null ? alpha(p.muted, 0.14) : alpha(accent, 0.18),
+            border: `1px solid ${pct == null ? p.border : alpha(accent, 0.35)}`,
+          }}
+        >
+          {pct == null ? "—" : `${value}%`}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+/* ───── 3. Mastered — smooth area sparkline of progression ───── */
+
+const MasteryTrend = ({
+  history, p,
+}: { history: number[]; p: TelemetryPalette }) => {
+  const gid = `mtrend-${useId().replace(/:/g, "")}`;
+  const W = 140;
+  const H = 40;
+  const has = history.length > 1;
+  const d = has ? buildSparklinePath(history, W, H) : "";
   if (!d) {
     return (
       <div
-        className="w-full rounded-[3px]"
-        style={{ height: 2, background: alpha(p.muted, 0.25) }}
+        className="w-full rounded-full"
+        style={{ height: 4, background: alpha(p.muted, 0.18) }}
       />
     );
   }
-  const last = series[series.length - 1];
-  const min = Math.min(...series);
-  const max = Math.max(...series);
+  const last = history[history.length - 1];
+  const min = Math.min(...history);
+  const max = Math.max(...history);
   const range = max - min || 1;
   const lastX = W - 2;
   const lastY = 2 + (1 - (last - min) / range) * (H - 4);
@@ -134,59 +191,18 @@ const GradeArea = ({ series, p }: { series: number[]; p: TelemetryPalette }) => 
     <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
       <defs>
         <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={p.cyan} stopOpacity="0.28" />
-          <stop offset="100%" stopColor={p.cyan} stopOpacity="0" />
+          <stop offset="0%" stopColor={p.lime} stopOpacity="0.32" />
+          <stop offset="100%" stopColor={p.lime} stopOpacity="0" />
         </linearGradient>
       </defs>
       <path d={`${d} L ${W} ${H} L 0 ${H} Z`} fill={`url(#${gid})`} />
-      <path d={d} stroke={p.cyan} strokeWidth={1.6} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={lastX} cy={lastY} r={2.4} fill={p.cyan} />
+      <path d={d} stroke={p.lime} strokeWidth={1.6} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lastX} cy={lastY} r={2.4} fill={p.lime} />
     </svg>
   );
 };
 
-/* ───────────────────────── 3. Mastered — segmented bar ───────────────────────── */
-
-const MasterySegments = ({
-  mastered, developing, review, p,
-}: { mastered: number; developing: number; review: number; p: TelemetryPalette }) => {
-  const total = mastered + developing + review;
-  if (total === 0) {
-    return (
-      <div
-        className="w-full rounded-full"
-        style={{ height: 6, background: alpha(p.muted, 0.2) }}
-      />
-    );
-  }
-  const segs = [
-    { n: mastered, c: p.lime },
-    { n: developing, c: p.amber },
-    { n: review, c: p.magenta },
-  ].filter((s) => s.n > 0);
-  return (
-    <div className="space-y-2">
-      <div
-        className="flex w-full overflow-hidden rounded-full gap-[2px]"
-        style={{ height: 6, background: alpha(p.muted, 0.14) }}
-      >
-        {segs.map((s, i) => (
-          <div
-            key={i}
-            style={{ width: `${(s.n / total) * 100}%`, background: s.c }}
-          />
-        ))}
-      </div>
-      <div className="flex items-center gap-2 text-[10px] tabular-nums" style={{ color: p.muted }}>
-        <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: p.lime }} />{mastered}</span>
-        <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: p.amber }} />{developing}</span>
-        <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: p.magenta }} />{review}</span>
-      </div>
-    </div>
-  );
-};
-
-/* ───────────────────────── 4. Streak — 7-day activity bars ───────────────────────── */
+/* ───── 4. Streak — untouched 7-day activity bars ───── */
 
 const StreakBars = ({
   days, loads, p,
@@ -232,15 +248,15 @@ const StreakBars = ({
 
 export const QuickStatsGrid = ({
   accuracy,
-  accuracySessions,
+  subjectStacks,
   gradeValue,
   gradeDelta,
   gradeTone = "neutral",
-  gradeTrajectory,
+  gradeProgress,
+  gradeAccent,
   masteredCount,
-  developingCount,
-  reviewCount,
   totalAttempted,
+  masteredHistory,
   streak,
   longestStreak,
   streakDays,
@@ -268,7 +284,7 @@ export const QuickStatsGrid = ({
         value={`${Math.round(accuracy)}%`}
         onClick={onOpenAccuracy}
       >
-        <AccuracyBars series={accuracySessions} p={p} />
+        <AccuracyMiniStacks stacks={subjectStacks} p={p} />
       </CardShell>
 
       {/* 2. Target grades */}
@@ -286,7 +302,7 @@ export const QuickStatsGrid = ({
         }
         onClick={onOpenGrade}
       >
-        <GradeArea series={gradeTrajectory} p={p} />
+        <GradePillProgress pct={gradeProgress} accent={gradeAccent} p={p} />
       </CardShell>
 
       {/* 3. Mastered */}
@@ -297,12 +313,7 @@ export const QuickStatsGrid = ({
         value={masteredValue}
         onClick={onOpenMastered}
       >
-        <MasterySegments
-          mastered={masteredCount}
-          developing={developingCount}
-          review={reviewCount}
-          p={p}
-        />
+        <MasteryTrend history={masteredHistory} p={p} />
       </CardShell>
 
       {/* 4. Revision streak */}
