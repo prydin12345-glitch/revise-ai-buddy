@@ -60,8 +60,8 @@ export const SubjectStackedBars = ({ topics, subjects, onSelect, selected }: Pro
   const TELEMETRY = useTelemetry();
 
   const stacks = useMemo(
-    () => buildSubjectStacks(topics, subjects, TELEMETRY.gray),
-    [topics, subjects, TELEMETRY.gray]
+    () => buildSubjectStacks(topics, subjects, TELEMETRY.idle),
+    [topics, subjects, TELEMETRY.idle]
   );
 
   const max = Math.max(...stacks.map((s) => s.total), 1);
@@ -82,9 +82,9 @@ export const SubjectStackedBars = ({ topics, subjects, onSelect, selected }: Pro
           const isDim = selected != null && selected !== s.name;
 
           const segments = [
-            { count: s.review, colour: TELEMETRY.magenta },
-            { count: s.developing, colour: TELEMETRY.cyan },
-            { count: s.mastered, colour: TELEMETRY.lime },
+            { count: s.review, colour: TELEMETRY.review },
+            { count: s.developing, colour: TELEMETRY.developing },
+            { count: s.mastered, colour: TELEMETRY.mastered },
           ].filter((seg) => seg.count > 0);
 
           return (
