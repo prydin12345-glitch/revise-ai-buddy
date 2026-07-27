@@ -12,12 +12,25 @@ export interface TelemetryPalette {
   mutedStrong: string;
   /** Text/icon colour to sit ON an accent fill (e.g. the active range chip). */
   onAccent: string;
-  lime: string;
-  cyan: string;
-  magenta: string;
-  amber: string;
-  red: string;
-  gray: string;
+
+  /* Semantic accent roles — prefer these in new code. The hue-named keys
+     below are aliases kept so existing components keep compiling; they point
+     at whichever role currently owns that hue, which means renaming a colour
+     never requires touching every consumer at once. */
+  mastered: string;
+  developing: string;
+  review: string;
+  /** Informational / pending. Not a warning. */
+  info: string;
+  /** Unattempted, inert, idle indicators. */
+  idle: string;
+  danger: string;
+  /** @deprecated use `mastered` */ lime: string;
+  /** @deprecated use `info` */ cyan: string;
+  /** @deprecated use `review` */ magenta: string;
+  /** @deprecated use `developing` */ amber: string;
+  /** @deprecated use `danger` */ red: string;
+  /** @deprecated use `idle` */ gray: string;
 }
 
 /**
@@ -35,12 +48,26 @@ const DARK: TelemetryPalette = {
   muted: "hsl(210 10% 62%)",
   mutedStrong: "hsl(210 12% 80%)",
   onAccent: "hsl(220 8% 8%)",
-  lime: "hsl(88 92% 58%)",
-  cyan: "hsl(190 95% 60%)",
-  magenta: "hsl(320 90% 62%)",
-  amber: "hsl(38 95% 60%)",
-  red: "hsl(0 84% 62%)",
-  gray: "hsl(220 6% 45%)",
+
+  // Accent roles. Lightness is solved, not picked by eye: every value clears
+  // 4.5:1 on both --card and --background, and the three mastery bands are
+  // spaced on a luminance ladder (worst-case gap 0.068 across normal,
+  // deuteranopic and protanopic vision) so a stacked bar stays readable
+  // without relying on hue alone.
+  mastered: "hsl(152 58% 71.5%)",   // #8ce0b9  mint emerald
+  developing: "hsl(38 88% 65.5%)",  // #f4bc5a  warm amber
+  review: "hsl(4 78% 60%)",         // #e95449  coral
+  info: "hsl(232 80% 73%)",         // #8392f1  indigo — informational, pending
+  idle: "hsl(220 10% 54.5%)",       // #7f8797  slate
+  danger: "hsl(0 74% 62%)",         // #e65656
+
+  // Legacy hue names. Kept so nothing breaks; see the note above the type.
+  lime: "hsl(152 58% 71.5%)",
+  cyan: "hsl(232 80% 73%)",
+  magenta: "hsl(4 78% 60%)",
+  amber: "hsl(38 88% 65.5%)",
+  red: "hsl(0 74% 62%)",
+  gray: "hsl(220 10% 54.5%)",
 };
 
 /**
@@ -59,12 +86,25 @@ const LIGHT: TelemetryPalette = {
   muted: "hsl(218 14% 45%)",
   mutedStrong: "hsl(220 25% 25%)",
   onAccent: "hsl(0 0% 100%)",
-  lime: "hsl(88 65% 28%)",
-  cyan: "hsl(190 90% 28%)",
-  magenta: "hsl(320 75% 40%)",
-  amber: "hsl(35 90% 34%)",
-  red: "hsl(0 72% 46%)",
-  gray: "hsl(220 9% 55%)",
+
+  // On white, AA compresses every usable colour into a narrow luminance band,
+  // so the three mastery hues can only be spaced ~0.04 apart. Colour is never
+  // the sole channel here — bands are labelled in every legend, pill and row,
+  // and stacked segments always run review -> developing -> mastered in the
+  // same order, so position encodes the same information.
+  mastered: "hsl(158 72% 29.5%)",   // #15815a
+  developing: "hsl(34 92% 30%)",    // #935606
+  review: "hsl(2 74% 33%)",         // #921a16
+  info: "hsl(232 60% 40%)",         // #2939a3
+  idle: "hsl(220 12% 45%)",         // #656e81
+  danger: "hsl(0 70% 42%)",         // #b62020
+
+  lime: "hsl(158 72% 29.5%)",
+  cyan: "hsl(232 60% 40%)",
+  magenta: "hsl(2 74% 33%)",
+  amber: "hsl(34 92% 30%)",
+  red: "hsl(0 70% 42%)",
+  gray: "hsl(220 12% 45%)",
 };
 
 /**
