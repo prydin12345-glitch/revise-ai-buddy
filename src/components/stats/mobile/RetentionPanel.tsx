@@ -37,10 +37,10 @@ export const RetentionPanel = ({ topics, subjects }: Props) => {
   const [showAll, setShowAll] = useState(false);
 
   const FRESHNESS_META: Record<Freshness, { label: string; colour: string; retained: number }> = {
-    fresh: { label: "Fresh", colour: TELEMETRY.lime, retained: 100 },
-    fading: { label: "Fading", colour: TELEMETRY.amber, retained: 62 },
-    stale: { label: "Stale", colour: TELEMETRY.magenta, retained: 28 },
-    unknown: { label: "—", colour: TELEMETRY.gray, retained: 0 },
+    fresh: { label: "Fresh", colour: TELEMETRY.mastered, retained: 100 },
+    fading: { label: "Fading", colour: TELEMETRY.developing, retained: 62 },
+    stale: { label: "Stale", colour: TELEMETRY.review, retained: 28 },
+    unknown: { label: "—", colour: TELEMETRY.idle, retained: 0 },
   };
 
   const { rows, bands } = useMemo(() => {
@@ -63,7 +63,7 @@ export const RetentionPanel = ({ topics, subjects }: Props) => {
             t.practiceScore !== null &&
             t.examScore >= 70 &&
             t.practiceScore >= 70,
-          colour: subjects.find((s) => s.name === t.subjectId)?.color ?? TELEMETRY.gray,
+          colour: subjects.find((s) => s.name === t.subjectId)?.color ?? TELEMETRY.idle,
         };
       })
       .sort((a, b) => {
@@ -80,7 +80,7 @@ export const RetentionPanel = ({ topics, subjects }: Props) => {
         stale: rows.filter((r) => r.freshness === "stale").length,
       },
     };
-  }, [topics, subjects, TELEMETRY.gray]);
+  }, [topics, subjects, TELEMETRY.idle]);
 
   if (rows.length === 0) {
     return (
@@ -107,9 +107,9 @@ export const RetentionPanel = ({ topics, subjects }: Props) => {
 
         <div className="flex h-2.5 rounded-full overflow-hidden" style={{ background: TELEMETRY.cardAlt }}>
           {([
-            [bands.stale, TELEMETRY.magenta],
-            [bands.fading, TELEMETRY.amber],
-            [bands.fresh, TELEMETRY.lime],
+            [bands.stale, TELEMETRY.review],
+            [bands.fading, TELEMETRY.developing],
+            [bands.fresh, TELEMETRY.mastered],
           ] as const).map(([n, colour], i) =>
             n > 0 ? <div key={i} style={{ width: `${(n / rows.length) * 100}%`, background: colour }} /> : null
           )}
@@ -117,9 +117,9 @@ export const RetentionPanel = ({ topics, subjects }: Props) => {
 
         <div className="grid grid-cols-3 gap-2 mt-3">
           {([
-            ["Stale", bands.stale, TELEMETRY.magenta, "21d+"],
-            ["Fading", bands.fading, TELEMETRY.amber, "7–21d"],
-            ["Fresh", bands.fresh, TELEMETRY.lime, "under 7d"],
+            ["Stale", bands.stale, TELEMETRY.review, "21d+"],
+            ["Fading", bands.fading, TELEMETRY.developing, "7–21d"],
+            ["Fresh", bands.fresh, TELEMETRY.mastered, "under 7d"],
           ] as const).map(([label, n, colour, hint]) => (
             <div
               key={label}
@@ -215,7 +215,7 @@ export const RetentionPanel = ({ topics, subjects }: Props) => {
                 {r.corroborated && (
                   <span
                     className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded"
-                    style={{ color: TELEMETRY.lime, background: alpha(TELEMETRY.lime, 0.12) }}
+                    style={{ color: TELEMETRY.mastered, background: alpha(TELEMETRY.mastered, 0.12) }}
                   >
                     <CheckCheck size={10} />
                     Strong in both
