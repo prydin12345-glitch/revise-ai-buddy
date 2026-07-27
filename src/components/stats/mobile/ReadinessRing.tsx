@@ -94,9 +94,9 @@ export const ReadinessRing = ({ overall, coverage, consistency, onInfo }: Props)
 
       <div className="relative flex items-center justify-center">
         <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-          <Ring radius={92} value={overallSafe} color={TELEMETRY.lime} delay={0} />
-          <Ring radius={72} value={coverage} color={TELEMETRY.cyan} delay={0.12} />
-          <Ring radius={52} value={consistency} color={TELEMETRY.magenta} delay={0.24} />
+          <Ring radius={92} value={overallSafe} color={TELEMETRY.mastered} delay={0} />
+          <Ring radius={72} value={coverage} color={TELEMETRY.info} delay={0.12} />
+          <Ring radius={52} value={consistency} color={TELEMETRY.review} delay={0.24} />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-6">
           <span
@@ -113,9 +113,9 @@ export const ReadinessRing = ({ overall, coverage, consistency, onInfo }: Props)
 
       <div className="mt-5 flex items-center justify-center gap-5">
         {[
-          { c: TELEMETRY.lime, l: "Mastery" },
-          { c: TELEMETRY.cyan, l: "Coverage" },
-          { c: TELEMETRY.magenta, l: "Streak" },
+          { c: TELEMETRY.mastered, l: "Mastery" },
+          { c: TELEMETRY.info, l: "Coverage" },
+          { c: TELEMETRY.review, l: "Streak" },
         ].map((x) => (
           <div key={x.l} className="flex items-center gap-1.5">
             <span
