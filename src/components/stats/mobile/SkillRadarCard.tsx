@@ -19,7 +19,7 @@ export const SkillRadarCard = ({ subjects }: Props) => {
       style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}` }}
     >
       <div className="flex items-center gap-2 mb-1">
-        <RadarIcon size={14} style={{ color: TELEMETRY.lime }} />
+        <RadarIcon size={14} style={{ color: TELEMETRY.mastered }} />
         <div className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>
           Skill Balance
         </div>
@@ -49,9 +49,9 @@ export const SkillRadarCard = ({ subjects }: Props) => {
               />
               <Radar
                 dataKey="score"
-                stroke={TELEMETRY.lime}
+                stroke={TELEMETRY.mastered}
                 strokeWidth={2}
-                fill={TELEMETRY.lime}
+                fill={TELEMETRY.mastered}
                 fillOpacity={0.2}
               />
             </RadarChart>
