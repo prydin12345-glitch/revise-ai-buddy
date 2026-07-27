@@ -85,7 +85,7 @@ const AccuracyMiniStacks = ({
   const max = Math.max(...shown.map((s) => s.total), 1);
   const H = 34;
   return (
-    <div className="flex items-end justify-start gap-2" style={{ height: H }}>
+    <div className="flex items-end justify-start gap-2 pb-0.5" style={{ height: H }}>
       {shown.map((s) => {
         const h = Math.max(14, (s.total / max) * H);
         const segs = [
@@ -121,28 +121,25 @@ const AccuracyMiniStacks = ({
 const GradePillProgress = ({
   pct, accent, p,
 }: { pct: number | null; accent: string; p: TelemetryPalette }) => {
-  const sid = `gs-${useId().replace(/:/g, "")}`;
   const value = pct ?? 0;
   const H = 12;
   return (
     <div className="w-full">
-      <div className="relative w-full overflow-hidden rounded-full" style={{ height: H, background: p.cardAlt }}>
-        <svg className="absolute inset-0 w-full h-full" aria-hidden>
-          <defs>
-            <pattern id={sid} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-              <rect width="6" height="6" fill={alpha(p.muted, 0.06)} />
-              <line x1="0" y1="0" x2="0" y2="6" stroke={alpha(p.muted, 0.35)} strokeWidth="1.2" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill={`url(#${sid})`} />
-        </svg>
+      {/* Plain gradient track. The diagonal hatch read as a loading state, and
+          the glow on the fill was the same halo treatment removed elsewhere. */}
+      <div
+        className="relative w-full overflow-hidden rounded-full"
+        style={{
+          height: H,
+          background: `linear-gradient(90deg, ${alpha(p.muted, 0.1)}, ${alpha(p.muted, 0.18)})`,
+        }}
+      >
         {value > 0 && (
           <div
-            className="absolute inset-y-0 left-0 rounded-full"
+            className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
             style={{
               width: `${Math.max(4, Math.min(100, value))}%`,
-              background: `linear-gradient(90deg, ${alpha(accent, 0.85)}, ${accent})`,
-              boxShadow: `0 0 12px ${alpha(accent, 0.45)}`,
+              background: `linear-gradient(90deg, ${alpha(accent, 0.7)}, ${accent})`,
             }}
           />
         )}
@@ -166,19 +163,53 @@ const GradePillProgress = ({
 /* ───── 3. Mastered — smooth area sparkline of progression ───── */
 
 const MasteryTrend = ({
-  history, p,
-}: { history: number[]; p: TelemetryPalette }) => {
+  history, mastered, developing, review, p,
+}: {
+  history: number[];
+  mastered: number;
+  developing: number;
+  review: number;
+  p: TelemetryPalette;
+}) => {
   const gid = `mtrend-${useId().replace(/:/g, "")}`;
   const W = 140;
   const H = 40;
   const has = history.length > 1;
   const d = has ? buildSparklinePath(history, W, H) : "";
+  // With fewer than two data points there's no trend to draw. A flat muted
+  // line read as a broken component, so fall back to the band split — which is
+  // information the card already has, and is what the number above summarises.
   if (!d) {
+    const total = mastered + developing + review;
+    if (total === 0) {
+      return (
+        <div className="w-full rounded-full" style={{ height: 6, background: alpha(p.muted, 0.16) }} />
+      );
+    }
+    const segs = [
+      { n: review, c: p.review },
+      { n: developing, c: p.developing },
+      { n: mastered, c: p.mastered },
+    ].filter((s) => s.n > 0);
     return (
-      <div
-        className="w-full rounded-full"
-        style={{ height: 4, background: alpha(p.muted, 0.18) }}
-      />
+      <div>
+        <div
+          className="w-full rounded-full overflow-hidden flex"
+          style={{ height: 6, background: alpha(p.muted, 0.16) }}
+        >
+          {segs.map((s, i) => (
+            <div key={i} style={{ width: `${(s.n / total) * 100}%`, background: s.c }} />
+          ))}
+        </div>
+        <div className="flex items-center gap-2.5 mt-2">
+          {segs.map((s, i) => (
+            <span key={i} className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.c }} />
+              <span className="text-[10px] tabular-nums" style={{ color: p.muted }}>{s.n}</span>
+            </span>
+          ))}
+        </div>
+      </div>
     );
   }
   const last = history[history.length - 1];
@@ -223,7 +254,7 @@ const StreakBars = ({
               className="flex-1 rounded-[3px]"
               style={{
                 height: h,
-                background: active ? p.review : alpha(p.muted, 0.2),
+                background: active ? p.info : alpha(p.muted, 0.2),
               }}
             />
           );
@@ -255,6 +286,8 @@ export const QuickStatsGrid = ({
   gradeProgress,
   gradeAccent,
   masteredCount,
+  developingCount,
+  reviewCount,
   totalAttempted,
   masteredHistory,
   streak,
@@ -313,7 +346,13 @@ export const QuickStatsGrid = ({
         value={masteredValue}
         onClick={onOpenMastered}
       >
-        <MasteryTrend history={masteredHistory} p={p} />
+        <MasteryTrend
+          history={masteredHistory}
+          mastered={masteredCount}
+          developing={developingCount}
+          review={reviewCount}
+          p={p}
+        />
       </CardShell>
 
       {/* 4. Revision streak */}
