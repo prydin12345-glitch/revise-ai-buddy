@@ -238,10 +238,9 @@ export const ExamTargetHero = ({ subjects, defaultScaleId }: Props) => {
         <button
           type="button"
           onClick={() => setSetupFor(null)}
-          className="text-[11px] font-semibold flex items-center gap-1 min-h-[32px] px-2"
+          className="text-[11px] font-semibold min-h-[32px] px-2"
           style={{ color: TELEMETRY.muted }}
         >
-          <CalendarPlus size={12} />
           Add exam
         </button>
       </div>
