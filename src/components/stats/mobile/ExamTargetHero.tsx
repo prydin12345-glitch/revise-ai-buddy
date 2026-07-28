@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { CalendarPlus, MoreHorizontal, Zap, Target } from "lucide-react";
+import { CalendarPlus, MoreHorizontal } from "lucide-react";
 import { CountdownRings } from "./CountdownRings";
 import { ExamSetupSheet } from "./ExamSetupSheet";
 import { TargetGradeModal } from "./TargetGradeModal";
