@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { CalendarPlus, MoreHorizontal, Zap, Target } from "lucide-react";
+import { CalendarPlus, MoreHorizontal } from "lucide-react";
 import { CountdownRings } from "./CountdownRings";
 import { ExamSetupSheet } from "./ExamSetupSheet";
 import { TargetGradeModal } from "./TargetGradeModal";
@@ -139,14 +139,14 @@ export const ExamTargetHero = ({ subjects, defaultScaleId }: Props) => {
                 boxShadow: `inset 0 1px 0 0 ${alpha(c.accent, 0.12)}`,
               }}
             >
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center gap-2 mb-3">
                 <span
                   className="text-[11px] font-semibold px-2 py-1 rounded-lg capitalize"
-                  style={{ color: c.accent, background: alpha(c.accent, 0.14) }}
+                  style={{ color: TELEMETRY.onAccent, background: c.accent }}
                 >
                   {c.exam.subject}
                 </span>
-                <span className="text-[12px] truncate flex-1" style={{ color: TELEMETRY.muted }}>
+                <span className="text-[12px] truncate flex-1" style={{ color: TELEMETRY.text }}>
                   {c.exam.paper}
                 </span>
                 <button
@@ -160,69 +160,66 @@ export const ExamTargetHero = ({ subjects, defaultScaleId }: Props) => {
                 </button>
               </div>
 
-              <CountdownRings target={c.exam.startsAt} accent={c.accent} />
-
-              <div className="text-center mt-3">
-                <div className="text-[13px] font-medium" style={{ color: TELEMETRY.text }}>
-                  {longDate(c.exam.startsAt)}
-                </div>
-                <div className="text-[11px] mt-0.5" style={{ color: TELEMETRY.muted }}>
-                  {timeOfDay(c.exam.startsAt)}
-                </div>
+              <div
+                className="text-[11px] mb-4 tabular-nums"
+                style={{ color: TELEMETRY.muted }}
+              >
+                {longDate(c.exam.startsAt)} · {timeOfDay(c.exam.startsAt)}
               </div>
+
+              <CountdownRings target={c.exam.startsAt} accent={c.accent} />
 
               <button
                 type="button"
                 onClick={() => setTargetFor(c.exam)}
-                className="w-full text-left rounded-2xl p-3 mt-4 active:opacity-80 transition-opacity"
+                className="w-full text-left rounded-2xl p-3 mt-5 active:opacity-80 transition-opacity"
                 style={{ background: TELEMETRY.cardAlt, border: `1px solid ${TELEMETRY.border}` }}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="flex items-center gap-1.5">
-                    <Target size={12} style={{ color: TELEMETRY.muted }} />
-                    <span className="text-[11px]" style={{ color: TELEMETRY.muted }}>
-                      {c.target ? `Target ${c.target}` : "Set a target"}
-                    </span>
+                  <span className="text-xs" style={{ color: TELEMETRY.muted }}>
+                    {c.target ? `Target: ${c.target}` : "Set a target"}
                   </span>
-                  <span className="text-[11px]" style={{ color: TELEMETRY.muted }}>
-                    {c.hasData && c.projected ? `Projected ${c.projected}` : "No data yet"}
+                  <span className="text-xs" style={{ color: TELEMETRY.muted }}>
+                    {c.hasData && c.projected ? `Projected: ${c.projected}` : "No data yet"}
                   </span>
                 </div>
 
-                <div className="h-2 rounded-full overflow-hidden" style={{ background: alpha(TELEMETRY.muted, 0.18) }}>
+                <div className="flex items-center gap-2">
                   <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${c.progress ?? 0}%`,
-                      background: `linear-gradient(90deg, ${alpha(c.accent, 0.7)}, ${c.accent})`,
-                    }}
-                  />
-                </div>
-
-                <div className="text-[11px] mt-1.5" style={{ color: TELEMETRY.muted }}>
-                  {!c.target
-                    ? "Tap to choose the grade you're aiming for."
-                    : !c.hasData
-                    ? "Sit a paper to see how close you are."
-                    : c.progress !== null && c.progress >= 100
-                    ? `You're at ${Math.round(c.current)}% — on track for ${c.target}.`
-                    : `${Math.round(c.current)}% now · ${c.needed}% needed for ${c.target}.`}
+                    className="flex-1 h-2 rounded-full overflow-hidden"
+                    style={{ background: alpha(TELEMETRY.muted, 0.18) }}
+                  >
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${c.progress ?? 0}%`,
+                        background: c.accent,
+                      }}
+                    />
+                  </div>
+                  <span
+                    className="text-[11px] font-semibold tabular-nums shrink-0"
+                    style={{ color: TELEMETRY.text }}
+                  >
+                    {c.hasData ? `${Math.round(c.current)}%` : "—"}
+                  </span>
                 </div>
               </button>
 
               <button
                 type="button"
                 onClick={() => practise(c.exam)}
-                className="w-full min-h-[48px] rounded-xl font-semibold text-[14px] mt-3 flex items-center justify-center gap-2 active:scale-[0.99] transition-transform"
+                className="w-full min-h-[48px] rounded-xl font-semibold text-[14px] mt-3 flex items-center justify-center active:scale-[0.99] transition-transform"
                 style={{ background: c.accent, color: TELEMETRY.onAccent }}
               >
-                <Zap size={15} />
                 Start {c.exam.paper} practice
               </button>
             </div>
           </div>
         ))}
       </div>
+
+
 
       <div className="flex items-center justify-center gap-3 mt-3">
         <div className="flex items-center gap-1.5">
@@ -241,10 +238,9 @@ export const ExamTargetHero = ({ subjects, defaultScaleId }: Props) => {
         <button
           type="button"
           onClick={() => setSetupFor(null)}
-          className="text-[11px] font-semibold flex items-center gap-1 min-h-[32px] px-2"
+          className="text-[11px] font-semibold min-h-[32px] px-2"
           style={{ color: TELEMETRY.muted }}
         >
-          <CalendarPlus size={12} />
           Add exam
         </button>
       </div>
