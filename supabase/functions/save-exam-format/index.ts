@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { storedAssessmentTier } from "../_shared/profile-context.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -38,10 +39,10 @@ serve(async (req) => {
 
     console.log('Saving format for exam:', draftId, format);
 
-    // Verify exam ownership
+    // Verify exam ownership and read the server-validated course context.
     const { data: exam, error: examError } = await supabase
       .from('exams')
-      .select('id')
+      .select('id, generation_context')
       .eq('id', draftId)
       .eq('user_id', user.id)
       .single();
@@ -58,10 +59,18 @@ serve(async (req) => {
     const effectiveTotal = format.totalQuestions || totalFromBreakdown || null;
 
     // Unpack profileMetadata for top-level columns
-    const profileMeta = format.profileMetadata || {};
-    // Assessment tier travels with the format so extraction can honour it
-    // even before it has a first-class column.
-    const assessmentTier = format.assessmentTier ?? profileMeta.assessmentTier ?? null;
+    const profileMeta = { ...(format.profileMetadata || {}) };
+    // AUTHORITATIVE TIER: taken only from the exam's server-resolved context
+    // (written by upload-exam after an ownership check). A conflicting
+    // format.assessmentTier / profileMetadata.assessmentTier is ignored.
+    const assessmentTier = storedAssessmentTier((exam as any).generation_context);
+    if (
+      (format.assessmentTier ?? profileMeta.assessmentTier ?? null) !== null &&
+      (format.assessmentTier ?? profileMeta.assessmentTier) !== assessmentTier
+    ) {
+      console.warn('Ignoring client-supplied assessmentTier; using saved context:', assessmentTier);
+    }
+    delete profileMeta.assessmentTier;
     const useOriginalStructure = format.useOriginal === true;
     const questionStructure = profileMeta.questionStructure
       ?? (useOriginalStructure && !format.profileMetadata ? 'original' : 'standalone');

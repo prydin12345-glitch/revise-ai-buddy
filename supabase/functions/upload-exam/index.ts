@@ -128,37 +128,10 @@ serve(async (req) => {
       }
     }
 
-    // Create exam record
-    const { data: examData, error: examError } = await supabase
-      .from('exams')
-      .insert({
-        user_id: user.id,
-        subject_id: subjectId,
-        title: examTitle,
-        exam_board: examBoard,
-        qualification_level: qualificationLevel || educationalTier,
-        specification_file_url: specFileUrl,
-        type: 'uploaded',
-        status: 'draft',
-        file_url: filePath,
-        resource_pack_id: resourcePackId || null,
-        profile_id: profileId,
-      })
-      .select()
-      .single();
-
-    if (examError) {
-      console.error('Exam creation error:', examError);
-      return new Response(JSON.stringify({ error: 'Failed to create exam' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    console.log('Exam created:', examData.id);
-
-    // Resolve the course context from the OWNED profile and stamp it on the
-    // exam, so later profile edits cannot rewrite this attempt.
+    // ── VALIDATE THE COURSE CONTEXT BEFORE THE EXAM ROW EXISTS ──
+    // The profile must belong to the caller and the tier must be legal for the
+    // course. An invalid request fails here, so no orphan draft is created.
+    let storedContext: Record<string, unknown> | null = null;
     try {
       const resolved = await resolveProfileContext(supabase, {
         userId: user.id,
@@ -168,11 +141,7 @@ serve(async (req) => {
         educationalTier: qualificationLevel || educationalTier,
         assessmentTier,
       });
-      const { error: ctxError } = await supabase
-        .from('exams')
-        .update({ generation_context: toStoredGenerationContext(resolved) })
-        .eq('id', examData.id);
-      if (ctxError) console.warn('generation_context not stored yet:', ctxError.message);
+      storedContext = toStoredGenerationContext(resolved);
     } catch (ctxErr) {
       if (ctxErr instanceof ProfileContextError) {
         return new Response(JSON.stringify({ error: ctxErr.message }), {
@@ -180,8 +149,59 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      console.warn('Profile context resolution failed:', ctxErr);
+      console.error('Profile context resolution failed:', ctxErr);
+      return new Response(JSON.stringify({ error: 'Could not resolve exam context' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
+
+    // Create exam record, stamped with the validated context so later profile
+    // edits cannot rewrite this attempt.
+    const baseExamRow: Record<string, unknown> = {
+      user_id: user.id,
+      subject_id: subjectId,
+      title: examTitle,
+      // Board and qualification come from the resolver, so the stored fields,
+      // the prompts and the cache identity all agree.
+      exam_board: (storedContext.exam_board as string | null) || examBoard,
+      qualification_level:
+        (storedContext.educational_tier as string | null) ||
+        qualificationLevel ||
+        educationalTier,
+      specification_file_url: specFileUrl,
+      type: 'uploaded',
+      status: 'draft',
+      file_url: filePath,
+      resource_pack_id: resourcePackId || null,
+      profile_id: profileId,
+    };
+
+    let { data: examData, error: examError } = await supabase
+      .from('exams')
+      .insert({ ...baseExamRow, generation_context: storedContext })
+      .select()
+      .single();
+
+    if (examError && /generation_context/i.test(examError.message ?? '')) {
+      // The column arrives with the assessment-tier migration; keep working.
+      console.warn('generation_context column not available yet — inserting without it');
+      ({ data: examData, error: examError } = await supabase
+        .from('exams')
+        .insert(baseExamRow)
+        .select()
+        .single());
+    }
+
+    if (examError || !examData) {
+      console.error('Exam creation error:', examError);
+      return new Response(JSON.stringify({ error: 'Failed to create exam' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('Exam created:', examData.id);
 
     // Store structure mode and profile question split in exam_format
     if (structureMode && profileQuestionCount) {

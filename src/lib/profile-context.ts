@@ -107,7 +107,14 @@ export const resolveProfileContext = (
   };
 };
 
-/** Compact payload persisted on an attempt (exam / practice set). */
+/**
+ * Compact payload describing an attempt's course context.
+ *
+ * The browser NEVER persists this: the authoritative snapshot is created by the
+ * backend after an ownership check and carries `resolved_by: "server"`. This
+ * client copy is marked accordingly and is only used for display and for the
+ * request payload, so a backend will always discard and re-resolve it.
+ */
 export const toStoredGenerationContext = (
   ctx: ResolvedGenerationContext,
 ): Record<string, unknown> => ({
@@ -119,5 +126,6 @@ export const toStoredGenerationContext = (
   educational_tier: ctx.educationalTier,
   assessment_tier: ctx.assessmentTier,
   course_id: ctx.courseId,
+  resolved_by: "client",
   resolved_at: new Date().toISOString(),
 });

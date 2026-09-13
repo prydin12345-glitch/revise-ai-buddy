@@ -39,28 +39,59 @@ interface ExamProfile {
   updated_at: string;
 }
 
+/** The column does not exist yet (migration not applied) — not a real failure. */
+export const isMissingColumnError = (error: {
+  code?: string | null;
+  message?: string | null;
+} | null): boolean => {
+  if (!error) return false;
+  if (error.code === "42703" || error.code === "PGRST204") return true;
+  return /assessment_tier/i.test(error.message ?? "");
+};
+
+export type TierPersistStatus = "unchanged" | "saved" | "unsupported" | "failed";
+
+export interface TierPersistResult {
+  profile: ExamProfile;
+  status: TierPersistStatus;
+  message?: string;
+}
+
 /**
- * Writes the assessment tier separately and tolerates the column being absent,
- * so the app keeps working until the assessment-tier migration is applied.
+ * Writes the assessment tier in its OWN statement, so the rest of the profile
+ * still saves while the assessment-tier migration is pending. A missing column
+ * ("unsupported") is reported separately from a genuine write failure
+ * ("failed") — the caller must not claim success for the latter.
  */
-const persistAssessmentTier = async (
+export const persistAssessmentTier = async (
   profileId: string,
   rawTier: string | null,
   current: ExamProfile,
-): Promise<ExamProfile> => {
+  client: { from: typeof supabase.from } = supabase,
+): Promise<TierPersistResult> => {
   const tier = normaliseAssessmentTier(rawTier);
-  if (tier === (current.assessment_tier ?? null)) return current;
-  const { data, error } = await supabase
+  if (tier === (current.assessment_tier ?? null)) {
+    return { profile: current, status: "unchanged" };
+  }
+  const { data, error } = await client
     .from("subject_exam_profiles")
     .update({ assessment_tier: tier })
     .eq("id", profileId)
     .select()
     .maybeSingle();
-  if (error || !data) {
-    console.warn("Assessment tier not stored yet:", error?.message);
-    return current;
+
+  if (error) {
+    if (isMissingColumnError(error)) {
+      console.warn("Assessment tier column not available yet:", error.message);
+      return { profile: current, status: "unsupported", message: error.message };
+    }
+    console.error("Assessment tier save failed:", error.message);
+    return { profile: current, status: "failed", message: error.message };
   }
-  return data as unknown as ExamProfile;
+  if (!data) {
+    return { profile: current, status: "failed", message: "Profile not found" };
+  }
+  return { profile: data as unknown as ExamProfile, status: "saved" };
 };
 
 export const useSubjectProfiles = () => {
@@ -225,13 +256,17 @@ export const useSubjectProfiles = () => {
         .single();
 
       if (error) throw error;
-      const saved = await persistAssessmentTier(
+      const tierResult = await persistAssessmentTier(
         (data as ExamProfile).id,
         advanced?.assessmentTier ?? null,
         data as ExamProfile,
       );
-      setExamProfiles((prev) => [...prev, saved]);
-      toast.success("Exam profile created");
+      setExamProfiles((prev) => [...prev, tierResult.profile]);
+      if (tierResult.status === "failed") {
+        toast.error("Profile created, but the Foundation/Higher tier did not save");
+      } else {
+        toast.success("Exam profile created");
+      }
     } catch (err) {
       console.error("Error creating profile:", err);
       toast.error("Failed to create profile");
@@ -249,23 +284,46 @@ export const useSubjectProfiles = () => {
     >>
   ) => {
     try {
-      const { data, error } = await supabase
-        .from("subject_exam_profiles")
-        .update(updates as any)
-        .eq("id", profileId)
-        .select()
-        .single();
+      // The tier is written separately so this statement still works while the
+      // assessment-tier column is pending. Omitting the key leaves the stored
+      // tier untouched; only an explicit key changes it.
+      const tierRequested = Object.prototype.hasOwnProperty.call(
+        updates,
+        "assessment_tier",
+      );
+      const { assessment_tier: requestedTier, ...coreUpdates } = updates;
+
+      const query = Object.keys(coreUpdates).length
+        ? supabase
+            .from("subject_exam_profiles")
+            .update(coreUpdates as any)
+            .eq("id", profileId)
+            .select()
+        : supabase
+            .from("subject_exam_profiles")
+            .select("*")
+            .eq("id", profileId);
+
+      const { data, error } = await query.single();
 
       if (error) throw error;
-      const saved = await persistAssessmentTier(
-        profileId,
-        updates.assessment_tier ?? null,
-        data as ExamProfile,
-      );
+
+      const tierResult = tierRequested
+        ? await persistAssessmentTier(
+            profileId,
+            requestedTier ?? null,
+            data as ExamProfile,
+          )
+        : { profile: data as ExamProfile, status: "unchanged" as const };
+
       setExamProfiles((prev) =>
-        prev.map((p) => (p.id === profileId ? saved : p))
+        prev.map((p) => (p.id === profileId ? tierResult.profile : p))
       );
-      toast.success("Profile updated");
+      if (tierResult.status === "failed") {
+        toast.error("Profile saved, but the Foundation/Higher tier did not save");
+      } else {
+        toast.success("Profile updated");
+      }
     } catch (err) {
       console.error("Error updating profile:", err);
       toast.error("Failed to update profile");

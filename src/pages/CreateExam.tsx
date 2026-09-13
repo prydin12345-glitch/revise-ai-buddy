@@ -282,6 +282,23 @@ export default function CreateExam() {
   const resolvedProfileWrittenCount = profileWrittenCount ?? 0;
   const resolvedProfileMcqOptionsCount = profileMcqOptionsCount ?? 4;
 
+  // ── ONE RESOLVER ──
+  // The same resolved context drives the summary shown on screen, the values
+  // submitted to the backend and (after server re-validation) the prompts,
+  // stored fields and cache identity. Nothing reads the raw manual board.
+  const activeProfileRow = selectedProfile && selectedProfile !== 'all_topics'
+    ? getProfilesForSubject(subjectId).find((pr) => pr.id === selectedProfile) ?? null
+    : null;
+  const generationContext = resolveProfileContext({
+    subjectName: subjectId,
+    profile: activeProfileRow as any,
+    manualExamBoard: effectiveExamBoard,
+    manualEducationalTier: effectiveEducationalTier,
+    preferredExamBoard: preferences?.preferred_exam_board,
+    preferredEducationalLevel: preferences?.preferred_educational_level,
+  });
+  const resolvedExamBoard = generationContext.examBoard ?? "";
+
   // Handle subject selection with random color assignment
   const handleSubjectChange = (newSubject: string) => {
     setSubjectId(newSubject);
@@ -484,25 +501,15 @@ export default function CreateExam() {
     try {
       // Upload exam with all settings
       const formData = new FormData();
-      const resolvedEducationalTier = effectiveEducationalTier;
       // One resolver decides board / qualification / assessment tier, and the
-      // result is what we send and later store on the attempt.
-      const activeProfileRow = selectedProfile && selectedProfile !== 'all_topics'
-        ? getProfilesForSubject(subjectId).find((pr) => pr.id === selectedProfile) ?? null
-        : null;
-      const generationContext = resolveProfileContext({
-        subjectName: subjectId,
-        profile: activeProfileRow as any,
-        manualExamBoard: effectiveExamBoard,
-        manualEducationalTier: resolvedEducationalTier,
-        preferredExamBoard: preferences?.preferred_exam_board,
-        preferredEducationalLevel: preferences?.preferred_educational_level,
-      });
+      // result is what we send; the backend re-resolves and owns the stored
+      // snapshot. Never send the raw manual board here.
+      const resolvedEducationalTier = generationContext.educationalTier ?? "";
       if (file) formData.append('file', file);
       formData.append('subjectId', subjectId);
       formData.append('fileName', examName);
       if (resolvedEducationalTier) formData.append('educationalTier', resolvedEducationalTier);
-      if (effectiveExamBoard) formData.append('examBoard', effectiveExamBoard);
+      if (resolvedExamBoard) formData.append('examBoard', resolvedExamBoard);
       if (qualificationLevel) formData.append('qualificationLevel', qualificationLevel);
       if (generationContext.assessmentTier) {
         formData.append('assessmentTier', generationContext.assessmentTier);
@@ -877,7 +884,7 @@ export default function CreateExam() {
                           selectedSubtopics={selectedSubtopics}
                           onSubtopicsChange={setSelectedSubtopics}
                           educationalTier={effectiveEducationalTier}
-                          examBoard={effectiveExamBoard}
+                          examBoard={resolvedExamBoard}
                           useAIInterpretation={useAIInterpretation}
                           onAIInterpretationChange={setUseAIInterpretation}
                         />
@@ -1368,7 +1375,7 @@ export default function CreateExam() {
                     examName={examName}
                     subjectId={subjectId}
                     subjectColor={subjectColor}
-                    boardLabel={effectiveExamBoard ? getBoardDisplayName(effectiveExamBoard) : "Generic style"}
+                    boardLabel={resolvedExamBoard ? getBoardDisplayName(resolvedExamBoard) : "Generic style"}
                     levelLabel={formatLevelLabel(profileEducationalTier || effectiveEducationalTier)}
                     totalQuestions={totalQuestions}
                     timerEnabled={timerEnabled}

@@ -38,8 +38,7 @@ import { CurriculumPromptModal, TopicLimitWarning } from "@/components/exam/Curr
 import { CurriculumTopicBadge } from "@/components/exam/CurriculumTopicBadge";
 import { useExamNameValidator } from "@/hooks/useExamNameValidator";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { resolveProfileContext, toStoredGenerationContext } from "@/lib/profile-context";
-import { supabase as profileContextClient } from "@/integrations/supabase/profile-context-client";
+import { resolveProfileContext } from "@/lib/profile-context";
 import { getBoardDisplayName } from "@/lib/board-scrubber";
 
 type QuestionFormat = 'written_only' | 'mcq_only' | 'mixed';
@@ -388,6 +387,22 @@ const CreatePracticeQuestions = () => {
         exampleFileUrl = examplePath;
       }
 
+      // Resolve board + qualification once, so the row we create already
+      // matches what the backend will re-resolve (Profile > Subject > Manual >
+      // Preference). The server still re-validates and owns the snapshot.
+      const activeProfile = selectedProfileId && selectedProfileId !== 'all_topics'
+        ? getProfilesForSubject(subjectId).find((pr) => pr.id === selectedProfileId) ?? null
+        : null;
+      const generationContext = resolveProfileContext({
+        subjectName: subjectId,
+        profile: activeProfile as any,
+        subjectExamBoard: getSubjectExamBoard(subjectId),
+        manualExamBoard: examBoard === "other" ? customExamBoard.trim() : effectiveExamBoard,
+        manualEducationalTier: effectiveEducationalTier,
+        preferredExamBoard: preferences?.preferred_exam_board,
+        preferredEducationalLevel: preferences?.preferred_educational_level,
+      });
+
       // Create practice set record
       const { data: setData, error: setError } = await supabase
         .from("practice_question_sets")
@@ -402,8 +417,8 @@ const CreatePracticeQuestions = () => {
           difficulty_level: difficultyLevel,
           specification_file_url: null,
           example_questions_file_url: exampleFileUrl,
-          educational_tier: effectiveEducationalTier || null,
-          exam_board: examBoard === "other" ? customExamBoard.trim() : (effectiveExamBoard || null),
+          educational_tier: generationContext.educationalTier,
+          exam_board: generationContext.examBoard,
           status: "draft",
           extraction_status: "pending",
           // Graphs and tables are now auto-detected by AI based on context
@@ -428,25 +443,11 @@ const CreatePracticeQuestions = () => {
 
       if (setError) throw setError;
 
-      // Stamp the resolved course context on the attempt. The quiz difficulty
-      // control is deliberately NOT part of it and cannot change the tier.
-      const activeProfile = selectedProfileId && selectedProfileId !== 'all_topics'
-        ? getProfilesForSubject(subjectId).find((pr) => pr.id === selectedProfileId) ?? null
-        : null;
-      const generationContext = resolveProfileContext({
-        subjectName: subjectId,
-        profile: activeProfile as any,
-        subjectExamBoard: getSubjectExamBoard(subjectId),
-        manualExamBoard: examBoard === "other" ? customExamBoard.trim() : effectiveExamBoard,
-        manualEducationalTier: effectiveEducationalTier,
-        preferredExamBoard: preferences?.preferred_exam_board,
-        preferredEducationalLevel: preferences?.preferred_educational_level,
-      });
-      const { error: ctxError } = await profileContextClient
-        .from("practice_question_sets")
-        .update({ generation_context: toStoredGenerationContext(generationContext) as any })
-        .eq("id", setData.id);
-      if (ctxError) console.warn("generation_context not stored yet:", ctxError.message);
+      // The authoritative course snapshot is created by the generation
+      // function after it re-reads the OWNED profile. The browser deliberately
+      // does NOT write generation_context — a client-written snapshot would be
+      // discarded server-side anyway. The quiz difficulty control is not part
+      // of the context and can never change the assessment tier.
 
       setGeneratedSetId(setData.id);
 

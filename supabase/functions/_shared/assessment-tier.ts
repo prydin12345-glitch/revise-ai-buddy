@@ -86,12 +86,21 @@ export const normaliseAssessmentTier = (
     : null;
 };
 
+/** True only for genuinely absent values — the legacy "not recorded" state. */
+export const isUnknownAssessmentTier = (value?: string | null): boolean =>
+  value === null || value === undefined || value.trim() === "";
+
+/**
+ * Absent (null / empty) is valid legacy "unknown". An explicit but
+ * unrecognised string is REJECTED rather than silently downgraded.
+ */
 export const isValidAssessmentTierFor = (
   value: string | null | undefined,
   lookup: CourseLookup,
 ): boolean => {
+  if (isUnknownAssessmentTier(value)) return true;
   const tier = normaliseAssessmentTier(value);
-  if (tier === null) return true;
+  if (tier === null) return false;
   return getAssessmentTierOptions(lookup).includes(tier);
 };
 

@@ -10,7 +10,7 @@ import { buildGenerationContext, formatGenerationContextPrompt } from "../_share
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
 import { translateExamBoard, getBoardMarkSchemeStyle, MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildCircuitInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 import { buildCacheKey, buildBaseCacheKey, isCacheEntryCompatible, shuffleArray } from "../_shared/cache-utils.ts";
-import { resolveProfileContext, toStoredGenerationContext, ProfileContextError, assessmentTierPrompt } from "../_shared/profile-context.ts";
+import { establishGenerationContext, assessmentTierPrompt } from "../_shared/profile-context.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
 import { splitMultiPartQuestions, ensureRenderableGraphConfigs } from "../_shared/question-postprocessor.ts";
 import { detectSubject, needsCircuitRules } from "../_shared/subject-detection.ts";
@@ -110,42 +110,24 @@ async function generateQuestionsInBackground(
     // ── OPTIMISATION 1: CHECK CACHE BEFORE AI CALL ──
     const isCustomNicheForCache = !subjectProfile.isKnownAcademic;
 
-    // ── PROFILE CONTEXT — resolved server-side from the OWNED profile ──
-    // An attempt that already stored its context keeps it, so editing the
-    // profile later never changes a past attempt. A quiz difficulty control
-    // can never move the assessment tier: it is not an input here.
-    let generationContext = (setData as any).generation_context ?? null;
-    if (!generationContext) {
-      try {
-        const resolved = await resolveProfileContext(supabaseClient, {
-          userId,
-          subjectName: setData.subject_id ?? '',
-          profileId: (setData as any).profile_id ?? null,
-          examBoard: setData.exam_board ?? null,
-          educationalTier: setData.educational_tier ?? null,
-        });
-        generationContext = toStoredGenerationContext(resolved);
-      } catch (ctxErr) {
-        if (ctxErr instanceof ProfileContextError) throw ctxErr;
-        console.warn('Profile context resolution failed:', ctxErr);
-      }
-    }
-    if (generationContext && !(setData as any).generation_context) {
-      // Best-effort: the column arrives with the assessment-tier migration.
-      const { error: ctxSaveError } = await supabaseClient
-        .from('practice_question_sets')
-        .update({ generation_context: generationContext } as any)
-        .eq('id', setId);
-      if (ctxSaveError) console.warn('generation_context not stored yet:', ctxSaveError.message);
-    }
+    // ── PROFILE CONTEXT — authoritative snapshot, created and owned server-side ──
+    // A snapshot the SERVER wrote is reused on retries; a client-written one is
+    // discarded and re-resolved from the OWNED profile. A quiz difficulty
+    // control is not an input and cannot move the assessment tier.
+    const generationContext = await establishGenerationContext(
+      supabaseClient,
+      setId,
+      userId,
+      setData,
+    );
 
     const resolvedAssessmentTier = (generationContext?.assessment_tier as string | null) ?? null;
     const resolvedCourseId = (generationContext?.course_id as string | null) ?? null;
 
     const cacheParams = {
       subject: setData.subject_id ?? '',
-      examBoard: (generationContext?.exam_board as string | null) ?? setData.exam_board ?? '',
-      educationalLevel: (generationContext?.educational_tier as string | null) ?? setData.educational_tier ?? '',
+      examBoard: setData.exam_board ?? '',
+      educationalLevel: setData.educational_tier ?? '',
       assessmentTier: resolvedAssessmentTier,
       courseId: resolvedCourseId,
       topics: setData.subtopics ?? [],
