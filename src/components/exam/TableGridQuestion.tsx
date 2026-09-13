@@ -367,23 +367,13 @@ export function TableGridQuestion({
   markingData
 }: TableGridQuestionProps) {
   // Safely destructure with fallbacks to prevent crashes on malformed data
-  const headers = tableData?.headers ?? [];
-  const rows = tableData?.rows ?? [];
+  const headers = Array.isArray(tableData?.headers) ? tableData.headers : [];
+  const rows = Array.isArray(tableData?.rows) ? tableData.rows : [];
   const columns = tableData?.columns;
   const selectionMode = tableData?.selectionMode;
   const prefilled = tableData?.prefilled;
   const tableType = tableData?.tableType;
   const perRowMaxSelections = tableData?.perRowMaxSelections;
-  
-  // Early return if tableData is completely invalid
-  if (!tableData || !Array.isArray(rows) || rows.length === 0) {
-    console.warn('TableGridQuestion: Invalid or empty tableData', { tableData });
-    return (
-      <div className="p-4 border border-destructive/30 bg-destructive/5 rounded-lg text-sm text-destructive">
-        Unable to render table: invalid or missing table data.
-      </div>
-    );
-  }
   
   // Determine if this is a toggle table or input table
   const isInputTable = tableType === 'text_entry' || tableType === 'number_entry' || tableType === 'mixed' ||
@@ -410,7 +400,7 @@ export function TableGridQuestion({
   }, [tableType, isTrueFalseTable, selectionMode]);
   
   // Determine mark style - default to 'tick' for True/False tables
-  const markStyle = tableData.markStyle || (isTrueFalseTable ? 'tick' : 'x');
+  const markStyle = tableData?.markStyle || (isTrueFalseTable ? 'tick' : 'x');
   
   // Create a map of locked cells from prefilled data
   const lockedCells = useMemo(() => {
@@ -663,7 +653,17 @@ export function TableGridQuestion({
     
     return null;
   };
-  
+
+  // Early return if tableData is completely invalid
+  if (!tableData || !Array.isArray(rows) || rows.length === 0) {
+    console.warn('TableGridQuestion: Invalid or empty tableData', { tableData });
+    return (
+      <div className="p-4 border border-destructive/30 bg-destructive/5 rounded-lg text-sm text-destructive">
+        Unable to render table: invalid or missing table data.
+      </div>
+    );
+  }
+
   return (
     <div className="my-4 overflow-x-auto">
       {/* Legend - only show if not read-only */}
