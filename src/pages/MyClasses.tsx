@@ -235,7 +235,7 @@ const MyClasses = () => {
       const examIds = allAssignments.map(a => a.exam_id);
       if (examIds.length > 0) {
         const { data: studentSubmissions } = await supabase
-          .from("exam_submissions")
+          .from("exam_submission_metadata")
           .select("exam_id, status, total_score, total_marks, submitted_at")
           .eq("student_id", user.id)
           .in("exam_id", examIds);
