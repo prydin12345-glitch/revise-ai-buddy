@@ -74,13 +74,11 @@ export function PrintExamButton({
 
       if (examError) throw examError;
 
-      const { data: questions, error: questionsError } = await supabase
-        .from("exam_questions")
-        .select("*")
-        .eq("exam_id", examId)
-        .order("question_number");
-
+      const { data: payload, error: questionsError } = await supabase.functions.invoke('get-exam-questions', {
+        body: { examId, isPreview: true },
+      });
       if (questionsError) throw questionsError;
+      const questions = payload?.questions ?? [];
 
       const formattedQuestions: ExamQuestion[] = questions.map(q => {
         const diagramConfig = buildDiagramConfig(q);
