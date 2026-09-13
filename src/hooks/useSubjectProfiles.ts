@@ -39,28 +39,59 @@ interface ExamProfile {
   updated_at: string;
 }
 
+/** The column does not exist yet (migration not applied) — not a real failure. */
+export const isMissingColumnError = (error: {
+  code?: string | null;
+  message?: string | null;
+} | null): boolean => {
+  if (!error) return false;
+  if (error.code === "42703" || error.code === "PGRST204") return true;
+  return /assessment_tier/i.test(error.message ?? "");
+};
+
+export type TierPersistStatus = "unchanged" | "saved" | "unsupported" | "failed";
+
+export interface TierPersistResult {
+  profile: ExamProfile;
+  status: TierPersistStatus;
+  message?: string;
+}
+
 /**
- * Writes the assessment tier separately and tolerates the column being absent,
- * so the app keeps working until the assessment-tier migration is applied.
+ * Writes the assessment tier in its OWN statement, so the rest of the profile
+ * still saves while the assessment-tier migration is pending. A missing column
+ * ("unsupported") is reported separately from a genuine write failure
+ * ("failed") — the caller must not claim success for the latter.
  */
-const persistAssessmentTier = async (
+export const persistAssessmentTier = async (
   profileId: string,
   rawTier: string | null,
   current: ExamProfile,
-): Promise<ExamProfile> => {
+  client: { from: typeof supabase.from } = supabase,
+): Promise<TierPersistResult> => {
   const tier = normaliseAssessmentTier(rawTier);
-  if (tier === (current.assessment_tier ?? null)) return current;
-  const { data, error } = await supabase
+  if (tier === (current.assessment_tier ?? null)) {
+    return { profile: current, status: "unchanged" };
+  }
+  const { data, error } = await client
     .from("subject_exam_profiles")
     .update({ assessment_tier: tier })
     .eq("id", profileId)
     .select()
     .maybeSingle();
-  if (error || !data) {
-    console.warn("Assessment tier not stored yet:", error?.message);
-    return current;
+
+  if (error) {
+    if (isMissingColumnError(error)) {
+      console.warn("Assessment tier column not available yet:", error.message);
+      return { profile: current, status: "unsupported", message: error.message };
+    }
+    console.error("Assessment tier save failed:", error.message);
+    return { profile: current, status: "failed", message: error.message };
   }
-  return data as unknown as ExamProfile;
+  if (!data) {
+    return { profile: current, status: "failed", message: "Profile not found" };
+  }
+  return { profile: data as unknown as ExamProfile, status: "saved" };
 };
 
 export const useSubjectProfiles = () => {
