@@ -170,13 +170,13 @@ export default function EditExam() {
     }
   };
 
-  const handleUpdateQuestion = async (questionId: string, field: string, value: string | number) => {
+  const handleUpdateQuestion = async (questionId: string, field: "question_text" | "marks", value: string | number) => {
     if (isPublished) return;
 
     try {
       const { error } = await supabase
         .from("exam_question_drafts")
-        .update({ [field]: value })
+        .update(field === "marks" ? { marks: Number(value) } : { question_text: String(value) })
         .eq("id", questionId);
 
       if (error) throw error;
