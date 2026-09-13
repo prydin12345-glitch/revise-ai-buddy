@@ -127,8 +127,11 @@ export const toStoredGenerationContext = (
 });
 
 /**
- * A stored snapshot may only be REUSED when the backend wrote it. Anything a
- * client managed to write is discarded and re-resolved from the owned profile.
+ * A stored snapshot may only be REUSED when the backend wrote it. The JSON
+ * marker ALONE does not establish trust: the database also forbids any
+ * authenticated client from writing, changing or clearing generation_context
+ * (see the guard trigger), and the snapshot must still describe the same
+ * profile as the row that carries it.
  */
 export const isServerResolvedContext = (value: unknown): boolean =>
   !!value &&
@@ -137,6 +140,18 @@ export const isServerResolvedContext = (value: unknown): boolean =>
   (value as Record<string, unknown>).context_version ===
     GENERATION_CONTEXT_VERSION;
 
+/** Does a trusted-looking snapshot actually belong to this row? */
+const matchesRow = (
+  ctx: Record<string, unknown>,
+  // deno-lint-ignore no-explicit-any
+  row: any,
+): boolean => {
+  const rowProfile = row?.profile_id ?? null;
+  const ctxProfile = (ctx.profile_id as string | null) ?? null;
+  const normalised = rowProfile === "all_topics" ? null : rowProfile;
+  return ctxProfile === normalised;
+};
+
 /** Reads the tier out of a stored snapshot, ignoring anything client-supplied. */
 export const storedAssessmentTier = (value: unknown): AssessmentTier | null => {
   if (!isServerResolvedContext(value)) return null;
@@ -144,6 +159,7 @@ export const storedAssessmentTier = (value: unknown): AssessmentTier | null => {
     (value as Record<string, unknown>).assessment_tier as string | null,
   );
 };
+
 
 /** Prompt fragment so the model actually honours the tier. */
 export const assessmentTierPrompt = (
