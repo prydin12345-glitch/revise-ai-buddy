@@ -33,7 +33,10 @@ const aqaBiologyHigher = {
 };
 
 /** Minimal stand-in for the supabase client used by the resolver. */
-function makeClient(profiles: Record<string, any>) {
+function makeClient(
+  profiles: Record<string, any>,
+  writeOutcome: { error?: { message: string } | null; rows?: any[] } = {},
+) {
   const updates: any[] = [];
   const client = {
     updates,
@@ -41,7 +44,8 @@ function makeClient(profiles: Record<string, any>) {
       const filters: Record<string, unknown> = {};
       const builder: any = {
         _payload: null as any,
-        select() { return builder; },
+        _selected: false,
+        select() { builder._selected = true; return builder; },
         update(payload: any) { builder._payload = payload; return builder; },
         eq(col: string, val: unknown) { filters[col] = val; return builder; },
         maybeSingle() {
@@ -53,7 +57,11 @@ function makeClient(profiles: Record<string, any>) {
         },
         then(resolve: (v: any) => void) {
           updates.push({ table, filters, payload: builder._payload });
-          return Promise.resolve({ error: null }).then(resolve);
+          const error = writeOutcome.error ?? null;
+          const data = error
+            ? null
+            : writeOutcome.rows ?? [{ id: filters.id }];
+          return Promise.resolve({ data, error }).then(resolve);
         },
       };
       return builder;
@@ -61,6 +69,7 @@ function makeClient(profiles: Record<string, any>) {
   };
   return client;
 }
+
 
 describe('server-authoritative generation context', () => {
   let client: ReturnType<typeof makeClient>;
