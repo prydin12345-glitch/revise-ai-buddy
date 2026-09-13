@@ -293,12 +293,18 @@ export const useSubjectProfiles = () => {
       );
       const { assessment_tier: requestedTier, ...coreUpdates } = updates;
 
-      const { data, error } = await supabase
-        .from("subject_exam_profiles")
-        .update(coreUpdates as any)
-        .eq("id", profileId)
-        .select()
-        .single();
+      const query = Object.keys(coreUpdates).length
+        ? supabase
+            .from("subject_exam_profiles")
+            .update(coreUpdates as any)
+            .eq("id", profileId)
+            .select()
+        : supabase
+            .from("subject_exam_profiles")
+            .select("*")
+            .eq("id", profileId);
+
+      const { data, error } = await query.single();
 
       if (error) throw error;
 
