@@ -1,7 +1,8 @@
+import { withAIQuota } from '../_shared/ai-request-guard.ts';
 import { corsHeaders } from "../_shared/cors-headers.ts";
 import { buildGenerationContext, formatGenerationContextPrompt } from "../_shared/generation-context.ts";
 
-Deno.serve(async (req) => {
+Deno.serve(withAIQuota('polish-question', async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -79,4 +80,4 @@ Polished question:`;
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}));
