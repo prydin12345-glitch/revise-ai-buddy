@@ -884,7 +884,7 @@ export default function CreateExam() {
                           selectedSubtopics={selectedSubtopics}
                           onSubtopicsChange={setSelectedSubtopics}
                           educationalTier={effectiveEducationalTier}
-                          examBoard={effectiveExamBoard}
+                          examBoard={resolvedExamBoard}
                           useAIInterpretation={useAIInterpretation}
                           onAIInterpretationChange={setUseAIInterpretation}
                         />
@@ -1375,7 +1375,7 @@ export default function CreateExam() {
                     examName={examName}
                     subjectId={subjectId}
                     subjectColor={subjectColor}
-                    boardLabel={effectiveExamBoard ? getBoardDisplayName(effectiveExamBoard) : "Generic style"}
+                    boardLabel={resolvedExamBoard ? getBoardDisplayName(resolvedExamBoard) : "Generic style"}
                     levelLabel={formatLevelLabel(profileEducationalTier || effectiveEducationalTier)}
                     totalQuestions={totalQuestions}
                     timerEnabled={timerEnabled}
