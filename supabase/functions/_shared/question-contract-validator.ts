@@ -67,7 +67,7 @@ const COMMAND_VERBS = [
   "measure", "draw", "sketch", "plot", "label", "complete", "compute",
   "show that", "write", "select", "choose", "tick", "circle", "match",
   "deduce", "analyse", "analyze", "interpret", "comment on", "find",
-  "use the", "using the", "add to", "annotate", "convert", "balance",
+  "use", "use the", "using the", "using", "add to", "annotate", "convert", "balance",
 ];
 
 /** Interrogative openers ("Which of these…", "What is the…"). */
