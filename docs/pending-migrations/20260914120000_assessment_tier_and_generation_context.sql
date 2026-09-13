@@ -54,14 +54,14 @@ COMMENT ON COLUMN public.practice_question_sets.generation_context IS
 CREATE OR REPLACE FUNCTION public.guard_generation_context()
 RETURNS trigger
 LANGUAGE plpgsql
-SECURITY DEFINER
 SET search_path TO 'public'
 AS $$
 DECLARE v_trusted boolean;
 BEGIN
   v_trusted :=
     coalesce(auth.role(), '') = 'service_role'
-    OR current_user IN ('postgres', 'supabase_admin', 'service_role', 'supabase_storage_admin');
+    OR current_user IN ('postgres', 'supabase_admin', 'service_role');
+  -- Deliberately SECURITY INVOKER: the guard must see the CALLER's role.
 
   IF v_trusted THEN
     RETURN NEW;
