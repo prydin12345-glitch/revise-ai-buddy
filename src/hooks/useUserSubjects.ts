@@ -106,7 +106,7 @@ export const useUserSubjects = () => {
 
     if (existingSubject) {
       // Update existing subject color in user_subjects
-      const updatePayload: Record<string, any> = { 
+      const updatePayload: { subject_color: string; updated_at: string; subject_id: string | null; exam_board?: string | null } = {
         subject_color: color, 
         updated_at: new Date().toISOString(),
         subject_id: subjectData?.id || existingSubject.subject_id || null,
