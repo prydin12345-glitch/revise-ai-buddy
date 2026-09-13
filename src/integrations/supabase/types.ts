@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_request_reservations: {
+        Row: {
+          created_at: string
+          feature: string
+          id: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          feature: string
+          id?: never
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          feature?: string
+          id?: never
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_request_settings: {
+        Row: {
+          enabled: boolean
+          global_daily_limit: number
+          id: boolean
+        }
+        Insert: {
+          enabled?: boolean
+          global_daily_limit?: number
+          id?: boolean
+        }
+        Update: {
+          enabled?: boolean
+          global_daily_limit?: number
+          id?: boolean
+        }
+        Relationships: []
+      }
       ai_tutor_messages: {
         Row: {
           content: string
@@ -704,6 +743,9 @@ export type Database = {
           id: string
           is_late: boolean | null
           last_accessed_at: string | null
+          marking_error: string | null
+          marking_started_at: string | null
+          marking_token: string | null
           status: string | null
           student_id: string
           submitted_at: string | null
@@ -719,6 +761,9 @@ export type Database = {
           id?: string
           is_late?: boolean | null
           last_accessed_at?: string | null
+          marking_error?: string | null
+          marking_started_at?: string | null
+          marking_token?: string | null
           status?: string | null
           student_id: string
           submitted_at?: string | null
@@ -734,6 +779,9 @@ export type Database = {
           id?: string
           is_late?: boolean | null
           last_accessed_at?: string | null
+          marking_error?: string | null
+          marking_started_at?: string | null
+          marking_token?: string | null
           status?: string | null
           student_id?: string
           submitted_at?: string | null
@@ -2092,6 +2140,13 @@ export type Database = {
             foreignKeyName: "student_answers_question_id_fkey"
             columns: ["question_id"]
             isOneToOne: false
+            referencedRelation: "exam_question_metadata"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
             referencedRelation: "exam_questions"
             referencedColumns: ["id"]
           },
@@ -2979,6 +3034,85 @@ export type Database = {
         }
         Relationships: []
       }
+      exam_question_metadata: {
+        Row: {
+          exam_id: string | null
+          id: string | null
+          marks: number | null
+          question_number: string | null
+        }
+        Insert: {
+          exam_id?: string | null
+          id?: string | null
+          marks?: number | null
+          question_number?: string | null
+        }
+        Update: {
+          exam_id?: string | null
+          id?: string | null
+          marks?: number | null
+          question_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_questions_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_submission_metadata: {
+        Row: {
+          exam_id: string | null
+          exam_started_at: string | null
+          id: string | null
+          last_accessed_at: string | null
+          status: string | null
+          student_id: string | null
+          submitted_at: string | null
+          time_remaining_seconds: number | null
+          time_taken_seconds: number | null
+          total_marks: number | null
+          total_score: number | null
+        }
+        Insert: {
+          exam_id?: string | null
+          exam_started_at?: string | null
+          id?: string | null
+          last_accessed_at?: string | null
+          status?: string | null
+          student_id?: string | null
+          submitted_at?: string | null
+          time_remaining_seconds?: number | null
+          time_taken_seconds?: number | null
+          total_marks?: never
+          total_score?: never
+        }
+        Update: {
+          exam_id?: string | null
+          exam_started_at?: string | null
+          id?: string | null
+          last_accessed_at?: string | null
+          status?: string | null
+          student_id?: string | null
+          submitted_at?: string | null
+          time_remaining_seconds?: number | null
+          time_taken_seconds?: number | null
+          total_marks?: never
+          total_score?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_submissions_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_profiles_safe: {
         Row: {
           avatar_url: string | null
@@ -3011,6 +3145,11 @@ export type Database = {
       }
     }
     Functions: {
+      can_read_exam_solutions: { Args: { p_exam_id: string }; Returns: boolean }
+      claim_exam_marking: {
+        Args: { p_exam_id: string; p_time_taken: number; p_user_id: string }
+        Returns: Json
+      }
       create_deadline_change_notifications: {
         Args: {
           p_exam_id: string
@@ -3057,6 +3196,24 @@ export type Database = {
         Args: { p_domain?: string; p_name: string }
         Returns: string
       }
+      exam_access_info: {
+        Args: { p_exam_id: string; p_user_id?: string }
+        Returns: Json
+      }
+      fail_exam_marking: {
+        Args: { p_exam_id: string; p_token: string; p_user_id: string }
+        Returns: undefined
+      }
+      finish_exam_marking: {
+        Args: {
+          p_exam_id: string
+          p_is_late: boolean
+          p_results: Json
+          p_token: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       generate_student_code: {
         Args: { p_first_name: string; p_last_name: string }
         Returns: string
@@ -3082,6 +3239,20 @@ export type Database = {
       is_group_tutor: {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
+      }
+      reserve_ai_request: {
+        Args: {
+          p_burst_limit: number
+          p_burst_minutes: number
+          p_daily_limit: number
+          p_feature: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      save_exam_progress_secure: {
+        Args: { p_exam_id: string; p_remaining?: number; p_user_id: string }
+        Returns: undefined
       }
       user_owns_exam: {
         Args: { _exam_id: string; _user_id: string }
