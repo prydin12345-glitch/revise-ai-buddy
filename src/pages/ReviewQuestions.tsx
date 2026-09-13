@@ -95,7 +95,18 @@ export default function ReviewQuestions() {
 
     const { error } = await supabase
       .from('exam_question_drafts')
-      .update(editForm)
+      .update({
+        question_text: editForm.question_text,
+        question_number: editForm.question_number,
+        question_type: editForm.question_type,
+        marks: editForm.marks,
+        options: editForm.options,
+        correct_answer: editForm.correct_answer,
+        topic_tag: editForm.topic_tag,
+        difficulty_level: editForm.difficulty_level,
+        is_flagged: editForm.is_flagged,
+        flag_reason: editForm.flag_reason,
+      })
       .eq('id', editingId);
 
     if (error) {
