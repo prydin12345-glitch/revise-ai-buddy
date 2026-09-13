@@ -388,6 +388,22 @@ const CreatePracticeQuestions = () => {
         exampleFileUrl = examplePath;
       }
 
+      // Resolve board + qualification once, so the row we create already
+      // matches what the backend will re-resolve (Profile > Subject > Manual >
+      // Preference). The server still re-validates and owns the snapshot.
+      const activeProfile = selectedProfileId && selectedProfileId !== 'all_topics'
+        ? getProfilesForSubject(subjectId).find((pr) => pr.id === selectedProfileId) ?? null
+        : null;
+      const generationContext = resolveProfileContext({
+        subjectName: subjectId,
+        profile: activeProfile as any,
+        subjectExamBoard: getSubjectExamBoard(subjectId),
+        manualExamBoard: examBoard === "other" ? customExamBoard.trim() : effectiveExamBoard,
+        manualEducationalTier: effectiveEducationalTier,
+        preferredExamBoard: preferences?.preferred_exam_board,
+        preferredEducationalLevel: preferences?.preferred_educational_level,
+      });
+
       // Create practice set record
       const { data: setData, error: setError } = await supabase
         .from("practice_question_sets")
