@@ -182,3 +182,57 @@ describe('tier validation', () => {
     expect(toStoredGenerationContext(ctx).resolved_by).toBe('server');
   });
 });
+
+describe('the JSON marker alone does not establish trust', () => {
+  it('discards a forged snapshot that carries the exact server marker but a foreign profile', async () => {
+    const client = makeClient({ p1: { ...aqaBiologyHigher } });
+    const setData: any = {
+      profile_id: 'p1',
+      subject_id: 'Biology',
+      // Forged by the browser: correct marker AND current version.
+      generation_context: {
+        context_version: 1,
+        resolved_by: 'server',
+        profile_id: 'someone-elses-profile',
+        assessment_tier: 'foundation',
+        exam_board: 'edexcel',
+      },
+    };
+
+    const ctx = await establishGenerationContext(client, SET, USER, setData);
+
+    expect(ctx.assessment_tier).toBe('higher');
+    expect(ctx.profile_id).toBe('p1');
+    expect(ctx.exam_board).toBe('aqa');
+    // It was re-resolved and re-persisted, not trusted.
+    expect(client.updates).toHaveLength(1);
+  });
+});
+
+describe('snapshot persistence is mandatory', () => {
+  it('stops before any AI call when the write fails', async () => {
+    const client = makeClient({ p1: { ...aqaBiologyHigher } }, {
+      error: { message: 'column "generation_context" does not exist' },
+    });
+    const setData: any = { profile_id: 'p1', subject_id: 'Biology' };
+    await expect(establishGenerationContext(client, SET, USER, setData))
+      .rejects.toBeInstanceOf(ProfileContextError);
+  });
+
+  it('stops when the update matches no owned row', async () => {
+    const client = makeClient({ p1: { ...aqaBiologyHigher } }, { rows: [] });
+    const setData: any = { profile_id: 'p1', subject_id: 'Biology' };
+    await expect(establishGenerationContext(client, SET, USER, setData))
+      .rejects.toThrow(/no owned practice set/);
+  });
+
+  it('reuses the persisted snapshot on a retry without writing again', async () => {
+    const client = makeClient({ p1: { ...aqaBiologyHigher } });
+    const setData: any = { profile_id: 'p1', subject_id: 'Biology' };
+    const first = await establishGenerationContext(client, SET, USER, setData);
+    const retry: any = { profile_id: 'p1', subject_id: 'Biology', generation_context: first };
+    const second = await establishGenerationContext(client, SET, USER, retry);
+    expect(second).toEqual(first);
+    expect(client.updates).toHaveLength(1);
+  });
+});
