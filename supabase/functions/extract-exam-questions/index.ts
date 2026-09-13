@@ -14,6 +14,7 @@ import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
 import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 import { getSubjectSpecificInstructions } from "../_shared/exam-extraction-prompts.ts";
 import { validateQuestionCandidates, describeDefects, assembleQuestionText, hasAssessedTask, CONTRACT_VERSION } from "../_shared/question-contract-validator.ts";
+import { buildPaperPlan, describePlan, AQA_BIOLOGY_P1, type PaperMode, type PaperPlan } from "../_shared/biology-paper-contract.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
 
@@ -670,6 +671,23 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     assessmentTier: authoritativeTier,
     courseId: (storedContext?.course_id as string | null) ?? null,
   });
+  // ── GUIDED PAPER CONTRACT ───────────────────────────────────────────────
+  // When the profile stores a guided contract, the plan (parts, marks,
+  // response types, resources) is decided here — before the model writes
+  // anything — and the totals are computed from the plan, not trusted back.
+  const storedContract = (formatData?.profile_metadata as any)?.paperBlueprint?.paperContract ?? null;
+  let guidedPlan: PaperPlan | null = null;
+  if (storedContract?.courseId === AQA_BIOLOGY_P1.courseId && storedContract?.paperId === AQA_BIOLOGY_P1.paperId) {
+    guidedPlan = buildPaperPlan(storedContract.mode as PaperMode, authoritativeTier === 'foundation' || authoritativeTier === 'higher' ? authoritativeTier : null);
+  }
+  if (guidedPlan) {
+    console.log(`[contract] ${describePlan(guidedPlan)} (v${guidedPlan.contractVersion})`);
+    extractionPrompt += `\n\nPAPER CONTRACT — ${describePlan(guidedPlan)}
+Produce EXACTLY these parts, in this order. Keep every question number, mark value, response type and topic:
+${guidedPlan.parts.map((p) => `- ${p.questionNumber} | ${p.topic} | ${p.responseType} | ${p.marks} mark(s) | ${p.demand}${p.resource === 'none' ? '' : ` | supply a ${p.resource} with real data`}`).join('\n')}
+Stay inside ${AQA_BIOLOGY_P1.displayName} Paper 1 topics only. Every scored part needs an explicit task; give "context" and "task" as separate fields.`;
+  }
+
   if (assessmentTierPromptBlock) {
     extractionPrompt += '\n\n' + assessmentTierPromptBlock;
   }
@@ -1428,7 +1446,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   // parent group (text + expected answer + mark scheme together), at most twice
   // per group and within a whole-request budget, then revalidate. If the paper
   // still fails, the extraction fails — it is never presented as ready.
-  await enforceAnswerability(draftId, supabase, lovableApiKey, exam.subject_id);
+  await enforceAnswerability(draftId, supabase, lovableApiKey, exam.subject_id, guidedPlan);
 
 
 
@@ -2926,7 +2944,11 @@ async function enforceAnswerability(
   supabase: any,
   apiKey: string,
   subject: string,
+  plan: PaperPlan | null = null,
 ): Promise<void> {
+  const planExpectations = plan
+    ? { expectedTotalMarks: plan.totalMarks, expectedPartCount: plan.partCount }
+    : {};
   const load = async () => {
     const { data, error } = await supabase.from('exam_question_drafts').select('*').eq('exam_id', draftId);
     if (error) throw new Error(`Answerability gate could not read drafts: ${error.message}`);
@@ -2934,7 +2956,7 @@ async function enforceAnswerability(
   };
 
   let drafts = await load();
-  let result = validateQuestionCandidates(drafts);
+  let result = validateQuestionCandidates(drafts, planExpectations);
   if (result.ok) {
     console.log(`Answerability gate passed (contract v${CONTRACT_VERSION}, ${drafts.length} parts)`);
     return;
@@ -2976,7 +2998,7 @@ async function enforceAnswerability(
     }
 
     drafts = await load();
-    result = validateQuestionCandidates(drafts);
+    result = validateQuestionCandidates(drafts, planExpectations);
   }
 
   if (!result.ok) {
