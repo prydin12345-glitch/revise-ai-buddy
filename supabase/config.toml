@@ -74,3 +74,15 @@ verify_jwt = false
 
 [functions.derive-exam-topics]
 verify_jwt = true
+
+[functions.classify-subject]
+verify_jwt = true
+
+[functions.generate-rationale]
+verify_jwt = true
+
+[functions.suggest-subject-topics]
+verify_jwt = true
+
+[functions.explain-answer]
+verify_jwt = true
