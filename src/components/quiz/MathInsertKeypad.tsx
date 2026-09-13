@@ -169,11 +169,11 @@ export function MathInsertKeypad({
   onDelete,
   subjectColor = "#3B82F6" 
 }: MathInsertKeypadProps) {
-  if (!isOpen) return null;
-
   const handleSymbolClick = useCallback((value: string, caretOffset?: number) => {
     onInsert(value, caretOffset);
   }, [onInsert]);
+
+  if (!isOpen) return null;
 
   return (
     <Card className="w-full mt-3 p-3 shadow-lg border-2 border-border bg-card animate-in slide-in-from-bottom-2 duration-200">
