@@ -256,13 +256,17 @@ export const useSubjectProfiles = () => {
         .single();
 
       if (error) throw error;
-      const saved = await persistAssessmentTier(
+      const tierResult = await persistAssessmentTier(
         (data as ExamProfile).id,
         advanced?.assessmentTier ?? null,
         data as ExamProfile,
       );
-      setExamProfiles((prev) => [...prev, saved]);
-      toast.success("Exam profile created");
+      setExamProfiles((prev) => [...prev, tierResult.profile]);
+      if (tierResult.status === "failed") {
+        toast.error("Profile created, but the Foundation/Higher tier did not save");
+      } else {
+        toast.success("Exam profile created");
+      }
     } catch (err) {
       console.error("Error creating profile:", err);
       toast.error("Failed to create profile");
@@ -280,23 +284,40 @@ export const useSubjectProfiles = () => {
     >>
   ) => {
     try {
+      // The tier is written separately so this statement still works while the
+      // assessment-tier column is pending. Omitting the key leaves the stored
+      // tier untouched; only an explicit key changes it.
+      const tierRequested = Object.prototype.hasOwnProperty.call(
+        updates,
+        "assessment_tier",
+      );
+      const { assessment_tier: requestedTier, ...coreUpdates } = updates;
+
       const { data, error } = await supabase
         .from("subject_exam_profiles")
-        .update(updates as any)
+        .update(coreUpdates as any)
         .eq("id", profileId)
         .select()
         .single();
 
       if (error) throw error;
-      const saved = await persistAssessmentTier(
-        profileId,
-        updates.assessment_tier ?? null,
-        data as ExamProfile,
-      );
+
+      const tierResult = tierRequested
+        ? await persistAssessmentTier(
+            profileId,
+            requestedTier ?? null,
+            data as ExamProfile,
+          )
+        : { profile: data as ExamProfile, status: "unchanged" as const };
+
       setExamProfiles((prev) =>
-        prev.map((p) => (p.id === profileId ? saved : p))
+        prev.map((p) => (p.id === profileId ? tierResult.profile : p))
       );
-      toast.success("Profile updated");
+      if (tierResult.status === "failed") {
+        toast.error("Profile saved, but the Foundation/Higher tier did not save");
+      } else {
+        toast.success("Profile updated");
+      }
     } catch (err) {
       console.error("Error updating profile:", err);
       toast.error("Failed to update profile");
