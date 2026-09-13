@@ -70,6 +70,7 @@ interface Submission {
   total_score: number;
   total_marks: number;
   time_taken_seconds: number;
+  status?: string;
 }
 
 // ── Helper: strip leading letter prefixes from option text ──────────────────
@@ -254,8 +255,18 @@ const ExamReview = () => {
 
       if (error) throw error;
 
-      if (!data.submission) {
-        toast({ title: "Not Submitted", description: "This exam hasn't been submitted yet.", variant: "destructive" });
+      const submissionStatus: string | undefined = data.submission?.status;
+
+      if (!data.submission || submissionStatus !== 'graded') {
+        if (submissionStatus === 'marking_failed') {
+          toast({
+            title: "Marking didn't finish",
+            description: "We couldn't finish marking this paper. You can retry the submission from the exam page.",
+            variant: "destructive",
+          });
+        } else {
+          toast({ title: "Not Submitted", description: "This exam hasn't been submitted yet.", variant: "destructive" });
+        }
         navigate(`/exam/${examId}/in-progress`);
         return;
       }
@@ -269,24 +280,15 @@ const ExamReview = () => {
       });
       setAnswers(answersMap);
 
-      // Check grade release settings
-      const { data: assignment } = await supabase
-        .from('exam_assignments')
-        .select('is_grades_released, assigned_by')
-        .eq('exam_id', examId)
-        .maybeSingle();
-
       const { data: exam } = await supabase
         .from('exams')
-        .select('grade_released, assigned_by, insert_figures')
+        .select('insert_figures')
         .eq('id', examId)
         .single();
       setInsertFigures(Array.isArray((exam as any)?.insert_figures) ? (exam as any).insert_figures : []);
 
-      const isAssignedExam = assignment || exam?.assigned_by;
-      const gradesReleased = assignment?.is_grades_released || exam?.grade_released;
-      setScoresHidden(!!isAssignedExam && !gradesReleased);
-      setIsTutorAssigned(!!isAssignedExam);
+      setScoresHidden(data.scoresHidden === true);
+      setIsTutorAssigned(data.isAssigned === true);
 
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
