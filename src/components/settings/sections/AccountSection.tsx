@@ -162,7 +162,7 @@ export const AccountSection = () => {
       const displayName = `${formattedFirstName} ${formattedLastName}`;
 
       const needsNewCode = !studentCode || studentCode.startsWith("XX");
-      const updateData: Record<string, any> = {
+      const updateData: { first_name: string; last_name: string; display_name: string; student_code?: string } = {
         first_name: formattedFirstName,
         last_name: formattedLastName,
         display_name: displayName,
