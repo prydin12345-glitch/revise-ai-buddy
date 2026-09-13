@@ -1,20 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
+import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Loader2, Eye } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Loader2, ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock, Save, MessageCircle, EyeOff, Menu, X, Sparkles, Send, Lightbulb, ArrowDown } from "lucide-react";
 import { MathRenderer } from "@/components/MathRenderer";
+import { FeedbackThreadModal } from "@/components/exam/FeedbackThreadModal";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
 import { DataTableChart, isDataTableQuestion } from "@/components/graph/DataTableChart";
-import { LineChart, isLineChartQuestion } from "@/components/graph/LineChart";
 import {
   BarChart, isBarChartQuestion,
   PieChart, isPieChartQuestion,
@@ -22,10 +19,8 @@ import {
   FrequencyPolygonChart, isFrequencyPolygonQuestion,
   ClimateChart, isClimateChartQuestion,
 } from "@/components/graph";
-import { getChartData, hasDataTableConfig } from "@/utils/chartData";
-import { removeTableFromContent } from "@/components/InteractiveExamTable";
-import { MultiDiagramOptionPanel } from "@/components/shared/MultiDiagramOptionPanel";
-import { FigureChartTabs, hasFigureAndChart } from "@/components/shared/FigureChartTabs";
+import { parseGraphQuestionData } from "@/components/graph/types";
+import { getChartData, getCorrectChartData } from "@/utils/chartData";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { PhysicsFigurePanel } from "@/components/physics";
@@ -34,6 +29,17 @@ import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
 import { MathsFigurePanel } from "@/components/maths";
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
 import { InsertPanel } from "@/components/insert/InsertPanel";
+import { DrawDiagramQuestion, detectDrawQuestion, isDrawingAnswer, getDrawingDataUrl } from "@/components/drawing/DrawDiagramQuestion";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { 
+  TableGridQuestion, 
+  parseMarkdownToTableGrid, 
+  isTickXTable, 
+  extractTextBeforeTable,
+  deserializeTableGridAnswers,
+  generateCorrectAnswerDisplay,
+  TableGridData
+} from "@/components/exam/TableGridQuestion";
 
 interface Question {
   id: string;
@@ -41,43 +47,247 @@ interface Question {
   question_type: string;
   question_text: string;
   marks: number;
-  options?: Array<{ text: string; key: string }>;
+  options?: { text: string }[] | string[];
   figure_urls?: string[];
+  correct_answer?: string;
   has_math?: boolean;
   question_latex?: string;
+  rationale?: string;
 }
 
-const ExamPreview = () => {
+interface Answer {
+  question_id: string;
+  answer_text: string;
+  score: number;
+  feedback: string;
+  is_correct: boolean;
+  table_answers?: Record<string, any>;
+  markingData?: any;
+}
+
+interface Submission {
+  submitted_at: string;
+  total_score: number;
+  total_marks: number;
+  time_taken_seconds: number;
+}
+
+// ── Helper: strip leading letter prefixes from option text ──────────────────
+function scrubOptionText(text: string): string {
+  return text.replace(/^[A-Da-d][.)]\s*/, '').trim();
+}
+
+// ── Helper: resolve MCQ letter to full option text ──────────────────────────
+function resolveOptionText(answerText: string | undefined, options: Question["options"]): string | null {
+  if (!answerText || !options || !Array.isArray(options) || options.length === 0) return null;
+
+  const trimmed = answerText.trim();
+  // Check if the answer is a single letter A-Z
+  if (/^[A-Za-z]$/.test(trimmed)) {
+    const idx = trimmed.toUpperCase().charCodeAt(0) - 65;
+    if (idx >= 0 && idx < options.length) {
+      const opt = options[idx];
+      const raw = typeof opt === "string" ? opt : (opt as any)?.text ?? null;
+      return raw ? scrubOptionText(raw) : null;
+    }
+  }
+  return null;
+}
+
+// ── Helper: check if student selected this option ──────────────────────────
+function didStudentSelect(answerText: string | undefined, optIndex: number, optText: string): boolean {
+  if (!answerText) return false;
+  const trimmed = answerText.trim();
+  const label = getOptionLabel(optIndex);
+  // Match by letter
+  if (trimmed.toUpperCase() === label) return true;
+  // Match by scrubbed text
+  if (scrubOptionText(trimmed) === scrubOptionText(optText)) return true;
+  return false;
+}
+
+// ── Helper: check if this option is the correct answer ─────────────────────
+function isOptionCorrect(correctAnswer: string | undefined, optIndex: number, optText: string): boolean {
+  if (!correctAnswer) return false;
+  const ca = correctAnswer.trim();
+  const label = getOptionLabel(optIndex);
+  const scrubbed = scrubOptionText(optText);
+  // Match by letter
+  if (ca.toUpperCase() === label) return true;
+  // Match by raw or scrubbed text
+  if (ca === optText || scrubOptionText(ca) === scrubbed) return true;
+  return false;
+}
+
+function getOptionLabel(index: number): string {
+  return String.fromCharCode(65 + index);
+}
+
+// ── Marked-paper helpers ────────────────────────────────────────────────────
+type ReviewStatus = 'correct' | 'partial' | 'lost';
+function questionStatus(answer: Answer | undefined, marks: number): ReviewStatus {
+  if (!answer) return 'lost';
+  if (answer.score >= marks) return 'correct';
+  if (answer.score === 0) return 'lost';
+  return 'partial';
+}
+type FilterKey = 'all' | 'correct' | 'lost' | 'partial';
+
+const PenTick = ({ className = '' }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 13.5 9 19l11-13" />
+  </svg>
+);
+const PenCross = ({ className = '' }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 5l14 14M19 5 5 19" />
+  </svg>
+);
+const PenHalf = ({ className = '' }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 19 19 5" />
+    <path d="M5 13l4 4" />
+  </svg>
+);
+
+// ── AI Explain Inline Component ─────────────────────────────────────────────
+function AIExplainPanel({ question, answer }: { question: Question; answer?: Answer }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [explanation, setExplanation] = useState<string | null>(null);
+
+  const handleAsk = async () => {
+    if (!query.trim()) return;
+    setLoading(true);
+    setExplanation(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("explain-answer", {
+        body: {
+          questionText: question.question_text,
+          correctAnswer: question.correct_answer,
+          studentAnswer: answer?.answer_text,
+          studentQuery: query.trim(),
+          options: question.options,
+        },
+      });
+      if (error) throw error;
+      setExplanation(data.explanation);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to get explanation", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <Button size="sm" variant="outline" onClick={() => setOpen(true)} className="gap-1.5">
+        <Sparkles className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">Explain</span>
+      </Button>
+    );
+  }
+
+  return (
+    <div className="mt-4 p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold flex items-center gap-1.5">
+          <Sparkles className="w-4 h-4 text-primary" /> Ask AI
+        </span>
+        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setOpen(false)}>
+          <X className="w-3.5 h-3.5" />
+        </Button>
+      </div>
+      {!explanation && (
+        <div className="flex gap-2">
+          <Textarea
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="e.g. Why is this the correct answer?"
+            className="min-h-[60px] text-sm resize-none"
+            rows={2}
+          />
+          <Button size="icon" onClick={handleAsk} disabled={loading || !query.trim()} className="shrink-0 self-end">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          </Button>
+        </div>
+      )}
+      {explanation && (
+        <div className="space-y-2">
+          <p className="text-sm leading-relaxed">{explanation}</p>
+          <Button size="sm" variant="ghost" onClick={() => { setExplanation(null); setQuery(""); }}>
+            Ask another question
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const ExamReview = () => {
   const { examId } = useParams();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [exam, setExam] = useState<any>(null);
+  const [answers, setAnswers] = useState<Record<string, Answer>>({});
+  const [submission, setSubmission] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(true);
-  const [beginDialogOpen, setBeginDialogOpen] = useState(false);
+  const [scoresHidden, setScoresHidden] = useState(false);
+  const [insertFigures, setInsertFigures] = useState<any[]>([]);
+  const [isTutorAssigned, setIsTutorAssigned] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [selectedQuestionForFeedback, setSelectedQuestionForFeedback] = useState<{ id: string; number: string } | null>(null);
+  const [filter, setFilter] = useState<FilterKey>('all');
 
   useEffect(() => {
-    loadExamPreview();
+    loadReview();
   }, [examId]);
 
-  const loadExamPreview = async () => {
+  const loadReview = async () => {
     try {
-      // Fetch exam metadata
-      const { data: examData, error: examError } = await supabase
-        .from('exams')
-        .select('*')
-        .eq('id', examId)
-        .single();
-
-      if (examError) throw examError;
-      setExam(examData);
-
-      // Fetch questions via edge function
       const { data, error } = await supabase.functions.invoke('get-exam-questions', {
-        body: { examId, isPreview: true }
+        body: { examId }
       });
 
       if (error) throw error;
+
+      if (!data.submission || data.submission.status !== 'graded') {
+        toast({ title: "Not Submitted", description: data.submission?.status === 'marking_failed' ? 'Your answers are saved, but marking did not finish. Please retry submission.' : 'This exam does not have a completed grade yet.', variant: "destructive" });
+        navigate(`/exam/${examId}/in-progress`);
+        return;
+      }
+
       setQuestions(data.questions || []);
+      setSubmission(data.submission);
+
+      const answersMap: Record<string, Answer> = {};
+      (data.existingAnswers || []).forEach((ans: Answer) => {
+        answersMap[ans.question_id] = ans;
+      });
+      setAnswers(answersMap);
+
+      // Check grade release settings
+      const { data: assignment } = await supabase
+        .from('exam_assignments')
+        .select('is_grades_released, assigned_by')
+        .eq('exam_id', examId)
+        .maybeSingle();
+
+      const { data: exam } = await supabase
+        .from('exams')
+        .select('grade_released, assigned_by, insert_figures')
+        .eq('id', examId)
+        .single();
+      setInsertFigures(Array.isArray((exam as any)?.insert_figures) ? (exam as any).insert_figures : []);
+
+      const isAssignedExam = assignment || exam?.assigned_by;
+      const gradesReleased = assignment?.is_grades_released || exam?.grade_released;
+      setScoresHidden(data.scoresHidden === true);
+      setIsTutorAssigned(data.isAssigned === true);
+
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -85,268 +295,848 @@ const ExamPreview = () => {
     }
   };
 
-  const handleBeginExam = () => {
-    setBeginDialogOpen(true);
+  const scrollToQuestion = (questionId: string) => {
+    questionRefs.current[questionId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (isMobile) setSidebarOpen(false);
   };
 
-  const handleConfirmBeginExam = () => {
-    setBeginDialogOpen(false);
-    navigate(`/exam/${examId}/live`);
+  const formatTime = (seconds: number) => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return hrs > 0 
+      ? `${hrs}h ${mins}m ${secs}s`
+      : `${mins}m ${secs}s`;
   };
+
+  const getStatusIcon = (answer?: Answer) => {
+    if (scoresHidden) return <EyeOff className="w-5 h-5 text-muted-foreground" />;
+    if (!answer) return <XCircle className="w-5 h-5 text-destructive" />;
+    if (answer.is_correct) return <CheckCircle className="w-5 h-5 text-green-500" />;
+    if (answer.score > 0) return <AlertCircle className="w-5 h-5 text-orange-500" />;
+    return <XCircle className="w-5 h-5 text-destructive" />;
+  };
+
+  const getStatusColor = (answer?: Answer) => {
+    if (scoresHidden) return 'bg-muted text-muted-foreground';
+    if (!answer) return 'bg-destructive/10 text-destructive';
+    if (answer.is_correct) return 'bg-green-500/10 text-green-600';
+    if (answer.score > 0) return 'bg-orange-500/10 text-orange-600';
+    return 'bg-destructive/10 text-destructive';
+  };
+
+  const handleSaveToDashboard = () => {
+    toast({ 
+      title: "Results Saved", 
+      description: "Your exam results have been saved to your dashboard." 
+    });
+    setTimeout(() => navigate('/my-exams'), 1000);
+  };
+
+  const percentage = submission && !scoresHidden ? (submission.total_score / submission.total_marks) * 100 : 0;
+  const pctTone = percentage >= 75 ? 'text-success' : percentage >= 50 ? 'text-warning' : 'text-danger';
+  const correctCount = scoresHidden ? 0 : Object.values(answers).filter(a => a.is_correct).length;
+  const partialCount = scoresHidden ? 0 : Object.values(answers).filter(a => !a.is_correct && a.score > 0).length;
+  const incorrectCount = scoresHidden ? 0 : questions.length - correctCount - partialCount;
+
+  // ── Marked-paper filter + topic rollup ──────────────────────────────────
+  // NOTE: hooks must run on every render — keep them above any early return.
+  const counts = useMemo(() => ({
+    all: questions.length,
+    correct: correctCount,
+    lost: incorrectCount,
+    partial: partialCount,
+  }), [questions.length, correctCount, incorrectCount, partialCount]);
+
+  const visibleQuestions = useMemo(() => {
+    if (scoresHidden || filter === 'all') return questions;
+    return questions.filter((q) => questionStatus(answers[q.id], q.marks) === filter);
+  }, [questions, answers, filter, scoresHidden]);
+
+  const lostByTopic = useMemo(() => {
+    if (scoresHidden) return [] as Array<[string, { lost: number; total: number }]>;
+    const m = new Map<string, { lost: number; total: number }>();
+    questions.forEach((q) => {
+      const tag = (q as any).topic_tag as string | undefined;
+      if (!tag) return;
+      const a = answers[q.id];
+      const lost = Math.max(0, (q.marks ?? 0) - (a?.score ?? 0));
+      const entry = m.get(tag) ?? { lost: 0, total: 0 };
+      entry.lost += lost;
+      entry.total += q.marks ?? 0;
+      m.set(tag, entry);
+    });
+    return Array.from(m.entries()).filter(([, v]) => v.lost > 0).sort((a, b) => b[1].lost - a[1].lost);
+  }, [questions, answers, scoresHidden]);
+
+  const jumpToNextMistake = useCallback(() => {
+    const next = questions.find((q) => {
+      const s = questionStatus(answers[q.id], q.marks);
+      return s !== 'correct';
+    });
+    if (!next) return;
+    setFilter('all');
+    requestAnimationFrame(() => scrollToQuestion(next.id));
+  }, [questions, answers]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
 
-  if (!exam) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <p className="text-muted-foreground">Exam not found</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white dark:bg-gray-800 border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <Badge variant="outline" className="bg-gray-100 dark:bg-gray-700">
-              <Eye className="w-3 h-3 mr-1" />
-              Preview Mode
-            </Badge>
-            <h1 className="text-xl font-bold">{exam.title}</h1>
+  // ── Sidebar Content (shared between mobile drawer and desktop sidebar) ────
+  const sidebarContent = (
+    <div className="p-4 lg:p-6 flex flex-col gap-5 h-full bg-[hsl(var(--surface-panel))]">
+      {/* Score card (band-coloured percentage in serif) */}
+      {scoresHidden ? (
+        <div className="rounded-xl border border-border bg-[hsl(var(--surface-panel-2))] p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <EyeOff className="w-5 h-5 text-muted-foreground" />
+            <span className="font-semibold">Scores Hidden</span>
           </div>
-          <Button onClick={handleBeginExam} size="lg" className="bg-blue-600 hover:bg-blue-700">
-            Begin Exam
-          </Button>
+          <p className="text-sm text-muted-foreground">
+            Your tutor has not released scores yet. Check back later.
+          </p>
         </div>
-      </header>
-
-      {/* Exam Metadata */}
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">Exam Board</p>
-              <p className="text-lg font-semibold">{exam.exam_board || 'N/A'}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">Qualification</p>
-              <p className="text-lg font-semibold">{exam.qualification_level || 'N/A'}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">Total Questions</p>
-              <p className="text-lg font-semibold">{questions.length}</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Resource insert (figures the questions reference) */}
-        {Array.isArray((exam as any).insert_figures) && (exam as any).insert_figures.length > 0 && (
-          <div className="mb-6 rounded-xl border border-border bg-card">
-            <InsertPanel figures={(exam as any).insert_figures} />
+      ) : (
+        <div className="rounded-xl border border-border bg-[hsl(var(--surface-panel-2))] p-4">
+          <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1">Your score</div>
+          <div className="flex items-baseline gap-2">
+            <span className={`font-serif text-4xl font-bold leading-none ${pctTone}`}>{Math.round(percentage)}%</span>
+            <span className="text-[11px] font-mono text-muted-foreground">
+              {Math.round(submission?.total_score || 0)}/{submission?.total_marks}
+            </span>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Questions (Read-only) */}
-        <div className="space-y-8">
-
-          {questions.map((q, qIdx) => {
-            const subPartMatch = q.question_number.match(/^(\d+)([a-z].*)?$/i);
-            const parentNum = subPartMatch?.[1] || q.question_number;
-            const subPart = subPartMatch?.[2] || '';
-            const isSubPart = !!subPart;
-            const prevQ = qIdx > 0 ? questions[qIdx - 1] : null;
-            const prevParent = prevQ?.question_number.match(/^(\d+)/)?.[1];
-            const showParentHeader = isSubPart && parentNum !== prevParent;
-
+      {/* Filter chips + Next mistake */}
+      {!scoresHidden && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {([
+            { key: 'all',     label: 'All',     count: counts.all,     active: 'bg-foreground text-background border-foreground' },
+            { key: 'correct', label: 'correct', count: counts.correct, active: 'bg-success text-success-foreground border-success' },
+            { key: 'lost',    label: 'lost',    count: counts.lost,    active: 'bg-danger text-danger-foreground border-danger' },
+            { key: 'partial', label: 'partial', count: counts.partial, active: 'bg-warning text-warning-foreground border-warning' },
+          ] as const).map((chip) => {
+            const active = filter === chip.key;
             return (
-              <div key={q.id} className={isSubPart ? 'ml-2' : ''}>
-                {showParentHeader && (
-                  <h2 className="text-xl font-bold mb-4 mt-2">Question {parentNum}</h2>
-                )}
-                <Card className={`opacity-75 ${isSubPart ? 'border-l-4 border-l-muted' : ''}`}>
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      {isSubPart ? (
-                        <h3 className="text-lg font-semibold">({subPart})</h3>
-                      ) : (
-                        <h3 className="text-lg font-bold">Question {q.question_number}</h3>
-                      )}
-                      <span className="text-sm font-medium text-muted-foreground">
-                        ({q.marks} {q.marks === 1 ? 'mark' : 'marks'})
-                      </span>
-                    </div>
+              <button
+                key={chip.key}
+                onClick={() => setFilter(chip.key)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${
+                  active ? chip.active : 'text-muted-foreground bg-transparent border-border hover:bg-[hsl(var(--surface-hover))]'
+                }`}
+              >
+                {chip.label} <span className="font-mono opacity-80">{chip.count}</span>
+              </button>
+            );
+          })}
+          <button
+            onClick={jumpToNextMistake}
+            disabled={counts.lost + counts.partial === 0}
+            className="w-full mt-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-semibold border border-danger/40 text-danger bg-danger/5 hover:bg-danger/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Next mistake <ArrowDown className="w-3 h-3" />
+          </button>
+        </div>
+      )}
 
-                    <MathRenderer 
-                      content={hasDataTableConfig(q) ? removeTableFromContent(q.question_text ?? '') : q.question_text}
-                      latex={q.question_latex}
-                      hasMath={q.has_math}
-                      className="mb-4"
-                    />
+      {/* Where you lost marks */}
+      {!scoresHidden && lostByTopic.length > 0 && (
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-2">
+            Where you lost marks
+          </div>
+          <div className="space-y-1.5">
+            {lostByTopic.slice(0, 4).map(([topic, v]) => {
+              const w = Math.min(100, Math.round((v.lost / Math.max(1, v.total)) * 100));
+              return (
+                <div key={topic} className="flex items-center gap-2.5">
+                  <span className="text-[11px] text-foreground/80 flex-shrink-0 min-w-[90px] max-w-[140px] truncate">{topic}</span>
+                  <div className="flex-1 h-1.5 rounded-full bg-[hsl(var(--surface-hover))] overflow-hidden">
+                    <div className="h-full bg-danger rounded-full" style={{ width: `${w}%` }} />
+                  </div>
+                  <span className="text-[11px] font-mono text-danger flex-shrink-0">−{v.lost}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-                    {/* Multi-diagram MCQ options (A/B/C/D) */}
-                    {(q as any).diagram_config?.type === 'multi_option' &&
-                      Array.isArray((q as any).diagram_config.diagrams) && (
-                        <MultiDiagramOptionPanel diagrams={(q as any).diagram_config.diagrams} />
-                      )}
-
-                    {/* Combined Figure + Data tab switcher when both exist */}
-                    <FigureChartTabs question={q} isExam={false} />
-
-                    {(() => {
-                      if (hasFigureAndChart(q)) return null;
-                      const chartData = getChartData(q);
-                      if (!chartData) return null;
-                      return (
-                        <>
-                          {isBoxPlotQuestion(chartData) && (
-                            <BoxPlotChart chartData={chartData as any} className="mb-4" />
-                          )}
-                          {isHistogramQuestion(chartData) && (
-                            <HistogramChart chartData={chartData as any} className="mb-4" />
-                          )}
-                          {isDataTableQuestion(chartData) && (
-                            <DataTableChart chartData={chartData as any} className="mb-4" />
-                          )}
-                          {isBarChartQuestion(chartData) && (
-                            <BarChart chartData={chartData as any} className="mb-4" />
-                          )}
-                          {isPieChartQuestion(chartData) && (
-                            <PieChart chartData={chartData as any} className="mb-4" />
-                          )}
-                          {isCumulativeFrequencyQuestion(chartData) && (
-                            <CumulativeFrequencyChart chartData={chartData as any} className="mb-4" />
-                          )}
-                          {isFrequencyPolygonQuestion(chartData) && (
-                            <FrequencyPolygonChart chartData={chartData as any} className="mb-4" />
-                          )}
-                          {isClimateChartQuestion(chartData) && (
-                            <ClimateChart chartData={chartData as any} className="mb-4" />
-                          )}
-                          {isLineChartQuestion(chartData) && (
-                            <LineChart chartData={chartData as any} className="mb-4" />
-                          )}
-                        </>
-                      );
-                    })()}
-
-
-                    {/* Mechanics diagram panel */}
-                    {(() => {
-                      const diagConfig = detectDiagramConfig(q.question_text);
-                      if (!diagConfig) return null;
-                      return <MechanicsFigurePanel config={diagConfig} />;
-                    })()}
-
-                    {/* Circuit diagram panel — pass exam.subject_id so biology guard fires */}
-                    {(() => {
-                      const circuitConfig = getCircuitConfig(q, (q as any).subject ?? exam?.subject_id ?? '');
-                      if (!circuitConfig) return null;
-                      return <CircuitFigurePanel config={circuitConfig} />;
-                    })()}
-
-                    {/* Biology diagram panel */}
-                    {(() => {
-                      if (hasFigureAndChart(q)) return null;
-                      const bioConfig = detectBiologyDiagram(q.question_text, (q as any).subject);
-                      if (!bioConfig) return null;
-                      return <BiologyFigurePanel config={bioConfig} />;
-                    })()}
-
-                    <MathsFigurePanel
-                      questionText={q.question_text ?? ''}
-                      subject={(q as any).subject ?? ''}
-                      diagramConfig={null}
-                      isSubmitted={true}
-                      isReview={true}
-                    />
-
-                    <EconomicsFigurePanel
-                      questionText={q.question_text ?? ''}
-                      subject={(q as any).subject ?? ''}
-                      diagramConfig={null}
-                      isSubmitted={true}
-                      isReview={true}
-                    />
-
-                    <PhysicsFigurePanel
-                      questionText={q.question_text ?? ''}
-                      subject={(q as any).subject ?? ''}
-                      diagramConfig={(q as any).diagram_config ?? null}
-                      isExam={false}
-                      isReview={true}
-                      isSubmitted={true}
-                    />
-
-                    {q.figure_urls && q.figure_urls.length > 0 && (
-                      <div className="grid grid-cols-2 gap-4 mb-4">
-                        {q.figure_urls.map((url, idx) => (
-                          <img 
-                            key={idx} 
-                            src={url} 
-                            alt={`Figure ${idx + 1}`} 
-                            className="rounded-lg border max-h-64 object-contain"
-                          />
-                        ))}
-                      </div>
-                    )}
-
-                    {q.question_type === 'mcq' && q.options && Array.isArray(q.options) ? (
-                      <RadioGroup disabled className="space-y-2">
-                        {q.options.map((opt, i) => (
-                          <div key={i} className="flex items-center gap-2">
-                            <RadioGroupItem value={i.toString()} disabled />
-                            <Label className="cursor-not-allowed opacity-60">
-                              {typeof opt === 'object' ? `${opt.key}) ${opt.text}` : String(opt)}
-                            </Label>
-                          </div>
-                        ))}
-                      </RadioGroup>
-                    ) : (
-                      <Textarea 
-                        disabled 
-                        placeholder="Answer input (disabled in preview)" 
-                        className="bg-gray-100 dark:bg-gray-800 cursor-not-allowed min-h-[120px]"
-                      />
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
+      {/* Question navigator grid */}
+      <div>
+        <h2 className="text-[10px] font-bold uppercase tracking-[0.12em] mb-3 text-muted-foreground">Questions</h2>
+        <div className="grid grid-cols-4 gap-2">
+          {questions.map((q) => {
+            const answer = answers[q.id];
+            if (scoresHidden) {
+              return (
+                <button
+                  key={q.id}
+                  onClick={() => scrollToQuestion(q.id)}
+                  className="aspect-square rounded-lg flex items-center justify-center font-serif text-sm font-semibold transition-all hover:scale-105 bg-[hsl(var(--surface-hover))] text-muted-foreground"
+                >
+                  {q.question_number}
+                </button>
+              );
+            }
+            const s = questionStatus(answer, q.marks);
+            const cls =
+              s === 'correct' ? 'bg-success text-success-foreground' :
+              s === 'partial' ? 'bg-warning text-warning-foreground' :
+                                'bg-danger text-danger-foreground';
+            return (
+              <button
+                key={q.id}
+                onClick={() => scrollToQuestion(q.id)}
+                className={`aspect-square rounded-lg flex items-center justify-center font-serif text-sm font-semibold transition-all hover:scale-105 ${cls}`}
+                title={answer ? `Score: ${Math.round(answer.score)}/${q.marks}` : 'Not answered'}
+              >
+                {q.question_number}
+              </button>
             );
           })}
         </div>
       </div>
 
-      {/* Begin Exam Confirmation Dialog */}
-      <AlertDialog open={beginDialogOpen} onOpenChange={setBeginDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Begin Live Exam</AlertDialogTitle>
-            <AlertDialogDescription>
-              You're about to start the live exam. Timer will begin and answers will be saved automatically. Continue?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmBeginExam} className="bg-blue-600 hover:bg-blue-700">
-              Start Exam
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {submission && (
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground pt-3 mt-auto border-t border-border">
+          <Clock className="w-3.5 h-3.5" />
+          <span>Time: {formatTime(submission.time_taken_seconds)}</span>
+        </div>
+      )}
+    </div>
+  );
+
+
+  return (
+    <div className="min-h-screen flex flex-col bg-[hsl(var(--surface-panel))]">
+      {/* Top Bar */}
+      <div className="sticky top-0 z-50 border-b border-border bg-[hsl(var(--surface-panel))]/95 backdrop-blur supports-[backdrop-filter]:bg-[hsl(var(--surface-panel))]/80">
+        <div className="flex items-center justify-between h-14 px-3 sm:px-6">
+          <div className="flex items-center gap-2">
+            {isMobile && (
+              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
+                <Menu className="w-5 h-5" />
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={() => navigate('/my-exams')} className="gap-1.5">
+              <ArrowLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">Back to Exams</span>
+            </Button>
+          </div>
+          <div className="flex items-center gap-3 min-w-0">
+            <h1 className="font-serif text-base sm:text-xl font-bold text-foreground truncate">Exam Review</h1>
+            {!scoresHidden && submission && (
+              <span className={`font-serif font-bold text-base sm:text-lg ${pctTone}`}>
+                {Math.round(percentage)}%
+              </span>
+            )}
+          </div>
+          <Button size="sm" onClick={handleSaveToDashboard} className="gap-1.5">
+            <Save className="w-4 h-4" />
+            <span className="hidden sm:inline">Save to Dashboard</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Mobile sidebar overlay */}
+      {isMobile && sidebarOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setSidebarOpen(false)} />
+          <div className="fixed inset-y-0 left-0 w-72 z-50 bg-[hsl(var(--surface-panel))] border-r border-border overflow-y-auto scroll-themed">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <span className="font-serif font-bold text-sm">Overview</span>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSidebarOpen(false)}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            {sidebarContent}
+          </div>
+        </>
+      )}
+
+      <div className="flex flex-1">
+        {/* Desktop Sidebar */}
+        {!isMobile && (
+          <div className="w-72 border-r border-border bg-[hsl(var(--surface-panel))] flex-shrink-0 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto scroll-themed">
+            {sidebarContent}
+          </div>
+        )}
+
+
+        {/* Main Panel */}
+        <div className="flex-1 overflow-y-auto scroll-themed">
+          <div className="max-w-4xl mx-auto py-4 sm:py-8 px-3 sm:px-6 space-y-5 sm:space-y-6">
+            {insertFigures.length > 0 && (
+              <div className="rounded-xl border border-border bg-[hsl(var(--surface-panel))]">
+                <InsertPanel figures={insertFigures} />
+              </div>
+            )}
+            {!scoresHidden && visibleQuestions.length === 0 && (
+              <div className="rounded-xl border border-border bg-[hsl(var(--surface-panel-2))] py-10 text-center text-sm text-muted-foreground">
+                No questions match this filter.
+              </div>
+            )}
+            {visibleQuestions.map((question, qIdx) => {
+              const answer = answers[question.id];
+              const subPartMatch = question.question_number.match(/^(\d+)([a-z].*)?$/i);
+              const parentNum = subPartMatch?.[1] || question.question_number;
+              const subPart = subPartMatch?.[2] || '';
+              const isSubPart = !!subPart;
+              const prevQ = qIdx > 0 ? visibleQuestions[qIdx - 1] : null;
+              const prevParent = prevQ?.question_number.match(/^(\d+)/)?.[1];
+              const showParentHeader = isSubPart && parentNum !== prevParent;
+              const isMcq = question.question_type === 'mcq' || (question.options && Array.isArray(question.options) && question.options.length > 0);
+
+              const s = scoresHidden ? null : questionStatus(answer, question.marks);
+              const tone =
+                s === 'correct' ? 'text-success' :
+                s === 'lost'    ? 'text-danger'  :
+                s === 'partial' ? 'text-warning' : 'text-muted-foreground';
+              const cardBorder =
+                s === 'correct' ? 'border-l-success' :
+                s === 'lost'    ? 'border-l-danger'  :
+                s === 'partial' ? 'border-l-warning' : 'border-l-border';
+              const pen =
+                s === 'correct' ? <PenTick  className="w-6 h-6 text-success" /> :
+                s === 'lost'    ? <PenCross className="w-6 h-6 text-danger" /> :
+                s === 'partial' ? <PenHalf  className="w-6 h-6 text-warning" /> : null;
+
+              return (
+                <div key={question.id} className={isSubPart ? 'ml-2' : ''}>
+                  {showParentHeader && (
+                    <h2 className="font-serif text-xl font-bold mb-4 mt-2 text-foreground">Question {parentNum}</h2>
+                  )}
+                <Card 
+                  ref={(el) => questionRefs.current[question.id] = el}
+                  className={`p-4 sm:p-6 bg-[hsl(var(--surface-panel))] border-l-4 ${cardBorder}`}
+                >
+                  {/* Marked-paper question header */}
+                  <div className="flex items-start gap-3 sm:gap-4 mb-4">
+                    {/* Left margin: serif Q number + pen mark */}
+                    <div className="flex flex-col items-center gap-1.5 flex-shrink-0 pt-0.5 w-10 sm:w-12">
+                      <span className="font-serif font-bold text-base sm:text-lg text-foreground leading-none">
+                        {isSubPart ? `(${subPart})` : `Q${question.question_number}`}
+                      </span>
+                      {pen}
+                    </div>
+
+                    {/* Center: marks */}
+                    <div className="flex-1 min-w-0 pt-1">
+                      <span className="text-[11px] font-mono text-muted-foreground">
+                        {question.marks} {question.marks === 1 ? 'mark' : 'marks'}
+                      </span>
+                    </div>
+
+                    {/* Right margin: teacher score + help button */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {isTutorAssigned && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedQuestionForFeedback({ id: question.id, number: question.question_number });
+                            setFeedbackModalOpen(true);
+                          }}
+                          className="gap-1.5"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Ask for Help</span>
+                        </Button>
+                      )}
+                      {!scoresHidden && answer && (
+                        <span className={`font-serif font-bold text-base sm:text-lg ${tone}`}>
+                          {Math.round(answer.score)}/{question.marks}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <MathRenderer 
+                    content={question.question_text}
+                    latex={(question as any).question_latex}
+                    hasMath={(question as any).has_math}
+                    className="mb-4 font-serif text-foreground"
+                  />
+
+
+                   {/* Chart rendering — diagram_config first, options fallback */}
+                   {(() => {
+                     const chartData = getChartData(question);
+                     if (!chartData) return null;
+                     return (
+                       <>
+                         {!isMcq && isBoxPlotQuestion(chartData) && (
+                           <BoxPlotChart chartData={chartData} className="mb-4" />
+                         )}
+                         {!isMcq && isHistogramQuestion(chartData) && (
+                           <HistogramChart chartData={chartData} className="mb-4" />
+                         )}
+                         {isDataTableQuestion(chartData) && (
+                           <DataTableChart chartData={chartData} className="mb-4" />
+                         )}
+                         {isBarChartQuestion(chartData) && (
+                           <BarChart chartData={chartData} className="mb-4" />
+                         )}
+                         {isPieChartQuestion(chartData) && (
+                           <PieChart chartData={chartData} className="mb-4" />
+                         )}
+                         {isCumulativeFrequencyQuestion(chartData) && (
+                           <CumulativeFrequencyChart chartData={chartData} className="mb-4" />
+                         )}
+                         {isFrequencyPolygonQuestion(chartData) && (
+                           <FrequencyPolygonChart chartData={chartData} className="mb-4" />
+                         )}
+                         {isClimateChartQuestion(chartData) && (
+                           <ClimateChart chartData={chartData} className="mb-4" />
+                         )}
+                       </>
+                     );
+                   })()}
+
+
+                   {/* Mechanics diagram panel */}
+                   {(() => {
+                     const diagConfig = detectDiagramConfig(question.question_text);
+                     if (!diagConfig) return null;
+                     return <MechanicsFigurePanel config={diagConfig} />;
+                   })()}
+
+                   {/* Circuit diagram panel */}
+                   {(() => {
+                     const circuitConfig = getCircuitConfig(question, (question as any).subject ?? '');
+                     if (!circuitConfig) return null;
+                     return <CircuitFigurePanel config={circuitConfig} />;
+                   })()}
+
+                   {/* Biology diagram panel */}
+                   {(() => {
+                     const bioConfig = detectBiologyDiagram(question.question_text, (question as any).subject);
+                     if (!bioConfig) return null;
+                       return <BiologyFigurePanel config={bioConfig} />;
+                     })()}
+
+                     <MathsFigurePanel
+                       questionText={question.question_text ?? ''}
+                       subject={(question as any).subject ?? ''}
+                       diagramConfig={null}
+                       isSubmitted={true}
+                       isReview={true}
+                     />
+
+                      <EconomicsFigurePanel
+                       questionText={question.question_text ?? ''}
+                       subject={(question as any).subject ?? ''}
+                       diagramConfig={null}
+                       isSubmitted={true}
+                       isReview={true}
+                     />
+
+                      <PhysicsFigurePanel
+                        questionText={question.question_text ?? ''}
+                        subject={(question as any).subject ?? ''}
+                        diagramConfig={(question as any).diagram_config ?? null}
+                        isExam={false}
+                        isReview={true}
+                        isSubmitted={true}
+                      />
+
+                    {(() => {
+                      const isGraphType =
+                        question.question_type === 'graph_plotting' ||
+                        question.question_type === 'graph_interpretation' ||
+                        question.question_type === 'graph_transformation' ||
+                        question.question_type === 'bearings';
+                      if (isGraphType) return null;
+                      const drawInfo = detectDrawQuestion(
+                        question.question_text ?? '',
+                        (question as any).subject ?? '',
+                        question.question_type,
+                      );
+                      if (!drawInfo.needsDrawingCanvas) return null;
+                      const studentUrl = (question as any).user_answer?.workingOut
+                        ?? (question as any).workingOut
+                        ?? answer?.answer_text
+                        ?? '';
+                      return (
+                        <DrawDiagramQuestion
+                          questionText={question.question_text ?? ''}
+                          subject={(question as any).subject ?? ''}
+                          questionType={question.question_type}
+                          totalMarks={question.marks ?? 4}
+                          isReview={true}
+                          studentDrawingDataUrl={studentUrl}
+                        />
+                      );
+                    })()}
+
+                  {question.figure_urls && question.figure_urls.length > 0 && (
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      {question.figure_urls.map((url, idx) => (
+                        <img key={idx} src={url} alt={`Figure ${idx + 1}`} className="rounded-lg border" />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* MCQ Options display */}
+                  {isMcq && question.options && Array.isArray(question.options) && question.options.length > 0 && (
+                    <div className="mb-4 space-y-2">
+                      {question.options.map((opt, idx) => {
+                        const rawText = typeof opt === "string" ? opt : (opt as any)?.text ?? "";
+                        const optText = scrubOptionText(rawText);
+                        const label = getOptionLabel(idx);
+                        const studentSelected = didStudentSelect(answer?.answer_text, idx, rawText);
+                        const isCorrectOpt = isOptionCorrect(question.correct_answer, idx, rawText);
+
+                        let optClass = "p-3 rounded-lg border-2 text-sm flex items-start gap-2 transition-colors ";
+                        if (!scoresHidden) {
+                          if (isCorrectOpt) {
+                            optClass += "border-green-500 bg-green-500/10 ";
+                          } else if (studentSelected) {
+                            optClass += "border-destructive bg-destructive/10 ";
+                          } else {
+                            optClass += "border-border bg-muted/30 ";
+                          }
+                        } else {
+                          optClass += "border-border bg-muted/30 ";
+                        }
+
+                        return (
+                          <div key={idx} className={optClass}>
+                            <span className="font-semibold shrink-0 w-6">{label})</span>
+                            <span className="flex-1">{optText}</span>
+                            {!scoresHidden && studentSelected && !isCorrectOpt && (
+                              <XCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                            )}
+                            {!scoresHidden && isCorrectOpt && (
+                              <CheckCircle className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                  {/* For non-MCQ, show answer section */}
+                  {!isMcq && (
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.12em] mb-1.5 text-muted-foreground">Your response</div>
+                    <div className={`bg-[hsl(var(--surface-panel-2))] border-l-2 ${
+                      s === 'correct' ? 'border-l-success' : s === 'lost' ? 'border-l-danger' : s === 'partial' ? 'border-l-warning' : 'border-l-border'
+                    } rounded-r-md px-3 py-2 space-y-3`}>
+                      {/* Table grid answer display */}
+                      {(() => {
+                        const isTableGridQuestion = isTickXTable(question.question_text);
+                        if (isTableGridQuestion && answer?.answer_text) {
+                          const tableData = parseMarkdownToTableGrid(question.question_text);
+                          const studentAnswers = deserializeTableGridAnswers(answer.answer_text);
+                          let correctAnswers: Record<string, number[]> | undefined;
+                          if (question.correct_answer && !scoresHidden) {
+                            try {
+                              const parsed = JSON.parse(question.correct_answer);
+                              correctAnswers = parsed.correctAnswers || parsed;
+                            } catch {}
+                          }
+                          if (tableData && Object.keys(studentAnswers).length > 0) {
+                            return (
+                              <div>
+                                <div className="text-xs font-semibold text-muted-foreground mb-2">Table completed:</div>
+                                <TableGridQuestion
+                                  tableData={tableData}
+                                  questionId={question.id}
+                                  answers={studentAnswers}
+                                  onAnswerChange={() => {}}
+                                  readOnly={true}
+                                  showCorrectAnswers={!scoresHidden && !!correctAnswers}
+                                  correctAnswers={correctAnswers}
+                                />
+                              </div>
+                            );
+                          }
+                        }
+                        return null;
+                      })()}
+
+                      {answer?.table_answers && Object.keys(answer.table_answers).length > 0 && !isTickXTable(question.question_text) && (
+                        <div className="space-y-2">
+                          <div className="text-xs font-semibold text-muted-foreground mb-1">Table Responses:</div>
+                          <div className="grid gap-1 text-sm">
+                            {Object.entries(answer.table_answers).map(([cellKey, value]) => {
+                              const displayValue = value === true ? '✓' : value === false ? '—' : String(value || '');
+                              if (!displayValue || displayValue === '—') return null;
+                              return (
+                                <div key={cellKey} className="flex gap-2">
+                                  <span className="text-muted-foreground">{cellKey}:</span>
+                                  <span className="font-medium">{displayValue}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {answer?.answer_text ? (
+                        isDrawingAnswer(answer.answer_text) ? (
+                          <span className="text-muted-foreground italic text-sm">Diagram submitted — see above</span>
+                        ) : (() => {
+                          try {
+                            const parsed = JSON.parse(answer.answer_text);
+                            if (parsed._type === 'table_grid') return null;
+                            if (parsed.workingOut || parsed.finalAnswer) {
+                              return (
+                                <>
+                                  {parsed.workingOut && (
+                                    <div>
+                                      <div className="text-xs font-semibold text-muted-foreground mb-1">Working Out:</div>
+                                      <MathRenderer content={parsed.workingOut} hasMath={!!question.has_math} className="font-mono text-sm" />
+                                    </div>
+                                  )}
+                                  {parsed.finalAnswer && (
+                                    <div>
+                                      <div className="text-xs font-semibold text-muted-foreground mb-1">Final Answer:</div>
+                                      <MathRenderer content={parsed.finalAnswer} hasMath={!!question.has_math} className="font-semibold" />
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            }
+                          } catch {}
+                          return <MathRenderer content={answer.answer_text} hasMath={!!question.has_math} />;
+                        })()
+                      ) : !answer?.table_answers || Object.keys(answer.table_answers).length === 0 ? (
+                        <span className="text-muted-foreground italic">No answer provided</span>
+                      ) : null}
+                    </div>
+                  </div>
+                  )}
+
+                  {/* MCQ redundant text removed — options highlighting is sufficient */}
+
+                  {/* Non-MCQ correct answer */}
+                  {!isMcq && !scoresHidden && s !== 'correct' && (
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-success mb-1.5">Mark scheme</div>
+                      <div className="px-3 py-2 rounded-md bg-success/10 border border-success/20">
+                        {(() => {
+                          if (isTickXTable(question.question_text) && question.correct_answer) {
+                            try {
+                              const parsed = JSON.parse(question.correct_answer);
+                              const correctAnswers = parsed.correctAnswers || parsed;
+                              const tableData = parseMarkdownToTableGrid(question.question_text);
+                              if (tableData && correctAnswers && typeof correctAnswers === 'object') {
+                                const display = generateCorrectAnswerDisplay(tableData, undefined, correctAnswers);
+                                if (display) {
+                                  return (
+                                    <div className="space-y-1 text-sm">
+                                      {display.split('\n').map((line, idx) => (
+                                        <div key={idx}>{line}</div>
+                                      ))}
+                                    </div>
+                                  );
+                                }
+                              }
+                            } catch {}
+                          }
+                          return question.correct_answer ? (
+                            <MathRenderer content={question.correct_answer} hasMath={!!question.has_math} />
+                          ) : (
+                            <span className="text-muted-foreground italic">Not provided</span>
+                          );
+                        })()}
+                       </div>
+                     </div>
+                   )}
+
+                   {/* Per-part review for graph_transformation */}
+                   {(() => {
+                     const isTransformation =
+                       question.question_type === 'graph_transformation';
+                     if (!isTransformation) return null;
+                     const graphData = parseGraphQuestionData(
+                       question.correct_answer ?? null,
+                       (question as any).diagram_config ?? null,
+                       question.question_type,
+                     );
+                     // Pull perPartResults from answer.markingData or feedback marker
+                     let perPartResults: any[] = answer?.markingData?.perPartResults || [];
+                     if (perPartResults.length === 0 && answer?.feedback) {
+                       const m = answer.feedback.match(/<!--MARKING_DATA:(.*?)-->/);
+                       if (m) {
+                         try {
+                           const md = JSON.parse(m[1]);
+                           if (Array.isArray(md.perPartResults)) perPartResults = md.perPartResults;
+                         } catch {}
+                       }
+                     }
+                     const parts = graphData?.transformationConfig?.parts || [];
+                     if (perPartResults.length === 0 && parts.length === 0) return null;
+                     return (
+                       <div className="mt-4 space-y-2">
+                         {perPartResults.length > 0 && (
+                           <>
+                             <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                               Part results
+                             </div>
+                             {perPartResults.map((part: any) => {
+                               const earned = part.earned ?? part.marks ?? 0;
+                               const max = part.max ?? part.maxMarks ?? 0;
+                               const status = part.correct
+                                 ? 'correct'
+                                 : earned > 0
+                                 ? 'partial'
+                                 : 'incorrect';
+                               const colour =
+                                 status === 'correct'
+                                   ? 'border-green-500/30 bg-green-500/10'
+                                   : status === 'partial'
+                                   ? 'border-orange-500/30 bg-orange-500/10'
+                                   : 'border-destructive/30 bg-destructive/10';
+                               return (
+                                 <div
+                                   key={part.partId}
+                                   className={`rounded-lg border px-3 py-2 ${colour}`}
+                                 >
+                                   <div className="flex items-center justify-between">
+                                     <span className="text-sm font-bold">
+                                       Part ({part.partId})
+                                     </span>
+                                     <Badge variant="outline" className="text-xs">
+                                       {earned}/{max} marks
+                                     </Badge>
+                                   </div>
+                                   {part.feedback && (
+                                     <div className="mt-1 text-xs text-muted-foreground">
+                                       {part.feedback}
+                                     </div>
+                                   )}
+                                 </div>
+                               );
+                             })}
+                           </>
+                         )}
+                         {!scoresHidden && parts.length > 0 && (
+                           <div className="space-y-2">
+                             {parts.map((part: any) => {
+                               if (part.questionType !== 'sketch') return null;
+                               const correctPoints =
+                                 part.correctAnswer?.transformedPoints ?? [];
+                               if (correctPoints.length === 0) return null;
+                               return (
+                                 <div
+                                   key={part.id}
+                                   className="rounded-lg border bg-muted/30 px-3 py-2"
+                                 >
+                                   <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                                     Part ({part.id}) — key points to hit
+                                   </div>
+                                   <div className="flex flex-wrap gap-1.5">
+                                     {correctPoints.map((pt: any, i: number) => (
+                                       <span
+                                         key={i}
+                                         className="rounded border bg-card px-2 py-0.5 font-mono text-xs"
+                                       >
+                                         ({pt.x}, {pt.y})
+                                       </span>
+                                     ))}
+                                   </div>
+                                   {part.correctAnswer?.markingFormula && (
+                                     <div className="mt-1 font-mono text-[11px] text-muted-foreground">
+                                       Formula: y = {part.correctAnswer.markingFormula}
+                                     </div>
+                                   )}
+                                 </div>
+                               );
+                             })}
+                           </div>
+                         )}
+                       </div>
+                     );
+                   })()}
+
+                   {/* Correct chart for "draw a chart" questions — visible only after marking */}
+                   {!scoresHidden && (() => {
+                     const correctChart = getCorrectChartData(question);
+                     if (!correctChart) return null;
+                     return (
+                       <div className="mt-4 p-3 rounded-lg border border-green-500/20 bg-green-500/5">
+                         <div className="text-[11px] font-bold uppercase tracking-wider text-green-600 mb-2">
+                           Correct chart
+                         </div>
+                         {isPieChartQuestion(correctChart) && <PieChart chartData={correctChart} />}
+                         {isBarChartQuestion(correctChart) && <BarChart chartData={correctChart} />}
+                         {isDataTableQuestion(correctChart) && <DataTableChart chartData={correctChart} />}
+                         {isHistogramQuestion(correctChart) && <HistogramChart chartData={correctChart} />}
+                         {isCumulativeFrequencyQuestion(correctChart) && <CumulativeFrequencyChart chartData={correctChart} />}
+                         {isFrequencyPolygonQuestion(correctChart) && <FrequencyPolygonChart chartData={correctChart} />}
+                         {isClimateChartQuestion(correctChart) && <ClimateChart chartData={correctChart} />}
+                         {isBoxPlotQuestion(correctChart) && <BoxPlotChart chartData={correctChart} />}
+                       </div>
+                     );
+                   })()}
+
+                    {!scoresHidden && answer?.feedback && (
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1.5">Examiner's note</div>
+                        <div className="border border-dashed border-border rounded-md px-3 py-2 text-sm text-foreground/85 leading-snug flex items-start gap-2">
+                          <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" />
+                          <span>{answer.feedback}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* MCQ Rationale / Insight Box — review mode only */}
+                    {!scoresHidden && isMcq && question.rationale && (
+                      <div className="border border-dashed border-border rounded-md px-3 py-2 flex items-start gap-2.5">
+                        <Lightbulb className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-0.5">Quick insight</p>
+                          <p className="text-xs leading-relaxed text-foreground/85">{question.rationale}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* AI Explain for non-tutor exams */}
+                    {!isTutorAssigned && !scoresHidden && (
+                      <AIExplainPanel question={question} answer={answer} />
+                    )}
+                  </div>
+                  {/* Bottom padding to prevent cutoff */}
+                  <div className="pb-2" />
+                </Card>
+                </div>
+              );
+            })}
+            {/* Extra bottom padding so last card isn't flush with footer */}
+            <div className="pb-8" />
+          </div>
+        </div>
+      </div>
+
+      {selectedQuestionForFeedback && (
+        <FeedbackThreadModal
+          open={feedbackModalOpen}
+          onOpenChange={setFeedbackModalOpen}
+          examId={examId!}
+          questionId={selectedQuestionForFeedback.id}
+          questionNumber={selectedQuestionForFeedback.number}
+        />
+      )}
+
+      {/* Content Disclaimer Footer */}
+      <div className="border-t border-border bg-muted/30 py-3 px-6 text-center">
+        <p className="text-xs text-muted-foreground">
+          Original AI-generated content for educational practice. Not affiliated with or endorsed by any official examination board.
+        </p>
+      </div>
     </div>
   );
 };
 
-export default ExamPreview;
+export default ExamReview;
