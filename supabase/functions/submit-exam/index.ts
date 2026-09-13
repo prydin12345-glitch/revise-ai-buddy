@@ -1,3 +1,8 @@
+import { requireExamAccess, ExamRequestError } from '../_shared/exam-access.ts';
+import { enforceRateLimit } from '../_shared/rate-limiter.ts';
+import { validatedGrade } from '../_shared/marking-result.ts';
+import { logAIUsage } from '../_shared/usage-logger.ts';
+import { detectDrawQuestion } from '../_shared/draw-question-detector.ts';
 import "https://esm.sh/xhr-shim@0.1.3";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -13,12 +18,17 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let markingClient: any;
+  let markingExamId: string | undefined;
+  let markingUserId: string | undefined;
+  let markingToken: string | undefined;
+  let markingCommitted = false;
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const authHeader = req.headers.get('Authorization')!;
+    const authHeader = req.headers.get('Authorization') ?? '';
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
@@ -35,20 +45,37 @@ serve(async (req) => {
       rawSelfMarkScores && typeof rawSelfMarkScores === 'object' ? rawSelfMarkScores : {};
     console.log('Submitting exam:', examId, 'for user:', user.id, 'self-mark questions:', Object.keys(selfMarkScores).length);
 
-    // Check if already submitted (status='graded' means already submitted and graded)
-    const { data: existingSubmission } = await supabase
-      .from('exam_submissions')
-      .select('id, status')
-      .eq('exam_id', examId)
-      .eq('student_id', user.id)
-      .maybeSingle();
-
-    if (existingSubmission?.status === 'graded') {
-      return new Response(JSON.stringify({ error: 'Exam already submitted' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    const access = await requireExamAccess(supabase, examId, user.id);
+    const { data: claim, error: claimError } = await supabase.rpc('claim_exam_marking', {
+      p_exam_id: examId, p_user_id: user.id,
+      p_time_taken: Number.isFinite(timeTakenSeconds) ? Math.max(0, Math.round(timeTakenSeconds)) : 0,
+    });
+    if (claimError) throw new ExamRequestError(503, 'Marking could not start. Please retry.');
+    if (claim?.state === 'graded') {
+      return new Response(JSON.stringify({success:true,alreadyGraded:true}), {
+        headers:{...corsHeaders,'Content-Type':'application/json'},
       });
     }
+    if (claim?.state !== 'claimed') throw new ExamRequestError(409, 'This paper is already being marked. Please wait before retrying.');
+    markingClient=supabase; markingExamId=examId; markingUserId=user.id; markingToken=claim.token;
+    const requestQuota = await enforceRateLimit(supabase,user.id,'submit-exam',{dailyLimit:30,burstLimit:6});
+    if (!requestQuota.allowed) throw new ExamRequestError(requestQuota.status ?? 429, requestQuota.message);
+    const results: Array<{question_id:string;score:number;feedback:string;is_correct:boolean}> = [];
+    // Each paid marking call has its own quota and timeout; refresh the claim before work.
+    const markingFetch = async (url: string, init: RequestInit): Promise<Response> => {
+      const {data: active,error: leaseError} = await supabase.from('exam_submissions')
+        .update({marking_started_at:new Date().toISOString()}).eq('exam_id',examId)
+        .eq('student_id',user.id).eq('marking_token',markingToken).eq('status','marking').select('id').maybeSingle();
+      if(leaseError || !active) throw new Error('Marking claim expired');
+      const quota=await enforceRateLimit(supabase,user.id,'submit-exam-marking',{dailyLimit:300,burstLimit:60});
+      if(!quota.allowed)throw new ExamRequestError(quota.status ?? 429,quota.message);
+      const response=await fetch(url,{...init,signal:AbortSignal.timeout(45_000)});
+      if(!response.ok)throw new Error(`Marking service returned ${response.status}`);
+      const usage=await response.clone().json();
+      await logAIUsage(supabase,{userId:user.id,feature:'exam_marking',model:'google/gemini-2.5-flash',
+        inputTokens:usage.usage?.prompt_tokens ?? 0,outputTokens:usage.usage?.completion_tokens ?? 0,cacheHit:false});
+      return response;
+    };
 
     // Fetch exam metadata to check subject and grade release settings
     const { data: examData } = await supabase
@@ -58,82 +85,14 @@ serve(async (req) => {
       .single();
 
     if (!examData) {
-      return new Response(JSON.stringify({ error: 'Exam not found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new Error('Exam not found');
     }
 
     const isMathExam = examData.subject_id?.toLowerCase().includes('math') || false;
 
-    // Fetch assignment details for deadline and grade release settings
-    const { data: assignment } = await supabase
-      .from('exam_assignments')
-      .select('deadline, is_grades_released, assigned_by')
-      .eq('exam_id', examId)
-      .maybeSingle();
-
-    // ── ACCESS CONTROL ──────────────────────────────────────────────
-    // A student may only submit an exam that is actually assigned to them
-    // (directly, via a group they belong to, or if they are the exam owner).
-    // Without this check any authenticated user who obtains an exam UUID could
-    // call submit-exam with empty answers and read back the correct answers
-    // via AI grading feedback.
-    let hasAccess = examData.user_id === user.id;
-
-    if (!hasAccess) {
-      const { data: directAssignment } = await supabase
-        .from('exam_assignments')
-        .select('id')
-        .eq('exam_id', examId)
-        .eq('is_active', true)
-        .in('assignment_type', ['individual', 'student'])
-        .eq('target_id', user.id)
-        .limit(1)
-        .maybeSingle();
-      hasAccess = Boolean(directAssignment);
-    }
-
-    if (!hasAccess) {
-      const { data: groupAssignments } = await supabase
-        .from('exam_assignments')
-        .select('target_id')
-        .eq('exam_id', examId)
-        .eq('is_active', true)
-        .eq('assignment_type', 'group');
-      const groupIds = (groupAssignments ?? [])
-        .map((a: { target_id: string | null }) => a.target_id)
-        .filter((id): id is string => Boolean(id));
-      if (groupIds.length > 0) {
-        const { data: membership } = await supabase
-          .from('group_members')
-          .select('id')
-          .eq('student_id', user.id)
-          .eq('is_active', true)
-          .in('group_id', groupIds)
-          .limit(1)
-          .maybeSingle();
-        hasAccess = Boolean(membership);
-      }
-    }
-
-    if (!hasAccess) {
-      console.warn('submit-exam access denied', { examId, userId: user.id });
-      return new Response(JSON.stringify({ error: 'Forbidden' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    // ────────────────────────────────────────────────────────────────
-
-    // Check if submission is late
     const now = new Date();
-    const isLate = assignment?.deadline ? now > new Date(assignment.deadline) : false;
-    console.log('Deadline check:', { deadline: assignment?.deadline, now: now.toISOString(), isLate });
-
-    // Determine if scores should be hidden (tutor hasn't released grades)
-    const scoresHidden = assignment && !assignment.is_grades_released && !examData?.grade_released;
-    console.log('Score visibility:', { is_grades_released: assignment?.is_grades_released, grade_released: examData?.grade_released, scoresHidden });
+    const isLate = access.deadline ? now > new Date(access.deadline) : false;
+    const scoresHidden = !access.gradesReleased;
 
     // Fetch all questions with correct answers
     const { data: questions, error: questionsError } = await supabase
@@ -141,13 +100,7 @@ serve(async (req) => {
       .select('id, question_text, question_type, correct_answer, marks, options, has_math, question_latex')
       .eq('exam_id', examId);
 
-    if (questionsError) {
-      console.error('Error fetching questions:', questionsError);
-      return new Response(JSON.stringify({ error: 'Failed to fetch questions' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    if (questionsError || !questions?.length) throw new Error('Questions could not be loaded');
 
     // Fetch student answers including table_answers and answer_latex for math input
     const { data: studentAnswers, error: answersError } = await supabase
@@ -157,7 +110,7 @@ serve(async (req) => {
       .eq('student_id', user.id);
 
     if (answersError) {
-      console.error('Error fetching answers:', answersError);
+      throw new Error('Saved answers could not be loaded. Please retry.');
     }
 
     // Create maps for text answers, latex answers, and table answers
@@ -195,6 +148,11 @@ serve(async (req) => {
       // Triggered either by a self-mark score in the request, or by a stored answer prefixed "drawing:".
       const hasSelfMarkScore = Object.prototype.hasOwnProperty.call(selfMarkScores, question.id);
       const isDrawingAnswer = typeof studentAnswer === 'string' && studentAnswer.startsWith('drawing:');
+      const eligibleDrawing = question.question_type !== 'mcq' &&
+        detectDrawQuestion(question.question_text, examData.subject_id, question.question_type).needsDrawingCanvas;
+      if ((hasSelfMarkScore || isDrawingAnswer) && !eligibleDrawing) {
+        throw new ExamRequestError(400, 'Self-marking is only available for drawing questions.');
+      }
       if (hasSelfMarkScore || isDrawingAnswer) {
         const rawScore = hasSelfMarkScore ? Number(selfMarkScores[question.id]) : 0;
         const safeScore = Number.isFinite(rawScore)
@@ -208,16 +166,7 @@ serve(async (req) => {
         totalScore += safeScore;
         console.log(`Question ${question.id}: self-mark score=${safeScore}/${question.marks}`);
 
-        const { error: updateErr } = await supabase
-          .from('student_answers')
-          .update({
-            score: safeScore,
-            feedback: feedbackSelfMark,
-            is_correct: isCorrectSelfMark,
-          })
-          .eq('question_id', question.id)
-          .eq('student_id', user.id);
-        if (updateErr) console.error('Error updating self-marked answer:', updateErr);
+        results.push({question_id:question.id,score:safeScore,feedback:feedbackSelfMark,is_correct:isCorrectSelfMark});
         continue;
       }
 
@@ -399,7 +348,7 @@ serve(async (req) => {
                 .map(([rowId, cols]) => `${rowId}: columns ${cols.join(', ')}`)
                 .join('\n');
               
-              const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+              const aiResponse = await markingFetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${LOVABLE_API_KEY}`,
@@ -407,6 +356,7 @@ serve(async (req) => {
                 },
                 body: JSON.stringify({
                   model: 'google/gemini-2.5-flash',
+                  max_tokens: 2048,
                   messages: [
                     {
                       role: 'system',
@@ -446,8 +396,9 @@ serve(async (req) => {
                 const aiData = await aiResponse.json();
                 const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
                 
+                if (!toolCall) throw new Error('Missing marking response');
                 if (toolCall) {
-                  const grading = JSON.parse(toolCall.function.arguments);
+                  const grading = validatedGrade(JSON.parse(toolCall.function.arguments), question.marks);
                   score = Math.min(Math.max(0, grading.score), question.marks);
                   feedback = sanitiseFeedback(grading.feedback);
                   isCorrect = grading.isCorrect;
@@ -459,27 +410,23 @@ serve(async (req) => {
                 }
               } else {
                 console.error('AI grading failed:', await aiResponse.text());
-                score = 0;
-                feedback = 'Table grid answer recorded but could not be auto-graded. Awaiting tutor review.';
-                isCorrect = false;
+                throw new Error('Marking could not finish. Your answers are saved. Please retry.');
               }
             } catch (aiError) {
               console.error('AI grading exception:', aiError);
-              score = 0;
-              feedback = 'Table grid answer recorded but could not be auto-graded. Awaiting tutor review.';
-              isCorrect = false;
+              if (aiError instanceof ExamRequestError) throw aiError;
+              throw new Error('Marking could not finish. Your answers are saved. Please retry.');
             }
           } else {
-            score = 0;
-            feedback = 'Table grid answer recorded but could not be auto-graded (no answer key available). Awaiting tutor review.';
-            isCorrect = false;
+            throw new Error('Marking could not finish. Your answers are saved. Please retry.');
           }
         }
       } else if (question.question_type === 'mcq' && !hasTableAnswers) {
         // MCQ grading: student submits a letter (A/B/C/D), correct_answer may be letter OR full text
         const correctAnswer = (question.correct_answer || '').trim();
+        if (!correctAnswer) throw new Error('This question has no marking key.');
         const studentAnswerTrimmed = studentAnswer.trim();
-        const options: string[] = Array.isArray(question.options) ? question.options : [];
+        const options: string[] = Array.isArray(question.options) ? question.options.map((option: any) => typeof option === 'string' ? option : String(option?.text ?? '')) : [];
         
         // Resolve student's letter to option text (A=0, B=1, C=2, D=3)
         const studentLetterIndex = studentAnswerTrimmed.length === 1 
@@ -619,7 +566,7 @@ Provide:
             userPrompt = `Question: ${question.question_text}\n\nCorrect Answer: ${question.correct_answer}\n\nStudent Answer: ${studentAnswer}\n\nTotal Marks: ${question.marks}\n\nScore this answer and provide brief feedback.`;
           }
 
-          const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          const aiResponse = await markingFetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${LOVABLE_API_KEY}`,
@@ -627,6 +574,7 @@ Provide:
             },
             body: JSON.stringify({
               model: 'google/gemini-2.5-flash',
+                  max_tokens: 2048,
               messages: [
                 {
                   role: 'system',
@@ -662,25 +610,19 @@ Provide:
 
           if (aiResponse.status === 429) {
             console.error('AI rate limit exceeded');
-            score = 0;
-            feedback = 'Unable to grade - rate limit exceeded';
-            isCorrect = false;
+            throw new Error('Marking could not finish. Your answers are saved. Please retry.');
           } else if (aiResponse.status === 402) {
             console.error('AI credits depleted');
-            score = 0;
-            feedback = 'Unable to grade - credits depleted';
-            isCorrect = false;
+            throw new Error('Marking could not finish. Your answers are saved. Please retry.');
           } else if (!aiResponse.ok) {
             console.error('AI grading error:', await aiResponse.text());
-            score = 0;
-            feedback = 'Unable to grade automatically';
-            isCorrect = false;
+            throw new Error('Marking could not finish. Your answers are saved. Please retry.');
           } else {
             const aiData = await aiResponse.json();
             const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
             
             if (toolCall) {
-              const grading = JSON.parse(toolCall.function.arguments);
+              const grading = validatedGrade(JSON.parse(toolCall.function.arguments), question.marks);
               score = Math.min(Math.max(0, grading.score), question.marks);
               grading.feedback = sanitiseFeedback(grading.feedback);
 
@@ -694,83 +636,35 @@ Provide:
               isCorrect = grading.isCorrect;
             } else {
               console.error('No tool call in AI response');
-              score = 0;
-              feedback = 'Unable to grade automatically';
-              isCorrect = false;
+              throw new Error('Marking could not finish. Your answers are saved. Please retry.');
             }
           }
         } catch (aiError) {
           console.error('AI grading exception:', aiError);
-          score = 0;
-          feedback = 'Unable to grade automatically';
-          isCorrect = false;
+          if (aiError instanceof ExamRequestError) throw aiError;
+          throw new Error('Marking could not finish. Your answers are saved. Please retry.');
         }
       }
 
       totalScore += score;
       console.log(`Question ${question.id}: score=${score}, isCorrect=${isCorrect}`);
 
-      // Update student_answers with score and feedback
-      const { error: updateError } = await supabase
-        .from('student_answers')
-        .update({
-          score,
-          feedback,
-          is_correct: isCorrect
-        })
-        .eq('question_id', question.id)
-        .eq('student_id', user.id);
-
-      if (updateError) {
-        console.error('Error updating answer:', updateError);
-      }
+      if (!Number.isFinite(score) || score < 0 || score > question.marks) throw new Error('Invalid grade');
+      results.push({question_id:question.id,score,feedback,is_correct:isCorrect});
     }
 
-    // Update or create exam submission record with is_late flag
-    let submissionError;
-    if (existingSubmission) {
-      // Update existing in_progress submission
-      const { error } = await supabase
-        .from('exam_submissions')
-        .update({
-          status: 'graded',
-          submitted_at: now.toISOString(),
-          time_taken_seconds: timeTakenSeconds,
-          total_score: totalScore,
-          total_marks: totalMarks,
-          time_remaining_seconds: null,
-          is_late: isLate,
-        })
-        .eq('id', existingSubmission.id);
-      submissionError = error;
-    } else {
-      // Create new submission
-      const { error } = await supabase
-        .from('exam_submissions')
-        .insert({
-          exam_id: examId,
-          student_id: user.id,
-          time_taken_seconds: timeTakenSeconds,
-          total_score: totalScore,
-          total_marks: totalMarks,
-          status: 'graded',
-          is_late: isLate,
-        });
-      submissionError = error;
-    }
-
-    if (submissionError) {
-      console.error('Submission error:', submissionError);
-      return new Response(JSON.stringify({ error: 'Failed to submit exam' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    // One transaction commits every answer grade and the aggregate, or nothing.
+    const {data: finished,error: finishError} = await supabase.rpc('finish_exam_marking', {
+      p_exam_id:examId,p_user_id:user.id,p_token:markingToken,p_results:results,p_is_late:isLate,
+    });
+    if(finishError || !finished)throw new Error('Results could not be saved. Please retry.');
+    markingCommitted=true;
+    totalScore=finished.totalScore; totalMarks=finished.totalMarks;
 
     console.log('Exam submitted successfully. Score:', totalScore, '/', totalMarks, 'Late:', isLate);
 
     // Create notification for tutor/teacher if this is an assigned exam
-    const tutorId = assignment?.assigned_by || examData?.assigned_by;
+    const tutorId = examData?.assigned_by || (examData.user_id !== user.id ? examData.user_id : null);
     if (tutorId) {
       try {
         // Get student name
@@ -871,9 +765,19 @@ Provide:
     });
   } catch (error) {
     console.error('Error in submit-exam:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    if (markingToken && !markingCommitted) {
+      const {error: resetError} = await markingClient.rpc('fail_exam_marking', {
+        p_exam_id:markingExamId,p_user_id:markingUserId,p_token:markingToken,
+      });
+      if(resetError)console.error('Could not release marking claim',resetError.code);
+    }
+    // A post-commit notification/streak error must not ask the student to pay for marking again.
+    if(markingCommitted)return new Response(JSON.stringify({success:true,alreadyGraded:true}),{
+      headers:{...corsHeaders,'Content-Type':'application/json'},
+    });
+    const errorMessage = error instanceof ExamRequestError ? error.message : 'Marking could not finish. Your answers are saved. Please retry.';
     return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
+      status: error instanceof ExamRequestError ? error.status : 503,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
