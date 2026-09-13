@@ -298,6 +298,8 @@ export const ExamProfileModal = ({
         setEducationalTier("");
         setCustomTier("");
       }
+      // Legacy profiles have no stored assessment tier — stay unknown.
+      setAssessmentTier(normaliseAssessmentTier(initialData?.assessment_tier));
       setTimeLimitMinutes(
         initialData?.time_limit_minutes != null ? String(initialData.time_limit_minutes) : ""
       );
@@ -342,6 +344,15 @@ export const ExamProfileModal = ({
   // filtering handled inside InlineTopicPicker
 
   const finalTier = educationalTier === "other" ? customTier.trim() : educationalTier;
+  const courseLookup = {
+    subject: subjectName,
+    examBoard: examBoard ?? initialData?.exam_board ?? null,
+    educationalTier: finalTier,
+  };
+  const assessmentTierOptions = getAssessmentTierOptions(courseLookup);
+  const courseCapability = getCourseCapability(courseLookup);
+  const effectiveAssessmentTier =
+    assessmentTierOptions.length > 0 ? assessmentTier : null;
   const availablePresets = BLUEPRINT_PRESETS.filter((pr) =>
     pr.subjects.test(subjectName || "") &&
     (!finalTier || pr.levels.test(finalTier)) &&
@@ -351,6 +362,8 @@ export const ExamProfileModal = ({
     const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
     const advancedWithMcq = {
       ...advanced, mcqCount,
+      assessmentTier: effectiveAssessmentTier,
+      examBoard: examBoard ?? initialData?.exam_board ?? null,
       studiedTexts: isTextBasedSubject ? studiedTexts : undefined,
       paperBlueprint: blueprintActive ? { sections: blueprintSections } : null,
     };
@@ -507,6 +520,15 @@ export const ExamProfileModal = ({
                 )}
               </div>
             </div>
+            {assessmentTierOptions.length > 0 && (
+              <AssessmentTierSelector
+                options={assessmentTierOptions}
+                value={effectiveAssessmentTier}
+                onChange={setAssessmentTier}
+                accentColor={subjectColor}
+                courseLabel={courseCapability?.label ?? null}
+              />
+            )}
             {educationalTier === "other" && (
               <div className="space-y-1">
                 <Input
