@@ -13,7 +13,7 @@ import { buildBlueprintPrompt, validatePaperBlueprint, buildStudiedTextsPrompt, 
 import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
 import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 import { getSubjectSpecificInstructions } from "../_shared/exam-extraction-prompts.ts";
-import { validateQuestionCandidates, describeDefects, hasAssessedTask, normalizeRepairPart, CONTRACT_VERSION } from "../_shared/question-contract-validator.ts";
+import { validateQuestionCandidates, describeDefects, hasAssessedTask, assembleQuestionText, normalizeRepairPart, CONTRACT_VERSION } from "../_shared/question-contract-validator.ts";
 import { buildPaperPlan, describePlan, AQA_BIOLOGY_P1, type PaperMode, type PaperPlan } from "../_shared/biology-paper-contract.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
