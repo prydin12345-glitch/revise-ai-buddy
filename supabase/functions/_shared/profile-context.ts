@@ -177,10 +177,12 @@ export const assessmentTierPrompt = (
 /**
  * Establishes the authoritative course snapshot for a practice set.
  *
- * - A snapshot already written BY THE SERVER is reused unchanged, so retries
- *   and later profile edits never change an existing attempt.
- * - Anything else (including JSON a client managed to write) is discarded and
- *   re-resolved from the profile the caller actually owns, then persisted.
+ * - A snapshot already written BY THE SERVER (marker + matching profile) is
+ *   reused unchanged, so retries and later profile edits never change an
+ *   existing attempt.
+ * - Anything else is discarded and re-resolved from the profile the caller
+ *   actually owns, then persisted. Persistence is MANDATORY: if the write
+ *   fails, or matches no owned row, generation stops before any AI call.
  * - `setData.exam_board` / `setData.educational_tier` are aligned to the
  *   resolved values so prompts, stored fields and cache identity all agree.
  */
@@ -191,10 +193,13 @@ export const establishGenerationContext = async (
   userId: string,
   // deno-lint-ignore no-explicit-any
   setData: any,
-): Promise<Record<string, unknown> | null> => {
+): Promise<Record<string, unknown>> => {
   const existing = setData?.generation_context ?? null;
 
-  if (isServerResolvedContext(existing)) {
+  if (
+    isServerResolvedContext(existing) &&
+    matchesRow(existing as Record<string, unknown>, setData)
+  ) {
     applyContextToSet(setData, existing);
     return existing as Record<string, unknown>;
   }
@@ -216,19 +221,32 @@ export const establishGenerationContext = async (
   });
   const stored = toStoredGenerationContext(resolved);
 
-  const { error } = await supabase
+  // Mandatory persistence. Without a stored snapshot there is nothing to reuse
+  // on a retry, so we must not spend an AI call.
+  const { data, error } = await supabase
     .from("practice_question_sets")
     .update({ generation_context: stored })
     .eq("id", setId)
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .select("id");
+
   if (error) {
-    // The column arrives with the assessment-tier migration.
-    console.warn("generation_context not stored yet:", error.message);
+    throw new ProfileContextError(
+      `Could not store generation context: ${error.message}`,
+      500,
+    );
+  }
+  if (!Array.isArray(data) || data.length === 0) {
+    throw new ProfileContextError(
+      "Could not store generation context: no owned practice set matched",
+      403,
+    );
   }
 
   applyContextToSet(setData, stored);
   return stored;
 };
+
 
 /** Keeps the in-memory set row in step with the authoritative snapshot. */
 // deno-lint-ignore no-explicit-any
