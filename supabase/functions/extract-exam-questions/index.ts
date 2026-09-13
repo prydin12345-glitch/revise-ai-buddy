@@ -2798,19 +2798,26 @@ Return a JSON array only:
         // Match regenerated texts back to original sub-parts
         for (let i = 0; i < siblings.length && i < parsed.length; i++) {
           const newText = parsed[i]?.question_text?.trim();
+          const newAnswer = typeof parsed[i]?.correct_answer === 'string'
+            ? parsed[i].correct_answer.trim()
+            : (typeof parsed[i]?.mark_scheme === 'string' ? parsed[i].mark_scheme.trim() : '');
+          // A rewritten question MUST arrive with its rewritten answer/mark
+          // scheme. Keeping the previous key against new wording produced
+          // silently wrong papers, so a text-only rewrite is discarded.
+          if (newText && newText.length > 10 && !newAnswer) {
+            console.warn(`Discarding regeneration of Q${siblings[i].question_number}: no matching answer returned`);
+            continue;
+          }
           if (newText && newText.length > 10) {
             const updatePayload: any = {
               original_question_text: siblings[i].question_text,
               question_text: newText,
+              correct_answer: newAnswer,
               generation_status: 'ai_generated',
             };
 
-            // For MCQ regen, also update options and correct_answer if provided
-            if (questionType === 'mcq' && parsed[i]?.options && Array.isArray(parsed[i].options)) {
+            if (parsed[i]?.options && Array.isArray(parsed[i].options) && parsed[i].options.length) {
               updatePayload.options = parsed[i].options;
-              if (parsed[i]?.correct_answer) {
-                updatePayload.correct_answer = parsed[i].correct_answer;
-              }
             }
 
             await supabase.from('exam_question_drafts').update(updatePayload).eq('id', siblings[i].id);
