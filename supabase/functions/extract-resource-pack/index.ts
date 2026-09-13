@@ -1,3 +1,4 @@
+import { withAIQuota } from '../_shared/ai-request-guard.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
@@ -7,7 +8,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+serve(withAIQuota('extract-resource-pack', async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -227,4 +228,4 @@ Extract all resources found. If the document appears to be a question paper rath
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
-});
+}));
