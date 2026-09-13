@@ -38,8 +38,7 @@ import { CurriculumPromptModal, TopicLimitWarning } from "@/components/exam/Curr
 import { CurriculumTopicBadge } from "@/components/exam/CurriculumTopicBadge";
 import { useExamNameValidator } from "@/hooks/useExamNameValidator";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { resolveProfileContext, toStoredGenerationContext } from "@/lib/profile-context";
-import { supabase as profileContextClient } from "@/integrations/supabase/profile-context-client";
+import { resolveProfileContext } from "@/lib/profile-context";
 import { getBoardDisplayName } from "@/lib/board-scrubber";
 
 type QuestionFormat = 'written_only' | 'mcq_only' | 'mixed';
