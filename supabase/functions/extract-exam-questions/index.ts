@@ -1360,7 +1360,9 @@ Stay inside ${AQA_BIOLOGY_P1.displayName} Paper 1 topics only. Every scored part
       exam_id: draftId,
       question_number: String(q.question_number || i + 1),
       question_type: qType,
-      question_text: sanitiseFeedback(q.question_text || ''),
+      // Deterministic assembly so the task survives numbering, sanitisation
+      // and resource routing even when the model split context from task.
+      question_text: sanitiseFeedback(assembleQuestionText(q) || ''),
       question_latex: q.question_latex || null,
       has_math: q.has_math || false,
       parent_question_number: q.parent_question_number || null,
