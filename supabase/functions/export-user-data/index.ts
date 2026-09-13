@@ -61,9 +61,9 @@ Deno.serve(async (req) => {
       safeFetch("exams_created", () =>
         admin.from("exams").select("*, exam_topics(*), exam_questions(*)").eq("user_id", userId)),
       safeFetch("exam_submissions", () =>
-        admin.from("exam_submissions").select("*").eq("student_id", userId)),
+        userClient.from("exam_submissions").select("*").eq("student_id", userId)),
       safeFetch("student_answers", () =>
-        admin.from("student_answers").select("*").eq("student_id", userId)),
+        userClient.from("student_answers").select("*").eq("student_id", userId)),
       safeFetch("practice_sets", () =>
         admin.from("practice_question_sets").select("*, practice_questions(*)").eq("user_id", userId)),
       safeFetch("practice_progress", () =>
@@ -97,8 +97,7 @@ Deno.serve(async (req) => {
         user_id: userId,
         email: user.email,
         note:
-          "This file contains all personal data held by Examly for your account, " +
-          "exported in compliance with UK GDPR Article 20 (Right to Data Portability).",
+          "This export includes the account data listed below. Unreleased exam marking results are not included. Contact support if you need a complete data-access review.",
       },
       account: {
         email: user.email,
