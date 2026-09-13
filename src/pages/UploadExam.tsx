@@ -124,6 +124,18 @@ export default function UploadExam() {
       const tier = effectiveEducationalTier;
       if (tier) formData.append('educationalTier', tier);
       if (effectiveExamBoard) formData.append('examBoard', effectiveExamBoard);
+      const generationContext = resolveProfileContext({
+        subjectName: subjectId,
+        profile: (selectedProfile as any) ?? null,
+        subjectExamBoard: subjectBoard,
+        manualExamBoard: examBoard,
+        manualEducationalTier: educationalTier,
+        preferredExamBoard: preferences?.preferred_exam_board,
+        preferredEducationalLevel: preferences?.preferred_educational_level,
+      });
+      if (generationContext.assessmentTier) {
+        formData.append('assessmentTier', generationContext.assessmentTier);
+      }
       if (selectedProfile) {
         formData.append('profileId', selectedProfile.id);
         formData.append('structureMode', followReference ? 'reference' : 'profile');

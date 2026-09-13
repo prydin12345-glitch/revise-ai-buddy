@@ -46,6 +46,7 @@ serve(async (req) => {
     const specFile = formData.get('specFile') as File | null;
     const resourcePackId = formData.get('resourcePackId') as string | null;
     const profileId = (formData.get('profileId') as string | null) || null;
+    const assessmentTier = (formData.get('assessmentTier') as string | null) || null;
     const curriculumTopicsRaw = formData.get('curriculumTopics') as string | null;
     const structureMode = formData.get('structureMode') as string | null;
     const profileQuestionCount = formData.get('profileQuestionCount') as string | null;

@@ -484,12 +484,28 @@ export default function CreateExam() {
       // Upload exam with all settings
       const formData = new FormData();
       const resolvedEducationalTier = effectiveEducationalTier;
+      // One resolver decides board / qualification / assessment tier, and the
+      // result is what we send and later store on the attempt.
+      const activeProfileRow = selectedProfile && selectedProfile !== 'all_topics'
+        ? getProfilesForSubject(subjectId).find((pr) => pr.id === selectedProfile) ?? null
+        : null;
+      const generationContext = resolveProfileContext({
+        subjectName: subjectId,
+        profile: activeProfileRow as any,
+        manualExamBoard: effectiveExamBoard,
+        manualEducationalTier: resolvedEducationalTier,
+        preferredExamBoard: preferences?.preferred_exam_board,
+        preferredEducationalLevel: preferences?.preferred_educational_level,
+      });
       if (file) formData.append('file', file);
       formData.append('subjectId', subjectId);
       formData.append('fileName', examName);
       if (resolvedEducationalTier) formData.append('educationalTier', resolvedEducationalTier);
       if (effectiveExamBoard) formData.append('examBoard', effectiveExamBoard);
       if (qualificationLevel) formData.append('qualificationLevel', qualificationLevel);
+      if (generationContext.assessmentTier) {
+        formData.append('assessmentTier', generationContext.assessmentTier);
+      }
       if (notes) formData.append('notes', notes);
       if (activeProfileTopics.length > 0) {
         formData.append('curriculumTopics', JSON.stringify(activeProfileTopics));
@@ -552,7 +568,9 @@ export default function CreateExam() {
           shortAnswer: { count: profileWrittenCount || 0, marksEach: 3 },
           longForm: { count: 0, marksEach: 0 },
           // Pass advanced profile metadata
+          assessmentTier: generationContext.assessmentTier,
           profileMetadata: {
+            assessmentTier: generationContext.assessmentTier,
             studiedTexts: (getProfilesForSubject(subjectId).find((pr: any) => pr.id === selectedProfile) as any)?.studied_texts ?? null,
             paperBlueprint: (getProfilesForSubject(subjectId).find((pr: any) => pr.id === selectedProfile) as any)?.paper_blueprint ?? null,
             questionStructure: profileQuestionStructure,
@@ -574,6 +592,7 @@ export default function CreateExam() {
           format = {
             useOriginal,
             educationalTier: effectiveEducationalTier,
+            assessmentTier: generationContext.assessmentTier,
             ...((!useOriginal) && {
               totalQuestions,
               oneMarkCount,
