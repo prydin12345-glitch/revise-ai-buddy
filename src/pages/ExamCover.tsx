@@ -142,14 +142,14 @@ const ExamCover = () => {
             .select("*, exam_topics(topic_name)")
             .eq("id", examId)
             .maybeSingle(),
-          supabase.from("exam_questions").select("id").eq("exam_id", examId),
+          supabase.from("exam_question_metadata").select("id").eq("exam_id", examId),
           supabase
             .from("exam_timer")
             .select("enabled, duration_minutes")
             .eq("exam_id", examId)
             .maybeSingle(),
           supabase
-            .from("exam_submissions")
+            .from("exam_submission_metadata")
             .select("status, time_remaining_seconds, last_accessed_at, exam_started_at")
             .eq("exam_id", examId)
             .eq("student_id", user.id)
