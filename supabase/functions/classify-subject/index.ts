@@ -1,3 +1,4 @@
+import { withAIQuota } from '../_shared/ai-request-guard.ts';
 import { corsHeaders } from "../_shared/cors-headers.ts";
 
 const VALID_CATEGORIES = [
@@ -7,7 +8,7 @@ const VALID_CATEGORIES = [
   'art_design', 'music', 'physical_education', 'other'
 ];
 
-Deno.serve(async (req) => {
+Deno.serve(withAIQuota('classify-subject', async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -95,4 +96,4 @@ Reply with ONLY the category name, nothing else.`,
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-});
+}));
