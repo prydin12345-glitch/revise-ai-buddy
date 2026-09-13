@@ -543,7 +543,7 @@ const ExamInProgress = () => {
 
       if (error) throw error;
 
-      if (data.submission && data.submission.status === 'submitted') {
+      if (data.submission && ['submitted','graded','completed'].includes(data.submission.status)) {
         toast({
           title: "Exam Already Submitted",
           description: "Redirecting to review page...",
@@ -617,7 +617,7 @@ const ExamInProgress = () => {
       setExistingAnswers(data.existingAnswers || []);
       setSubmission(data.submission || null);
       
-      if (data.timer?.enabled) {
+      if (data.timer?.enabled && !['marking','marking_failed'].includes(data.submission?.status)) {
         setTimerEnabled(true);
         
         // Get localStorage data
@@ -949,10 +949,12 @@ const ExamInProgress = () => {
       
       // Reset to idle after 3 seconds
       setTimeout(() => setAutoSaveStatus('idle'), 3000);
+      return true;
     } catch (error: any) {
       setAutoSaveStatus('error');
       toast({ title: "Save Failed", description: error.message, variant: "destructive" });
       // Keep sessionStorage draft on failure - it will be used on reload
+      return false;
     }
   };
   
@@ -983,32 +985,36 @@ const ExamInProgress = () => {
     submitExam();
   };
 
-  // Retry logic with exponential backoff
-  const submitExamWithRetry = async (
-    selfMarkScores: Record<string, number> = {},
-    maxRetries = 3,
-  ): Promise<any> => {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const { data, error } = await supabase.functions.invoke('submit-exam', {
-          body: { examId, timeTakenSeconds: timeElapsed, selfMarkScores }
-        });
-        
-        if (error) throw error;
-        return data;
-      } catch (error) {
-        console.error(`[Submit] Attempt ${attempt} failed:`, error);
-        if (attempt === maxRetries) throw error;
-        
-        // Wait before retry (exponential backoff: 1s, 2s, 4s)
-        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
-      }
+  // Retrying a whole paper automatically repeats paid work. The server is idempotent;
+  // surface its retry/wait message and let the student retry deliberately.
+  const submitExamWithRetry = async (selfMarkScores: Record<string, number> = {}): Promise<any> => {
+    const {data,error} = await supabase.functions.invoke('submit-exam', {
+      body:{examId,timeTakenSeconds:timeElapsed,selfMarkScores},
+    });
+    if(error) {
+      const context=(error as any).context;
+      const body=context instanceof Response ? await context.clone().json().catch(()=>null) : null;
+      throw new Error(body?.error ?? 'Marking could not finish. Please retry shortly.');
     }
+    if(!data?.success)throw new Error(data?.error ?? 'Marking did not finish.');
+    return data;
   };
 
   const submitExam = async (selfMarkScoresOverride?: Record<string, number>) => {
     setIsSubmitting(true);
     try {
+      // Resolve an earlier successful/timed-out attempt before writing any more answers.
+      const {data: latest,error: latestError} = await supabase.functions.invoke('get-exam-questions',{body:{examId}});
+      if(latestError)throw new Error('Could not verify submission status. Your current work remains on this page. Please retry.');
+      setSubmission(latest.submission ?? null);
+      if(latest.submission?.status === 'graded') {
+        navigate(`/exam/${examId}/review`);
+        return;
+      }
+      const retrySavedAttempt=latest.submission?.status === 'marking';
+      if(retrySavedAttempt && Date.now()-new Date(latest.submission.marking_started_at ?? 0).getTime()<300_000)
+        throw new Error('This paper is already being marked. Please wait, then check its status.');
+
       // 1. Clear any pending debounced saves
       Object.keys(saveTimeouts.current).forEach(questionId => {
         if (saveTimeouts.current[questionId]) {
@@ -1022,9 +1028,10 @@ const ExamInProgress = () => {
         .filter(([_, answer]) => answer?.workingOut?.trim() || answer?.finalAnswer?.trim());
       
       console.log(`[Submit] Saving ${answersToSave.length} answers before submission...`);
-      await Promise.all(answersToSave.map(([qId]) => handleSaveAnswer(qId)));
+      const saved = retrySavedAttempt ? [] : await Promise.all(answersToSave.map(([qId]) => handleSaveAnswer(qId)));
+      if(saved.some(result => result === false))throw new Error('Some answers could not be saved. Retry before submitting.');
 
-      // 3. Call submit edge function with retry, passing self-mark scores for drawing questions
+      // 3. Submit once, passing self-mark scores for drawing questions
       const scoresPayload = selfMarkScoresOverride ?? selfMarkScores;
       const data = await submitExamWithRetry(scoresPayload);
 
@@ -1033,6 +1040,10 @@ const ExamInProgress = () => {
       localStorage.removeItem(`exam_${examId}_last_saved`);
 
       // 5. Handle score visibility based on tutor settings
+      if (data.alreadyGraded) {
+        navigate(`/exam/${examId}/review`);
+        return;
+      }
       if (data.scoresHidden) {
         toast({ 
           title: "Exam Submitted!", 
@@ -1048,9 +1059,10 @@ const ExamInProgress = () => {
       navigate(`/exam/${examId}/review`);
     } catch (error: any) {
       console.error('[Submit] Final failure:', error);
+      setTimerEnabled(false); // Do not repeatedly auto-submit a failed marking request.
       toast({ 
         title: "Submission Failed", 
-        description: error.message + ". Your answers are saved. Please try again.", 
+        description: error.message,
         variant: "destructive" 
       });
     } finally {
@@ -1244,6 +1256,16 @@ const ExamInProgress = () => {
   const currentGroup = questionGroups[currentPage] || { parent: '1', questions: [] };
   const hasNextPage = currentPage < questionGroups.length - 1;
   const hasPrevPage = currentPage > 0;
+
+  if (!loading && !isSubmitting && submission?.status === 'marking') {
+    return <div className="max-w-xl mx-auto p-8 space-y-4">
+      <h1 className="text-xl font-semibold">Your exam is being marked</h1>
+      <p>Your answers are saved. Please wait, then check again. If marking was interrupted, retry becomes available after five minutes.</p>
+      <Button onClick={() => window.location.reload()}>Check marking status</Button>
+      {Date.now()-new Date(submission.marking_started_at ?? 0).getTime()>=300_000 &&
+        <Button onClick={() => submitExam()}>Retry marking saved answers</Button>}
+    </div>;
+  }
 
   // Show submission loading screen
   if (isSubmitting) {
