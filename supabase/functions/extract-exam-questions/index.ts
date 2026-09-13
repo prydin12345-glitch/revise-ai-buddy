@@ -653,12 +653,21 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
 
   let extractionPrompt = extractionPrompt_raw;
 
-  // Assessment tier (Foundation/Higher) travels in the saved format metadata.
+  // AUTHORITATIVE TIER: the exam's server-resolved generation context. Format
+  // metadata is a client-influenced echo and must not override it.
+  const storedContext = (exam as any).generation_context ?? null;
+  const authoritativeTier = storedAssessmentTier(storedContext);
+  const metadataTier = normaliseAssessmentTier(
+    (formatData?.profile_metadata as any)?.assessmentTier ?? null,
+  );
+  if (metadataTier !== authoritativeTier) {
+    console.warn(
+      `[tier] ignoring format metadata tier "${metadataTier}" in favour of saved context "${authoritativeTier}"`,
+    );
+  }
   const assessmentTierPromptBlock = assessmentTierPrompt({
-    assessmentTier: normaliseAssessmentTier(
-      (formatData?.profile_metadata as any)?.assessmentTier ?? null,
-    ),
-    courseId: null,
+    assessmentTier: authoritativeTier,
+    courseId: (storedContext?.course_id as string | null) ?? null,
   });
   if (assessmentTierPromptBlock) {
     extractionPrompt += '\n\n' + assessmentTierPromptBlock;
