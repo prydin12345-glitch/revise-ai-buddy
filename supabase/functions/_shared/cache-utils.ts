@@ -13,7 +13,7 @@
 
 export const CACHE_NAMESPACE = "v2";
 /** Bump when the canonical document or the prompt contract changes. */
-export const CACHE_SCHEMA_VERSION = 1;
+export const CACHE_SCHEMA_VERSION = 2;
 
 export interface CacheIdentityInput {
   subject: string;
