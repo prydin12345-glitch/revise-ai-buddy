@@ -75,12 +75,21 @@ const INTERROGATIVES = ["which", "what", "why", "how", "when", "where", "who"];
 
 const words = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
 
-/** Split into clauses on sentence terminators, newlines and colons/semicolons. */
+/**
+ * Split into clauses on real boundaries. Newlines are preserved (a task very
+ * often sits on its own line after a table), and a clause may also start after
+ * a closing bracket/quote that follows a full stop — "…afterwards.) Explain …"
+ * — or after a markdown table row ends with "|".
+ */
 const clauses = (s: string): string[] =>
   s
-    .split(/(?<=[.?!])\s+|\n+|;\s+|:\s+/)
+    .split(/(?<=[.?!][)"'\]]?)\s+|[\r\n]+|(?<=\|)\s+|;\s+|:\s+/)
     .map((c) => c.trim())
     .filter(Boolean);
+
+const startsWithCommand = (c: string): boolean =>
+  COMMAND_VERBS.some((v) => c.startsWith(v + " ") || c === v) ||
+  INTERROGATIVES.some((w) => c.startsWith(w + " "));
 
 /**
  * Does this text ask the student to DO something?
@@ -89,15 +98,19 @@ const clauses = (s: string): string[] =>
  */
 export function hasAssessedTask(raw: string | null | undefined): boolean {
   if (!raw) return false;
-  const text = words(raw);
+  const text = String(raw).toLowerCase().replace(/[ \t]+/g, " ").trim();
   if (!text) return false;
 
   for (const clause of clauses(text)) {
-    const c = clause.replace(/^[\s"'(\[]+/, "");
-    // Imperative: the clause OPENS with a command verb.
-    if (COMMAND_VERBS.some((v) => c.startsWith(v + " ") || c === v)) return true;
-    // Interrogative opener, wherever it sits (question mark optional).
-    if (INTERROGATIVES.some((w) => c.startsWith(w + " "))) return true;
+    const c = clause.replace(/^[\s"'(\[|*\-–—]+/, "").trim();
+    // Imperative or interrogative opener (question mark optional).
+    if (startsWithCommand(c)) return true;
+    // A command clause can also follow a bracketed aside or a table cell
+    // inside the same "sentence": "…(assume a graph.) explain the effect…".
+    for (const seg of c.split(/(?<=[).\]])\s+|\s\|\s/)) {
+      const s = seg.replace(/^[\s"'(\[|*\-–—]+/, "").trim();
+      if (s !== c && startsWithCommand(s)) return true;
+    }
     // Explicit completion / selection instructions.
     if (/\b(complete the (table|diagram|sentence|graph)|fill in|tick (one|two|the) box|choose one answer|select one)\b/.test(c)) {
       return true;
@@ -107,6 +120,7 @@ export function hasAssessedTask(raw: string | null | undefined): boolean {
   }
   return false;
 }
+
 
 /** Deterministically assemble displayed text so the task survives every transform. */
 export function assembleQuestionText(part: CandidatePart): string {
