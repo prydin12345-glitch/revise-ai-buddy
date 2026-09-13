@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveProfileContext, toStoredGenerationContext, ProfileContextError } from "../_shared/profile-context.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -155,6 +156,32 @@ serve(async (req) => {
     }
 
     console.log('Exam created:', examData.id);
+
+    // Resolve the course context from the OWNED profile and stamp it on the
+    // exam, so later profile edits cannot rewrite this attempt.
+    try {
+      const resolved = await resolveProfileContext(supabase, {
+        userId: user.id,
+        subjectName: subjectId,
+        profileId,
+        examBoard,
+        educationalTier: qualificationLevel || educationalTier,
+        assessmentTier,
+      });
+      const { error: ctxError } = await supabase
+        .from('exams')
+        .update({ generation_context: toStoredGenerationContext(resolved) })
+        .eq('id', examData.id);
+      if (ctxError) console.warn('generation_context not stored yet:', ctxError.message);
+    } catch (ctxErr) {
+      if (ctxErr instanceof ProfileContextError) {
+        return new Response(JSON.stringify({ error: ctxErr.message }), {
+          status: ctxErr.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      console.warn('Profile context resolution failed:', ctxErr);
+    }
 
     // Store structure mode and profile question split in exam_format
     if (structureMode && profileQuestionCount) {

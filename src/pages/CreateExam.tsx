@@ -33,6 +33,7 @@ import { CurriculumPromptModal } from "@/components/exam/CurriculumPromptModal";
 import { CurriculumTopicBadge } from "@/components/exam/CurriculumTopicBadge";
 import { useExamNameValidator } from "@/hooks/useExamNameValidator";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { resolveProfileContext } from "@/lib/profile-context";
 import { EXAM_BOARD_OPTIONS, getBoardDisplayName } from "@/lib/board-scrubber";
 import { getRegionBoards, getLevelsForBoard, LEVEL_DISPLAY_NAMES } from "@/lib/board-level-mapping";
 
