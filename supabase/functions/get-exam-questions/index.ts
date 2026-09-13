@@ -1,3 +1,4 @@
+import { requireExamAccess, mayReadSolutions, studentQuestion, stripSolutionData, ExamRequestError } from '../_shared/exam-access.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -16,7 +17,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const authHeader = req.headers.get('Authorization')!;
+    const authHeader = req.headers.get('Authorization') ?? '';
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
@@ -36,6 +37,8 @@ serve(async (req) => {
       });
     }
 
+    const access = await requireExamAccess(supabase, examId, user.id);
+
     // Check if user is exam creator
     const { data: exam } = await supabase
       .from('exams')
@@ -43,7 +46,7 @@ serve(async (req) => {
       .eq('id', examId)
       .single();
 
-    const isTeacher = exam?.user_id === user.id;
+    const isTeacher = access.isManager;
 
     // Fetch questions (without SQL ordering)
     const { data: questions, error: questionsError } = await supabase
@@ -69,7 +72,7 @@ serve(async (req) => {
     // Check if student has already submitted
     const { data: submission } = await supabase
       .from('exam_submissions')
-      .select('submitted_at, total_score, total_marks, status, time_taken_seconds, time_remaining_seconds, exam_started_at')
+      .select('submitted_at, total_score, total_marks, status, time_taken_seconds, time_remaining_seconds, exam_started_at, marking_started_at, marking_error')
       .eq('exam_id', examId)
       .eq('student_id', user.id)
       .maybeSingle();
@@ -142,52 +145,21 @@ serve(async (req) => {
 
     const sortedQuestions = sortQuestions(questions || []);
 
-    // If preview mode, return all questions without submission checks
-    if (isPreview) {
-      return new Response(
-        JSON.stringify({
-          questions: sortedQuestions,
-          isTeacher: false,
-          timer: timerData?.enabled ? {
-            enabled: true,
-            duration_minutes: timerData.duration_minutes,
-            time_remaining_seconds: timerData.duration_minutes * 60
-          } : null,
-          submission: null,
-          existingAnswers: []
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // If student and not submitted, remove correct answers
-    const responseQuestions = (isTeacher || submission)
-      ? sortedQuestions 
-      : sortedQuestions.map(q => ({
-          id: q.id,
-          question_number: q.question_number,
-          question_type: q.question_type,
-          question_text: q.question_text,
-          marks: q.marks,
-          options: q.options,
-          diagram_config: q.diagram_config,
-          figure_urls: q.figure_urls,
-          has_figures: q.has_figures,
-          has_tables: q.has_tables,
-          data_type: q.data_type,
-          graph_description: q.graph_description,
-          table_data: q.table_data,
-          generated_diagram_url: q.generated_diagram_url,
-          diagram_type: q.diagram_type,
-          circuit_type: q.circuit_type,
-          circuit_description: q.circuit_description,
-          needs_diagram: q.needs_diagram,
-          question_latex: q.question_latex,
-          has_math: q.has_math,
-        }));
+    // Preview is a presentation mode, never a permission grant.
+    const canRead = mayReadSolutions(access, submission?.status);
+    const responseQuestions = canRead ? sortedQuestions : sortedQuestions.map(studentQuestion);
+    const safeAnswers = (existingAnswers || []).map(answer => canRead ? answer : {
+      ...answer, score: null, feedback: null, is_correct: null,
+    });
+    const safeSubmission = submission ? {...submission,
+      total_score: canRead ? submission.total_score : null,
+      total_marks: canRead ? submission.total_marks : null,
+    } : null;
 
     return new Response(JSON.stringify({ 
-      paperBlueprint: (exam as any)?.paper_blueprint ?? null,
+      paperBlueprint: canRead ? (exam as any)?.paper_blueprint ?? null : stripSolutionData((exam as any)?.paper_blueprint ?? null),
+      scoresHidden: !canRead,
+      isAssigned: access.isAssigned,
       questions: responseQuestions,
       isTeacher,
       timer: timerData?.enabled ? {
@@ -195,8 +167,8 @@ serve(async (req) => {
         duration_minutes: timerData.duration_minutes,
         time_remaining_seconds: timeRemaining
       } : null,
-      submission: submission || null,
-      existingAnswers: existingAnswers || []
+      submission: isPreview ? null : safeSubmission,
+      existingAnswers: isPreview ? [] : safeAnswers
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -204,7 +176,7 @@ serve(async (req) => {
     console.error('Error in get-exam-questions:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
+      status: error instanceof ExamRequestError ? error.status : 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
