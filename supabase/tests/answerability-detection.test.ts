@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { hasAssessedTask } from "../functions/_shared/question-contract-validator.ts";
+import {
+  hasAssessedTask,
+  normalizeRepairPart,
+} from "../functions/_shared/question-contract-validator.ts";
 
 describe("hasAssessedTask — real generated stems", () => {
   it("accepts a command that follows a bracketed aside", () => {
@@ -33,5 +36,29 @@ describe("hasAssessedTask — real generated stems", () => {
         "They measured the diameter of the zone of inhibition after 24 hours of incubation.",
       ),
     ).toBe(false);
+  });
+});
+
+describe("normalizeRepairPart", () => {
+  it("accepts Gemini's expected_answer alias without losing the repaired task", () => {
+    expect(normalizeRepairPart({
+      question_number: "4(d)",
+      context: "The graph gives oxygen production at six light intensities.",
+      task: "Describe the effect of increasing light intensity on oxygen production.",
+      expected_answer: "The rate rises and then levels off.",
+    })).toEqual({
+      questionNumber: "4(d)",
+      questionText: "The graph gives oxygen production at six light intensities.\n\nDescribe the effect of increasing light intensity on oxygen production.",
+      correctAnswer: "The rate rises and then levels off.",
+      options: undefined,
+    });
+  });
+
+  it("rejects a repair that still has no assessed task", () => {
+    expect(normalizeRepairPart({
+      question_number: "4(d)",
+      context: "The graph shows the results.",
+      expected_answer: "The rate rises.",
+    })).toBeNull();
   });
 });

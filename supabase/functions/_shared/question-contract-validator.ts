@@ -59,6 +59,13 @@ export interface ValidationResult {
   ok: boolean;
 }
 
+export interface NormalizedRepairPart {
+  questionNumber: string;
+  questionText: string;
+  correctAnswer: string;
+  options?: string[];
+}
+
 /** Command verbs that constitute an assessed instruction. */
 const COMMAND_VERBS = [
   "calculate", "work out", "determine", "evaluate", "explain", "describe",
@@ -128,6 +135,37 @@ export function assembleQuestionText(part: CandidatePart): string {
   const task = (part.task ?? "").trim();
   if (context && task) return `${context}\n\n${task}`;
   return task || context || (part.question_text ?? "").trim();
+}
+
+/**
+ * Normalise the two answer-key field names used by supported model outputs.
+ * Generation asks for `correct_answer`, but Gemini may return the semantically
+ * equivalent `expected_answer`. A repair is usable only when its number, task,
+ * and rewritten key are all present.
+ */
+export function normalizeRepairPart(raw: unknown): NormalizedRepairPart | null {
+  if (!raw || typeof raw !== "object") return null;
+  const part = raw as Record<string, unknown>;
+  const questionNumber = String(part.question_number ?? "").trim();
+  const answerValue = part.correct_answer ?? part.expected_answer;
+  const correctAnswer = typeof answerValue === "string" ? answerValue.trim() : "";
+  const questionText = assembleQuestionText({
+    context: typeof part.context === "string" ? part.context : null,
+    task: typeof part.task === "string" ? part.task : null,
+    question_text: typeof part.question_text === "string" ? part.question_text : null,
+  });
+  if (!questionNumber || !questionText || !correctAnswer || !hasAssessedTask(questionText)) {
+    return null;
+  }
+  const options = Array.isArray(part.options)
+    ? part.options.map((option) => String(option ?? "").trim()).filter(Boolean)
+    : undefined;
+  return {
+    questionNumber,
+    questionText,
+    correctAnswer,
+    options: options?.length ? options : undefined,
+  };
 }
 
 const partIdOf = (p: CandidatePart, index: number) =>
