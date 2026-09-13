@@ -228,7 +228,7 @@ const MyExams = () => {
           { data: timerData },
         ] = await Promise.all([
           supabase
-            .from('exam_submissions')
+            .from('exam_submission_metadata')
             .select('exam_id, status, time_remaining_seconds, last_accessed_at, exam_started_at')
             .eq('student_id', user.id)
             .in('exam_id', examIds),
@@ -238,7 +238,7 @@ const MyExams = () => {
             .eq('student_id', user.id)
             .in('exam_id', examIds),
           supabase
-            .from('exam_questions')
+            .from('exam_question_metadata')
             .select('exam_id')
             .in('exam_id', examIds),
           supabase
@@ -252,7 +252,7 @@ const MyExams = () => {
           allSubmissions?.filter(s => s.status === 'submitted' || s.status === 'completed' || s.status === 'graded').map(s => s.exam_id) || []
         );
         const inProgressExamIds = new Set(
-          allSubmissions?.filter(s => s.status === 'in_progress').map(s => s.exam_id) || []
+          allSubmissions?.filter(s => ['in_progress','marking','marking_failed'].includes(s.status)).map(s => s.exam_id) || []
         );
 
         setCompletedExamIds(Array.from(submittedExamIds));
@@ -414,7 +414,7 @@ const MyExams = () => {
       }
 
       const { data: submission } = await supabase
-        .from('exam_submissions')
+        .from('exam_submission_metadata')
         .select('id')
         .eq('exam_id', selectedExam.id)
         .eq('student_id', user.id)
