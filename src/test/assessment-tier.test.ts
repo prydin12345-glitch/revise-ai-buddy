@@ -43,6 +43,10 @@ describe("assessment tier catalogue", () => {
     expect(isValidAssessmentTierFor(null, aqaGcseBiology)).toBe(true);
     expect(isValidAssessmentTierFor("not_tiered", aqaGcseBiology)).toBe(false);
     expect(isValidAssessmentTierFor("higher", { ...aqaGcseBiology, subject: "Physics" })).toBe(false);
-    expect(isValidAssessmentTierFor("banana", aqaGcseBiology)).toBe(true); // unparsable => unknown
+    // Only genuinely absent values are "unknown". An explicit string that is
+    // not a tier is rejected rather than silently treated as legacy data.
+    expect(isValidAssessmentTierFor(undefined, aqaGcseBiology)).toBe(true);
+    expect(isValidAssessmentTierFor("  ", aqaGcseBiology)).toBe(true);
+    expect(isValidAssessmentTierFor("banana", aqaGcseBiology)).toBe(false);
   });
 });
