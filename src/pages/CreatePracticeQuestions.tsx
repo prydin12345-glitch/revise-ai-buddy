@@ -428,25 +428,11 @@ const CreatePracticeQuestions = () => {
 
       if (setError) throw setError;
 
-      // Stamp the resolved course context on the attempt. The quiz difficulty
-      // control is deliberately NOT part of it and cannot change the tier.
-      const activeProfile = selectedProfileId && selectedProfileId !== 'all_topics'
-        ? getProfilesForSubject(subjectId).find((pr) => pr.id === selectedProfileId) ?? null
-        : null;
-      const generationContext = resolveProfileContext({
-        subjectName: subjectId,
-        profile: activeProfile as any,
-        subjectExamBoard: getSubjectExamBoard(subjectId),
-        manualExamBoard: examBoard === "other" ? customExamBoard.trim() : effectiveExamBoard,
-        manualEducationalTier: effectiveEducationalTier,
-        preferredExamBoard: preferences?.preferred_exam_board,
-        preferredEducationalLevel: preferences?.preferred_educational_level,
-      });
-      const { error: ctxError } = await profileContextClient
-        .from("practice_question_sets")
-        .update({ generation_context: toStoredGenerationContext(generationContext) as any })
-        .eq("id", setData.id);
-      if (ctxError) console.warn("generation_context not stored yet:", ctxError.message);
+      // The authoritative course snapshot is created by the generation
+      // function after it re-reads the OWNED profile. The browser deliberately
+      // does NOT write generation_context — a client-written snapshot would be
+      // discarded server-side anyway. The quiz difficulty control is not part
+      // of the context and can never change the assessment tier.
 
       setGeneratedSetId(setData.id);
 
