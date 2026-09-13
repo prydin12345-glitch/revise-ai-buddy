@@ -63,6 +63,24 @@ export const COURSE_CAPABILITIES: CourseCapability[] = [
 
 const norm = (v?: string | null) => (v ?? "").trim().toLowerCase();
 
+/**
+ * Users name their own subjects ("Biology Higher", "GCSE Biology"). Strip the
+ * qualification and tier words people append, so the subject still matches the
+ * catalogue. This only removes decoration — it never maps one subject onto a
+ * different one, and it never infers a tier.
+ */
+const DECORATION = /\b(aqa|edexcel|ocr|wjec|eduqas|gcse|igcse|ks4|paper\s*\d+|higher|foundation|tier|hl|sl)\b/g;
+
+const subjectForms = (value?: string | null): string[] => {
+  const base = norm(value);
+  if (!base) return [];
+  const stripped = base
+    .replace(DECORATION, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return stripped && stripped !== base ? [base, stripped] : [base];
+};
+
 export interface CourseLookup {
   subject?: string | null;
   examBoard?: string | null;
@@ -73,14 +91,14 @@ export interface CourseLookup {
 export const getCourseCapability = (
   lookup: CourseLookup,
 ): CourseCapability | null => {
-  const subject = norm(lookup.subject);
+  const subjects = subjectForms(lookup.subject);
   const board = norm(lookup.examBoard);
   const level = norm(lookup.educationalTier);
-  if (!subject || !board || !level) return null;
+  if (subjects.length === 0 || !board || !level) return null;
   return (
     COURSE_CAPABILITIES.find(
       (c) =>
-        c.subjects.includes(subject) &&
+        subjects.some((s) => c.subjects.includes(s)) &&
         c.boards.includes(board) &&
         c.levels.includes(level),
     ) ?? null
