@@ -30,6 +30,13 @@ describe("assessment tier catalogue", () => {
     expect(supportsAssessmentTier({ subject: "Biology", examBoard: "ib", educationalTier: "ib_dp" })).toBe(false);
   });
 
+  it("matches user-named subjects that carry qualification or tier words", () => {
+    expect(supportsAssessmentTier({ ...aqaGcseBiology, subject: "Biology Higher" })).toBe(true);
+    expect(supportsAssessmentTier({ ...aqaGcseBiology, subject: "GCSE Biology Paper 1" })).toBe(true);
+    // Decoration stripping must not turn one subject into another.
+    expect(supportsAssessmentTier({ ...aqaGcseBiology, subject: "Combined Science Higher" })).toBe(false);
+  });
+
   it("treats a missing tier as unknown rather than guessing one", () => {
     expect(normaliseAssessmentTier(null)).toBeNull();
     expect(normaliseAssessmentTier("")).toBeNull();

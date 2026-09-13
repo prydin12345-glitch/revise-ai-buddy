@@ -870,6 +870,7 @@ export type Database = {
           extraction_status: string | null
           file_processed_at: string | null
           file_url: string | null
+          generation_context: Json | null
           generation_method: string | null
           grade_released: boolean | null
           id: string
@@ -907,6 +908,7 @@ export type Database = {
           extraction_status?: string | null
           file_processed_at?: string | null
           file_url?: string | null
+          generation_context?: Json | null
           generation_method?: string | null
           grade_released?: boolean | null
           id?: string
@@ -944,6 +946,7 @@ export type Database = {
           extraction_status?: string | null
           file_processed_at?: string | null
           file_url?: string | null
+          generation_context?: Json | null
           generation_method?: string | null
           grade_released?: boolean | null
           id?: string
@@ -1303,6 +1306,7 @@ export type Database = {
           example_questions_file_url: string | null
           extraction_error: string | null
           extraction_status: string | null
+          generation_context: Json | null
           id: string
           include_graphs: boolean | null
           include_tables: boolean | null
@@ -1333,6 +1337,7 @@ export type Database = {
           example_questions_file_url?: string | null
           extraction_error?: string | null
           extraction_status?: string | null
+          generation_context?: Json | null
           id?: string
           include_graphs?: boolean | null
           include_tables?: boolean | null
@@ -1363,6 +1368,7 @@ export type Database = {
           example_questions_file_url?: string | null
           extraction_error?: string | null
           extraction_status?: string | null
+          generation_context?: Json | null
           id?: string
           include_graphs?: boolean | null
           include_tables?: boolean | null
@@ -2226,6 +2232,7 @@ export type Database = {
       }
       subject_exam_profiles: {
         Row: {
+          assessment_tier: string | null
           calculator_policy: string | null
           created_at: string
           difficulty_progression: string | null
@@ -2256,6 +2263,7 @@ export type Database = {
           written_question_count: number | null
         }
         Insert: {
+          assessment_tier?: string | null
           calculator_policy?: string | null
           created_at?: string
           difficulty_progression?: string | null
@@ -2286,6 +2294,7 @@ export type Database = {
           written_question_count?: number | null
         }
         Update: {
+          assessment_tier?: string | null
           calculator_policy?: string | null
           created_at?: string
           difficulty_progression?: string | null
