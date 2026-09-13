@@ -1,3 +1,4 @@
+import { withAIQuota } from '../_shared/ai-request-guard.ts';
 // FILE: supabase/functions/derive-exam-topics/index.ts
 // Phase 1 of the smart-upload plan: derive a topic scope from an uploaded
 // exam PDF so scopeless uploads get the same quality boundary a profile
@@ -33,7 +34,7 @@ async function extractPdfText(fileUrl: string | null, supabase: any): Promise<st
   }
 }
 
-serve(async (req) => {
+serve(withAIQuota('derive-exam-topics', async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const supabase = createClient(
@@ -95,4 +96,4 @@ ${pdfText.length > 8000 ? "[...]\n" + pdfText.slice(8000, 12000) : ""}`;
     console.error("[derive-topics] error:", e);
     return new Response(JSON.stringify({ topics: [], error: String(e) }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
-});
+}));
