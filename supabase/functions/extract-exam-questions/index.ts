@@ -13,7 +13,7 @@ import { buildBlueprintPrompt, validatePaperBlueprint, buildStudiedTextsPrompt, 
 import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
 import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 import { getSubjectSpecificInstructions } from "../_shared/exam-extraction-prompts.ts";
-import { validateQuestionCandidates, describeDefects, assembleQuestionText, CONTRACT_VERSION } from "../_shared/question-contract-validator.ts";
+import { validateQuestionCandidates, describeDefects, assembleQuestionText, hasAssessedTask, CONTRACT_VERSION } from "../_shared/question-contract-validator.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
 
@@ -2711,6 +2711,13 @@ function scoreGenerationQuality(
 
   const missingAnswers = questions.filter(q => !q.correct_answer);
   if (missingAnswers.length > 0) score -= (missingAnswers.length / questions.length) * 25;
+
+  // A scored part with context but no assessed task is the worst defect there
+  // is: it used to score 100/100 because an answer field happened to exist.
+  const contextOnly = questions.filter(q =>
+    Number(q.marks ?? 0) > 0 && !hasAssessedTask(q.task || q.question_text || '')
+  );
+  if (contextOnly.length > 0) score -= (contextOnly.length / questions.length) * 60;
 
   if (params.isCustomNiche) {
     const mathsPatterns = [/\bP\(X\s*[=<>]/, /binomial|poisson|normal distribution/i, /\blet\s+X\b/i];
