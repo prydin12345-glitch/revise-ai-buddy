@@ -282,6 +282,23 @@ export default function CreateExam() {
   const resolvedProfileWrittenCount = profileWrittenCount ?? 0;
   const resolvedProfileMcqOptionsCount = profileMcqOptionsCount ?? 4;
 
+  // ── ONE RESOLVER ──
+  // The same resolved context drives the summary shown on screen, the values
+  // submitted to the backend and (after server re-validation) the prompts,
+  // stored fields and cache identity. Nothing reads the raw manual board.
+  const activeProfileRow = selectedProfile && selectedProfile !== 'all_topics'
+    ? getProfilesForSubject(subjectId).find((pr) => pr.id === selectedProfile) ?? null
+    : null;
+  const generationContext = resolveProfileContext({
+    subjectName: subjectId,
+    profile: activeProfileRow as any,
+    manualExamBoard: effectiveExamBoard,
+    manualEducationalTier: effectiveEducationalTier,
+    preferredExamBoard: preferences?.preferred_exam_board,
+    preferredEducationalLevel: preferences?.preferred_educational_level,
+  });
+  const resolvedExamBoard = generationContext.examBoard ?? "";
+
   // Handle subject selection with random color assignment
   const handleSubjectChange = (newSubject: string) => {
     setSubjectId(newSubject);
