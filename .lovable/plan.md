@@ -1,101 +1,54 @@
-The plan is approved! Before executing, please incorporate these 4 crucial technical guardrails into the implementation:
+# Biology Paper 1 repair — three stages
 
-1. Safe Fallback Math:
+## What I already confirmed (Step 1 of your plan)
 
-- In `QuickStatsGrid.tsx`, prevent NaN/Infinity errors. If total answered questions is 0, display '--' for Avg Time/Question. 
+The affected paper is the one open in your preview (exam `90f69d3c…`, "Unsure", 13 Sep 13:28).
 
-- If `examResultsData.length < 2`, display 'Building...' for Mastery Velocity rather than calculating a slope.
+- Q1(a) and Q2(a) are stored **without a task** in the *draft* rows as well as the final question rows.
+- Both have full mark schemes: Q1(a) expects `(10 − 4) / 30 = 0.2 units per minute`; Q2(a) expects independent/dependent variables.
+- Later parts generated normally, so this is not truncation. **The model wrote context-only stems and the answer key separately; nothing downstream deleted the task.** Every gate afterwards passed it because the quality score only checks counts, options and presence of an answer field.
 
-2. Radar Chart Sizing & Truncation:
+So the fix belongs in the generation contract plus a hard gate, exactly as your plan states.
 
-- In `SkillRadarCard.tsx`, set `outerRadius="65%"` on the Radar Chart to prevent subject text from clipping off the screen edges on 375px mobile viewports. Truncate subject labels longer than 12 characters with '...'.
+## Stage A — answerability gates (blocking defects)
 
-3. Touch Ergonomics:
+New `supabase/functions/_shared/question-contract-validator.ts`:
+- Typed defects with stable part IDs: `missing_task`, `missing_required_resource`, `missing_answer`, `answer_mismatch`, `invalid_options`, `incorrect_mark_total`.
+- Task detection is structural, not punctuation-based: a scored part must carry an explicit command (command-verb clause, completion/tick-box instruction, or an `task` field) — a full stop is fine, an instruction before a table is fine, a trailing question mark is never required.
+- Separate `context` and `task` fields in the generation schema; displayed text is assembled deterministically so the instruction survives numbering, sanitisation and resource routing.
 
-- In `RangeChips.tsx`, enforce a minimum touch height `min-h-[44px]`) for the 7D / 30D / All pill buttons so they are easily tappable without accidentally triggering chart tooltips.
+Wired in at three points: raw candidates, after every sanitisation/repair, and at the draft-to-exam boundary (`publish-exam`). A paper with a blocking defect cannot be started or exported.
 
-4. SVG Radius Clamping:
+Repair path (`extract-exam-questions`): regenerate the **whole failing parent group with its answers and mark scheme together** — the current regeneration rewrites text while keeping the old key. Max 2 attempts per group, inside a whole-request budget, counted against existing quotas. Exhausted budget produces a clear generation failure, never a short paper.
 
-- In `ReadinessRing.tsx`, strictly clamp all score values between 0 and 100 before computing `strokeDashoffset` to prevent rendering artifacts in iOS Safari.
+`publish-exam`: remove the "default the MCQ answer to A" fallback; a missing key blocks completion.
 
-Please proceed with building all files under `src/components/stats/mobile/` and wiring up `<MobileStatsTelemetry />` in `Stats.tsx`.
+## Stage B — guided Biology recipes
 
-&nbsp;
+New `supabase/functions/_shared/biology-paper-contract.ts`, versioned, for AQA separate Biology 8461 Paper 1:
+- **Full mock** — 100 marks, 105 minutes, Paper 1 topic scope, tier from Batch 1.
+- **Short practice** — same scope, shorter plan, shows its real mark total and is labelled short practice.
+- **Custom** — untouched; a zero-MCQ profile stays a deliberate written-only session.
 
-&nbsp;
+Deterministic plan built before the model is called: each part gets an ID, parent ID, topic, tier, response type, marks, demand target and optional resource ID. Marks are computed from the plan; parent count, answerable-part count and total marks are tracked separately so UI clamps cannot truncate a valid full plan. Stored identity is course + paper + mode + contract version, not a display name.
 
-# Mobile Stats Redesign — Telemetry Dashboard
+Profile UI (`ExamProfileModal`, `paperPresets`, `useSubjectProfiles`, `SubjectDetail`, `CreateExam`, `save-exam-format`): mode selector plus an **explicit conversion** with a settings summary — never a silent overwrite of an existing custom profile.
 
-Scope: mobile branch of `src/pages/Stats.tsx` only (`isMobile === true`). Desktop layout, data hooks (`useExamStats`, `useUnifiedTopicPerformance`), and drilldown drawer are untouched. Weak Topics tab is preserved.
+First short development template: 8 marked parts, two 1-mark single-select MCQs, one meaningful data table, one supported diagram/graph, the rest written, one easy 1-mark part early. Marked internally as a test template, not an AQA rule.
 
-## Visual System
+## Stage C — resources, rendering, verification
 
-Scoped to the mobile stats surface via a wrapper class (`.stats-telemetry`) so tokens don't leak into the rest of the light-theme app.
+- One source dataset per resource, reused by the figure, the question and the private key; units, row widths, labels and arithmetic validated.
+- Resource resolution recognises **question-local and shared** resources (`question-text-scrubber`, insert figures). A missing required resource triggers repair or failure — never reference scrubbing followed by a "ready" paper.
+- Renderer support is checked before a diagram is requested; if agar-plate rendering isn't supported, a validated results table is used instead. The Q1 calculation is described as the mean change in concentration gradient per minute, not a measured diffusion rate.
+- Biology prompts gated by qualification/tier/paper; conflicting A-level examples and contradictory MCQ/media rules removed.
+- Mixed MCQ + written parts under one parent keep shared context in `ExamInProgress` and the PDF. No matching/multi-select until input, saving, marking and export all support it. Student-facing answer-key filtering unchanged.
+- Cache identity gains the contract/prompt version so incompatible cached output is retired (`cache-utils`, both practice functions).
 
-- Surface: `hsl(220 10% 6%)` page bg, `hsl(220 10% 9%)` card, `hsl(220 8% 14%)` card border/hairlines
-- Text: `hsl(0 0% 98%)` primary, `hsl(220 8% 62%)` muted
-- Accents: lime `hsl(88 92% 58%)` (strong), cyan `hsl(190 95% 60%)` (steady), magenta `hsl(320 90% 62%)` (review), amber `hsl(38 95% 60%)` (developing)
-- Radii: `rounded-2xl` cards, `rounded-full` pills, inner glows via `shadow-[0_0_24px_-8px_hsl(var(--accent)/0.6)]`
-- Typography: existing font stack; hero number `text-5xl font-bold tracking-tight tabular-nums`
+Tests: `supabase/tests/biology-paper-contract.test.ts` plus fixtures, including the exact Q1(a)/Q2(a) stems as negative fixtures, legitimate full-stop commands and instruction-before-table as positives, stale answer after repair, missing figure payload, budget exhaustion, and student projection leakage. Then `npm run check`.
 
-## Component Structure
+## Deployment (after your review, preview only)
 
-New folder: `src/components/stats/mobile/`
+No schema change expected. Functions to update: `extract-exam-questions`, `publish-exam`, `sanitise-questions`, `save-exam-format`, `generate-practice-questions`, `get-practice-questions` (shared helpers ship with their callers). The site stays unpublished.
 
-```text
-mobile/
-  MobileStatsTelemetry.tsx    // Orchestrator: wraps sections, applies dark scope
-  ReadinessRing.tsx           // Concentric SVG rings + centre score
-  QuickStatsGrid.tsx          // 2x2 sparkline card grid
-  SparklineCard.tsx           // Single metric card (icon, value, delta, sparkline)
-  ScoreTrendCard.tsx          // Smooth spline area chart + range chips
-  TopicTelemetryList.tsx      // Micro-row list of topics
-  TopicTelemetryRow.tsx       // Single row (pill, mini bar, %/attempts)
-  SkillRadarCard.tsx          // Radar/spider chart
-  RangeChips.tsx              // 7D / 30D / All shared segmented control
-  tokens.ts                   // Accent + mastery-to-colour helpers
-```
-
-`Stats.tsx` mobile branch replaces `MobileStatsHero + TopStatsCards + MobileChartSwitcher + RecentExamsTable` with a single `<MobileStatsTelemetry />`. The old mobile components stay in the repo (still imported by nothing) for one release, then can be deleted in a follow-up.
-
-## Section Implementations
-
-1. **ReadinessRing** — Three concentric SVG arcs (r=88/70/52) using `stroke-dasharray` animated via Framer Motion `animate` on mount. Rings: outer = overall mastery (`avgScore`), middle = topic coverage (`tested / total topics` from `useUnifiedTopicPerformance`), inner = quiz consistency (derived from `currentStreak / max(longestStreak, 7)`). Centre: big % + "Exam Readiness" caption + tiny legend chips below.
-2. **QuickStatsGrid** — 2x2 grid, `grid-cols-2 gap-3`. Metrics:
-  - Accuracy % (from `subjectPerformanceData` weighted mean)
-  - Study Streak (`currentStreak`, delta vs `longestStreak`)
-  - Avg Time / Question (compute from `studyActivityData` hours ÷ answered questions; if unavailable, show hours/day)
-  - Mastery Velocity (weekly slope of `examResultsData`)
-   Each card: 20px Lucide icon in accent-tinted square, value `text-2xl font-semibold`, 1-line delta, inline `<svg>` sparkline (path built from last 7 datapoints, `stroke-linecap="round"`, subtle gradient fill).
-3. **ScoreTrendCard** — Recharts `AreaChart` with `type="monotone"`, single series from `examResultsData`. Neon lime stroke, gradient `<defs>` fill fading to transparent, custom dot only on final point (`activeDot` with a glow ring). `RangeChips` (7D/30D/All) wired to existing `timeRange` / `setTimeRange`.
-4. **TopicTelemetryList** — Map `topics` from `useUnifiedTopicPerformance`. Row layout: `flex items-center gap-3 py-2.5 border-b border-white/5`. Left: 6px coloured dot (mastery colour) + topic name + subject pill (`text-[10px] uppercase tracking-wide`). Centre: 60px mini bar (`div` with gradient fill). Right: `text-sm tabular-nums` % and `text-[11px] muted` attempts. Cap at 8 rows with "View all" → routes to Weak Topics tab.
-5. **SkillRadarCard** — Recharts `RadarChart` over top 6 subjects (or subtopics if a single subject dominates). Grid `stroke="hsl(220 8% 20%)"`, radar `stroke` lime, `fill` lime at 20% opacity. Axis labels `fill="hsl(220 8% 62%)" fontSize={10}`.
-6. **Motion** — Framer Motion `motion.div` with staggered `initial={{opacity:0, y:8}} animate={{opacity:1, y:0}}` per section (delay 0/0.05/0.1/…). Ring arcs animate via `motion.circle` `strokeDashoffset`.
-
-## Libraries
-
-- Recharts (already used) — Area, Radar, Pie
-- Framer Motion (already in project) — section stagger + ring draw-on
-- Lucide icons — Flame, Target, Timer, TrendingUp, Radar, Activity
-- No new dependencies
-
-## Data & Hooks
-
-All values derived from existing hooks — no schema or edge-function changes:
-
-- `useExamStats` → totals, streaks, `examResultsData`, `studyActivityData`, `subjectPerformanceData`, `timeRange`
-- `useUnifiedTopicPerformance` → topics list, mastery counts
-- Derived helpers live in `mobile/tokens.ts` (pure functions, unit-testable)
-
-## File Change Summary
-
-- **Add:** 9 files under `src/components/stats/mobile/`
-- **Edit:** `src/pages/Stats.tsx` — mobile branch only; swap 4 components for `<MobileStatsTelemetry />`; keep loading, tabs, drawer, weak-topics tab, and entire desktop branch unchanged
-- **No changes:** hooks, desktop components, routes, backend
-
-## Out of Scope
-
-- Desktop redesign (untouched)
-- Global dark mode toggle — telemetry palette is scoped to this surface only
-- New data sources (Mastery Velocity uses derived slope, not a new column)
-- Deleting legacy mobile components (kept for one release)
+Verification after install: one fresh short paper per tier, then a full 100-mark paper; PDFs and private mark schemes kept for your review. I will report automated results and live results separately and will not claim a rating from automated checks.
