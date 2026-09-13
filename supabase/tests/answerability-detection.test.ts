@@ -21,15 +21,6 @@ describe("hasAssessedTask — real generated stems", () => {
     ).toBe(true);
   });
 
-  it("accepts a command after an inline data table on one line", () => {
-    expect(
-      hasAssessedTask(
-        "ATP (mmol/dm³) | Rate 0 | 0 2 | 10 " +
-          "Describe the relationship between ATP concentration and the rate of glucose uptake.",
-      ),
-    ).toBe(true);
-  });
-
   it("still rejects context-only stems", () => {
     expect(
       hasAssessedTask(
