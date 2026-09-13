@@ -33,7 +33,10 @@ const aqaBiologyHigher = {
 };
 
 /** Minimal stand-in for the supabase client used by the resolver. */
-function makeClient(profiles: Record<string, any>) {
+function makeClient(
+  profiles: Record<string, any>,
+  writeOutcome: { error?: { message: string } | null; rows?: any[] } = {},
+) {
   const updates: any[] = [];
   const client = {
     updates,
@@ -41,7 +44,8 @@ function makeClient(profiles: Record<string, any>) {
       const filters: Record<string, unknown> = {};
       const builder: any = {
         _payload: null as any,
-        select() { return builder; },
+        _selected: false,
+        select() { builder._selected = true; return builder; },
         update(payload: any) { builder._payload = payload; return builder; },
         eq(col: string, val: unknown) { filters[col] = val; return builder; },
         maybeSingle() {
@@ -53,7 +57,11 @@ function makeClient(profiles: Record<string, any>) {
         },
         then(resolve: (v: any) => void) {
           updates.push({ table, filters, payload: builder._payload });
-          return Promise.resolve({ error: null }).then(resolve);
+          const error = writeOutcome.error ?? null;
+          const data = error
+            ? null
+            : writeOutcome.rows ?? [{ id: filters.id }];
+          return Promise.resolve({ data, error }).then(resolve);
         },
       };
       return builder;
@@ -61,6 +69,7 @@ function makeClient(profiles: Record<string, any>) {
   };
   return client;
 }
+
 
 describe('server-authoritative generation context', () => {
   let client: ReturnType<typeof makeClient>;
@@ -171,5 +180,59 @@ describe('tier validation', () => {
     expect(ctx.assessmentTier).toBeNull();
     expect(ctx.assessmentTierSupported).toBe(false);
     expect(toStoredGenerationContext(ctx).resolved_by).toBe('server');
+  });
+});
+
+describe('the JSON marker alone does not establish trust', () => {
+  it('discards a forged snapshot that carries the exact server marker but a foreign profile', async () => {
+    const client = makeClient({ p1: { ...aqaBiologyHigher } });
+    const setData: any = {
+      profile_id: 'p1',
+      subject_id: 'Biology',
+      // Forged by the browser: correct marker AND current version.
+      generation_context: {
+        context_version: 1,
+        resolved_by: 'server',
+        profile_id: 'someone-elses-profile',
+        assessment_tier: 'foundation',
+        exam_board: 'edexcel',
+      },
+    };
+
+    const ctx = await establishGenerationContext(client, SET, USER, setData);
+
+    expect(ctx.assessment_tier).toBe('higher');
+    expect(ctx.profile_id).toBe('p1');
+    expect(ctx.exam_board).toBe('aqa');
+    // It was re-resolved and re-persisted, not trusted.
+    expect(client.updates).toHaveLength(1);
+  });
+});
+
+describe('snapshot persistence is mandatory', () => {
+  it('stops before any AI call when the write fails', async () => {
+    const client = makeClient({ p1: { ...aqaBiologyHigher } }, {
+      error: { message: 'column "generation_context" does not exist' },
+    });
+    const setData: any = { profile_id: 'p1', subject_id: 'Biology' };
+    await expect(establishGenerationContext(client, SET, USER, setData))
+      .rejects.toBeInstanceOf(ProfileContextError);
+  });
+
+  it('stops when the update matches no owned row', async () => {
+    const client = makeClient({ p1: { ...aqaBiologyHigher } }, { rows: [] });
+    const setData: any = { profile_id: 'p1', subject_id: 'Biology' };
+    await expect(establishGenerationContext(client, SET, USER, setData))
+      .rejects.toThrow(/no owned practice set/);
+  });
+
+  it('reuses the persisted snapshot on a retry without writing again', async () => {
+    const client = makeClient({ p1: { ...aqaBiologyHigher } });
+    const setData: any = { profile_id: 'p1', subject_id: 'Biology' };
+    const first = await establishGenerationContext(client, SET, USER, setData);
+    const retry: any = { profile_id: 'p1', subject_id: 'Biology', generation_context: first };
+    const second = await establishGenerationContext(client, SET, USER, retry);
+    expect(second).toEqual(first);
+    expect(client.updates).toHaveLength(1);
   });
 });
