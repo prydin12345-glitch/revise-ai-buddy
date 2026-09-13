@@ -501,25 +501,15 @@ export default function CreateExam() {
     try {
       // Upload exam with all settings
       const formData = new FormData();
-      const resolvedEducationalTier = effectiveEducationalTier;
       // One resolver decides board / qualification / assessment tier, and the
-      // result is what we send and later store on the attempt.
-      const activeProfileRow = selectedProfile && selectedProfile !== 'all_topics'
-        ? getProfilesForSubject(subjectId).find((pr) => pr.id === selectedProfile) ?? null
-        : null;
-      const generationContext = resolveProfileContext({
-        subjectName: subjectId,
-        profile: activeProfileRow as any,
-        manualExamBoard: effectiveExamBoard,
-        manualEducationalTier: resolvedEducationalTier,
-        preferredExamBoard: preferences?.preferred_exam_board,
-        preferredEducationalLevel: preferences?.preferred_educational_level,
-      });
+      // result is what we send; the backend re-resolves and owns the stored
+      // snapshot. Never send the raw manual board here.
+      const resolvedEducationalTier = generationContext.educationalTier ?? "";
       if (file) formData.append('file', file);
       formData.append('subjectId', subjectId);
       formData.append('fileName', examName);
       if (resolvedEducationalTier) formData.append('educationalTier', resolvedEducationalTier);
-      if (effectiveExamBoard) formData.append('examBoard', effectiveExamBoard);
+      if (resolvedExamBoard) formData.append('examBoard', resolvedExamBoard);
       if (qualificationLevel) formData.append('qualificationLevel', qualificationLevel);
       if (generationContext.assessmentTier) {
         formData.append('assessmentTier', generationContext.assessmentTier);
