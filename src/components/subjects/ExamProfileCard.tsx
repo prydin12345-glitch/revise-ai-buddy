@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, Pencil } from "lucide-react";
 import { formatEducationalTier } from "@/lib/level-display";
+import { formatAssessmentTier } from "@/lib/assessment-tier";
 
 interface ExamProfileCardProps {
   profile: {
@@ -10,6 +11,7 @@ interface ExamProfileCardProps {
     question_count: number;
     educational_tier: string | null;
     exam_board?: string | null;
+    assessment_tier?: string | null;
     paper_blueprint?: any;
   };
   subjectName: string;
@@ -19,6 +21,7 @@ interface ExamProfileCardProps {
 export const ExamProfileCard = ({ profile, subjectName, onEdit }: ExamProfileCardProps) => {
   const navigate = useNavigate();
   const tierLabel = formatEducationalTier(profile.educational_tier);
+  const assessmentLabel = formatAssessmentTier(profile.assessment_tier);
   const hasBlueprint = Array.isArray(profile.paper_blueprint?.sections) && profile.paper_blueprint.sections.length > 0;
 
   return (
@@ -38,6 +41,7 @@ export const ExamProfileCard = ({ profile, subjectName, onEdit }: ExamProfileCar
           <Badge>{profile.question_count} questions</Badge>
           {profile.topics.length > 0 && <Badge>{profile.topics.length} topics</Badge>}
           {tierLabel && <Badge>{tierLabel}</Badge>}
+          {assessmentLabel && <Badge accent>{assessmentLabel}</Badge>}
           {hasBlueprint && <Badge accent>Custom layout</Badge>}
         </div>
 

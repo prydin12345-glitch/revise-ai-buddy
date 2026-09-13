@@ -127,13 +127,17 @@ const SubjectDetail = () => {
       include_tables: structureSettings?.includeTables ?? false,
       studied_texts: (advanced as any)?.studiedTexts ?? null,
       paper_blueprint: (advanced as any)?.paperBlueprint ?? null,
+      exam_board: advanced?.examBoard ?? subject.exam_board ?? null,
+      assessment_tier: advanced?.assessmentTier ?? null,
     };
     if (editingProfile) {
       await updateProfile(editingProfile.id, payload);
     } else {
       await createProfile(
         subject.subject_name, profileName, profileTopics, questionCount, educationalTier,
-        timeLimitMinutes, advanced, writtenQuestionCount, structureSettings
+        timeLimitMinutes,
+        { ...advanced, examBoard: advanced?.examBoard ?? subject.exam_board ?? null },
+        writtenQuestionCount, structureSettings
       );
     }
   };
