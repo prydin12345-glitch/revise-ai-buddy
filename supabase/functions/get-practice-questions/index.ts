@@ -606,7 +606,13 @@ EXAMPLE QUESTION FORMATS:
 
     // Build combined generation context (region + level)
     const generationCtx = buildGenerationContext(curriculumRegion, setData.educational_tier);
-    const generationContextPrompt = formatGenerationContextPrompt(generationCtx);
+    const tierPrompt = assessmentTierPrompt({
+      assessmentTier: resolvedAssessmentTier as any,
+      courseId: resolvedCourseId,
+    });
+    const generationContextPrompt = [formatGenerationContextPrompt(generationCtx), tierPrompt]
+      .filter(Boolean)
+      .join('\n\n');
     console.log('Generation context:', generationCtx.region, generationCtx.level);
 
     // Fetch canonical subtopic list for controlled topic_tag vocabulary
