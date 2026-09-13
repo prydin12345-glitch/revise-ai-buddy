@@ -13,6 +13,7 @@ import { buildBlueprintPrompt, validatePaperBlueprint, buildStudiedTextsPrompt, 
 import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
 import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 import { getSubjectSpecificInstructions } from "../_shared/exam-extraction-prompts.ts";
+import { validateQuestionCandidates, describeDefects, assembleQuestionText, CONTRACT_VERSION } from "../_shared/question-contract-validator.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
 
@@ -1420,6 +1421,16 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       }
     }
   }
+
+  // ── ANSWERABILITY GATE ──────────────────────────────────────────────────
+  // A scored part that carries only experimental context is a BLOCKING defect,
+  // no matter how complete its mark scheme looks. Repair the whole failing
+  // parent group (text + expected answer + mark scheme together), at most twice
+  // per group and within a whole-request budget, then revalidate. If the paper
+  // still fails, the extraction fails — it is never presented as ready.
+  await enforceAnswerability(draftId, supabase, lovableApiKey, exam.subject_id);
+
+
 
   // Save topics
   if (parsedData.topics?.length) {
