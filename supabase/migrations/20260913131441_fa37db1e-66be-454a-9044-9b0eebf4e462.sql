@@ -1,0 +1,63 @@
+ALTER TABLE public.subject_exam_profiles
+  ADD COLUMN IF NOT EXISTS assessment_tier text;
+
+ALTER TABLE public.subject_exam_profiles
+  DROP CONSTRAINT IF EXISTS subject_exam_profiles_assessment_tier_check;
+
+ALTER TABLE public.subject_exam_profiles
+  ADD CONSTRAINT subject_exam_profiles_assessment_tier_check
+  CHECK (
+    assessment_tier IS NULL
+    OR assessment_tier IN ('foundation', 'higher', 'not_tiered')
+  );
+
+ALTER TABLE public.exams
+  ADD COLUMN IF NOT EXISTS generation_context jsonb;
+
+ALTER TABLE public.practice_question_sets
+  ADD COLUMN IF NOT EXISTS generation_context jsonb;
+
+COMMENT ON COLUMN public.subject_exam_profiles.assessment_tier IS
+  'Foundation/Higher/not_tiered assessment tier. NULL = unknown (legacy). Independent of educational_tier.';
+COMMENT ON COLUMN public.exams.generation_context IS
+  'Server-resolved course snapshot (board, qualification, assessment tier) captured when the attempt was created.';
+COMMENT ON COLUMN public.practice_question_sets.generation_context IS
+  'Server-resolved course snapshot (board, qualification, assessment tier) captured when the attempt was created.';
+
+CREATE OR REPLACE FUNCTION public.guard_generation_context()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path TO 'public'
+AS $$
+DECLARE v_trusted boolean;
+BEGIN
+  v_trusted :=
+    coalesce(auth.role(), '') = 'service_role'
+    OR current_user IN ('postgres', 'supabase_admin', 'service_role');
+
+  IF v_trusted THEN
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.generation_context IS NOT NULL THEN
+      RAISE EXCEPTION 'generation_context is managed by the server'
+        USING ERRCODE = '42501';
+    END IF;
+  ELSIF NEW.generation_context IS DISTINCT FROM OLD.generation_context THEN
+    RAISE EXCEPTION 'generation_context is managed by the server'
+      USING ERRCODE = '42501';
+  END IF;
+
+  RETURN NEW;
+END $$;
+
+DROP TRIGGER IF EXISTS guard_generation_context ON public.exams;
+CREATE TRIGGER guard_generation_context
+  BEFORE INSERT OR UPDATE ON public.exams
+  FOR EACH ROW EXECUTE FUNCTION public.guard_generation_context();
+
+DROP TRIGGER IF EXISTS guard_generation_context ON public.practice_question_sets;
+CREATE TRIGGER guard_generation_context
+  BEFORE INSERT OR UPDATE ON public.practice_question_sets
+  FOR EACH ROW EXECUTE FUNCTION public.guard_generation_context();
