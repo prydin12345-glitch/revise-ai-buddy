@@ -13,6 +13,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { getLocalSubtopics } from "@/lib/subtopic-dictionary";
+import {
+  type AssessmentTier,
+  getAssessmentTierOptions,
+  getCourseCapability,
+  normaliseAssessmentTier,
+} from "@/lib/assessment-tier";
+import { AssessmentTierSelector } from "@/components/exams/AssessmentTierSelector";
 import { BLUEPRINT_PRESETS } from "@/lib/paperPresets";
 import { getTopicSuggestions, hasTopicSuggestions } from "@/lib/topicSuggestions";
 import { TimeWheelPicker } from "./TimeWheelPicker";
