@@ -2967,6 +2967,17 @@ export type Database = {
       }
     }
     Views: {
+      exam_question_metadata: {
+        Row: { id: string; exam_id: string; question_number: string; marks: number }
+        Relationships: []
+      }
+      exam_submission_metadata: {
+        Row: { id: string; exam_id: string; student_id: string; status: string | null;
+          time_remaining_seconds: number | null; last_accessed_at: string | null;
+          exam_started_at: string | null; submitted_at: string | null; time_taken_seconds: number | null;
+          total_score: number | null; total_marks: number | null }
+        Relationships: []
+      }
       ai_usage_summary: {
         Row: {
           cache_hit_rate_pct: number | null
