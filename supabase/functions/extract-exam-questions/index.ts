@@ -2957,8 +2957,54 @@ async function enforceAnswerability(
     return data ?? [];
   };
 
+  // Deterministic reconciliation against the guided plan. The model routinely
+  // returns a few surplus parts / marks; no amount of text rewriting can fix a
+  // count or total, so trim and re-mark BEFORE validating instead of burning
+  // repair calls on an unrepairable defect.
+  const reconcileToPlan = async (rows: any[]): Promise<boolean> => {
+    if (!plan) return false;
+    const parentOf = (n: string) => String(n || '').match(/^\d+/)?.[0] ?? '0';
+    const byParent = new Map<string, any[]>();
+    for (const r of rows) {
+      const key = parentOf(r.question_number);
+      if (!byParent.has(key)) byParent.set(key, []);
+      byParent.get(key)!.push(r);
+    }
+    const plannedByParent = new Map<string, any[]>();
+    for (const p of plan.parts) {
+      const key = parentOf(p.questionNumber);
+      if (!plannedByParent.has(key)) plannedByParent.set(key, []);
+      plannedByParent.get(key)!.push(p);
+    }
+
+    const toDelete: string[] = [];
+    const toRemark: Array<{ id: string; marks: number }> = [];
+    for (const [parent, group] of byParent) {
+      group.sort((a: any, b: any) => normalizeQNum(a.question_number).localeCompare(normalizeQNum(b.question_number)));
+      const planned = plannedByParent.get(parent) ?? [];
+      group.forEach((row: any, i: number) => {
+        const want = planned[i];
+        if (!want) { toDelete.push(row.id); return; }
+        if (Number(row.marks ?? 0) !== want.marks) toRemark.push({ id: row.id, marks: want.marks });
+      });
+    }
+    if (!toDelete.length && !toRemark.length) return false;
+    if (toDelete.length) {
+      const { error } = await supabase.from('exam_question_drafts').delete().in('id', toDelete);
+      if (error) throw new Error(`Plan reconciliation could not remove surplus parts: ${error.message}`);
+    }
+    for (const r of toRemark) {
+      const { error } = await supabase.from('exam_question_drafts').update({ marks: r.marks }).eq('id', r.id);
+      if (error) throw new Error(`Plan reconciliation could not set marks: ${error.message}`);
+    }
+    console.log(`[plan] reconciled to contract: removed ${toDelete.length} surplus part(s), re-marked ${toRemark.length} part(s)`);
+    return true;
+  };
+
   let drafts = await load();
+  if (await reconcileToPlan(drafts)) drafts = await load();
   let result = validateQuestionCandidates(drafts, planExpectations);
+
   if (result.ok) {
     console.log(`Answerability gate passed (contract v${CONTRACT_VERSION}, ${drafts.length} parts)`);
     return;
