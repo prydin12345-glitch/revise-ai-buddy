@@ -1,6 +1,6 @@
+import { withAIQuota } from '../_shared/ai-request-guard.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const DAILY_MESSAGE_LIMIT = 50;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,7 +8,7 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-Deno.serve(async (req) => {
+Deno.serve(withAIQuota('ai-tutor-chat', async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -42,26 +42,6 @@ Deno.serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-    }
-
-    // Rate limit
-    const today = new Date().toISOString().split('T')[0];
-    const { data: rateData } = await supabase
-      .from('ai_tutor_rate_limits')
-      .select('message_count')
-      .eq('user_id', user.id)
-      .eq('date', today)
-      .maybeSingle();
-
-    const currentCount = rateData?.message_count ?? 0;
-    if (currentCount >= DAILY_MESSAGE_LIMIT) {
-      return new Response(
-        JSON.stringify({
-          error: 'daily_limit_reached',
-          message: `You have reached your daily limit of ${DAILY_MESSAGE_LIMIT} messages. Your limit resets at midnight.`,
-        }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
 
     // Per-user feedback-style preference (concise vs detailed)
@@ -547,12 +527,6 @@ TARGET-MARK ANCHOR (MANDATORY): if a specific mark or level was requested (e.g. 
       });
     }
 
-    await supabase.from('ai_tutor_rate_limits').upsert({
-      user_id: user.id,
-      date: today,
-      message_count: currentCount + 1,
-    }, { onConflict: 'user_id,date' });
-
     await supabase.from('ai_tutor_messages').insert({
       user_id: user.id,
       role: 'user',
@@ -657,4 +631,4 @@ TARGET-MARK ANCHOR (MANDATORY): if a specific mark or level was requested (e.g. 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-});
+}, { dailyLimit: 50, burstLimit: 10, burstWindowMinutes: 10 }));
