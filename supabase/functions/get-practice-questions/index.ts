@@ -129,6 +129,15 @@ async function generateQuestionsInBackground(
         console.warn('Profile context resolution failed:', ctxErr);
       }
     }
+    if (generationContext && !(setData as any).generation_context) {
+      // Best-effort: the column arrives with the assessment-tier migration.
+      const { error: ctxSaveError } = await supabaseClient
+        .from('practice_question_sets')
+        .update({ generation_context: generationContext } as any)
+        .eq('id', setId);
+      if (ctxSaveError) console.warn('generation_context not stored yet:', ctxSaveError.message);
+    }
+
     const resolvedAssessmentTier = (generationContext?.assessment_tier as string | null) ?? null;
     const resolvedCourseId = (generationContext?.course_id as string | null) ?? null;
 
