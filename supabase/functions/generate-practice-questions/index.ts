@@ -10,7 +10,7 @@ import { buildGenerationContext, formatGenerationContextPrompt } from "../_share
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
 import { translateExamBoard, getBoardMarkSchemeStyle, MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildCircuitInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 import { buildCacheKey, buildBaseCacheKey, isCacheEntryCompatible, shuffleArray } from "../_shared/cache-utils.ts";
-import { establishGenerationContext, ProfileContextError, assessmentTierPrompt } from "../_shared/profile-context.ts";
+import { establishGenerationContext, assessmentTierPrompt } from "../_shared/profile-context.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
 import { splitMultiPartQuestions, ensureRenderableGraphConfigs } from "../_shared/question-postprocessor.ts";
 import { detectSubject, needsCircuitRules } from "../_shared/subject-detection.ts";
@@ -110,6 +110,10 @@ async function generateQuestionsInBackground(
     // ── OPTIMISATION 1: CHECK CACHE BEFORE AI CALL ──
     const isCustomNicheForCache = !subjectProfile.isKnownAcademic;
 
+    // ── PROFILE CONTEXT — authoritative snapshot, created and owned server-side ──
+    // A snapshot the SERVER wrote is reused on retries; a client-written one is
+    // discarded and re-resolved from the OWNED profile. A quiz difficulty
+    // control is not an input and cannot move the assessment tier.
     const generationContext = await establishGenerationContext(
       supabaseClient,
       setId,
