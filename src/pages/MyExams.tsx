@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/exam-metadata-client";
 import { toast } from "@/hooks/use-toast";
 import { Upload, Loader2, CheckCircle, CheckCheck, Star, Archive, Filter, Plus, Eye, RotateCcw, Search, ArrowUpDown, X, Settings, LayoutList } from "lucide-react";
 import { StudentPDFDownloadModal } from "@/components/student/StudentPDFDownloadModal";
