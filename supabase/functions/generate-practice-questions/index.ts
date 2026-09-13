@@ -9,7 +9,8 @@ import { getRegionalPersona, getRegionAwareSubjectInstructions, getExamHardening
 import { buildGenerationContext, formatGenerationContextPrompt } from "../_shared/generation-context.ts";
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
 import { translateExamBoard, getBoardMarkSchemeStyle, MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildCircuitInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
-import { buildCacheKey, buildBaseCacheKey, shuffleArray } from "../_shared/cache-utils.ts";
+import { buildCacheKey, buildBaseCacheKey, isCacheEntryCompatible, shuffleArray } from "../_shared/cache-utils.ts";
+import { resolveProfileContext, toStoredGenerationContext, ProfileContextError, assessmentTierPrompt } from "../_shared/profile-context.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
 import { splitMultiPartQuestions, ensureRenderableGraphConfigs } from "../_shared/question-postprocessor.ts";
 import { detectSubject, needsCircuitRules } from "../_shared/subject-detection.ts";
@@ -109,10 +110,35 @@ async function generateQuestionsInBackground(
     // ── OPTIMISATION 1: CHECK CACHE BEFORE AI CALL ──
     const isCustomNicheForCache = !subjectProfile.isKnownAcademic;
 
+    // ── PROFILE CONTEXT — resolved server-side from the OWNED profile ──
+    // An attempt that already stored its context keeps it, so editing the
+    // profile later never changes a past attempt. A quiz difficulty control
+    // can never move the assessment tier: it is not an input here.
+    let generationContext = (setData as any).generation_context ?? null;
+    if (!generationContext) {
+      try {
+        const resolved = await resolveProfileContext(supabaseClient, {
+          userId,
+          subjectName: setData.subject_id ?? '',
+          profileId: (setData as any).profile_id ?? null,
+          examBoard: setData.exam_board ?? null,
+          educationalTier: setData.educational_tier ?? null,
+        });
+        generationContext = toStoredGenerationContext(resolved);
+      } catch (ctxErr) {
+        if (ctxErr instanceof ProfileContextError) throw ctxErr;
+        console.warn('Profile context resolution failed:', ctxErr);
+      }
+    }
+    const resolvedAssessmentTier = (generationContext?.assessment_tier as string | null) ?? null;
+    const resolvedCourseId = (generationContext?.course_id as string | null) ?? null;
+
     const cacheParams = {
       subject: setData.subject_id ?? '',
-      examBoard: setData.exam_board ?? '',
-      educationalLevel: setData.educational_tier ?? '',
+      examBoard: (generationContext?.exam_board as string | null) ?? setData.exam_board ?? '',
+      educationalLevel: (generationContext?.educational_tier as string | null) ?? setData.educational_tier ?? '',
+      assessmentTier: resolvedAssessmentTier,
+      courseId: resolvedCourseId,
       topics: setData.subtopics ?? [],
       difficulty: setData.difficulty_level ?? 'mixed',
       questionFormat: setData.question_format ?? 'written_only',
@@ -123,7 +149,7 @@ async function generateQuestionsInBackground(
     const MAX_VARIATION_SLOTS = 5;
     let variationSlot = 0;
     const baseCacheKey = (!isCustomNicheForCache && cacheParams.examBoard && cacheParams.educationalLevel)
-      ? buildBaseCacheKey(cacheParams)
+      ? await buildBaseCacheKey(cacheParams)
       : null;
 
     const forceRefresh = (setData as any).__force_refresh === true;
@@ -162,7 +188,7 @@ async function generateQuestionsInBackground(
       console.log(`Variation slot ${variationSlot} for user ${userId}, base key ${baseCacheKey}`);
     }
 
-    const cacheKey = buildCacheKey({
+    const cacheKey = await buildCacheKey({
       ...cacheParams,
       isCustomNiche: isCustomNicheForCache,
       variationSlot,
@@ -171,12 +197,12 @@ async function generateQuestionsInBackground(
     if (cacheKey && !forceRefresh) {
       const { data: cached } = await supabaseClient
         .from('question_generation_cache')
-        .select('questions, hit_count')
+        .select('questions, hit_count, subject, exam_board, educational_level')
         .eq('cache_key', cacheKey)
         .gt('expires_at', new Date().toISOString())
         .single();
 
-      if (cached) {
+      if (cached && isCacheEntryCompatible(cached as any, cacheParams)) {
         console.log(`Cache HIT slot ${variationSlot} for key ${cacheKey} — skipping AI call`);
         await supabaseClient.from('question_generation_cache')
           .update({ hit_count: (cached.hit_count || 0) + 1 })
@@ -4758,7 +4784,7 @@ Generate questions that are meaningfully different from all of the above.`;
           cache_key: cacheKey,
           subject: setData.subject_id,
           exam_board: setData.exam_board,
-          educational_level: setData.educational_tier,
+          educational_level: cacheParams.educationalLevel,
           topics: setData.subtopics,
           difficulty: setData.difficulty_level,
           question_format: setData.question_format,
