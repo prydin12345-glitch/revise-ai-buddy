@@ -13,6 +13,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { getLocalSubtopics } from "@/lib/subtopic-dictionary";
+import {
+  type AssessmentTier,
+  getAssessmentTierOptions,
+  getCourseCapability,
+  normaliseAssessmentTier,
+} from "@/lib/assessment-tier";
+import { AssessmentTierSelector } from "@/components/exams/AssessmentTierSelector";
 import { BLUEPRINT_PRESETS } from "@/lib/paperPresets";
 import { getTopicSuggestions, hasTopicSuggestions } from "@/lib/topicSuggestions";
 import { TimeWheelPicker } from "./TimeWheelPicker";
@@ -190,6 +197,9 @@ interface ExamProfileModalProps {
     mcq_options_count?: number | null;
     include_graphs?: boolean | null;
     include_tables?: boolean | null;
+    /** Independent of educational_tier. null/absent = unknown (legacy). */
+    assessment_tier?: string | null;
+    exam_board?: string | null;
   };
 }
 
@@ -221,6 +231,9 @@ export const ExamProfileModal = ({
   const [topicPopoverOpen, setTopicPopoverOpen] = useState(false);
   const [educationalTier, setEducationalTier] = useState("");
   const [customTier, setCustomTier] = useState("");
+  // Assessment tier (Foundation/Higher) — separate from the qualification
+  // level above. null means "not recorded"; we never infer one.
+  const [assessmentTier, setAssessmentTier] = useState<AssessmentTier | null>(null);
   const [timeLimitMinutes, setTimeLimitMinutes] = useState<string>("");
   const [advanced, setAdvanced] = useState<AdvancedSettings>(DEFAULT_ADVANCED);
 
@@ -285,6 +298,8 @@ export const ExamProfileModal = ({
         setEducationalTier("");
         setCustomTier("");
       }
+      // Legacy profiles have no stored assessment tier — stay unknown.
+      setAssessmentTier(normaliseAssessmentTier(initialData?.assessment_tier));
       setTimeLimitMinutes(
         initialData?.time_limit_minutes != null ? String(initialData.time_limit_minutes) : ""
       );
@@ -329,6 +344,15 @@ export const ExamProfileModal = ({
   // filtering handled inside InlineTopicPicker
 
   const finalTier = educationalTier === "other" ? customTier.trim() : educationalTier;
+  const courseLookup = {
+    subject: subjectName,
+    examBoard: examBoard ?? initialData?.exam_board ?? null,
+    educationalTier: finalTier,
+  };
+  const assessmentTierOptions = getAssessmentTierOptions(courseLookup);
+  const courseCapability = getCourseCapability(courseLookup);
+  const effectiveAssessmentTier =
+    assessmentTierOptions.length > 0 ? assessmentTier : null;
   const availablePresets = BLUEPRINT_PRESETS.filter((pr) =>
     pr.subjects.test(subjectName || "") &&
     (!finalTier || pr.levels.test(finalTier)) &&
@@ -338,6 +362,8 @@ export const ExamProfileModal = ({
     const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
     const advancedWithMcq = {
       ...advanced, mcqCount,
+      assessmentTier: effectiveAssessmentTier,
+      examBoard: examBoard ?? initialData?.exam_board ?? null,
       studiedTexts: isTextBasedSubject ? studiedTexts : undefined,
       paperBlueprint: blueprintActive ? { sections: blueprintSections } : null,
     };
@@ -494,6 +520,15 @@ export const ExamProfileModal = ({
                 )}
               </div>
             </div>
+            {assessmentTierOptions.length > 0 && (
+              <AssessmentTierSelector
+                options={assessmentTierOptions}
+                value={effectiveAssessmentTier}
+                onChange={setAssessmentTier}
+                accentColor={subjectColor}
+                courseLabel={courseCapability?.label ?? null}
+              />
+            )}
             {educationalTier === "other" && (
               <div className="space-y-1">
                 <Input

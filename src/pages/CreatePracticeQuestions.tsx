@@ -38,6 +38,8 @@ import { CurriculumPromptModal, TopicLimitWarning } from "@/components/exam/Curr
 import { CurriculumTopicBadge } from "@/components/exam/CurriculumTopicBadge";
 import { useExamNameValidator } from "@/hooks/useExamNameValidator";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { resolveProfileContext, toStoredGenerationContext } from "@/lib/profile-context";
+import { supabase as profileContextClient } from "@/integrations/supabase/profile-context-client";
 import { getBoardDisplayName } from "@/lib/board-scrubber";
 
 type QuestionFormat = 'written_only' | 'mcq_only' | 'mixed';
@@ -217,6 +219,10 @@ const CreatePracticeQuestions = () => {
       setProfileTopics(profile.topics);
       setProfileMaxQuestions(profile.question_count);
       setQuestionCount(Math.min(questionCount, profile.question_count));
+      // Inherit the profile's course context — previously only topics and the
+      // question count came across, so board and level silently reverted.
+      if (profile.exam_board) setExamBoard(profile.exam_board);
+      if (profile.educational_tier) setEducationalTier(profile.educational_tier);
     }
     setShowProfilePrompt(false);
   };
@@ -421,6 +427,26 @@ const CreatePracticeQuestions = () => {
         .single();
 
       if (setError) throw setError;
+
+      // Stamp the resolved course context on the attempt. The quiz difficulty
+      // control is deliberately NOT part of it and cannot change the tier.
+      const activeProfile = selectedProfileId && selectedProfileId !== 'all_topics'
+        ? getProfilesForSubject(subjectId).find((pr) => pr.id === selectedProfileId) ?? null
+        : null;
+      const generationContext = resolveProfileContext({
+        subjectName: subjectId,
+        profile: activeProfile as any,
+        subjectExamBoard: getSubjectExamBoard(subjectId),
+        manualExamBoard: examBoard === "other" ? customExamBoard.trim() : effectiveExamBoard,
+        manualEducationalTier: effectiveEducationalTier,
+        preferredExamBoard: preferences?.preferred_exam_board,
+        preferredEducationalLevel: preferences?.preferred_educational_level,
+      });
+      const { error: ctxError } = await profileContextClient
+        .from("practice_question_sets")
+        .update({ generation_context: toStoredGenerationContext(generationContext) as any })
+        .eq("id", setData.id);
+      if (ctxError) console.warn("generation_context not stored yet:", ctxError.message);
 
       setGeneratedSetId(setData.id);
 

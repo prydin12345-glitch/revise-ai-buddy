@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { assessmentTierPrompt } from "../_shared/profile-context.ts";
+import { normaliseAssessmentTier } from "../_shared/assessment-tier.ts";
 import { getDocument } from "https://esm.sh/pdfjs-serverless@0.2.1";
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
@@ -650,6 +652,17 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   });
 
   let extractionPrompt = extractionPrompt_raw;
+
+  // Assessment tier (Foundation/Higher) travels in the saved format metadata.
+  const assessmentTierPromptBlock = assessmentTierPrompt({
+    assessmentTier: normaliseAssessmentTier(
+      (formatData?.profile_metadata as any)?.assessmentTier ?? null,
+    ),
+    courseId: null,
+  });
+  if (assessmentTierPromptBlock) {
+    extractionPrompt += '\n\n' + assessmentTierPromptBlock;
+  }
 
   // Inject literary copyright rules if applicable
   const specTopicNames = topicsList;

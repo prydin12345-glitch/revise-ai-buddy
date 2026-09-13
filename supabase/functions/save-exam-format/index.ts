@@ -59,6 +59,9 @@ serve(async (req) => {
 
     // Unpack profileMetadata for top-level columns
     const profileMeta = format.profileMetadata || {};
+    // Assessment tier travels with the format so extraction can honour it
+    // even before it has a first-class column.
+    const assessmentTier = format.assessmentTier ?? profileMeta.assessmentTier ?? null;
     const useOriginalStructure = format.useOriginal === true;
     const questionStructure = profileMeta.questionStructure
       ?? (useOriginalStructure && !format.profileMetadata ? 'original' : 'standalone');
@@ -73,7 +76,7 @@ serve(async (req) => {
       short_answer_marks_each: format.shortAnswer?.marksEach || null,
       long_form_count: format.longForm?.count || null,
       long_form_marks_each: format.longForm?.marksEach || null,
-      profile_metadata: profileMeta,
+      profile_metadata: { ...profileMeta, assessmentTier },
       // Top-level columns from profile metadata — source of truth for edge functions
       question_structure: questionStructure,
       difficulty_progression: profileMeta.difficultyProgression ?? 'ascending',

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/profile-context-client";
+import { normaliseAssessmentTier } from "@/lib/assessment-tier";
 import { toast } from "sonner";
 
 interface MasterTopic {
@@ -32,9 +33,35 @@ interface ExamProfile {
   include_graphs: boolean | null;
   include_tables: boolean | null;
   exam_board: string | null;
+  /** Foundation / Higher / not_tiered. null = unknown (legacy profile). */
+  assessment_tier: string | null;
   created_at: string;
   updated_at: string;
 }
+
+/**
+ * Writes the assessment tier separately and tolerates the column being absent,
+ * so the app keeps working until the assessment-tier migration is applied.
+ */
+const persistAssessmentTier = async (
+  profileId: string,
+  rawTier: string | null,
+  current: ExamProfile,
+): Promise<ExamProfile> => {
+  const tier = normaliseAssessmentTier(rawTier);
+  if (tier === (current.assessment_tier ?? null)) return current;
+  const { data, error } = await supabase
+    .from("subject_exam_profiles")
+    .update({ assessment_tier: tier })
+    .eq("id", profileId)
+    .select()
+    .maybeSingle();
+  if (error || !data) {
+    console.warn("Assessment tier not stored yet:", error?.message);
+    return current;
+  }
+  return data as unknown as ExamProfile;
+};
 
 export const useSubjectProfiles = () => {
   const [masterTopics, setMasterTopics] = useState<MasterTopic[]>([]);
@@ -139,6 +166,8 @@ export const useSubjectProfiles = () => {
     educationalTier?: string,
     timeLimitMinutes?: number | null,
     advanced?: {
+      assessmentTier?: string | null;
+      examBoard?: string | null;
       structurePreset?: string;
       mcqCount?: number;
       mcqPosition?: string;
@@ -189,12 +218,19 @@ export const useSubjectProfiles = () => {
           include_tables: structureSettings?.includeTables ?? false,
           studied_texts: (advanced as any)?.studiedTexts ?? null,
           paper_blueprint: (advanced as any)?.paperBlueprint ?? null,
+          // The board was silently dropped before, so profiles lost their board.
+          exam_board: advanced?.examBoard ?? null,
         } as any)
         .select()
         .single();
 
       if (error) throw error;
-      setExamProfiles((prev) => [...prev, data as ExamProfile]);
+      const saved = await persistAssessmentTier(
+        (data as ExamProfile).id,
+        advanced?.assessmentTier ?? null,
+        data as ExamProfile,
+      );
+      setExamProfiles((prev) => [...prev, saved]);
       toast.success("Exam profile created");
     } catch (err) {
       console.error("Error creating profile:", err);
@@ -209,7 +245,7 @@ export const useSubjectProfiles = () => {
       "structure_preset" | "mcq_count" | "mcq_position" | "mark_distribution" |
       "include_extended" | "extended_marks" | "difficulty_progression" | "calculator_policy" |
       "written_question_count" | "question_structure" | "parent_question_count" | "max_parts_per_question" |
-      "mcq_options_count" | "include_graphs" | "include_tables"
+      "mcq_options_count" | "include_graphs" | "include_tables" | "exam_board" | "assessment_tier"
     >>
   ) => {
     try {
@@ -221,8 +257,13 @@ export const useSubjectProfiles = () => {
         .single();
 
       if (error) throw error;
+      const saved = await persistAssessmentTier(
+        profileId,
+        updates.assessment_tier ?? null,
+        data as ExamProfile,
+      );
       setExamProfiles((prev) =>
-        prev.map((p) => (p.id === profileId ? (data as ExamProfile) : p))
+        prev.map((p) => (p.id === profileId ? saved : p))
       );
       toast.success("Profile updated");
     } catch (err) {
