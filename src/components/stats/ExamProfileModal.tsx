@@ -190,6 +190,9 @@ interface ExamProfileModalProps {
     mcq_options_count?: number | null;
     include_graphs?: boolean | null;
     include_tables?: boolean | null;
+    /** Independent of educational_tier. null/absent = unknown (legacy). */
+    assessment_tier?: string | null;
+    exam_board?: string | null;
   };
 }
 
@@ -221,6 +224,9 @@ export const ExamProfileModal = ({
   const [topicPopoverOpen, setTopicPopoverOpen] = useState(false);
   const [educationalTier, setEducationalTier] = useState("");
   const [customTier, setCustomTier] = useState("");
+  // Assessment tier (Foundation/Higher) — separate from the qualification
+  // level above. null means "not recorded"; we never infer one.
+  const [assessmentTier, setAssessmentTier] = useState<AssessmentTier | null>(null);
   const [timeLimitMinutes, setTimeLimitMinutes] = useState<string>("");
   const [advanced, setAdvanced] = useState<AdvancedSettings>(DEFAULT_ADVANCED);
 
