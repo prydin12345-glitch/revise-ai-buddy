@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { reconstructTransformationWrapper } from "../_shared/question-postprocessor.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { validateQuestionCandidates, describeDefects } from "../_shared/question-contract-validator.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -133,13 +134,26 @@ serve(async (req) => {
       return fallback;
     };
 
-    // Validate MCQ questions have correct_answer set
-    const mcqsWithoutAnswer = drafts.filter((d: any) => 
-      d.question_type === 'mcq' && (!d.correct_answer || d.correct_answer.trim() === '')
-    );
-    
-    if (mcqsWithoutAnswer.length > 0) {
-      console.warn(`Found ${mcqsWithoutAnswer.length} MCQs without correct_answer - setting defaults`);
+    // ── FINAL ANSWERABILITY GATE (draft -> exam boundary) ──────────────────
+    // Identical rule to generation: a scored part must contain an assessed
+    // task, a usable answer key and any resource it references. There is no
+    // "default the MCQ answer to A" fallback any more — a missing or ambiguous
+    // key blocks completion instead of inventing a grade.
+    const gate = validateQuestionCandidates(drafts as any);
+    if (!gate.ok) {
+      const detail = describeDefects(gate.defects);
+      console.error('Publish blocked by answerability gate:', detail);
+      await supabase.from('exams').update({
+        extraction_status: 'failed',
+        extraction_error: `Blocked at final check: ${detail}`.slice(0, 1000),
+      }).eq('id', draftId);
+      return new Response(JSON.stringify({
+        error: 'This paper has blocking defects and cannot be started.',
+        defects: gate.defects,
+      }), {
+        status: 422,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Build a canonical graph wrapper { graphType, graphConfig, plottingAnswer }
@@ -191,9 +205,8 @@ serve(async (req) => {
     // Insert questions from drafts into exam_questions table
     const questionInserts = drafts.map((draft: any) => {
       let mappedType = mapQuestionType(draft.question_type, draft.marks);
-      let correctAnswer = mappedType === 'mcq' && (!draft.correct_answer || draft.correct_answer.trim() === '')
-        ? 'A' // Default to A if missing for MCQs
-        : draft.correct_answer;
+      // No guessed answers: the gate above already rejected missing keys.
+      let correctAnswer = draft.correct_answer;
 
       // For graph questions, ensure correct_answer is the canonical JSON wrapper
       // so the frontend's parser can render the canvas. Also mirror to options.

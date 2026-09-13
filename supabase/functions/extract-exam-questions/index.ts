@@ -13,6 +13,8 @@ import { buildBlueprintPrompt, validatePaperBlueprint, buildStudiedTextsPrompt, 
 import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
 import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 import { getSubjectSpecificInstructions } from "../_shared/exam-extraction-prompts.ts";
+import { validateQuestionCandidates, describeDefects, assembleQuestionText, hasAssessedTask, CONTRACT_VERSION } from "../_shared/question-contract-validator.ts";
+import { buildPaperPlan, describePlan, AQA_BIOLOGY_P1, type PaperMode, type PaperPlan } from "../_shared/biology-paper-contract.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
 
@@ -669,6 +671,23 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     assessmentTier: authoritativeTier,
     courseId: (storedContext?.course_id as string | null) ?? null,
   });
+  // ── GUIDED PAPER CONTRACT ───────────────────────────────────────────────
+  // When the profile stores a guided contract, the plan (parts, marks,
+  // response types, resources) is decided here — before the model writes
+  // anything — and the totals are computed from the plan, not trusted back.
+  const storedContract = (formatData?.profile_metadata as any)?.paperBlueprint?.paperContract ?? null;
+  let guidedPlan: PaperPlan | null = null;
+  if (storedContract?.courseId === AQA_BIOLOGY_P1.courseId && storedContract?.paperId === AQA_BIOLOGY_P1.paperId) {
+    guidedPlan = buildPaperPlan(storedContract.mode as PaperMode, authoritativeTier === 'foundation' || authoritativeTier === 'higher' ? authoritativeTier : null);
+  }
+  if (guidedPlan) {
+    console.log(`[contract] ${describePlan(guidedPlan)} (v${guidedPlan.contractVersion})`);
+    extractionPrompt += `\n\nPAPER CONTRACT — ${describePlan(guidedPlan)}
+Produce EXACTLY these parts, in this order. Keep every question number, mark value, response type and topic:
+${guidedPlan.parts.map((p) => `- ${p.questionNumber} | ${p.topic} | ${p.responseType} | ${p.marks} mark(s) | ${p.demand}${p.resource === 'none' ? '' : ` | supply a ${p.resource} with real data`}`).join('\n')}
+Stay inside ${AQA_BIOLOGY_P1.displayName} Paper 1 topics only. Every scored part needs an explicit task; give "context" and "task" as separate fields.`;
+  }
+
   if (assessmentTierPromptBlock) {
     extractionPrompt += '\n\n' + assessmentTierPromptBlock;
   }
@@ -1341,7 +1360,9 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       exam_id: draftId,
       question_number: String(q.question_number || i + 1),
       question_type: qType,
-      question_text: sanitiseFeedback(q.question_text || ''),
+      // Deterministic assembly so the task survives numbering, sanitisation
+      // and resource routing even when the model split context from task.
+      question_text: sanitiseFeedback(assembleQuestionText(q) || ''),
       question_latex: q.question_latex || null,
       has_math: q.has_math || false,
       parent_question_number: q.parent_question_number || null,
@@ -1420,6 +1441,16 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       }
     }
   }
+
+  // ── ANSWERABILITY GATE ──────────────────────────────────────────────────
+  // A scored part that carries only experimental context is a BLOCKING defect,
+  // no matter how complete its mark scheme looks. Repair the whole failing
+  // parent group (text + expected answer + mark scheme together), at most twice
+  // per group and within a whole-request budget, then revalidate. If the paper
+  // still fails, the extraction fails — it is never presented as ready.
+  await enforceAnswerability(draftId, supabase, lovableApiKey, exam.subject_id, guidedPlan);
+
+
 
   // Save topics
   if (parsedData.topics?.length) {
@@ -2701,6 +2732,13 @@ function scoreGenerationQuality(
   const missingAnswers = questions.filter(q => !q.correct_answer);
   if (missingAnswers.length > 0) score -= (missingAnswers.length / questions.length) * 25;
 
+  // A scored part with context but no assessed task is the worst defect there
+  // is: it used to score 100/100 because an answer field happened to exist.
+  const contextOnly = questions.filter(q =>
+    Number(q.marks ?? 0) > 0 && !hasAssessedTask(q.task || q.question_text || '')
+  );
+  if (contextOnly.length > 0) score -= (contextOnly.length / questions.length) * 60;
+
   if (params.isCustomNiche) {
     const mathsPatterns = [/\bP\(X\s*[=<>]/, /binomial|poisson|normal distribution/i, /\blet\s+X\b/i];
     const contaminated = questions.filter(q => mathsPatterns.some(p => p.test(q.question_text ?? '')));
@@ -2787,19 +2825,26 @@ Return a JSON array only:
         // Match regenerated texts back to original sub-parts
         for (let i = 0; i < siblings.length && i < parsed.length; i++) {
           const newText = parsed[i]?.question_text?.trim();
+          const newAnswer = typeof parsed[i]?.correct_answer === 'string'
+            ? parsed[i].correct_answer.trim()
+            : (typeof parsed[i]?.mark_scheme === 'string' ? parsed[i].mark_scheme.trim() : '');
+          // A rewritten question MUST arrive with its rewritten answer/mark
+          // scheme. Keeping the previous key against new wording produced
+          // silently wrong papers, so a text-only rewrite is discarded.
+          if (newText && newText.length > 10 && !newAnswer) {
+            console.warn(`Discarding regeneration of Q${siblings[i].question_number}: no matching answer returned`);
+            continue;
+          }
           if (newText && newText.length > 10) {
             const updatePayload: any = {
               original_question_text: siblings[i].question_text,
               question_text: newText,
+              correct_answer: newAnswer,
               generation_status: 'ai_generated',
             };
 
-            // For MCQ regen, also update options and correct_answer if provided
-            if (questionType === 'mcq' && parsed[i]?.options && Array.isArray(parsed[i].options)) {
+            if (parsed[i]?.options && Array.isArray(parsed[i].options) && parsed[i].options.length) {
               updatePayload.options = parsed[i].options;
-              if (parsed[i]?.correct_answer) {
-                updatePayload.correct_answer = parsed[i].correct_answer;
-              }
             }
 
             await supabase.from('exam_question_drafts').update(updatePayload).eq('id', siblings[i].id);
@@ -2817,4 +2862,155 @@ function normalizeQNum(qNum: string): string {
   const [, num, letter, roman] = match;
   const romanMap: Record<string, number> = { i: 1, ii: 2, iii: 3, iv: 4, v: 5 };
   return `${num.padStart(3, '0')}${letter ? `_${letter}` : ''}${roman ? `_${romanMap[roman.toLowerCase()] || 0}` : ''}`;
+}
+
+// ── Answerability gate + group repair ──────────────────────────────────────
+// Defect codes, stable part ids and the structural task test live in
+// _shared/question-contract-validator.ts so extraction, sanitisation and the
+// draft-to-exam boundary all apply the identical rule.
+
+const MAX_ATTEMPTS_PER_GROUP = 2;
+const MAX_REPAIR_CALLS_PER_REQUEST = 6;
+
+async function repairGroup(
+  group: any[],
+  subject: string,
+  apiKey: string,
+): Promise<Record<string, { question_text: string; correct_answer: string; options?: string[] }> | null> {
+  const summary = group.map((p: any) =>
+    `  Part ${p.question_number} [${p.marks} marks, ${p.question_type}] context+task: "${String(p.question_text || '').slice(0, 600)}"\n    current expected answer: "${String(p.correct_answer || '').slice(0, 300)}"`
+  ).join('\n');
+
+  const prompt = `You are repairing exam questions about "${subject}" that FAILED an answerability check.
+Each scored part below either states experimental context without asking the student to do anything, or its expected answer no longer matches its task.
+
+RULES:
+- Keep each part's question number, mark allocation, question type and topic EXACTLY.
+- Write "context" (unmarked stimulus, may be empty) and "task" (the explicit instruction) as SEPARATE fields.
+- The task must be a real instruction: a command verb clause ("Calculate the mean decrease in the concentration gradient per minute.") or a direct question. A full stop is fine; a question mark is not required.
+- Rewrite the expected answer and mark scheme TOGETHER with the task so they always agree. Never keep an answer that no longer answers the task.
+- Only use data that is actually stated in the context. Do not invent measurements that the student cannot see.
+- Do not reference a figure or table unless its data appears in the context.
+- For MCQ parts return exactly 4 options and a correct_answer that matches one option exactly.
+
+Parts to repair:
+${summary}
+
+Return JSON only:
+{"parts":[{"question_number":"1(a)","context":"...","task":"...","correct_answer":"M1 ... M2 ...","options":null}]}`;
+
+  const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+      response_format: { type: 'json_object' },
+    }),
+  });
+  if (!resp.ok) {
+    console.error(`Repair call failed: ${resp.status}`);
+    return null;
+  }
+  const data = await resp.json();
+  const finishReason = data.choices?.[0]?.finish_reason;
+  if (finishReason && finishReason !== 'stop') {
+    console.warn(`Repair completion ended with finish_reason="${finishReason}"`);
+  }
+  let content = String(data.choices?.[0]?.message?.content ?? '').trim()
+    .replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+  let parsed: any;
+  try { parsed = JSON.parse(content); } catch { console.error('Repair response was not JSON'); return null; }
+  const parts = Array.isArray(parsed) ? parsed : (parsed.parts ?? parsed.questions);
+  if (!Array.isArray(parts)) return null;
+
+  const out: Record<string, any> = {};
+  for (const p of parts) {
+    const number = String(p?.question_number ?? '').trim();
+    const answer = typeof p?.correct_answer === 'string' ? p.correct_answer.trim() : '';
+    const text = assembleQuestionText({ context: p?.context, task: p?.task, question_text: p?.question_text });
+    // A repair that changes the task but not the answer is rejected outright.
+    if (!number || !text || !answer) continue;
+    out[number] = {
+      question_text: text,
+      correct_answer: answer,
+      options: Array.isArray(p?.options) && p.options.length ? p.options : undefined,
+    };
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+async function enforceAnswerability(
+  draftId: string,
+  supabase: any,
+  apiKey: string,
+  subject: string,
+  plan: PaperPlan | null = null,
+): Promise<void> {
+  const planExpectations = plan
+    ? { expectedTotalMarks: plan.totalMarks, expectedPartCount: plan.partCount }
+    : {};
+  const load = async () => {
+    const { data, error } = await supabase.from('exam_question_drafts').select('*').eq('exam_id', draftId);
+    if (error) throw new Error(`Answerability gate could not read drafts: ${error.message}`);
+    return data ?? [];
+  };
+
+  let drafts = await load();
+  let result = validateQuestionCandidates(drafts, planExpectations);
+  if (result.ok) {
+    console.log(`Answerability gate passed (contract v${CONTRACT_VERSION}, ${drafts.length} parts)`);
+    return;
+  }
+  console.warn(`Answerability defects: ${describeDefects(result.defects)}`);
+
+  const attempts: Record<string, number> = {};
+  let callsUsed = 0;
+
+  while (!result.ok && callsUsed < MAX_REPAIR_CALLS_PER_REQUEST) {
+    const groupId = result.failedGroupIds.find(
+      (g) => (attempts[g] ?? 0) < MAX_ATTEMPTS_PER_GROUP,
+    );
+    if (!groupId) break;
+    attempts[groupId] = (attempts[groupId] ?? 0) + 1;
+    callsUsed += 1;
+
+    const group = drafts.filter((d: any) =>
+      String(d.root_question_number ?? d.parent_question_number ?? String(d.question_number).match(/^\d+/)?.[0]) === groupId
+    );
+    if (group.length === 0) break;
+
+    const repaired = await repairGroup(group, subject, apiKey);
+    if (repaired) {
+      for (const row of group) {
+        const fix = repaired[String(row.question_number)];
+        if (!fix) continue;
+        const payload: any = {
+          original_question_text: row.question_text,
+          question_text: fix.question_text,
+          // Question and key are always rewritten together.
+          correct_answer: fix.correct_answer,
+          generation_status: 'ai_generated',
+        };
+        if (fix.options) payload.options = fix.options;
+        const { error } = await supabase.from('exam_question_drafts').update(payload).eq('id', row.id);
+        if (error) throw new Error(`Repair could not be saved: ${error.message}`);
+      }
+    }
+
+    drafts = await load();
+    result = validateQuestionCandidates(drafts, planExpectations);
+  }
+
+  if (!result.ok) {
+    const message = `Generation failed the answerability gate after ${callsUsed} repair attempt(s): ${describeDefects(result.defects)}`;
+    console.error(message);
+    await supabase.from('exams').update({
+      extraction_status: 'failed',
+      extraction_error: message.slice(0, 1000),
+    }).eq('id', draftId);
+    throw new Error(message);
+  }
+  console.log(`Answerability gate passed after ${callsUsed} repair call(s)`);
 }

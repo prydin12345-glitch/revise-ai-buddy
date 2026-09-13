@@ -200,6 +200,32 @@ CRITICAL: Questions MUST scale in difficulty from 4 marks (simple retrieval) to 
   }
   
   if (subjectLower.includes('biology')) {
+    const levelLower = (level || '').toLowerCase();
+    const isGcse = levelLower.includes('gcse') || levelLower.includes('level 2') || levelLower.includes('level2') || levelLower.includes('igcse');
+    // Qualification-gated: the A-level reference papers, A-level-only maths and
+    // the A-level response mix must never leak into a GCSE paper.
+    if (isGcse) {
+      return `For ${examBoard.toUpperCase()} GCSE Biology (e.g. AQA 8461) — GCSE RUBRIC:
+
+SCOPE:
+- Stay inside the GCSE specification and inside the requested paper's content areas. Never use A-level-only content (Hardy–Weinberg, chi-squared, water potential equations, respirometer maths).
+
+TASK RULE (BLOCKING):
+- Every scored part MUST contain an explicit instruction. Write "context" (unmarked stimulus) and "task" (the instruction) as separate fields. A part that only describes an investigation is invalid.
+- The instruction may end with a full stop and may appear before a table. A question mark is never required.
+
+RESPONSE TYPES:
+- Single-select multiple choice (exactly 4 short options, one unambiguous key), short structured answers and extended written responses. Do NOT emit matching or multi-select items.
+- MCQs are worth 1 mark each and must be answerable from the stem alone or from a resource that is actually supplied.
+
+DATA AND RESOURCES:
+- If a part references a table, graph or diagram, the data for it MUST be supplied in the same payload. Never reference a figure you have not provided.
+- Generate the underlying numbers once and reuse the identical values in the resource, the task and the answer key.
+- Describe a calculated rate of change accurately; do not call a change in a stated gradient "the measured rate of diffusion".
+
+MARK BANDS: 1 mark recall or read-off, 2–4 marks structured explanation or calculation, 4–6 marks extended response.
+Topics: Cell biology, Organisation, Infection and response, Bioenergetics (Paper 1); Homeostasis and response, Inheritance/variation/evolution, Ecology (Paper 2). Use only the requested paper's topics.`;
+    }
     return `For ${examBoard.toUpperCase()} ${level} Biology — APPLICATION-FIRST RUBRIC (model on OCR H420/01, AQA 7402, Edexcel 9BN0, CIE 9700, IB Biology HL):
 
 COGNITIVE MIX (HARD RULE):
@@ -426,7 +452,9 @@ Return JSON with this structure:
 Question format: {
   "question_number": "string",
   "question_type": "string", 
-  "question_text": "string",
+  "context": "string (unmarked stimulus for this part or its parent; may be empty)",
+  "task": "string (REQUIRED for every part worth marks — the explicit instruction the student must carry out)",
+  "question_text": "string (context + task assembled; must still contain the instruction)",
   "question_latex": "string",
   "has_math": boolean,
   "parent_question_number": "string|null",

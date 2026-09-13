@@ -20,6 +20,14 @@ import {
   normaliseAssessmentTier,
 } from "@/lib/assessment-tier";
 import { AssessmentTierSelector } from "@/components/exams/AssessmentTierSelector";
+import { PaperModeSelector } from "@/components/exams/PaperModeSelector";
+import {
+  supportsBiologyPaperContract,
+  AQA_BIOLOGY_P1,
+  BIOLOGY_CONTRACT_VERSION,
+  type PaperMode,
+  type PaperPlan,
+} from "@/lib/biology-paper-contract";
 import { BLUEPRINT_PRESETS } from "@/lib/paperPresets";
 import { getTopicSuggestions, hasTopicSuggestions } from "@/lib/topicSuggestions";
 import { TimeWheelPicker } from "./TimeWheelPicker";
@@ -244,6 +252,9 @@ export const ExamProfileModal = ({
   const [mcqOptionsCount, setMcqOptionsCount] = useState(4);
   const [includeGraphs, setIncludeGraphs] = useState(false);
   const [includeTables, setIncludeTables] = useState(false);
+  // Guided paper mode. "custom" keeps every manual count and media toggle.
+  const [paperMode, setPaperMode] = useState<PaperMode>("custom");
+  const [planApplied, setPlanApplied] = useState(false);
 
   const totalQuestionCount = writtenCount + mcqCount;
   const isMcqOnlyProfile = mcqCount > 0 && writtenCount === 0;
@@ -320,6 +331,9 @@ export const ExamProfileModal = ({
       setMcqOptionsCount(initialData?.mcq_options_count ?? 4);
       setIncludeGraphs(initialData?.include_graphs ?? false);
       setIncludeTables(initialData?.include_tables ?? false);
+      const storedContract = (initialData as any)?.paper_blueprint?.paperContract;
+      setPaperMode((storedContract?.mode as PaperMode) ?? "custom");
+      setPlanApplied(!!storedContract && storedContract.mode !== "custom");
     }
   }, [open, initialData]);
 
@@ -357,6 +371,26 @@ export const ExamProfileModal = ({
     pr.subjects.test(subjectName || "") &&
     (!finalTier || pr.levels.test(finalTier)) &&
     (!examBoard || pr.boards.test(examBoard) || pr.boards.source === "."));
+  const supportsGuidedPaper = supportsBiologyPaperContract({
+    subject: subjectName,
+    examBoard: examBoard ?? initialData?.exam_board ?? null,
+    educationalLevel: finalTier,
+  });
+
+  // Explicit conversion only — nothing is overwritten until the user accepts.
+  const applyGuidedPlan = (plan: PaperPlan) => {
+    setMcqCount(plan.parts.filter((p) => p.responseType === "mcq_single").length);
+    setWrittenCount(plan.parts.filter((p) => p.responseType !== "mcq_single").length);
+    setParentQuestionCount(plan.parentCount);
+    setQuestionStructure("sub_questions");
+    setMaxPartsPerQuestion(Math.ceil(plan.partCount / Math.max(plan.parentCount, 1)));
+    setTimeLimitMinutes(String(plan.durationMinutes));
+    setIncludeTables(plan.parts.some((p) => p.resource === "data_table"));
+    setIncludeGraphs(plan.parts.some((p) => p.resource === "graph"));
+    setSelectedTopics((prev) => (prev.length ? prev : [...AQA_BIOLOGY_P1.topics]));
+    setPlanApplied(true);
+  };
+
   const handleSave = () => {
     if (!profileName.trim() || selectedTopics.length === 0 || !finalTier) return;
     const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
@@ -365,7 +399,20 @@ export const ExamProfileModal = ({
       assessmentTier: effectiveAssessmentTier,
       examBoard: examBoard ?? initialData?.exam_board ?? null,
       studiedTexts: isTextBasedSubject ? studiedTexts : undefined,
-      paperBlueprint: blueprintActive ? { sections: blueprintSections } : null,
+      paperBlueprint: (() => {
+        const sections = blueprintActive ? { sections: blueprintSections } : null;
+        if (paperMode === "custom" || !planApplied || !supportsGuidedPaper) return sections;
+        // Stable identity: course + paper + mode + contract version.
+        return {
+          ...(sections ?? {}),
+          paperContract: {
+            courseId: AQA_BIOLOGY_P1.courseId,
+            paperId: AQA_BIOLOGY_P1.paperId,
+            mode: paperMode,
+            contractVersion: BIOLOGY_CONTRACT_VERSION,
+          },
+        };
+      })(),
     };
     const resolvedQuestionStructure = isMcqOnlyProfile ? "mcq_only" : questionStructure;
     onSave(
@@ -527,6 +574,15 @@ export const ExamProfileModal = ({
                 onChange={setAssessmentTier}
                 accentColor={subjectColor}
                 courseLabel={courseCapability?.label ?? null}
+              />
+            )}
+            {supportsGuidedPaper && (
+              <PaperModeSelector
+                mode={paperMode}
+                tier={effectiveAssessmentTier === "foundation" || effectiveAssessmentTier === "higher" ? effectiveAssessmentTier : null}
+                onModeChange={(m) => { setPaperMode(m); setPlanApplied(m === "custom"); }}
+                onApplyPlan={applyGuidedPlan}
+                applied={planApplied}
               />
             )}
             {educationalTier === "other" && (
