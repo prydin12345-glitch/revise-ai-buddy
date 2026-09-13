@@ -108,6 +108,9 @@ export const resolveProfileContext = async (
   };
 };
 
+/** Marks a snapshot the backend itself produced after an ownership check. */
+export const SERVER_RESOLVED_MARKER = "server";
+
 export const toStoredGenerationContext = (
   ctx: ResolvedGenerationContext,
 ): Record<string, unknown> => ({
@@ -119,8 +122,28 @@ export const toStoredGenerationContext = (
   educational_tier: ctx.educationalTier,
   assessment_tier: ctx.assessmentTier,
   course_id: ctx.courseId,
+  resolved_by: SERVER_RESOLVED_MARKER,
   resolved_at: new Date().toISOString(),
 });
+
+/**
+ * A stored snapshot may only be REUSED when the backend wrote it. Anything a
+ * client managed to write is discarded and re-resolved from the owned profile.
+ */
+export const isServerResolvedContext = (value: unknown): boolean =>
+  !!value &&
+  typeof value === "object" &&
+  (value as Record<string, unknown>).resolved_by === SERVER_RESOLVED_MARKER &&
+  (value as Record<string, unknown>).context_version ===
+    GENERATION_CONTEXT_VERSION;
+
+/** Reads the tier out of a stored snapshot, ignoring anything client-supplied. */
+export const storedAssessmentTier = (value: unknown): AssessmentTier | null => {
+  if (!isServerResolvedContext(value)) return null;
+  return normaliseAssessmentTier(
+    (value as Record<string, unknown>).assessment_tier as string | null,
+  );
+};
 
 /** Prompt fragment so the model actually honours the tier. */
 export const assessmentTierPrompt = (
