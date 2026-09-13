@@ -10,7 +10,7 @@ import { buildGenerationContext, formatGenerationContextPrompt } from "../_share
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
 import { translateExamBoard, getBoardMarkSchemeStyle, MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildCircuitInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 import { buildCacheKey, buildBaseCacheKey, isCacheEntryCompatible, shuffleArray } from "../_shared/cache-utils.ts";
-import { resolveProfileContext, toStoredGenerationContext, ProfileContextError, assessmentTierPrompt } from "../_shared/profile-context.ts";
+import { establishGenerationContext, ProfileContextError, assessmentTierPrompt } from "../_shared/profile-context.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
 import { splitMultiPartQuestions, ensureRenderableGraphConfigs } from "../_shared/question-postprocessor.ts";
 import { detectSubject, needsCircuitRules } from "../_shared/subject-detection.ts";
