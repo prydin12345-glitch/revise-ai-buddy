@@ -3139,29 +3139,63 @@ async function enforceAnswerability(
         .map((d: any) => String(d.question_number)),
     );
     const repaired = await repairGroup(group, subject, apiKey, scope, describeDefects(result.defects), plan, failedNumbers);
-    if (repaired) {
-      for (const row of group) {
-        const fix = repaired[String(row.question_number)];
-        if (!fix) continue;
-        const payload: any = {
+    // Partial progress is kept: every accepted sibling is saved even when
+    // another one is still refused, and every refusal is logged with its
+    // reason so a wasted attempt is never silent.
+    for (const row of group) {
+      const fix = repaired.accepted[String(row.question_number)];
+      if (!fix) continue;
+      const payload: any = {
+        original_question_text: row.question_text,
+        question_text: fix.question_text,
+        // Question and key are always rewritten together.
+        correct_answer: fix.correct_answer,
+        diagram_config: fix.diagram_config,
+        table_data: fix.table_data,
+        question_latex: null,
+        generation_status: 'ai_generated',
+      };
+      if (fix.options) payload.options = fix.options;
+      const { error } = await supabase.from('exam_question_drafts').update(payload).eq('id', row.id);
+      if (error) throw new Error(`Repair could not be saved: ${error.message}`);
+    }
+    const rejected = Object.entries(repaired.rejections);
+    if (rejected.length) {
+      console.warn(`[repair] group ${groupId} attempt ${attempts[groupId]} refused: ` +
+        rejected.map(([n, why]) => `${n} — ${why}`).join('; '));
+    }
+
+    // Focused single-part fallback once the group rewrite has had its chances:
+    // rewrite only the missing instruction and its key, keeping everything else.
+    if (
+      !Object.keys(repaired.accepted).length &&
+      attempts[groupId] >= MAX_ATTEMPTS_PER_GROUP &&
+      callsUsed < MAX_REPAIR_CALLS_PER_REQUEST
+    ) {
+      const taskless = group.filter((d: any) =>
+        failedNumbers.has(String(d.question_number)) &&
+        result.defects.some((x: any) => x.code === 'missing_task' && x.partId === String(d.id ?? d.question_number)));
+      for (const row of taskless) {
+        if (callsUsed >= MAX_REPAIR_CALLS_PER_REQUEST) break;
+        callsUsed += 1;
+        const fix = await repairPartTask(row, subject, apiKey, scope);
+        if (!fix) { console.warn(`[repair] single-part task repair failed for ${row.question_number}`); continue; }
+        const { error } = await supabase.from('exam_question_drafts').update({
           original_question_text: row.question_text,
           question_text: fix.question_text,
-          // Question and key are always rewritten together.
           correct_answer: fix.correct_answer,
-          diagram_config: fix.diagram_config,
-          table_data: fix.table_data,
           question_latex: null,
           generation_status: 'ai_generated',
-        };
-        if (fix.options) payload.options = fix.options;
-        const { error } = await supabase.from('exam_question_drafts').update(payload).eq('id', row.id);
+        }).eq('id', row.id);
         if (error) throw new Error(`Repair could not be saved: ${error.message}`);
+        console.log(`[repair] single-part task repair applied to ${row.question_number}`);
       }
     }
 
     drafts = await load();
     result = validateQuestionCandidates(drafts, planExpectations);
   }
+
 
   if (!result.ok) {
     const message = `Generation failed the answerability gate after ${callsUsed} repair attempt(s): ${describeDefects(result.defects)}`;
