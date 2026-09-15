@@ -2948,16 +2948,65 @@ async function repairGroup(
     headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
     body: JSON.stringify({ model: 'google/gemini-2.5-flash', messages: [{ role: 'user', content: prompt }], temperature: 0.3, response_format: { type: 'json_object' } }),
   });
-  if (!resp.ok) { console.error('Repair call failed:', resp.status); return null; }
+  if (!resp.ok) { console.error('Repair call failed:', resp.status); return failed('repair call HTTP ' + resp.status); }
   const data = await resp.json();
   const finishReason = data.choices?.[0]?.finish_reason;
-  if (finishReason && finishReason !== 'stop') return null;
+  if (finishReason && finishReason !== 'stop') return failed('model stopped early (' + finishReason + ')');
   const content = String(data.choices?.[0]?.message?.content ?? '').trim().replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '');
   let parsed: any;
-  try { parsed = JSON.parse(content); } catch { return null; }
+  try { parsed = JSON.parse(content); } catch { return failed('repair response was not valid JSON'); }
   const parts = Array.isArray(parsed) ? parsed : (parsed.parts ?? parsed.questions);
   const requiredParts = new Set((plan?.parts ?? []).filter(p => p.resource !== 'none').map(p => p.questionNumber));
-  return prepareGroupRepair(group, parts, scope, requiredParts, targetNumbers);
+  return prepareGroupRepairDetailed(group, parts, scope, requiredParts, targetNumbers);
+}
+
+/**
+ * Last-resort, single-part repair for a scored part that still has no assessed
+ * instruction. Whole-group JSON rewrites fail far more often than a narrow
+ * "write the missing command sentence for this one part" request, so a part
+ * that survives group repair gets one focused attempt that keeps its context,
+ * marks and resources untouched and rewrites only task + answer key.
+ */
+async function repairPartTask(
+  row: any,
+  subject: string,
+  apiKey: string,
+  scope: BiologyScope,
+): Promise<{ question_text: string; correct_answer: string } | null> {
+  const prompt = [
+    'One scored exam part is missing its instruction to the student.',
+    'Subject: ' + subject + '. Qualification: ' + (scope.educationalLevel ?? 'unchanged') + '.',
+    'Keep the context, data and mark allocation EXACTLY as given.',
+    'Write ONE instruction sentence that can be answered from the context and is worth ' + (row.marks ?? 1) + ' mark(s).',
+    'It MUST start with a command verb (Calculate, Explain, Describe, State, Give, Suggest, Name, Compare, Complete) or a question word.',
+    'Then write the matching answer/mark scheme for that instruction.',
+    'Part: ' + JSON.stringify({
+      question_number: row.question_number, marks: row.marks, topic_tag: row.topic_tag,
+      context: row.question_text, existing_answer: row.correct_answer,
+      diagram_config: row.diagram_config, table_data: row.table_data,
+    }),
+    'Return JSON only: {"task":"...","correct_answer":"..."}',
+  ].join('\n');
+  const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'google/gemini-2.5-flash', messages: [{ role: 'user', content: prompt }], temperature: 0.2, response_format: { type: 'json_object' } }),
+  });
+  if (!resp.ok) { console.error('Task repair call failed:', resp.status); return null; }
+  const data = await resp.json();
+  if (data.choices?.[0]?.finish_reason && data.choices[0].finish_reason !== 'stop') return null;
+  let parsed: any;
+  try {
+    parsed = JSON.parse(String(data.choices?.[0]?.message?.content ?? '').trim().replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/, ''));
+  } catch { return null; }
+  const task = typeof parsed?.task === 'string' ? parsed.task.trim() : '';
+  const answer = typeof parsed?.correct_answer === 'string' ? parsed.correct_answer.trim()
+    : (typeof parsed?.expected_answer === 'string' ? parsed.expected_answer.trim() : '');
+  if (!task || !answer || !hasAssessedTask(task)) return null;
+  const questionText = assembleQuestionText({ context: String(row.question_text ?? ''), task });
+  const candidate = { ...row, question_text: questionText, correct_answer: answer };
+  if (!validateQuestionCandidates([candidate], { scope }).ok) return null;
+  return { question_text: resolveQuestionResources(candidate).text, correct_answer: answer };
 }
 
 async function enforceAnswerability(
