@@ -60,8 +60,43 @@ function embeddedTables(text: string): EmbeddedTable[] {
   }
   return found;
 }
-export function chartIssues(chart: unknown): ResourceIssue[] {
+const numeric = (v: unknown): number | null => {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string') {
+    const s = v.replace(/[−–]/g, '-').trim();
+    if (/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(s)) return Number(s);
+  }
+  return null;
+};
+/**
+ * Deterministically repair trivially fixable line-graph payloads: numeric
+ * strings become numbers and a repeated x reading is dropped. Anything that is
+ * genuinely unusable is left untouched so the validator still reports it.
+ */
+export function coerceChart(chart: unknown): { chart: unknown; changed: boolean } {
   const c = object(chart);
+  if (!c || c.type !== 'line_chart' || !Array.isArray(c.datasets)) return { chart, changed: false };
+  let changed = false;
+  const datasets = c.datasets.map((ds: any) => {
+    if (!ds || !Array.isArray(ds.data)) return ds;
+    const seen = new Set<number>();
+    const data: any[] = [];
+    for (const pt of ds.data) {
+      if (!pt || typeof pt !== 'object') { data.push(pt); continue; }
+      const x = numeric((pt as any).x);
+      const y = numeric((pt as any).y);
+      if (x === null || y === null) { data.push(pt); continue; }
+      if (seen.has(x)) { changed = true; continue; }
+      seen.add(x);
+      if (x !== (pt as any).x || y !== (pt as any).y) changed = true;
+      data.push({ ...pt, x, y });
+    }
+    return { ...ds, data };
+  });
+  return changed ? { chart: { ...c, datasets }, changed: true } : { chart, changed: false };
+}
+export function chartIssues(chart: unknown): ResourceIssue[] {
+  const c = object(coerceChart(chart).chart);
   if (!c) return [];
   const invalid = (detail: string): ResourceIssue[] => [{ code: 'invalid_resource', detail }];
   if (c.type === 'data_table') {
