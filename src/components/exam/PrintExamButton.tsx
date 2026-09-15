@@ -31,10 +31,13 @@ interface ExamQuestion {
   requires_graph?: boolean;
   requires_diagram?: boolean;
   diagramConfig?: any;
+  diagram_config?: any;
+  table_data?: string | null;
 }
 
 // Build diagramConfig from question metadata
 function buildDiagramConfig(q: any): any | undefined {
+  if (q.diagram_config && typeof q.diagram_config === 'object') return q.diagram_config;
   // Explicit diagram_type field
   if (q.diagram_type) {
     return { type: q.diagram_type, ...(q.graph_description ? { description: q.graph_description } : {}) };
@@ -99,6 +102,8 @@ export function PrintExamButton({
           requires_graph: q.question_type === 'graph_sketch' || q.question_type === 'graph_plotting',
           requires_diagram: !!q.diagram_type || !!q.circuit_type,
           diagramConfig,
+          diagram_config: q.diagram_config,
+          table_data: q.table_data,
         };
       });
 
