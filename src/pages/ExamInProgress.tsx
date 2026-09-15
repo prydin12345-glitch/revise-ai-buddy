@@ -72,7 +72,7 @@ import {
   type AngleMeasurement,
 } from "@/components/graph";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
-import { getChartData, hasDataTableConfig } from "@/utils/chartData";
+import { getChartData } from "@/utils/chartData";
 import { MultiDiagramOptionPanel } from "@/components/shared/MultiDiagramOptionPanel";
 import { FigureChartTabs, hasFigureAndChart } from "@/components/shared/FigureChartTabs";
 import { CircuitFigurePanel } from "@/components/circuit";
@@ -1736,6 +1736,7 @@ const ExamInProgress = () => {
                     <>
                       <MathRenderer 
                         content={extractTextBeforeTable(question.question_text)}
+                        question={question}
                         latex={(question as any).question_latex}
                         hasMath={(question as any).has_math}
                         className="mb-4 text-base sm:text-lg"
@@ -1768,6 +1769,7 @@ const ExamInProgress = () => {
                     <>
                       <MathRenderer 
                         content={stripInlineMCQOptions(removeTableFromContent(question.question_text), question.question_type)}
+                        question={question}
                         latex={(question as any).question_latex}
                         hasMath={(question as any).has_math}
                         className="mb-4 text-base sm:text-lg"
@@ -1810,10 +1812,9 @@ const ExamInProgress = () => {
                     />
                   ) : (
                     <MathRenderer 
-                      content={hasDataTableConfig(question)
-                        ? removeTableFromContent(stripInlineMCQOptions(question.question_text, question.question_type))
-                        : stripInlineMCQOptions(question.question_text, question.question_type)}
-                      latex={(question as any).question_latex}
+                      content={stripInlineMCQOptions(question.question_text, question.question_type)}
+                      question={question}
+                        latex={(question as any).question_latex}
                       hasMath={(question as any).has_math}
                       className="mb-4 sm:mb-6 text-base sm:text-lg"
                     />
