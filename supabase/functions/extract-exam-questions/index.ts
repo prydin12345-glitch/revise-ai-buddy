@@ -1,4 +1,4 @@
-import { prepareGroupRepair } from '../_shared/prepare-group-repair.ts';
+import { prepareGroupRepairDetailed, type GroupRepairOutcome } from '../_shared/prepare-group-repair.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { assessmentTierPrompt, storedAssessmentTier } from "../_shared/profile-context.ts";
@@ -2911,7 +2911,12 @@ async function repairGroup(
   defects: string,
   plan: PaperPlan | null,
   targetNumbers: Set<string> = new Set(),
-): Promise<Record<string, any> | null> {
+): Promise<GroupRepairOutcome> {
+  const failed = (reason: string): GroupRepairOutcome => ({
+    accepted: {},
+    rejections: Object.fromEntries([...targetNumbers].map(n => [n, reason])),
+    unresolved: [...targetNumbers],
+  });
   const prompt = [
     'Repair the COMPLETE parent group below, including its resources and private mark schemes.',
     'Subject: ' + subject + '. Qualification: ' + (scope.educationalLevel ?? 'unchanged') + '.',
@@ -2943,16 +2948,65 @@ async function repairGroup(
     headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
     body: JSON.stringify({ model: 'google/gemini-2.5-flash', messages: [{ role: 'user', content: prompt }], temperature: 0.3, response_format: { type: 'json_object' } }),
   });
-  if (!resp.ok) { console.error('Repair call failed:', resp.status); return null; }
+  if (!resp.ok) { console.error('Repair call failed:', resp.status); return failed('repair call HTTP ' + resp.status); }
   const data = await resp.json();
   const finishReason = data.choices?.[0]?.finish_reason;
-  if (finishReason && finishReason !== 'stop') return null;
+  if (finishReason && finishReason !== 'stop') return failed('model stopped early (' + finishReason + ')');
   const content = String(data.choices?.[0]?.message?.content ?? '').trim().replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '');
   let parsed: any;
-  try { parsed = JSON.parse(content); } catch { return null; }
+  try { parsed = JSON.parse(content); } catch { return failed('repair response was not valid JSON'); }
   const parts = Array.isArray(parsed) ? parsed : (parsed.parts ?? parsed.questions);
   const requiredParts = new Set((plan?.parts ?? []).filter(p => p.resource !== 'none').map(p => p.questionNumber));
-  return prepareGroupRepair(group, parts, scope, requiredParts, targetNumbers);
+  return prepareGroupRepairDetailed(group, parts, scope, requiredParts, targetNumbers);
+}
+
+/**
+ * Last-resort, single-part repair for a scored part that still has no assessed
+ * instruction. Whole-group JSON rewrites fail far more often than a narrow
+ * "write the missing command sentence for this one part" request, so a part
+ * that survives group repair gets one focused attempt that keeps its context,
+ * marks and resources untouched and rewrites only task + answer key.
+ */
+async function repairPartTask(
+  row: any,
+  subject: string,
+  apiKey: string,
+  scope: BiologyScope,
+): Promise<{ question_text: string; correct_answer: string } | null> {
+  const prompt = [
+    'One scored exam part is missing its instruction to the student.',
+    'Subject: ' + subject + '. Qualification: ' + (scope.educationalLevel ?? 'unchanged') + '.',
+    'Keep the context, data and mark allocation EXACTLY as given.',
+    'Write ONE instruction sentence that can be answered from the context and is worth ' + (row.marks ?? 1) + ' mark(s).',
+    'It MUST start with a command verb (Calculate, Explain, Describe, State, Give, Suggest, Name, Compare, Complete) or a question word.',
+    'Then write the matching answer/mark scheme for that instruction.',
+    'Part: ' + JSON.stringify({
+      question_number: row.question_number, marks: row.marks, topic_tag: row.topic_tag,
+      context: row.question_text, existing_answer: row.correct_answer,
+      diagram_config: row.diagram_config, table_data: row.table_data,
+    }),
+    'Return JSON only: {"task":"...","correct_answer":"..."}',
+  ].join('\n');
+  const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'google/gemini-2.5-flash', messages: [{ role: 'user', content: prompt }], temperature: 0.2, response_format: { type: 'json_object' } }),
+  });
+  if (!resp.ok) { console.error('Task repair call failed:', resp.status); return null; }
+  const data = await resp.json();
+  if (data.choices?.[0]?.finish_reason && data.choices[0].finish_reason !== 'stop') return null;
+  let parsed: any;
+  try {
+    parsed = JSON.parse(String(data.choices?.[0]?.message?.content ?? '').trim().replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/, ''));
+  } catch { return null; }
+  const task = typeof parsed?.task === 'string' ? parsed.task.trim() : '';
+  const answer = typeof parsed?.correct_answer === 'string' ? parsed.correct_answer.trim()
+    : (typeof parsed?.expected_answer === 'string' ? parsed.expected_answer.trim() : '');
+  if (!task || !answer || !hasAssessedTask(task)) return null;
+  const questionText = assembleQuestionText({ context: String(row.question_text ?? ''), task });
+  const candidate = { ...row, question_text: questionText, correct_answer: answer };
+  if (!validateQuestionCandidates([candidate], { scope }).ok) return null;
+  return { question_text: resolveQuestionResources(candidate).text, correct_answer: answer };
 }
 
 async function enforceAnswerability(
@@ -3085,29 +3139,63 @@ async function enforceAnswerability(
         .map((d: any) => String(d.question_number)),
     );
     const repaired = await repairGroup(group, subject, apiKey, scope, describeDefects(result.defects), plan, failedNumbers);
-    if (repaired) {
-      for (const row of group) {
-        const fix = repaired[String(row.question_number)];
-        if (!fix) continue;
-        const payload: any = {
+    // Partial progress is kept: every accepted sibling is saved even when
+    // another one is still refused, and every refusal is logged with its
+    // reason so a wasted attempt is never silent.
+    for (const row of group) {
+      const fix = repaired.accepted[String(row.question_number)];
+      if (!fix) continue;
+      const payload: any = {
+        original_question_text: row.question_text,
+        question_text: fix.question_text,
+        // Question and key are always rewritten together.
+        correct_answer: fix.correct_answer,
+        diagram_config: fix.diagram_config,
+        table_data: fix.table_data,
+        question_latex: null,
+        generation_status: 'ai_generated',
+      };
+      if (fix.options) payload.options = fix.options;
+      const { error } = await supabase.from('exam_question_drafts').update(payload).eq('id', row.id);
+      if (error) throw new Error(`Repair could not be saved: ${error.message}`);
+    }
+    const rejected = Object.entries(repaired.rejections);
+    if (rejected.length) {
+      console.warn(`[repair] group ${groupId} attempt ${attempts[groupId]} refused: ` +
+        rejected.map(([n, why]) => `${n} — ${why}`).join('; '));
+    }
+
+    // Focused single-part fallback once the group rewrite has had its chances:
+    // rewrite only the missing instruction and its key, keeping everything else.
+    if (
+      !Object.keys(repaired.accepted).length &&
+      attempts[groupId] >= MAX_ATTEMPTS_PER_GROUP &&
+      callsUsed < MAX_REPAIR_CALLS_PER_REQUEST
+    ) {
+      const taskless = group.filter((d: any) =>
+        failedNumbers.has(String(d.question_number)) &&
+        result.defects.some((x: any) => x.code === 'missing_task' && x.partId === String(d.id ?? d.question_number)));
+      for (const row of taskless) {
+        if (callsUsed >= MAX_REPAIR_CALLS_PER_REQUEST) break;
+        callsUsed += 1;
+        const fix = await repairPartTask(row, subject, apiKey, scope);
+        if (!fix) { console.warn(`[repair] single-part task repair failed for ${row.question_number}`); continue; }
+        const { error } = await supabase.from('exam_question_drafts').update({
           original_question_text: row.question_text,
           question_text: fix.question_text,
-          // Question and key are always rewritten together.
           correct_answer: fix.correct_answer,
-          diagram_config: fix.diagram_config,
-          table_data: fix.table_data,
           question_latex: null,
           generation_status: 'ai_generated',
-        };
-        if (fix.options) payload.options = fix.options;
-        const { error } = await supabase.from('exam_question_drafts').update(payload).eq('id', row.id);
+        }).eq('id', row.id);
         if (error) throw new Error(`Repair could not be saved: ${error.message}`);
+        console.log(`[repair] single-part task repair applied to ${row.question_number}`);
       }
     }
 
     drafts = await load();
     result = validateQuestionCandidates(drafts, planExpectations);
   }
+
 
   if (!result.ok) {
     const message = `Generation failed the answerability gate after ${callsUsed} repair attempt(s): ${describeDefects(result.defects)}`;
