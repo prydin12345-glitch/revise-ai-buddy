@@ -2,9 +2,12 @@ import { InlineMath, BlockMath } from 'react-katex';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import DOMPurify from 'dompurify';
+import { normalizeMathText } from '@/lib/math-text';
+import { resolveQuestionResources, type ResourceQuestion } from '@/lib/question-resources';
 
 interface MathRendererProps {
   content: string | any;
+  question?: ResourceQuestion;
   latex?: string | null;
   hasMath?: boolean;
   className?: string;
@@ -241,9 +244,17 @@ const styleBlankPlaceholders = (content: string): string => {
   return content.replace(/\[\s*BLANK\s*\]/gi, '<span class="blank-placeholder">[ BLANK ]</span>');
 };
 
-export function MathRenderer({ content, latex, hasMath, className = "", inline = false }: MathRendererProps) {
+export function MathRenderer({ content, latex, hasMath, question, className = "", inline = false }: MathRendererProps) {
+  const resources = question ? resolveQuestionResources(question) : null;
+  if (resources?.issues.length) {
+    return <div role="alert" className="rounded-lg border border-destructive/40 p-3 text-sm">
+      This question has inconsistent or invalid source data. Generate a fresh paper before using it for assessment.
+    </div>;
+  }
   // Ensure content is always a string using robust coercion
-  const safeContent = ensureString(content);
+  const safeContent = normalizeMathText(question
+    ? resolveQuestionResources({ ...question, question_text: ensureString(content) }).text
+    : ensureString(content));
   // First remove any standalone "Marks: n" lines
   const contentWithoutMarks = removeMarksLine(safeContent);
   
@@ -392,7 +403,7 @@ export function MathRenderer({ content, latex, hasMath, className = "", inline =
   }
 
   // Fallback: if latex prop is provided but content doesn't have delimiters
-  if (latex) {
+  if (latex && !cleanedContent.trim()) {
     return (
       <div className={className}>
         <BlockMath math={latex} />
