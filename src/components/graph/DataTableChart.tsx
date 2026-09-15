@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatHeaderUnit } from '@/lib/question-resources';
 
 export interface DataTableData {
   type: 'data_table';
@@ -32,7 +33,7 @@ export const DataTableChart = ({ chartData, className = '' }: DataTableChartProp
   const { headers, rows, caption, highlightColumn, units, footnote } = chartData;
 
   const displayHeaders = headers.map((h, i) =>
-    units?.[i] ? `${h} (${units[i]})` : h
+    formatHeaderUnit(h, units?.[i])
   );
 
   return (
