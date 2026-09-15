@@ -2919,6 +2919,8 @@ async function repairGroup(
     'Blocking defects: ' + defects,
     'Keep every question number, topic, question type and mark allocation EXACTLY.',
     'Return every sibling. Separate context and task; each scored part needs an explicit command.',
+    'The "task" field must START with a command verb (Calculate, Explain, Describe, State, Give, Suggest, Name, Compare, Complete) or a question word. Background information alone is not a task and will be rejected.',
+    'Never leave "task" empty, and never place the instruction only inside "context".',
     'Rewrite the answer/mark scheme together with the task and data. Never reuse an old key for changed data.',
     'For a conflicting table, replace the complete item using ONE coherent dataset and compute its key from that dataset.',
     'Store a results table in diagram_config as type data_table with headers/rows. No Markdown/HTML copy in the stem or table_data.',
