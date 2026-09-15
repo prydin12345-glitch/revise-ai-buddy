@@ -2910,6 +2910,7 @@ async function repairGroup(
   scope: BiologyScope,
   defects: string,
   plan: PaperPlan | null,
+  targetNumbers: Set<string> = new Set(),
 ): Promise<Record<string, any> | null> {
   const prompt = [
     'Repair the COMPLETE parent group below, including its resources and private mark schemes.',
