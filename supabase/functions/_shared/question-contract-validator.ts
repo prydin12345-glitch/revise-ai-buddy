@@ -11,7 +11,10 @@
 // A valid instruction may end with a full stop, may appear before a table, and
 // never needs a question mark.
 
-export const CONTRACT_VERSION = 1;
+import { resolveQuestionResources, type ResourceQuestion } from './question-resources.ts';
+import { gcseBiologyIssue, type BiologyScope } from './gcse-biology-scope.ts';
+
+export const CONTRACT_VERSION = 2;
 
 export type DefectCode =
   | "missing_task"
@@ -19,7 +22,11 @@ export type DefectCode =
   | "missing_answer"
   | "answer_mismatch"
   | "invalid_options"
-  | "incorrect_mark_total";
+  | "incorrect_mark_total"
+  | "conflicting_resource_data"
+  | "invalid_resource"
+  | "inappropriate_graph"
+  | "out_of_level";
 
 export interface QuestionDefect {
   /** Stable identity of the offending part. */
@@ -29,7 +36,7 @@ export interface QuestionDefect {
   detail: string;
 }
 
-export interface CandidatePart {
+export interface CandidatePart extends ResourceQuestion {
   /** Stable id: draft row id when known, otherwise the question number. */
   id?: string | null;
   question_number?: string | null;
@@ -182,6 +189,9 @@ const groupIdOf = (p: CandidatePart, index: number) =>
 const hasResourcePayload = (p: CandidatePart): boolean => {
   if (Array.isArray(p.figure_urls) && p.figure_urls.length > 0) return true;
   if (p.diagram_config && typeof p.diagram_config === "object") return true;
+  if (p.diagramConfig && typeof p.diagramConfig === "object") return true;
+  const resources = resolveQuestionResources(p);
+  if (!resources.issues.length && (resources.chart || resources.table)) return true;
   return false;
 };
 
@@ -191,6 +201,8 @@ export const referencesResource = (text: string): boolean =>
   /\b(the (table|graph|diagram) (above|below|shown))\b/i.test(text);
 
 export interface ValidateOptions {
+  /** Server-resolved qualification, distinct from difficulty. */
+  scope?: BiologyScope;
   /** Expected total marks from the plan; omitted when there is no plan. */
   expectedTotalMarks?: number | null;
   /** Expected number of scored parts from the plan. */
@@ -223,6 +235,11 @@ export function validateQuestionCandidates(
       defects.push({ partId, parentId, code, detail });
 
     totalMarks += Number.isFinite(marks) ? marks : 0;
+
+    const resources = resolveQuestionResources({ ...part, question_text: displayed });
+    resources.issues.forEach(issue => push(issue.code, issue.detail));
+    const levelIssue = options.scope ? gcseBiologyIssue({ ...part, question_text: displayed }, options.scope) : null;
+    if (levelIssue) push('out_of_level', levelIssue);
 
     if (!scored) return; // unmarked context parents are legitimate
 
