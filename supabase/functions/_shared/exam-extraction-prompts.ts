@@ -221,6 +221,10 @@ RESPONSE TYPES:
 DATA AND RESOURCES:
 - If a part references a table, graph or diagram, the data for it MUST be supplied in the same payload. Never reference a figure you have not provided.
 - Generate the underlying numbers once and reuse the identical values in the resource, the task and the answer key.
+- Store a results table ONLY in chart_data as type data_table, never also in context, task or question_text as Markdown/HTML. Units appear once in the header OR units array.
+- For continuous point readings use line_chart with finite numeric x/y values. Do not turn time readings into categorical bins or invent timestamps for interval means/totals.
+- Keep captions neutral. Never print internal [Graph showing ...] instructions or reveal an assessed peak/trend in a placeholder.
+- Photosynthesis stays at GCSE: chloroplasts, chlorophyll, endothermic reaction, rates and limiting factors. Do not assess light-dependent stages, thylakoid/stroma functions or the Calvin cycle.
 - Describe a calculated rate of change accurately; do not call a change in a stated gradient "the measured rate of diffusion".
 
 MARK BANDS: 1 mark recall or read-off, 2–4 marks structured explanation or calculation, 4–6 marks extended response.
