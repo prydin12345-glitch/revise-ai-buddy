@@ -2911,7 +2911,12 @@ async function repairGroup(
   defects: string,
   plan: PaperPlan | null,
   targetNumbers: Set<string> = new Set(),
-): Promise<Record<string, any> | null> {
+): Promise<GroupRepairOutcome> {
+  const failed = (reason: string): GroupRepairOutcome => ({
+    accepted: {},
+    rejections: Object.fromEntries([...targetNumbers].map(n => [n, reason])),
+    unresolved: [...targetNumbers],
+  });
   const prompt = [
     'Repair the COMPLETE parent group below, including its resources and private mark schemes.',
     'Subject: ' + subject + '. Qualification: ' + (scope.educationalLevel ?? 'unchanged') + '.',
