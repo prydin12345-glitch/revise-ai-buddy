@@ -128,13 +128,13 @@ export const LineChart = ({ chartData, className = '' }: LineChartProps) => {
             {datasets.map((ds, i) => (
               <Line
                 key={ds.label}
-                type="monotone"
+                type="linear"
                 dataKey={ds.label}
                 stroke={ds.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]}
                 strokeWidth={2}
                 strokeDasharray={ds.dashed ? '5 4' : undefined}
                 dot={{ r: 3 }}
-                connectNulls
+                connectNulls={false}
                 isAnimationActive={false}
               />
             ))}
