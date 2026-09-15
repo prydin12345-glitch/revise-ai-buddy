@@ -276,10 +276,20 @@ RULES:
 - All physics diagrams work for GCSE, A-Level, IB, AP, CBSE, HSC
 `;
 }
-export function buildBiologyInstructions(subject: string | undefined): string {
+export function buildBiologyInstructions(subject: string | undefined, educationalLevel?: string): string {
   if (!subject) return '';
   if (!BIOLOGY_PATTERN.test(subject)) {
     return '';
+  }
+  if (/\b(gcse|igcse)\b|level\s*2/i.test(educationalLevel ?? '')) {
+    return [
+      'GCSE BIOLOGY FIGURES:',
+      'Follow the selected GCSE paper topics and planned response types, including recall MCQs.',
+      'Use supported animal_cell, plant_cell, bacterial_cell, heart or enzyme_substrate (lock_and_key) figures only when the task needs them.',
+      'Supply results tables for practical data and line_chart datasets with numeric x/y readings for continuous variables such as elapsed time.',
+      'Describe and explain questions may refer to supplied tables or figures; do not suppress a resource because of the command verb.',
+      'Do not introduce dihybrid crosses, enzyme inhibition mechanisms, Hardy-Weinberg, chi-squared, water potential or A-level photosynthesis.',
+    ].join('\n');
   }
   return `
 BIOLOGY QUESTION STYLE — APPLICATION-FIRST (HARD RULE):
