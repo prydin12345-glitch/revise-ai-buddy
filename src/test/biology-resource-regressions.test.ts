@@ -1,10 +1,10 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { resolveQuestionResources, requireConsistentResources, formatHeaderUnit, chartIssues } from '../functions/_shared/question-resources.ts';
-import { validateQuestionCandidates } from '../functions/_shared/question-contract-validator.ts';
-import { gcseBiologyIssue } from '../functions/_shared/gcse-biology-scope.ts';
-import { buildBiologyInstructions } from '../functions/_shared/prompt-templates.ts';
-import { prepareGroupRepair } from '../functions/_shared/prepare-group-repair.ts';
+import { resolveQuestionResources, requireConsistentResources, formatHeaderUnit, chartIssues } from '../../supabase/functions/_shared/question-resources.ts';
+import { validateQuestionCandidates } from '../../supabase/functions/_shared/question-contract-validator.ts';
+import { gcseBiologyIssue } from '../../supabase/functions/_shared/gcse-biology-scope.ts';
+import { buildBiologyInstructions } from '../../supabase/functions/_shared/prompt-templates.ts';
+import { prepareGroupRepair } from '../../supabase/functions/_shared/prepare-group-repair.ts';
 
 const table = { type: 'data_table', headers: ['Bacterial Strain', 'Zone of Inhibition (mm)'], rows: [['P', 10], ['Q', 15], ['R', 25], ['S', 5]], units: ['', 'mm'] };
 const markdown = '| Bacterial Strain | Zone of Inhibition (mm) |\n|---|---|\n| P | 10 |\n| Q | 15 |\n| R | 25 |\n| S | 5 |';
