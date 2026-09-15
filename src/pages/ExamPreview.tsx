@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock, Save, MessageCircle, EyeOff, Menu, X, Sparkles, Send, Lightbulb, ArrowDown } from "lucide-react";
 import { MathRenderer } from "@/components/MathRenderer";
+import { LineChart, isLineChartQuestion } from "@/components/graph/LineChart";
 import { FeedbackThreadModal } from "@/components/exam/FeedbackThreadModal";
 import { BoxPlotChart, isBoxPlotQuestion } from "@/components/graph/BoxPlotChart";
 import { HistogramChart, isHistogramQuestion } from "@/components/graph/HistogramChart";
@@ -660,6 +661,7 @@ const ExamReview = () => {
 
                   <MathRenderer 
                     content={question.question_text}
+                    question={question}
                     latex={(question as any).question_latex}
                     hasMath={(question as any).has_math}
                     className="mb-4 font-serif text-foreground"
@@ -678,7 +680,8 @@ const ExamReview = () => {
                          {!isMcq && isHistogramQuestion(chartData) && (
                            <HistogramChart chartData={chartData} className="mb-4" />
                          )}
-                         {isDataTableQuestion(chartData) && (
+                         {isLineChartQuestion(chartData) && <LineChart chartData={chartData} className="mb-4" />}
+                          {isDataTableQuestion(chartData) && (
                            <DataTableChart chartData={chartData} className="mb-4" />
                          )}
                          {isBarChartQuestion(chartData) && (
