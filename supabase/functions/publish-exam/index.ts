@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { reconstructTransformationWrapper } from "../_shared/question-postprocessor.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { validateQuestionCandidates, describeDefects } from "../_shared/question-contract-validator.ts";
+import { resolveQuestionResources } from '../_shared/question-resources.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -139,7 +140,9 @@ serve(async (req) => {
     // task, a usable answer key and any resource it references. There is no
     // "default the MCQ answer to A" fallback any more — a missing or ambiguous
     // key blocks completion instead of inventing a grade.
-    const gate = validateQuestionCandidates(drafts as any);
+    const gate = validateQuestionCandidates(drafts as any, {
+      scope: { subject: exam.subject_id, educationalLevel: exam.qualification_level, examBoard: exam.exam_board },
+    });
     if (!gate.ok) {
       const detail = describeDefects(gate.defects);
       console.error('Publish blocked by answerability gate:', detail);
@@ -154,6 +157,12 @@ serve(async (req) => {
         status: 422,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    for (const draft of drafts) {
+      const resources = resolveQuestionResources(draft);
+      draft.question_text = resources.text;
+      if (resources.table && draft.diagram_config?.type === 'data_table') draft.table_data = null;
     }
 
     // Build a canonical graph wrapper { graphType, graphConfig, plottingAnswer }
