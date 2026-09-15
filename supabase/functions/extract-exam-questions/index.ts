@@ -3077,7 +3077,14 @@ async function enforceAnswerability(
     );
     if (group.length === 0) break;
 
-    const repaired = await repairGroup(group, subject, apiKey, scope, describeDefects(result.defects), plan);
+    // Only the defective siblings must come back valid; an untouched healthy
+    // sibling must not throw away a good fix.
+    const failedNumbers = new Set(
+      group
+        .filter((d: any) => result.failedPartIds.includes(String(d.id ?? d.question_number)))
+        .map((d: any) => String(d.question_number)),
+    );
+    const repaired = await repairGroup(group, subject, apiKey, scope, describeDefects(result.defects), plan, failedNumbers);
     if (repaired) {
       for (const row of group) {
         const fix = repaired[String(row.question_number)];
