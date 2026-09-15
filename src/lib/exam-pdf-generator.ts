@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import ReactDOM from "react-dom/client";
 import React from "react";
+import { requireConsistentResources, formatHeaderUnit } from '@/lib/question-resources';
 
 // ============= Type Definitions =============
 interface ExamQuestion {
@@ -24,6 +25,7 @@ interface ExamQuestion {
   circuit_description?: string | null;
   graph_description?: string | null;
   diagramConfig?: any;
+  diagram_config?: any;
 }
 
 interface ExamData {
@@ -435,6 +437,10 @@ async function renderDiagramToPDF(
     } else if (chemistryTypes.includes(type)) {
       const mod = await import('@/components/biology');
       DiagramComponent = mod.ChemistryDiagramDraw;
+    } else if (type === 'line_chart') {
+      DiagramComponent = (await import('@/components/graph/LineChart')).LineChart;
+    } else if (type === 'bar_chart') {
+      DiagramComponent = (await import('@/components/graph/BarChart')).BarChart;
     }
 
     if (!DiagramComponent) {
@@ -445,6 +451,7 @@ async function renderDiagramToPDF(
     root.render(
       React.createElement(DiagramComponent, {
         config: diagramConfig,
+        chartData: diagramConfig,
         showLabels: true,
         labelMode: 'visible',
         scale: 1,
@@ -634,6 +641,20 @@ export async function generateExamPDF(
     includeDiagrams = true,
   } = options;
 
+  // The screen and PDF share a validated source. Never export conflicting data.
+  examData = { ...examData, questions: examData.questions.map(question => {
+    const resources = requireConsistentResources(question);
+    return {
+      ...question,
+      question_text: resources.text,
+      table_data: resources.table ? JSON.stringify([
+        resources.table.headers.map((h, i) => formatHeaderUnit(h, resources.table!.units?.[i])),
+        ...resources.table.rows,
+      ]) : question.table_data,
+      diagramConfig: (question.diagramConfig ?? question.diagram_config)?.type === 'data_table'
+        ? undefined : (question.diagramConfig ?? question.diagram_config),
+    };
+  }) };
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   doc.setCharSpace(0);
 
