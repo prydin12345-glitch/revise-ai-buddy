@@ -3027,8 +3027,31 @@ async function enforceAnswerability(
       }
     }
   };
+  // Deterministically clean trivially fixable figure payloads (numeric strings,
+  // duplicated x readings) before spending any repair call on them.
+  const normaliseCharts = async (rows: any[]): Promise<boolean> => {
+    let any = false;
+    for (const row of rows) {
+      const updates: any = {};
+      for (const field of ['diagram_config', 'options']) {
+        const value = row[field];
+        if (!isResourceChart(value)) continue;
+        const { chart, changed } = coerceChart(value);
+        if (changed) updates[field] = chart;
+      }
+      if (Object.keys(updates).length) {
+        const { error } = await supabase.from('exam_question_drafts').update(updates).eq('id', row.id).eq('exam_id', draftId);
+        if (error) throw new Error('Figure data could not be normalised: ' + error.message);
+        any = true;
+      }
+    }
+    if (any) console.log('[resources] normalised numeric figure data before validation');
+    return any;
+  };
+
   let drafts = await load();
   if (await reconcileToPlan(drafts)) drafts = await load();
+  if (await normaliseCharts(drafts)) drafts = await load();
   let result = validateQuestionCandidates(drafts, planExpectations);
 
   if (result.ok) {
