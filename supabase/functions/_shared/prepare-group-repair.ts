@@ -24,7 +24,6 @@ export function prepareGroupRepair(
   for (const row of group) {
     const number = String(row.question_number);
     const matches = parts.filter(p => String((p as any)?.question_number ?? '').trim() === number);
-    const reject = (): null | undefined => { if (strict) return null; return undefined; };
     if (matches.length !== 1) { if (strict) return null; continue; }
     const part: any = matches[0];
     const normalized = normalizeRepairPart(part);
@@ -34,7 +33,6 @@ export function prepareGroupRepair(
     const diagram = part.diagram_config ?? part.chart_data ?? null;
     if (needsResource && (!diagram || typeof diagram !== 'object' || Array.isArray(diagram))) { if (strict) return null; continue; }
     if (row.question_type === 'mcq' && normalized.options?.length !== 4) { if (strict) return null; continue; }
-    void reject;
     const candidate = {
       ...row, question_text: normalized.questionText, correct_answer: normalized.correctAnswer,
       options: normalized.options ?? (row.question_type === 'mcq' ? null : row.options),
