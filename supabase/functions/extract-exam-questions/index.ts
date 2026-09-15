@@ -2950,7 +2950,7 @@ async function repairGroup(
   try { parsed = JSON.parse(content); } catch { return null; }
   const parts = Array.isArray(parsed) ? parsed : (parsed.parts ?? parsed.questions);
   const requiredParts = new Set((plan?.parts ?? []).filter(p => p.resource !== 'none').map(p => p.questionNumber));
-  return prepareGroupRepair(group, parts, scope, requiredParts);
+  return prepareGroupRepair(group, parts, scope, requiredParts, targetNumbers);
 }
 
 async function enforceAnswerability(
