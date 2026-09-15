@@ -6,6 +6,8 @@
 // returns whichever source contains a recognised chart payload (diagram_config
 // takes priority), without altering the underlying records.
 
+import { resolveQuestionResources } from '@/lib/question-resources';
+
 const CHART_TYPES = new Set([
   'bar_chart',
   'pie_chart',
@@ -39,15 +41,8 @@ export const hasDataTableConfig = (question: any): boolean => {
 export const getChartData = (question: any): any => {
   if (!question) return null;
 
-  // Priority 1 — diagram_config (new location for chart data).
-  const dc = question.diagram_config;
-  if (isChartDataPayload(dc)) return dc;
-
-  // Priority 2 — options (legacy location, still common for existing data).
-  const opts = question.options;
-  if (isChartDataPayload(opts)) return opts;
-
-  return null;
+  const resolved = resolveQuestionResources(question);
+  return resolved.issues.length ? null : resolved.chart;
 };
 
 // Pull the optional correct_chart_data payload (used by draw/construct questions
