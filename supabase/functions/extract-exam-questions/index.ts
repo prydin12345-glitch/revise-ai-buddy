@@ -13,7 +13,7 @@ import { validateCircuitConfig, buildComponentListForPrompt } from "../_shared/c
 import { buildBlueprintPrompt, validatePaperBlueprint, buildStudiedTextsPrompt, describeFigureForPrompt, validateMapFigure, buildMapFigurePrompt, validateInsertFigures, buildInsertFiguresPrompt } from "../_shared/insert-figures.ts";
 import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
 import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
-import { resolveQuestionResources } from '../_shared/question-resources.ts';
+import { resolveQuestionResources, coerceChart, isResourceChart } from '../_shared/question-resources.ts';
 import { isGcseBiology, GCSE_BIOLOGY_RULES, type BiologyScope } from '../_shared/gcse-biology-scope.ts';
 import { getSubjectSpecificInstructions } from "../_shared/exam-extraction-prompts.ts";
 import { validateQuestionCandidates, describeDefects, hasAssessedTask, assembleQuestionText, CONTRACT_VERSION } from "../_shared/question-contract-validator.ts";
