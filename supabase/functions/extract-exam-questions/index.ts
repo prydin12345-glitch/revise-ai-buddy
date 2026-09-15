@@ -1,3 +1,4 @@
+import { prepareGroupRepair } from '../_shared/prepare-group-repair.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { assessmentTierPrompt, storedAssessmentTier } from "../_shared/profile-context.ts";
@@ -12,8 +13,10 @@ import { validateCircuitConfig, buildComponentListForPrompt } from "../_shared/c
 import { buildBlueprintPrompt, validatePaperBlueprint, buildStudiedTextsPrompt, describeFigureForPrompt, validateMapFigure, buildMapFigurePrompt, validateInsertFigures, buildInsertFiguresPrompt } from "../_shared/insert-figures.ts";
 import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
 import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
+import { resolveQuestionResources } from '../_shared/question-resources.ts';
+import { isGcseBiology, GCSE_BIOLOGY_RULES, type BiologyScope } from '../_shared/gcse-biology-scope.ts';
 import { getSubjectSpecificInstructions } from "../_shared/exam-extraction-prompts.ts";
-import { validateQuestionCandidates, describeDefects, hasAssessedTask, assembleQuestionText, normalizeRepairPart, CONTRACT_VERSION } from "../_shared/question-contract-validator.ts";
+import { validateQuestionCandidates, describeDefects, hasAssessedTask, assembleQuestionText, CONTRACT_VERSION } from "../_shared/question-contract-validator.ts";
 import { buildPaperPlan, describePlan, AQA_BIOLOGY_P1, type PaperMode, type PaperPlan } from "../_shared/biology-paper-contract.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
@@ -688,6 +691,9 @@ ${guidedPlan.parts.map((p) => `- ${p.questionNumber} | ${p.topic} | ${p.response
 Stay inside ${AQA_BIOLOGY_P1.displayName} Paper 1 topics only. Every scored part needs an explicit task; give "context" and "task" as separate fields.`;
   }
 
+  if (isGcseBiology({ subject: exam.subject_id, educationalLevel: qualificationLevel })) {
+    extractionPrompt += '\n\n' + GCSE_BIOLOGY_RULES;
+  }
   if (assessmentTierPromptBlock) {
     extractionPrompt += '\n\n' + assessmentTierPromptBlock;
   }
@@ -1356,6 +1362,10 @@ Stay inside ${AQA_BIOLOGY_P1.displayName} Paper 1 topics only. Every scored part
       }
     }
 
+    // Check aliases before collapsing chart_data/diagram_config into one column.
+    const rawResources = resolveQuestionResources({ ...q, question_text: assembleQuestionText(q) });
+    const aliasConflict = rawResources.issues.find(issue => issue.code === 'conflicting_resource_data' && issue.detail.startsWith('Stored copies'));
+    if (aliasConflict) throw new Error('Question ' + q.question_number + ': ' + aliasConflict.detail);
     return {
       exam_id: draftId,
       question_number: String(q.question_number || i + 1),
@@ -1448,7 +1458,9 @@ Stay inside ${AQA_BIOLOGY_P1.displayName} Paper 1 topics only. Every scored part
   // parent group (text + expected answer + mark scheme together), at most twice
   // per group and within a whole-request budget, then revalidate. If the paper
   // still fails, the extraction fails — it is never presented as ready.
-  await enforceAnswerability(draftId, supabase, lovableApiKey, exam.subject_id, guidedPlan);
+  await enforceAnswerability(draftId, supabase, lovableApiKey, exam.subject_id, guidedPlan, {
+    subject: exam.subject_id, educationalLevel: qualificationLevel, examBoard,
+  });
 
 
 
@@ -1628,6 +1640,9 @@ function buildExamDifficultyInstructions(
   subject: string,
   tier: string,
 ): string {
+  if (isGcseBiology({ subject, educationalLevel: tier })) {
+    return GCSE_BIOLOGY_RULES + '\nDifficulty setting: ' + difficulty + '. Increase reasoning within GCSE only; preserve the planned marks, recall MCQs and required resources.';
+  }
   const _tierLower = (tier || '').toLowerCase();
   const isBiology = /biology|life.?science|anatomy|physiology/i.test(subject);
   const isPhysics = /physics/i.test(subject);
@@ -2416,7 +2431,8 @@ correct_answer. Never emit a question that depends on a chart without including
 chart_data — that question becomes unanswerable for the student.
 
 Required chart_data type by reference:
-- "bar chart" / "column chart" / "dual bar chart" → type: "bar_chart"
+- Continuous point observations (elapsed time, temperature, concentration) → type: "line_chart" with finite numeric x/y data.
+- "bar chart" / "column chart" / "dual bar chart" for categorical comparisons → type: "bar_chart"
 - "pie chart" → type: "pie_chart"
 - "table" (rows of data, frequency table, results table) → type: "data_table"
 - "histogram" → type: "histogram"  (only if stats subject; else use bar_chart)
@@ -2437,6 +2453,21 @@ survey results, experimental data, economic/geographical/biological/sociological
 }
 Rules: headers length must equal each row length. First column is usually a text label.
 4–10 rows. Do NOT write "the table below shows" — write "Calculate the mean from the data".
+
+ONE SOURCE OF MEASUREMENTS:
+Put a results table ONLY in chart_data. No copy in question_text, context, task or table_data.
+Compute the private correct_answer/mark scheme from that exact dataset. Units appear once.
+Keep figure captions neutral; never emit [Graph showing ...] notes or supply an assessed peak/trend.
+
+For continuous point measurements use:
+{
+  "type": "line_chart", "xKind": "time", "measurementType": "point",
+  "xLabel": "Elapsed time (hours)", "yLabel": "Water uptake (cm³/hour)",
+  "caption": "Figure 1: Water uptake",
+  "datasets": [{ "label": "Water uptake", "data": [{"x":0,"y":5},{"x":3,"y":8},{"x":6,"y":15}] }]
+}
+Use actual measurement times. Do not invent point positions for interval averages or totals.
+If interval summaries are intentionally assessed, explicitly declare measurementType "interval_mean" or "interval_total" and explain the intervals. Histograms remain available for frequency distributions.
 
 For bar chart questions (comparing categorical values):
 {
@@ -2652,7 +2683,7 @@ Match genuine AQA/Edexcel/OCR A-level standard:
     graphBlock,
     MULTI_PART_GRAPH_INSTRUCTIONS,
     circuitBlock,
-    buildBiologyInstructions(subject),
+    buildBiologyInstructions(subject, educationalLevel),
     buildMathsInstructions(subject),
     (/physics|physical\s*science|natural\s*science|\bscience\b|combined\s*science|gcse\s*science|a[\s-]level\s*science|triple\s*science|optics|electronics|engineering|igcse\s*physics|ib\s*physics|ap\s*physics/i.test(subject) && !suppressDiagrams) ? buildPhysicsInstructions() : '',
     deltaWyeBlock,
@@ -2876,68 +2907,49 @@ async function repairGroup(
   group: any[],
   subject: string,
   apiKey: string,
-): Promise<Record<string, { question_text: string; correct_answer: string; options?: string[] }> | null> {
-  const summary = group.map((p: any) =>
-    `  Part ${p.question_number} [${p.marks} marks, ${p.question_type}] context+task: "${String(p.question_text || '').slice(0, 600)}"\n    current expected answer: "${String(p.correct_answer || '').slice(0, 300)}"`
-  ).join('\n');
-
-  const prompt = `You are repairing exam questions about "${subject}" that FAILED an answerability check.
-Each scored part below either states experimental context without asking the student to do anything, or its expected answer no longer matches its task.
-
-RULES:
-- Keep each part's question number, mark allocation, question type and topic EXACTLY.
-- Write "context" (unmarked stimulus, may be empty) and "task" (the explicit instruction) as SEPARATE fields.
-- The task must be a real instruction: a command verb clause ("Calculate the mean decrease in the concentration gradient per minute.") or a direct question. A full stop is fine; a question mark is not required.
-- Rewrite the expected answer and mark scheme TOGETHER with the task so they always agree. Never keep an answer that no longer answers the task.
-- Only use data that is actually stated in the context. Do not invent measurements that the student cannot see.
-- Do not reference a figure or table unless its data appears in the context.
-- For MCQ parts return exactly 4 options and a correct_answer that matches one option exactly.
-
-Parts to repair:
-${summary}
-
-Return JSON only:
-{"parts":[{"question_number":"1(a)","context":"...","task":"...","correct_answer":"M1 ... M2 ...","options":null}]}`;
-
+  scope: BiologyScope,
+  defects: string,
+  plan: PaperPlan | null,
+): Promise<Record<string, any> | null> {
+  const prompt = [
+    'Repair the COMPLETE parent group below, including its resources and private mark schemes.',
+    'Subject: ' + subject + '. Qualification: ' + (scope.educationalLevel ?? 'unchanged') + '.',
+    isGcseBiology(scope) ? GCSE_BIOLOGY_RULES : '',
+    'Blocking defects: ' + defects,
+    'Keep every question number, topic, question type and mark allocation EXACTLY.',
+    'Return every sibling. Separate context and task; each scored part needs an explicit command.',
+    'Rewrite the answer/mark scheme together with the task and data. Never reuse an old key for changed data.',
+    'For a conflicting table, replace the complete item using ONE coherent dataset and compute its key from that dataset.',
+    'Store a results table in diagram_config as type data_table with headers/rows. No Markdown/HTML copy in the stem or table_data.',
+    'Keep every required resource; a practical/data item cannot be repaired into a text-only question.',
+    'For continuous point readings use type line_chart with datasets: [{label, data:[{x:number,y:number}]}].',
+    'Use actual numeric measurement times. Do not invent point times for interval summaries; generate a coherent new point-reading question instead if needed.',
+    'Captions must be neutral. Never emit [Graph showing ...] notes or reveal an assessed peak/trend.',
+    'For MCQs return exactly 4 options and correct_answer matching an option.',
+    'Put inline mathematics inside $...$; do not repeat a power on a separate line.',
+    'Planned resources: ' + JSON.stringify(plan?.parts.filter(p => group.some(row => String(row.question_number) === p.questionNumber)) ?? []),
+    'Complete current group: ' + JSON.stringify(group.map(p => ({
+      question_number: p.question_number, question_type: p.question_type, marks: p.marks,
+      topic_tag: p.topic_tag, question_text: p.question_text, correct_answer: p.correct_answer,
+      options: p.options, diagram_config: p.diagram_config, table_data: p.table_data,
+    }))),
+    'Return JSON only: {"parts":[{"question_number":"1(a)","context":"...","task":"...","correct_answer":"...","options":null,"diagram_config":null}]}',
+  ].filter(Boolean).join('\n');
   const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.3,
-      response_format: { type: 'json_object' },
-    }),
+    headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'google/gemini-2.5-flash', messages: [{ role: 'user', content: prompt }], temperature: 0.3, response_format: { type: 'json_object' } }),
   });
-  if (!resp.ok) {
-    console.error(`Repair call failed: ${resp.status}`);
-    return null;
-  }
+  if (!resp.ok) { console.error('Repair call failed:', resp.status); return null; }
   const data = await resp.json();
   const finishReason = data.choices?.[0]?.finish_reason;
-  if (finishReason && finishReason !== 'stop') {
-    console.warn(`Repair completion ended with finish_reason="${finishReason}"`);
-  }
-  let content = String(data.choices?.[0]?.message?.content ?? '').trim()
-    .replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+  if (finishReason && finishReason !== 'stop') return null;
+  const content = String(data.choices?.[0]?.message?.content ?? '').trim().replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '');
   let parsed: any;
-  try { parsed = JSON.parse(content); } catch { console.error('Repair response was not JSON'); return null; }
+  try { parsed = JSON.parse(content); } catch { return null; }
   const parts = Array.isArray(parsed) ? parsed : (parsed.parts ?? parsed.questions);
-  if (!Array.isArray(parts)) return null;
-
-  const out: Record<string, any> = {};
-  for (const p of parts) {
-    const number = String(p?.question_number ?? '').trim();
-    const normalized = normalizeRepairPart(p);
-    // A repair that changes the task but omits its rewritten answer is rejected.
-    if (!normalized || normalized.questionNumber !== number) continue;
-    out[number] = {
-      question_text: normalized.questionText,
-      correct_answer: normalized.correctAnswer,
-      options: normalized.options,
-    };
-  }
-  return Object.keys(out).length ? out : null;
+  const requiredParts = new Set((plan?.parts ?? []).filter(p => p.resource !== 'none').map(p => p.questionNumber));
+  return prepareGroupRepair(group, parts, scope, requiredParts);
 }
 
 async function enforceAnswerability(
@@ -2946,10 +2958,9 @@ async function enforceAnswerability(
   apiKey: string,
   subject: string,
   plan: PaperPlan | null = null,
+  scope: BiologyScope = {},
 ): Promise<void> {
-  const planExpectations = plan
-    ? { expectedTotalMarks: plan.totalMarks, expectedPartCount: plan.partCount }
-    : {};
+  const planExpectations = { scope, ...(plan ? { expectedTotalMarks: plan.totalMarks, expectedPartCount: plan.partCount } : {}) };
   const load = async () => {
     const { data, error } = await supabase.from('exam_question_drafts').select('*').eq('exam_id', draftId);
     if (error) throw new Error(`Answerability gate could not read drafts: ${error.message}`);
@@ -3000,11 +3011,25 @@ async function enforceAnswerability(
     return true;
   };
 
+  const persistCanonicalResources = async (rows: any[]) => {
+    for (const row of rows) {
+      const resources = resolveQuestionResources(row);
+      if (resources.issues.length) throw new Error('Cannot save inconsistent resources.');
+      const updates: any = {};
+      if (resources.text !== row.question_text) updates.question_text = resources.text;
+      if (resources.table && row.diagram_config?.type === 'data_table' && row.table_data) updates.table_data = null;
+      if (Object.keys(updates).length) {
+        const { error } = await supabase.from('exam_question_drafts').update(updates).eq('id', row.id).eq('exam_id', draftId);
+        if (error) throw new Error('Canonical resources could not be saved: ' + error.message);
+      }
+    }
+  };
   let drafts = await load();
   if (await reconcileToPlan(drafts)) drafts = await load();
   let result = validateQuestionCandidates(drafts, planExpectations);
 
   if (result.ok) {
+    await persistCanonicalResources(drafts);
     console.log(`Answerability gate passed (contract v${CONTRACT_VERSION}, ${drafts.length} parts)`);
     return;
   }
@@ -3026,7 +3051,7 @@ async function enforceAnswerability(
     );
     if (group.length === 0) break;
 
-    const repaired = await repairGroup(group, subject, apiKey);
+    const repaired = await repairGroup(group, subject, apiKey, scope, describeDefects(result.defects), plan);
     if (repaired) {
       for (const row of group) {
         const fix = repaired[String(row.question_number)];
@@ -3036,6 +3061,9 @@ async function enforceAnswerability(
           question_text: fix.question_text,
           // Question and key are always rewritten together.
           correct_answer: fix.correct_answer,
+          diagram_config: fix.diagram_config,
+          table_data: fix.table_data,
+          question_latex: null,
           generation_status: 'ai_generated',
         };
         if (fix.options) payload.options = fix.options;
@@ -3057,5 +3085,6 @@ async function enforceAnswerability(
     }).eq('id', draftId);
     throw new Error(message);
   }
+  await persistCanonicalResources(drafts);
   console.log(`Answerability gate passed after ${callsUsed} repair call(s)`);
 }
