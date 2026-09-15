@@ -13,7 +13,7 @@ import { validateCircuitConfig, buildComponentListForPrompt } from "../_shared/c
 import { buildBlueprintPrompt, validatePaperBlueprint, buildStudiedTextsPrompt, describeFigureForPrompt, validateMapFigure, buildMapFigurePrompt, validateInsertFigures, buildInsertFiguresPrompt } from "../_shared/insert-figures.ts";
 import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
 import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
-import { resolveQuestionResources } from '../_shared/question-resources.ts';
+import { resolveQuestionResources, coerceChart, isResourceChart } from '../_shared/question-resources.ts';
 import { isGcseBiology, GCSE_BIOLOGY_RULES, type BiologyScope } from '../_shared/gcse-biology-scope.ts';
 import { getSubjectSpecificInstructions } from "../_shared/exam-extraction-prompts.ts";
 import { validateQuestionCandidates, describeDefects, hasAssessedTask, assembleQuestionText, CONTRACT_VERSION } from "../_shared/question-contract-validator.ts";
@@ -2901,7 +2901,7 @@ function normalizeQNum(qNum: string): string {
 // draft-to-exam boundary all apply the identical rule.
 
 const MAX_ATTEMPTS_PER_GROUP = 2;
-const MAX_REPAIR_CALLS_PER_REQUEST = 6;
+const MAX_REPAIR_CALLS_PER_REQUEST = 8;
 
 async function repairGroup(
   group: any[],
@@ -2910,6 +2910,7 @@ async function repairGroup(
   scope: BiologyScope,
   defects: string,
   plan: PaperPlan | null,
+  targetNumbers: Set<string> = new Set(),
 ): Promise<Record<string, any> | null> {
   const prompt = [
     'Repair the COMPLETE parent group below, including its resources and private mark schemes.',
@@ -2918,6 +2919,8 @@ async function repairGroup(
     'Blocking defects: ' + defects,
     'Keep every question number, topic, question type and mark allocation EXACTLY.',
     'Return every sibling. Separate context and task; each scored part needs an explicit command.',
+    'The "task" field must START with a command verb (Calculate, Explain, Describe, State, Give, Suggest, Name, Compare, Complete) or a question word. Background information alone is not a task and will be rejected.',
+    'Never leave "task" empty, and never place the instruction only inside "context".',
     'Rewrite the answer/mark scheme together with the task and data. Never reuse an old key for changed data.',
     'For a conflicting table, replace the complete item using ONE coherent dataset and compute its key from that dataset.',
     'Store a results table in diagram_config as type data_table with headers/rows. No Markdown/HTML copy in the stem or table_data.',
@@ -2949,7 +2952,7 @@ async function repairGroup(
   try { parsed = JSON.parse(content); } catch { return null; }
   const parts = Array.isArray(parsed) ? parsed : (parsed.parts ?? parsed.questions);
   const requiredParts = new Set((plan?.parts ?? []).filter(p => p.resource !== 'none').map(p => p.questionNumber));
-  return prepareGroupRepair(group, parts, scope, requiredParts);
+  return prepareGroupRepair(group, parts, scope, requiredParts, targetNumbers);
 }
 
 async function enforceAnswerability(
@@ -3024,8 +3027,31 @@ async function enforceAnswerability(
       }
     }
   };
+  // Deterministically clean trivially fixable figure payloads (numeric strings,
+  // duplicated x readings) before spending any repair call on them.
+  const normaliseCharts = async (rows: any[]): Promise<boolean> => {
+    let any = false;
+    for (const row of rows) {
+      const updates: any = {};
+      for (const field of ['diagram_config', 'options']) {
+        const value = row[field];
+        if (!isResourceChart(value)) continue;
+        const { chart, changed } = coerceChart(value);
+        if (changed) updates[field] = chart;
+      }
+      if (Object.keys(updates).length) {
+        const { error } = await supabase.from('exam_question_drafts').update(updates).eq('id', row.id).eq('exam_id', draftId);
+        if (error) throw new Error('Figure data could not be normalised: ' + error.message);
+        any = true;
+      }
+    }
+    if (any) console.log('[resources] normalised numeric figure data before validation');
+    return any;
+  };
+
   let drafts = await load();
   if (await reconcileToPlan(drafts)) drafts = await load();
+  if (await normaliseCharts(drafts)) drafts = await load();
   let result = validateQuestionCandidates(drafts, planExpectations);
 
   if (result.ok) {
@@ -3051,7 +3077,14 @@ async function enforceAnswerability(
     );
     if (group.length === 0) break;
 
-    const repaired = await repairGroup(group, subject, apiKey, scope, describeDefects(result.defects), plan);
+    // Only the defective siblings must come back valid; an untouched healthy
+    // sibling must not throw away a good fix.
+    const failedNumbers = new Set(
+      group
+        .filter((d: any) => result.failedPartIds.includes(String(d.id ?? d.question_number)))
+        .map((d: any) => String(d.question_number)),
+    );
+    const repaired = await repairGroup(group, subject, apiKey, scope, describeDefects(result.defects), plan, failedNumbers);
     if (repaired) {
       for (const row of group) {
         const fix = repaired[String(row.question_number)];
