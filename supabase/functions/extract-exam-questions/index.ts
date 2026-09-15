@@ -1,4 +1,4 @@
-import { prepareGroupRepair } from '../_shared/prepare-group-repair.ts';
+import { prepareGroupRepairDetailed, type GroupRepairOutcome } from '../_shared/prepare-group-repair.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { assessmentTierPrompt, storedAssessmentTier } from "../_shared/profile-context.ts";
