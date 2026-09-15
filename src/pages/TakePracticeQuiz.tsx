@@ -113,6 +113,7 @@ import {
   ClimateChart, isClimateChartQuestion,
 } from "@/components/graph";
 import { getChartData } from "@/utils/chartData";
+import { LineChart, isLineChartQuestion } from "@/components/graph/LineChart";
 // Helper to convert toggle answers from number[] to Record<number, boolean> format
 function convertTogglesForSerialization(
   toggles: Record<string, number[]>
@@ -1930,7 +1931,7 @@ const TakePracticeQuiz = () => {
                   <QuizQuestionErrorBoundary questionId={currentQuestion.id}>
                     {/* Question text */}
                     <div className="text-base lg:text-lg leading-relaxed">
-                      <MathRenderer content={currentQuestion.question_text} hasMath={currentQuestion.has_math} />
+                      <MathRenderer content={currentQuestion.question_text} question={currentQuestion} hasMath={currentQuestion.has_math} />
                     </div>
                   {/* Reference diagram for "shown in the diagram" questions - SKIP for graph_plotting as it has its own curve rendering */}
                   {(() => {
@@ -2070,6 +2071,7 @@ const TakePracticeQuiz = () => {
                         {isHistogramQuestion(chartData) && (
                           <HistogramChart chartData={chartData} className="mb-4" />
                         )}
+                        {isLineChartQuestion(chartData) && <LineChart chartData={chartData} className="mb-4" />}
                         {isDataTableQuestion(chartData) && (
                           <DataTableChart chartData={chartData} className="mb-4" />
                         )}
