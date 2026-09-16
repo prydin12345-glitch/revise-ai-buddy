@@ -7,6 +7,8 @@
 // Identity stored on an attempt is course + paper + mode + contract version —
 // never a display name such as "AQA_GCSE_BIO_P1".
 
+import { getCourseCapability } from './assessment-tier.ts';
+
 export const BIOLOGY_CONTRACT_VERSION = 1;
 
 export type PaperMode = "full_mock" | "short_practice" | "custom";
@@ -128,7 +130,8 @@ export function buildShortPracticePlan(tier: PaperPlan["tier"]): PaperPlan {
 export function buildFullMockPlan(tier: PaperPlan["tier"]): PaperPlan {
   const T = AQA_BIOLOGY_P1.topics;
   const parts: PlannedPart[] = [];
-  // Four topic sections of 25 marks each, matching AQA's Paper 1 content areas.
+  // Examly's four-group layout covers the Paper 1 topics. AQA does NOT mandate
+  // four questions or equal 25-mark topic allocations; these are our choices.
   T.forEach((topic, i) => {
     const n = i + 1;
     parts.push(part(n, "a", topic, "mcq_single", 1, "AO1"));
@@ -170,13 +173,11 @@ export function supportsBiologyPaperContract(input: {
   examBoard?: string | null;
   educationalLevel?: string | null;
 }): boolean {
-  const s = String(input.subject ?? "").toLowerCase();
-  const b = String(input.examBoard ?? "").toLowerCase();
-  const l = String(input.educationalLevel ?? "").toLowerCase();
-  const biology = s.includes("biology") && !s.includes("combined");
-  const aqa = b.includes("aqa");
-  const gcse = l.includes("gcse") || l.includes("level 2") || l.includes("level2");
-  return biology && aqa && gcse;
+  return getCourseCapability({
+    subject: input.subject,
+    examBoard: input.examBoard,
+    educationalTier: input.educationalLevel,
+  })?.id === 'aqa_gcse_biology';
 }
 
 /** Human-readable summary used by the conversion preview in the UI. */
