@@ -3037,11 +3037,16 @@ async function enforceAnswerability(
     const groupIds = new Set(group.map((row: any) => String(row.id ?? row.question_number)));
     const groupDefects = result.defects.filter(defect => groupIds.has(defect.partId));
     const taskOnly = groupDefects.length > 0 && groupDefects.every(defect => defect.code === 'missing_task');
+    // A repeated task-only refusal means the model will not restate the
+    // instruction in isolation; escalate to a full parent-group rewrite.
+    const escalate = attempts[groupId] > 1;
     const outcome = await requestQuestionRepair({
       group, subject, scope, plan, defects: describeDefects(groupDefects),
-      mode: taskOnly ? 'task_only' : 'full_group', targetNumbers: failedNumbers,
+      mode: taskOnly && !escalate ? 'task_only' : 'full_group',
+      targetNumbers: escalate ? new Set(group.map((row: any) => String(row.question_number))) : failedNumbers,
       previousDiagnostics: lastRejections[groupId],
     }, apiKey);
+
     if (outcome.ok) {
       const saved = await saveQuestionRepairs(supabase, draftId, group, outcome.replacements);
       delete lastRejections[groupId];
