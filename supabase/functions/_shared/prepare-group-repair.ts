@@ -24,6 +24,21 @@ const stable = (value: any): string => JSON.stringify(value === undefined ? null
   item && typeof item === 'object' && !Array.isArray(item)
     ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item);
 
+/** Models label the instruction inconsistently; accept the usual aliases. */
+const readRepairTask = (part: any, originalText = ''): string => {
+  for (const field of ['task', 'instruction', 'command', 'assessed_task', 'question_task', 'question']) {
+    const value = part?.[field];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  const text = typeof part?.question_text === 'string' ? part.question_text.trim() : '';
+  if (text && originalText && text.startsWith(originalText.trim())) {
+    const suffix = text.slice(originalText.trim().length).trim();
+    if (suffix) return suffix;
+  }
+  return '';
+};
+
+
 /**
  * Missing commands can be repaired independently only while their original
  * context, figures and options remain intact. Changing shared source material
