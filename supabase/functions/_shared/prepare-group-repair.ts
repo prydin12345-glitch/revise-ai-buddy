@@ -76,10 +76,11 @@ export function analyseGroupRepair(
     const part = received.get(key);
     if (!part) { fail('missing_part', 'Required repaired part was not returned.', number); continue; }
     const scored = Number(row.marks ?? 0) > 0;
-    const task = typeof part.task === 'string' ? part.task.trim() : '';
+    const task = readRepairTask(part);
     if (scored && !hasAssessedTask(task)) {
-      fail('missing_task', 'Return a separately stated task with an assessed instruction.', number); continue;
+      fail('missing_task', `Return a separately stated task with an assessed instruction. Received: "${task.slice(0, 120)}"`, number); continue;
     }
+
     const normalized = scored ? normalizeRepairPart(part) : null;
     if (scored && !normalized) {
       fail('missing_answer', 'Scored repair requires a rewritten non-empty answer key.', number); continue;
