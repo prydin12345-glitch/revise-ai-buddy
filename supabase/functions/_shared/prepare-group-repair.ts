@@ -1,83 +1,149 @@
-import { normalizeRepairPart, validateQuestionCandidates } from './question-contract-validator.ts';
-import { resolveQuestionResources } from './question-resources.ts';
+import { assembleQuestionText, hasAssessedTask, normalizeRepairPart, validateQuestionCandidates } from './question-contract-validator.ts';
+import { resolveQuestionResources, isResourceChart } from './question-resources.ts';
 import type { BiologyScope } from './gcse-biology-scope.ts';
 
+export type RepairMode = 'task_only' | 'full_group';
+export interface RepairDiagnostic { code: string; partNumber?: string; detail: string; }
+export interface RepairResult {
+  ok: boolean;
+  replacements: Record<string, any>;
+  diagnostics: RepairDiagnostic[];
+}
 export interface GroupRepairOutcome {
-  /** Usable replacements keyed by question number. */
   accepted: Record<string, any>;
-  /** Why a returned part was refused, keyed by question number. */
   rejections: Record<string, string>;
-  /** Targeted parts that are still not repaired. */
   unresolved: string[];
 }
 
+/** Compare common numbering variants without changing stored identities. */
+export const repairNumberKey = (value: unknown): string => String(value ?? '').trim()
+  .replace(/^(?:question\s*|q(?=\s*\d))/i, '').replace(/\s+/g, '')
+  .replace(/^0+(?=\d)/, '').replace(/[()]/g, '').replace(/\.(?=[a-z])/gi, '').toLowerCase();
+
+const stable = (value: any): string => JSON.stringify(value === undefined ? null : value, (_key, item) =>
+  item && typeof item === 'object' && !Array.isArray(item)
+    ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item);
+
 /**
- * Build the usable replacements from a repair response.
- *
- * Every accepted part is kept even when a sibling is refused, so a good fix is
- * never discarded. Each refusal records a precise reason so the caller can log
- * why a repair attempt made no progress instead of silently burning budget.
+ * Missing commands can be repaired independently only while their original
+ * context, figures and options remain intact. Changing shared source material
+ * requires a complete group repair and rewritten keys for every scored part.
+ * Every rejection reports a code; no model response is silently discarded.
  */
-export function prepareGroupRepairDetailed(
-  group: any[],
-  parts: unknown,
-  scope: BiologyScope,
-  requiredParts: Set<string> = new Set(),
-  targetNumbers: Set<string> = new Set(),
-): GroupRepairOutcome {
-  const accepted: Record<string, any> = {};
-  const rejections: Record<string, string> = {};
-  const targets = [...targetNumbers];
-  const unresolved = () => (targets.length ? targets.filter(n => !accepted[n]) : Object.keys(rejections));
-
+export function analyseGroupRepair(
+  group: any[], parts: unknown, scope: BiologyScope,
+  requiredParts: Set<string> = new Set(), targetNumbers: Set<string> = new Set(),
+  mode: RepairMode = targetNumbers.size ? 'task_only' : 'full_group',
+): RepairResult {
+  const diagnostics: RepairDiagnostic[] = [];
+  const replacements: Record<string, any> = {};
+  const fail = (code: string, detail: string, partNumber?: string) => diagnostics.push({ code, partNumber, detail });
+  const result = (): RepairResult => {
+    // Safe independent task fixes may make partial progress. Group rewrites
+    // remain atomic at acceptance because sibling keys can share source data.
+    const allowPartial = mode === 'task_only' && diagnostics.every(d => !!d.partNumber);
+    const accepted = diagnostics.length && !allowPartial ? {} : replacements;
+    return { ok: Object.keys(accepted).length > 0, replacements: accepted, diagnostics };
+  };
   if (!Array.isArray(parts) || !parts.length) {
-    for (const n of targets) rejections[n] = 'model returned no parts';
-    return { accepted, rejections, unresolved: unresolved() };
+    fail('invalid_response_shape', 'Expected a non-empty parts array.');
+    return result();
   }
-
-  for (const row of group) {
+  const byKey = new Map(group.map(row => [repairNumberKey(row.question_number), row]));
+  if (byKey.size !== group.length) {
+    fail('ambiguous_original_number', 'Original part numbers are not unique.');
+    return result();
+  }
+  const targets = mode === 'full_group' ? new Set(byKey.keys())
+    : new Set([...targetNumbers].map(repairNumberKey));
+  if (!targets.size || [...targets].some(key => !byKey.has(key))) {
+    fail('invalid_target', 'Repair targets must identify existing group members.');
+    return result();
+  }
+  const received = new Map<string, any>();
+  for (const part of parts) {
+    const key = repairNumberKey(part?.question_number);
+    if (!key || !byKey.has(key)) { fail('unknown_part', 'Response contains an unrecognised part number.'); continue; }
+    // Healthy siblings are never rewritten by a task-only repair.
+    if (!targets.has(key)) continue;
+    if (received.has(key)) { fail('duplicate_part', 'Response repeats the same part.', String(byKey.get(key).question_number)); continue; }
+    received.set(key, part);
+  }
+  for (const key of targets) {
+    const row = byKey.get(key);
     const number = String(row.question_number);
-    const reject = (reason: string) => { rejections[number] = reason; };
-    const matches = parts.filter(p => String((p as any)?.question_number ?? '').trim() === number);
-    if (matches.length !== 1) { reject(matches.length ? 'duplicate parts returned for this number' : 'part missing from repair response'); continue; }
-    const part: any = matches[0];
-    const normalized = normalizeRepairPart(part);
-    if (!normalized) { reject('no explicit task and/or answer key returned'); continue; }
-    const resourceIssues = resolveQuestionResources({ ...part, question_text: normalized.questionText }).issues;
-    if (resourceIssues.length) { reject('resource invalid: ' + resourceIssues.join('; ')); continue; }
-    const needsResource = requiredParts.has(number) || !!row.diagram_config || !!row.table_data;
-    const diagram = part.diagram_config ?? part.chart_data ?? null;
-    if (needsResource && (!diagram || typeof diagram !== 'object' || Array.isArray(diagram))) { reject('required resource dropped by the repair'); continue; }
-    if (row.question_type === 'mcq' && normalized.options?.length !== 4) { reject('MCQ did not return exactly 4 options'); continue; }
-    const candidate = {
-      ...row, question_text: normalized.questionText, correct_answer: normalized.correctAnswer,
-      options: normalized.options ?? (row.question_type === 'mcq' ? null : row.options),
-      diagram_config: diagram, table_data: null, question_latex: null,
-    };
+    if (diagnostics.some(d => d.partNumber === number)) continue;
+    const part = received.get(key);
+    if (!part) { fail('missing_part', 'Required repaired part was not returned.', number); continue; }
+    const scored = Number(row.marks ?? 0) > 0;
+    const task = typeof part.task === 'string' ? part.task.trim() : '';
+    if (scored && !hasAssessedTask(task)) {
+      fail('missing_task', 'Return a separately stated task with an assessed instruction.', number); continue;
+    }
+    const normalized = scored ? normalizeRepairPart(part) : null;
+    if (scored && !normalized) {
+      fail('missing_answer', 'Scored repair requires a rewritten non-empty answer key.', number); continue;
+    }
+    let candidate: any;
+    if (mode === 'task_only') {
+      const originalText = assembleQuestionText(row);
+      const contextChanged = typeof part.context === 'string' && part.context.trim() && part.context.trim() !== originalText.trim();
+      const textChanged = typeof part.question_text === 'string' && part.question_text.trim()
+        && ![originalText.trim(), `${originalText}\n\n${task}`.trim()].includes(part.question_text.trim());
+      const resourceChanged = ['diagram_config', 'chart_data', 'diagramConfig', 'table_data', 'options'].some(field =>
+        part[field] !== undefined && part[field] !== null && stable(part[field]) !== stable(row[field]));
+      if (contextChanged || textChanged || resourceChanged) {
+        fail('source_changed', 'Task-only repair must preserve the original context, resources and choices.', number); continue;
+      }
+      candidate = { ...row, question_text: `${originalText}\n\n${task}`.trim(), correct_answer: normalized!.correctAnswer,
+        context: null, task: null, question_latex: null };
+    } else {
+      const text = normalized?.questionText ?? assembleQuestionText(part);
+      if (!text) { fail('empty_context', 'An unmarked parent still needs context.', number); continue; }
+      const resources = resolveQuestionResources({ ...part, question_text: text });
+      if (resources.issues.length) {
+        for (const issue of resources.issues) fail(issue.code, issue.detail, number);
+        continue;
+      }
+      const needsResource = requiredParts.has(number) || !!row.diagram_config || !!row.table_data;
+      const diagram = part.diagram_config ?? part.chart_data ?? resources.chart ?? null;
+      if (needsResource && (!diagram || typeof diagram !== 'object' || Array.isArray(diagram))) {
+        fail('missing_required_resource', 'Complete group repairs must return every required resource.', number); continue;
+      }
+      candidate = { ...row, question_text: resources.text, correct_answer: normalized?.correctAnswer ?? row.correct_answer,
+        options: normalized?.options ?? (row.question_type === 'mcq' || isResourceChart(row.options) ? null : row.options),
+        diagram_config: diagram, table_data: null, question_latex: null, context: null, task: null };
+    }
     const validation = validateQuestionCandidates([candidate], { scope });
-    if (!validation.ok) { reject('still failed the contract: ' + validation.defects.map(d => d.code).join(', ')); continue; }
+    if (!validation.ok) {
+      for (const defect of validation.defects) fail(defect.code, defect.detail, number);
+      continue;
+    }
     candidate.question_text = resolveQuestionResources(candidate).text;
-    accepted[number] = candidate;
+    replacements[number] = candidate;
   }
-
-  return { accepted, rejections, unresolved: unresolved() };
+  return result();
 }
 
-/**
- * Backwards-compatible wrapper: all-or-nothing when no targets are named,
- * otherwise every named part must be repaired.
- */
+/** Compatibility wrapper for callers that only need the accepted replacements. */
 export function prepareGroupRepair(
-  group: any[],
-  parts: unknown,
-  scope: BiologyScope,
-  requiredParts: Set<string> = new Set(),
-  targetNumbers: Set<string> = new Set(),
+  group: any[], parts: unknown, scope: BiologyScope,
+  requiredParts: Set<string> = new Set(), targetNumbers: Set<string> = new Set(),
 ): Record<string, any> | null {
-  const strict = targetNumbers.size === 0;
-  if (strict && (!Array.isArray(parts) || parts.length !== group.length)) return null;
-  const { accepted, rejections, unresolved } = prepareGroupRepairDetailed(group, parts, scope, requiredParts, targetNumbers);
-  if (strict && Object.keys(rejections).length) return null;
-  if (!strict && unresolved.length) return null;
-  return Object.keys(accepted).length ? accepted : null;
+  const result = analyseGroupRepair(group, parts, scope, requiredParts, targetNumbers);
+  return result.ok && !result.diagnostics.length ? result.replacements : null;
+}
+
+/** Preserve the detailed interface introduced by the latest Lovable change. */
+export function prepareGroupRepairDetailed(
+  group: any[], parts: unknown, scope: BiologyScope,
+  requiredParts: Set<string> = new Set(), targetNumbers: Set<string> = new Set(),
+): GroupRepairOutcome {
+  const result = analyseGroupRepair(group, parts, scope, requiredParts, targetNumbers);
+  const targets = targetNumbers.size ? [...targetNumbers] : group.map(row => String(row.question_number));
+  return {
+    accepted: result.replacements,
+    rejections: Object.fromEntries(result.diagnostics.map(d => [d.partNumber ?? 'response', `${d.code}: ${d.detail}`])),
+    unresolved: targets.filter(number => !result.replacements[number]),
+  };
 }
