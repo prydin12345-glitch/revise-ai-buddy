@@ -125,6 +125,15 @@ export function hasAssessedTask(raw: string | null | undefined): boolean {
       const s = seg.replace(/^[\s"'(\[|*\-–—]+/, "").trim();
       if (s !== c && startsWithCommand(s)) return true;
     }
+    // A short introductory phrase before the command is still an instruction:
+    // "From the table, state the optimum pH" / "Using Figure 2, calculate…".
+    const comma = c.indexOf(", ");
+    if (comma > 0 && comma < 80) {
+      const lead = c.slice(0, comma).trim();
+      const rest = c.slice(comma + 1).replace(/^[\s"'(\[|*\-–—]+/, "").trim();
+      if (lead.split(" ").length <= 10 && startsWithCommand(rest)) return true;
+    }
+
     // Explicit completion / selection instructions.
     if (/\b(complete the (table|diagram|sentence|graph)|fill in|tick (one|two|the) box|choose one answer|select one)\b/.test(c)) {
       return true;

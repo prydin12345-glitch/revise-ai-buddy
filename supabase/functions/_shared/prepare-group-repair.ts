@@ -24,6 +24,21 @@ const stable = (value: any): string => JSON.stringify(value === undefined ? null
   item && typeof item === 'object' && !Array.isArray(item)
     ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item);
 
+/** Models label the instruction inconsistently; accept the usual aliases. */
+const readRepairTask = (part: any, originalText = ''): string => {
+  for (const field of ['task', 'instruction', 'command', 'assessed_task', 'question_task', 'question']) {
+    const value = part?.[field];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  const text = typeof part?.question_text === 'string' ? part.question_text.trim() : '';
+  if (text && originalText && text.startsWith(originalText.trim())) {
+    const suffix = text.slice(originalText.trim().length).trim();
+    if (suffix) return suffix;
+  }
+  return '';
+};
+
+
 /**
  * Missing commands can be repaired independently only while their original
  * context, figures and options remain intact. Changing shared source material
@@ -76,25 +91,29 @@ export function analyseGroupRepair(
     const part = received.get(key);
     if (!part) { fail('missing_part', 'Required repaired part was not returned.', number); continue; }
     const scored = Number(row.marks ?? 0) > 0;
-    const task = typeof part.task === 'string' ? part.task.trim() : '';
+    const rowText = assembleQuestionText(row);
+    const task = readRepairTask(part, rowText);
     if (scored && !hasAssessedTask(task)) {
-      fail('missing_task', 'Return a separately stated task with an assessed instruction.', number); continue;
+      fail('missing_task', `Return a separately stated task with an assessed instruction. Received: "${task.slice(0, 120)}"`, number); continue;
     }
+
     const normalized = scored ? normalizeRepairPart(part) : null;
     if (scored && !normalized) {
       fail('missing_answer', 'Scored repair requires a rewritten non-empty answer key.', number); continue;
     }
     let candidate: any;
     if (mode === 'task_only') {
-      const originalText = assembleQuestionText(row);
-      const contextChanged = typeof part.context === 'string' && part.context.trim() && part.context.trim() !== originalText.trim();
+      const originalText = rowText;
+      const flat = (value: string) => value.replace(/\s+/g, ' ').trim();
+      const contextChanged = typeof part.context === 'string' && part.context.trim() && flat(part.context) !== flat(originalText);
       const textChanged = typeof part.question_text === 'string' && part.question_text.trim()
-        && ![originalText.trim(), `${originalText}\n\n${task}`.trim()].includes(part.question_text.trim());
+        && ![flat(originalText), flat(`${originalText} ${task}`)].includes(flat(part.question_text));
       const resourceChanged = ['diagram_config', 'chart_data', 'diagramConfig', 'table_data', 'options'].some(field =>
         part[field] !== undefined && part[field] !== null && stable(part[field]) !== stable(row[field]));
       if (contextChanged || textChanged || resourceChanged) {
         fail('source_changed', 'Task-only repair must preserve the original context, resources and choices.', number); continue;
       }
+
       candidate = { ...row, question_text: `${originalText}\n\n${task}`.trim(), correct_answer: normalized!.correctAnswer,
         context: null, task: null, question_latex: null };
     } else {
