@@ -64,13 +64,13 @@ const numeric = (v: unknown): number | null => {
   if (typeof v === 'number' && Number.isFinite(v)) return v;
   if (typeof v === 'string') {
     const s = v.replace(/[−–]/g, '-').trim();
-    if (/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(s)) return Number(s);
+    if (/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(s) && Number.isFinite(Number(s))) return Number(s);
   }
   return null;
 };
 /**
  * Deterministically repair trivially fixable line-graph payloads: numeric
- * strings become numbers and a repeated x reading is dropped. Anything that is
+ * strings become numbers and an exactly repeated reading is dropped. Anything that is
  * genuinely unusable is left untouched so the validator still reports it.
  */
 export function coerceChart(chart: unknown): { chart: unknown; changed: boolean } {
@@ -79,15 +79,17 @@ export function coerceChart(chart: unknown): { chart: unknown; changed: boolean 
   let changed = false;
   const datasets = c.datasets.map((ds: any) => {
     if (!ds || !Array.isArray(ds.data)) return ds;
-    const seen = new Set<number>();
+    const seen = new Map<number, number>();
     const data: any[] = [];
     for (const pt of ds.data) {
       if (!pt || typeof pt !== 'object') { data.push(pt); continue; }
       const x = numeric((pt as any).x);
       const y = numeric((pt as any).y);
       if (x === null || y === null) { data.push(pt); continue; }
-      if (seen.has(x)) { changed = true; continue; }
-      seen.add(x);
+      // Conflicting y values at one x are evidence of a data defect. Keep them
+      // so validation can reject them, rather than silently choosing a value.
+      if (seen.has(x) && seen.get(x) === y) { changed = true; continue; }
+      seen.set(x, y);
       if (x !== (pt as any).x || y !== (pt as any).y) changed = true;
       data.push({ ...pt, x, y });
     }
@@ -151,6 +153,7 @@ export function resolveQuestionResources(q: ResourceQuestion) {
     else issues.push({ code: 'conflicting_resource_data', detail: 'The table in the stem disagrees with the structured figure. Neither copy is automatically authoritative.' });
   }
   if (chart) issues.push(...chartIssues(chart));
+  if (chart) chart = coerceChart(chart).chart;
   let clean = text;
   if (!issues.length) for (const entry of remove.sort((a, b) => b.start - a.start)) clean = clean.slice(0, entry.start) + clean.slice(entry.end);
   clean = stripResourcePlaceholders(clean, !!chart || !!object(q.diagram_config) || !!object(q.diagramConfig));
