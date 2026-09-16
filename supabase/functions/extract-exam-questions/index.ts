@@ -2901,8 +2901,9 @@ function normalizeQNum(qNum: string): string {
 // _shared/question-contract-validator.ts so extraction, sanitisation and the
 // draft-to-exam boundary all apply the identical rule.
 
-const MAX_ATTEMPTS_PER_GROUP = 2;
+const MAX_ATTEMPTS_PER_GROUP = 3;
 const MAX_REPAIR_CALLS_PER_REQUEST = 8;
+
 
 async function enforceAnswerability(
   draftId: string,
