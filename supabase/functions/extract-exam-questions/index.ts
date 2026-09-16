@@ -1,4 +1,5 @@
-import { prepareGroupRepairDetailed, type GroupRepairOutcome } from '../_shared/prepare-group-repair.ts';
+import { requestQuestionRepair, saveQuestionRepairs, describeRepairDiagnostics } from '../_shared/question-repair.ts';
+import type { RepairDiagnostic } from '../_shared/prepare-group-repair.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { assessmentTierPrompt, storedAssessmentTier } from "../_shared/profile-context.ts";
@@ -14,10 +15,10 @@ import { buildBlueprintPrompt, validatePaperBlueprint, buildStudiedTextsPrompt, 
 import { sanitiseFeedback } from "../_shared/sanitise-feedback.ts";
 import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 import { resolveQuestionResources, coerceChart, isResourceChart } from '../_shared/question-resources.ts';
-import { isGcseBiology, GCSE_BIOLOGY_RULES, type BiologyScope } from '../_shared/gcse-biology-scope.ts';
+import { isGcseBiology, GCSE_BIOLOGY_RULES, biologyScopeInstructions, type BiologyScope } from '../_shared/gcse-biology-scope.ts';
 import { getSubjectSpecificInstructions } from "../_shared/exam-extraction-prompts.ts";
 import { validateQuestionCandidates, describeDefects, hasAssessedTask, assembleQuestionText, CONTRACT_VERSION } from "../_shared/question-contract-validator.ts";
-import { buildPaperPlan, describePlan, AQA_BIOLOGY_P1, type PaperMode, type PaperPlan } from "../_shared/biology-paper-contract.ts";
+import { buildPaperPlan, describePlan, supportsBiologyPaperContract, AQA_BIOLOGY_P1, type PaperMode, type PaperPlan } from "../_shared/biology-paper-contract.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
 
@@ -662,6 +663,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   // metadata is a client-influenced echo and must not override it.
   const storedContext = (exam as any).generation_context ?? null;
   const authoritativeTier = storedAssessmentTier(storedContext);
+  const generationScope: BiologyScope = { subject: exam.subject_id, educationalLevel: qualificationLevel, examBoard, assessmentTier: authoritativeTier };
   const metadataTier = normaliseAssessmentTier(
     (formatData?.profile_metadata as any)?.assessmentTier ?? null,
   );
@@ -681,6 +683,8 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   const storedContract = (formatData?.profile_metadata as any)?.paperBlueprint?.paperContract ?? null;
   let guidedPlan: PaperPlan | null = null;
   if (storedContract?.courseId === AQA_BIOLOGY_P1.courseId && storedContract?.paperId === AQA_BIOLOGY_P1.paperId) {
+    if (!supportsBiologyPaperContract(generationScope)) throw new Error('The saved AQA Biology paper preset does not match this course and qualification.');
+    if (authoritativeTier !== 'foundation' && authoritativeTier !== 'higher') throw new Error('Select and save Foundation or Higher on this exam profile before generating a guided paper.');
     guidedPlan = buildPaperPlan(storedContract.mode as PaperMode, authoritativeTier === 'foundation' || authoritativeTier === 'higher' ? authoritativeTier : null);
   }
   if (guidedPlan) {
@@ -691,9 +695,7 @@ ${guidedPlan.parts.map((p) => `- ${p.questionNumber} | ${p.topic} | ${p.response
 Stay inside ${AQA_BIOLOGY_P1.displayName} Paper 1 topics only. Every scored part needs an explicit task; give "context" and "task" as separate fields.`;
   }
 
-  if (isGcseBiology({ subject: exam.subject_id, educationalLevel: qualificationLevel })) {
-    extractionPrompt += '\n\n' + GCSE_BIOLOGY_RULES;
-  }
+  extractionPrompt += '\n\n' + biologyScopeInstructions(generationScope);
   if (assessmentTierPromptBlock) {
     extractionPrompt += '\n\n' + assessmentTierPromptBlock;
   }
@@ -1428,7 +1430,7 @@ Stay inside ${AQA_BIOLOGY_P1.displayName} Paper 1 topics only. Every scored part
 
   if (qualityScore < REGEN_THRESHOLD) {
     console.log(`Quality below ${REGEN_THRESHOLD} — running regeneration pass`);
-    await regenerateQuestions(inserted?.filter((q: any) => !q.has_figures) || [], supabase, lovableApiKey, hasResourcePack, resourcePackContext, exam.subject_id, isCustomNicheForValidation, regenQuestionType);
+    await regenerateQuestions(inserted?.filter((q: any) => !q.has_figures) || [], supabase, lovableApiKey, hasResourcePack, resourcePackContext, exam.subject_id, isCustomNicheForValidation, regenQuestionType, generationScope);
   } else {
     console.log(`Quality above ${REGEN_THRESHOLD} — skipping regeneration pass (saved an AI call)`);
   }
@@ -1458,9 +1460,7 @@ Stay inside ${AQA_BIOLOGY_P1.displayName} Paper 1 topics only. Every scored part
   // parent group (text + expected answer + mark scheme together), at most twice
   // per group and within a whole-request budget, then revalidate. If the paper
   // still fails, the extraction fails — it is never presented as ready.
-  await enforceAnswerability(draftId, supabase, lovableApiKey, exam.subject_id, guidedPlan, {
-    subject: exam.subject_id, educationalLevel: qualificationLevel, examBoard,
-  });
+  await enforceAnswerability(draftId, supabase, lovableApiKey, exam.subject_id, guidedPlan, generationScope);
 
 
 
@@ -2779,7 +2779,7 @@ function scoreGenerationQuality(
   return Math.max(0, Math.round(score));
 }
 
-async function regenerateQuestions(questions: any[], supabase: any, apiKey: string, hasResourcePack: boolean = false, resourceContext: string = '', subjectId: string = '', isCustomNiche: boolean = false, questionType: 'mcq' | 'short_answer' | 'long_form' | 'mixed' = 'mixed') {
+async function regenerateQuestions(questions: any[], supabase: any, apiKey: string, hasResourcePack: boolean = false, resourceContext: string = '', subjectId: string = '', isCustomNiche: boolean = false, questionType: 'mcq' | 'short_answer' | 'long_form' | 'mixed' = 'mixed', scope: BiologyScope = {}) {
   // Group questions by root_question_number so sibling sub-parts are regenerated TOGETHER
   const grouped: Record<string, any[]> = {};
   for (const q of questions) {
@@ -2802,6 +2802,7 @@ async function regenerateQuestions(questions: any[], supabase: any, apiKey: stri
 You are rewriting exam questions about "${subjectId}".
 Write completely new questions — do not copy the originals.
 Keep the same question type, mark allocation, and topic as the originals.
+${biologyScopeInstructions(scope)}
 
 ${isCustomNiche ? `All questions must be about "${subjectId}" only. No mathematics, statistics, or unrelated content.` : ''}
 
@@ -2902,112 +2903,6 @@ function normalizeQNum(qNum: string): string {
 
 const MAX_ATTEMPTS_PER_GROUP = 2;
 const MAX_REPAIR_CALLS_PER_REQUEST = 8;
-
-async function repairGroup(
-  group: any[],
-  subject: string,
-  apiKey: string,
-  scope: BiologyScope,
-  defects: string,
-  plan: PaperPlan | null,
-  targetNumbers: Set<string> = new Set(),
-): Promise<GroupRepairOutcome> {
-  const failed = (reason: string): GroupRepairOutcome => ({
-    accepted: {},
-    rejections: Object.fromEntries([...targetNumbers].map(n => [n, reason])),
-    unresolved: [...targetNumbers],
-  });
-  const prompt = [
-    'Repair the COMPLETE parent group below, including its resources and private mark schemes.',
-    'Subject: ' + subject + '. Qualification: ' + (scope.educationalLevel ?? 'unchanged') + '.',
-    isGcseBiology(scope) ? GCSE_BIOLOGY_RULES : '',
-    'Blocking defects: ' + defects,
-    'Keep every question number, topic, question type and mark allocation EXACTLY.',
-    'Return every sibling. Separate context and task; each scored part needs an explicit command.',
-    'The "task" field must START with a command verb (Calculate, Explain, Describe, State, Give, Suggest, Name, Compare, Complete) or a question word. Background information alone is not a task and will be rejected.',
-    'Never leave "task" empty, and never place the instruction only inside "context".',
-    'Rewrite the answer/mark scheme together with the task and data. Never reuse an old key for changed data.',
-    'For a conflicting table, replace the complete item using ONE coherent dataset and compute its key from that dataset.',
-    'Store a results table in diagram_config as type data_table with headers/rows. No Markdown/HTML copy in the stem or table_data.',
-    'Keep every required resource; a practical/data item cannot be repaired into a text-only question.',
-    'For continuous point readings use type line_chart with datasets: [{label, data:[{x:number,y:number}]}].',
-    'Use actual numeric measurement times. Do not invent point times for interval summaries; generate a coherent new point-reading question instead if needed.',
-    'Captions must be neutral. Never emit [Graph showing ...] notes or reveal an assessed peak/trend.',
-    'For MCQs return exactly 4 options and correct_answer matching an option.',
-    'Put inline mathematics inside $...$; do not repeat a power on a separate line.',
-    'Planned resources: ' + JSON.stringify(plan?.parts.filter(p => group.some(row => String(row.question_number) === p.questionNumber)) ?? []),
-    'Complete current group: ' + JSON.stringify(group.map(p => ({
-      question_number: p.question_number, question_type: p.question_type, marks: p.marks,
-      topic_tag: p.topic_tag, question_text: p.question_text, correct_answer: p.correct_answer,
-      options: p.options, diagram_config: p.diagram_config, table_data: p.table_data,
-    }))),
-    'Return JSON only: {"parts":[{"question_number":"1(a)","context":"...","task":"...","correct_answer":"...","options":null,"diagram_config":null}]}',
-  ].filter(Boolean).join('\n');
-  const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: 'google/gemini-2.5-flash', messages: [{ role: 'user', content: prompt }], temperature: 0.3, response_format: { type: 'json_object' } }),
-  });
-  if (!resp.ok) { console.error('Repair call failed:', resp.status); return failed('repair call HTTP ' + resp.status); }
-  const data = await resp.json();
-  const finishReason = data.choices?.[0]?.finish_reason;
-  if (finishReason && finishReason !== 'stop') return failed('model stopped early (' + finishReason + ')');
-  const content = String(data.choices?.[0]?.message?.content ?? '').trim().replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '');
-  let parsed: any;
-  try { parsed = JSON.parse(content); } catch { return failed('repair response was not valid JSON'); }
-  const parts = Array.isArray(parsed) ? parsed : (parsed.parts ?? parsed.questions);
-  const requiredParts = new Set((plan?.parts ?? []).filter(p => p.resource !== 'none').map(p => p.questionNumber));
-  return prepareGroupRepairDetailed(group, parts, scope, requiredParts, targetNumbers);
-}
-
-/**
- * Last-resort, single-part repair for a scored part that still has no assessed
- * instruction. Whole-group JSON rewrites fail far more often than a narrow
- * "write the missing command sentence for this one part" request, so a part
- * that survives group repair gets one focused attempt that keeps its context,
- * marks and resources untouched and rewrites only task + answer key.
- */
-async function repairPartTask(
-  row: any,
-  subject: string,
-  apiKey: string,
-  scope: BiologyScope,
-): Promise<{ question_text: string; correct_answer: string } | null> {
-  const prompt = [
-    'One scored exam part is missing its instruction to the student.',
-    'Subject: ' + subject + '. Qualification: ' + (scope.educationalLevel ?? 'unchanged') + '.',
-    'Keep the context, data and mark allocation EXACTLY as given.',
-    'Write ONE instruction sentence that can be answered from the context and is worth ' + (row.marks ?? 1) + ' mark(s).',
-    'It MUST start with a command verb (Calculate, Explain, Describe, State, Give, Suggest, Name, Compare, Complete) or a question word.',
-    'Then write the matching answer/mark scheme for that instruction.',
-    'Part: ' + JSON.stringify({
-      question_number: row.question_number, marks: row.marks, topic_tag: row.topic_tag,
-      context: row.question_text, existing_answer: row.correct_answer,
-      diagram_config: row.diagram_config, table_data: row.table_data,
-    }),
-    'Return JSON only: {"task":"...","correct_answer":"..."}',
-  ].join('\n');
-  const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: 'google/gemini-2.5-flash', messages: [{ role: 'user', content: prompt }], temperature: 0.2, response_format: { type: 'json_object' } }),
-  });
-  if (!resp.ok) { console.error('Task repair call failed:', resp.status); return null; }
-  const data = await resp.json();
-  if (data.choices?.[0]?.finish_reason && data.choices[0].finish_reason !== 'stop') return null;
-  let parsed: any;
-  try {
-    parsed = JSON.parse(String(data.choices?.[0]?.message?.content ?? '').trim().replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/, ''));
-  } catch { return null; }
-  const task = typeof parsed?.task === 'string' ? parsed.task.trim() : '';
-  const answer = typeof parsed?.correct_answer === 'string' ? parsed.correct_answer.trim()
-    : (typeof parsed?.expected_answer === 'string' ? parsed.expected_answer.trim() : '');
-  if (!task || !answer || !hasAssessedTask(task)) return null;
-  const questionText = assembleQuestionText({ context: String(row.question_text ?? ''), task });
-  const candidate = { ...row, question_text: questionText, correct_answer: answer };
-  if (!validateQuestionCandidates([candidate], { scope }).ok) return null;
-  return { question_text: resolveQuestionResources(candidate).text, correct_answer: answer };
-}
 
 async function enforceAnswerability(
   draftId: string,
@@ -3117,6 +3012,7 @@ async function enforceAnswerability(
 
   const attempts: Record<string, number> = {};
   let callsUsed = 0;
+  const lastRejections: Record<string, RepairDiagnostic[]> = {};
 
   while (!result.ok && callsUsed < MAX_REPAIR_CALLS_PER_REQUEST) {
     const groupId = result.failedGroupIds.find(
@@ -3138,67 +3034,31 @@ async function enforceAnswerability(
         .filter((d: any) => result.failedPartIds.includes(String(d.id ?? d.question_number)))
         .map((d: any) => String(d.question_number)),
     );
-    const repaired = await repairGroup(group, subject, apiKey, scope, describeDefects(result.defects), plan, failedNumbers);
-    // Partial progress is kept: every accepted sibling is saved even when
-    // another one is still refused, and every refusal is logged with its
-    // reason so a wasted attempt is never silent.
-    for (const row of group) {
-      const fix = repaired.accepted[String(row.question_number)];
-      if (!fix) continue;
-      const payload: any = {
-        original_question_text: row.question_text,
-        question_text: fix.question_text,
-        // Question and key are always rewritten together.
-        correct_answer: fix.correct_answer,
-        diagram_config: fix.diagram_config,
-        table_data: fix.table_data,
-        question_latex: null,
-        generation_status: 'ai_generated',
-      };
-      if (fix.options) payload.options = fix.options;
-      const { error } = await supabase.from('exam_question_drafts').update(payload).eq('id', row.id);
-      if (error) throw new Error(`Repair could not be saved: ${error.message}`);
+    const groupIds = new Set(group.map((row: any) => String(row.id ?? row.question_number)));
+    const groupDefects = result.defects.filter(defect => groupIds.has(defect.partId));
+    const taskOnly = groupDefects.length > 0 && groupDefects.every(defect => defect.code === 'missing_task');
+    const outcome = await requestQuestionRepair({
+      group, subject, scope, plan, defects: describeDefects(groupDefects),
+      mode: taskOnly ? 'task_only' : 'full_group', targetNumbers: failedNumbers,
+      previousDiagnostics: lastRejections[groupId],
+    }, apiKey);
+    if (outcome.ok) {
+      const saved = await saveQuestionRepairs(supabase, draftId, group, outcome.replacements);
+      delete lastRejections[groupId];
+      console.log(`[repair] group=${groupId} attempt=${attempts[groupId]} tier=${scope.assessmentTier ?? 'unknown'} accepted and saved=${saved}`);
     }
-    const rejected = Object.entries(repaired.rejections);
-    if (rejected.length) {
-      console.warn(`[repair] group ${groupId} attempt ${attempts[groupId]} refused: ` +
-        rejected.map(([n, why]) => `${n} — ${why}`).join('; '));
-    }
-
-    // Focused single-part fallback once the group rewrite has had its chances:
-    // rewrite only the missing instruction and its key, keeping everything else.
-    if (
-      !Object.keys(repaired.accepted).length &&
-      attempts[groupId] >= MAX_ATTEMPTS_PER_GROUP &&
-      callsUsed < MAX_REPAIR_CALLS_PER_REQUEST
-    ) {
-      const taskless = group.filter((d: any) =>
-        failedNumbers.has(String(d.question_number)) &&
-        result.defects.some((x: any) => x.code === 'missing_task' && x.partId === String(d.id ?? d.question_number)));
-      for (const row of taskless) {
-        if (callsUsed >= MAX_REPAIR_CALLS_PER_REQUEST) break;
-        callsUsed += 1;
-        const fix = await repairPartTask(row, subject, apiKey, scope);
-        if (!fix) { console.warn(`[repair] single-part task repair failed for ${row.question_number}`); continue; }
-        const { error } = await supabase.from('exam_question_drafts').update({
-          original_question_text: row.question_text,
-          question_text: fix.question_text,
-          correct_answer: fix.correct_answer,
-          question_latex: null,
-          generation_status: 'ai_generated',
-        }).eq('id', row.id);
-        if (error) throw new Error(`Repair could not be saved: ${error.message}`);
-        console.log(`[repair] single-part task repair applied to ${row.question_number}`);
-      }
+    if (outcome.diagnostics.length) {
+      lastRejections[groupId] = outcome.diagnostics;
+      console.warn(`[repair] group=${groupId} attempt=${attempts[groupId]} phase=${outcome.phase} rejected: ${describeRepairDiagnostics(outcome.diagnostics)}`);
     }
 
     drafts = await load();
     result = validateQuestionCandidates(drafts, planExpectations);
   }
 
-
   if (!result.ok) {
-    const message = `Generation failed the answerability gate after ${callsUsed} repair attempt(s): ${describeDefects(result.defects)}`;
+    const rejectionDetails = Object.entries(lastRejections).map(([group, items]) => `Group ${group}: ${describeRepairDiagnostics(items)}`).join(" | ");
+    const message = `Generation failed the answerability gate after ${callsUsed} repair attempt(s): ${describeDefects(result.defects)}${rejectionDetails ? ". Repair rejections: " + rejectionDetails : ""}`;
     console.error(message);
     await supabase.from('exams').update({
       extraction_status: 'failed',
