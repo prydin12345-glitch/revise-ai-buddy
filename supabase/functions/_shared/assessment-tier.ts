@@ -1,6 +1,6 @@
-// Mirror of src/lib/assessment-tier.ts for the Deno edge runtime.
-// Keep both files in step — the frontend offers the tier, the backend
-// validates it. See the frontend file for the full rationale.
+// Shared catalogue for the frontend and Deno runtime. Custom names are display
+// labels; the explicit board and qualification determine the supported course.
+// An absent tier remains unknown. Subject names never select a tier themselves.
 
 export type AssessmentTier = "foundation" | "higher" | "not_tiered";
 
@@ -23,6 +23,7 @@ const GCSE_LEVEL_IDS = [
   "gcse_9_1",
   "ks4",
   "secondary_14_16",
+  "level 2",
 ];
 
 export interface CourseCapability {
@@ -54,6 +55,8 @@ const subjectForms = (value?: string | null): string[] => {
   if (!base) return [];
   const stripped = base
     .replace(DECORATION, " ")
+    .replace(/\(\s*\)|\[\s*\]/g, " ")
+    .replace(/[–—-]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   return stripped && stripped !== base ? [base, stripped] : [base];
