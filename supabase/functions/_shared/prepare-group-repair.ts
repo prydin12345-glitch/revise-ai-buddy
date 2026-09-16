@@ -91,7 +91,8 @@ export function analyseGroupRepair(
     const part = received.get(key);
     if (!part) { fail('missing_part', 'Required repaired part was not returned.', number); continue; }
     const scored = Number(row.marks ?? 0) > 0;
-    const task = readRepairTask(part);
+    const rowText = assembleQuestionText(row);
+    const task = readRepairTask(part, rowText);
     if (scored && !hasAssessedTask(task)) {
       fail('missing_task', `Return a separately stated task with an assessed instruction. Received: "${task.slice(0, 120)}"`, number); continue;
     }
@@ -102,15 +103,17 @@ export function analyseGroupRepair(
     }
     let candidate: any;
     if (mode === 'task_only') {
-      const originalText = assembleQuestionText(row);
-      const contextChanged = typeof part.context === 'string' && part.context.trim() && part.context.trim() !== originalText.trim();
+      const originalText = rowText;
+      const flat = (value: string) => value.replace(/\s+/g, ' ').trim();
+      const contextChanged = typeof part.context === 'string' && part.context.trim() && flat(part.context) !== flat(originalText);
       const textChanged = typeof part.question_text === 'string' && part.question_text.trim()
-        && ![originalText.trim(), `${originalText}\n\n${task}`.trim()].includes(part.question_text.trim());
+        && ![flat(originalText), flat(`${originalText} ${task}`)].includes(flat(part.question_text));
       const resourceChanged = ['diagram_config', 'chart_data', 'diagramConfig', 'table_data', 'options'].some(field =>
         part[field] !== undefined && part[field] !== null && stable(part[field]) !== stable(row[field]));
       if (contextChanged || textChanged || resourceChanged) {
         fail('source_changed', 'Task-only repair must preserve the original context, resources and choices.', number); continue;
       }
+
       candidate = { ...row, question_text: `${originalText}\n\n${task}`.trim(), correct_answer: normalized!.correctAnswer,
         context: null, task: null, question_latex: null };
     } else {
