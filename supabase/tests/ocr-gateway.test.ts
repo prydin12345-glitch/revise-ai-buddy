@@ -6,7 +6,7 @@ import {buildPaperPlan} from '../functions/_shared/biology-paper-contract';
 import {resolvePaperSelection, paperPlanForAttempt} from '../functions/_shared/course-selection';
 import {biologyScopeInstructions, gcseBiologyIssue} from '../functions/_shared/gcse-biology-scope';
 import {GATEWAY_HIGHER_ONLY, GATEWAY_SPEC, gatewayMarkingInstructions} from '../functions/_shared/ocr-biology-scope';
-import {validateQuestionCandidates} from '../functions/_shared/question-contract-validator';
+import {validateQuestionCandidates, hasAssessedTask, flattenAnswerKey} from '../functions/_shared/question-contract-validator';
 import {buildCacheKey} from '../functions/_shared/cache-utils';
 import {checkPracticeCourse, gatewayCachedRows, assertGatewayPractice} from '../functions/_shared/ocr-practice';
 import {resolveProfileContext, toStoredGenerationContext, establishGenerationContext} from '../functions/_shared/profile-context';
@@ -157,12 +157,12 @@ describe('OCR gate and syllabus separation', () => {
   });
 });
 
-Deno.test('accepts an adverb-led instruction and a structured level key', () => {
-  if (!hasAssessedTask('Briefly outline the two main stages of photosynthesis.')) {
-    throw new Error('adverb-led instruction rejected');
-  }
-  const key = flattenAnswerKey({ level_1: 'Simple statements', level_2: 'Links ideas', level_3: 'Full explanation' });
-  if (![1, 2, 3].every(n => new RegExp(`level\\s*${n}`, 'i').test(key))) {
-    throw new Error('level scheme not flattened: ' + key);
-  }
+describe('repair acceptance regressions', () => {
+  it('accepts an adverb-led instruction', () => {
+    expect(hasAssessedTask('Briefly outline the two main stages of photosynthesis.')).toBe(true);
+  });
+  it('flattens a structured level-of-response key', () => {
+    const key = flattenAnswerKey({level_1: 'Simple statements', level_2: 'Links ideas', level_3: 'Full explanation'});
+    [1, 2, 3].forEach(n => expect(new RegExp(`level\\s*${n}`, 'i').test(key)).toBe(true));
+  });
 });
