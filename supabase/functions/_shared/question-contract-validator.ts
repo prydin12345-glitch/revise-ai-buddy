@@ -217,8 +217,9 @@ export function normalizeRepairPart(raw: unknown): NormalizedRepairPart | null {
   if (!raw || typeof raw !== "object") return null;
   const part = raw as Record<string, unknown>;
   const questionNumber = String(part.question_number ?? "").trim();
-  const answerValue = part.correct_answer ?? part.expected_answer;
-  const correctAnswer = typeof answerValue === "string" ? answerValue.trim() : "";
+  const answerValue = part.correct_answer ?? part.expected_answer ?? part.mark_scheme ?? part.answer;
+  const correctAnswer = flattenAnswerKey(answerValue);
+
   const questionText = assembleQuestionText({
     context: typeof part.context === "string" ? part.context : null,
     task: typeof part.task === "string" ? part.task : null,
