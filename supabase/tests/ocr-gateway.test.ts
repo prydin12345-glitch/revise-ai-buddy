@@ -156,3 +156,13 @@ describe('OCR gate and syllabus separation', () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 });
+
+Deno.test('accepts an adverb-led instruction and a structured level key', () => {
+  if (!hasAssessedTask('Briefly outline the two main stages of photosynthesis.')) {
+    throw new Error('adverb-led instruction rejected');
+  }
+  const key = flattenAnswerKey({ level_1: 'Simple statements', level_2: 'Links ideas', level_3: 'Full explanation' });
+  if (![1, 2, 3].every(n => new RegExp(`level\\s*${n}`, 'i').test(key))) {
+    throw new Error('level scheme not flattened: ' + key);
+  }
+});
