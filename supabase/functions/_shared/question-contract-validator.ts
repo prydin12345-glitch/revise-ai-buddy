@@ -105,9 +105,15 @@ const clauses = (s: string): string[] =>
     .map((c) => c.trim())
     .filter(Boolean);
 
-const startsWithCommand = (c: string): boolean =>
-  COMMAND_VERBS.some((v) => c.startsWith(v + " ") || c === v) ||
-  INTERROGATIVES.some((w) => c.startsWith(w + " "));
+/** Leading adverbs never stop a clause being an instruction ("Briefly outline…"). */
+const LEAD_ADVERB = /^(briefly|now|then|next|carefully|clearly|fully|concisely|also|finally|in your answer,?|for this question,?)\s+/;
+
+const startsWithCommand = (raw: string): boolean => {
+  const c = raw.replace(LEAD_ADVERB, "").trim();
+  return COMMAND_VERBS.some((v) => c.startsWith(v + " ") || c === v) ||
+    INTERROGATIVES.some((w) => c.startsWith(w + " "));
+};
+
 
 /**
  * Does this text ask the student to DO something?
