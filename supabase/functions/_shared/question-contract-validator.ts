@@ -158,6 +158,50 @@ export function assembleQuestionText(part: CandidatePart): string {
 }
 
 /**
+ * Models label multiple-choice answers inconsistently (`choices`,
+ * `answer_options`, or an {A: "...", B: "..."} object). The choices are real
+ * content, so read every supported shape instead of failing the paper.
+ */
+export function coerceMcqOptions(raw: unknown): string[] | null {
+  if (!raw || typeof raw !== "object") return null;
+  const part = raw as Record<string, unknown>;
+  const clean = (list: unknown[]): string[] =>
+    list
+      .map((item) => {
+        if (item && typeof item === "object") {
+          const o = item as Record<string, unknown>;
+          const text = o.text ?? o.option ?? o.value ?? o.label ?? o.answer;
+          return typeof text === "string" ? text : "";
+        }
+        return String(item ?? "");
+      })
+      .map((text) => text.replace(/^\s*[A-Da-d][.)]\s*/, "").trim())
+      .filter(Boolean);
+  for (const field of ["options", "choices", "answer_options", "mcq_options", "answers"]) {
+    const value = part[field];
+    if (Array.isArray(value)) {
+      // Chart payloads are also stored in `options` on legacy rows.
+      if (value.some((item) => item && typeof item === "object" && !("text" in (item as any) ||
+        "option" in (item as any) || "value" in (item as any) || "label" in (item as any) ||
+        "answer" in (item as any)))) continue;
+      const list = clean(value);
+      if (list.length >= 3) return list;
+      continue;
+    }
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const entries = Object.entries(value as Record<string, unknown>)
+        .filter(([key]) => /^[A-Da-d]$/.test(key))
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([, text]) => text);
+      const list = clean(entries);
+      if (list.length >= 3) return list;
+    }
+  }
+  return null;
+}
+
+
+/**
  * Normalise the two answer-key field names used by supported model outputs.
  * Generation asks for `correct_answer`, but Gemini may return the semantically
  * equivalent `expected_answer`. A repair is usable only when its number, task,
