@@ -310,11 +310,9 @@ export function validateQuestionCandidates(
     }
 
     // 2. Options
-    if (type === "mcq") {
-      const opts = Array.isArray(part.options) ? part.options : null;
-      if (!opts || opts.length < 3 || opts.some((o) => !String(o ?? "").trim())) {
-        push("invalid_options", "Single-select MCQ needs at least 3 non-empty options.");
-      }
+    const mcqOptions = type === "mcq" ? coerceMcqOptions(part) : null;
+    if (type === "mcq" && !mcqOptions) {
+      push("invalid_options", "Single-select MCQ needs at least 3 non-empty options.");
     }
 
     // 3. Answer key
@@ -323,16 +321,17 @@ export function validateQuestionCandidates(
       : part.correct_answer;
     if (answer === undefined || answer === null || answer === "") {
       push("missing_answer", "Scored part has no expected answer / mark scheme.");
-    } else if (type === "mcq" && Array.isArray(part.options)) {
+    } else if (type === "mcq" && mcqOptions) {
       const answerText = String(answer).trim();
       const letter = /^[A-Za-z]$/.test(answerText)
         ? answerText.toUpperCase().charCodeAt(0) - 65
         : -1;
-      const matchesOption = part.options.some(
+      const matchesOption = mcqOptions.some(
         (o) => words(String(o ?? "")) === words(answerText),
       );
-      const validLetter = letter >= 0 && letter < part.options.length;
+      const validLetter = letter >= 0 && letter < mcqOptions.length;
       if (!matchesOption && !validLetter) {
+
         push("answer_mismatch", "MCQ answer matches no option.");
       }
     }
