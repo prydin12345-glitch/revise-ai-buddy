@@ -25,10 +25,11 @@ export function validateGatewayPlan(rows: CandidatePart[], plan?: PaperPlan | nu
     const isMcq = /^(mcq|mcq_single|multiple.choice)$/.test(String(row.question_type));
     if (isMcq !== (expected.responseType === 'mcq_single')) push(`Q${number} must be ${expected.responseType}.`);
     if (expected.responseType === 'mcq_single') {
-      const options = Array.isArray(row.options) ? row.options.map(String) : [];
-      const values = options.map(o => o.replace(/^[A-D][.)]\s*/i, '').trim().toLowerCase());
+      const options = coerceMcqOptions(row) ?? [];
+      const values = options.map(o => o.trim().toLowerCase());
       if (options.length !== 4 || new Set(values).size !== 4 || values.some(v => !v)) push('OCR Section A requires four distinct choices A–D.', 'invalid_options');
     }
+
     const resources = resolveQuestionResources(row);
     if (expected.resource === 'data_table' && !resources.table) push(`Q${number} requires the planned data table.`, "missing_required_resource");
     if (expected.resource === 'graph' && (!resources.chart || resources.chart.type === 'data_table')) push(`Q${number} requires the planned graph.`, "missing_required_resource");
