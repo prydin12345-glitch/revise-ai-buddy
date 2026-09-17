@@ -1,3 +1,4 @@
+import { gatewaySectionHeading } from "@/lib/biology-paper-display";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import ReactDOM from "react-dom/client";
@@ -29,6 +30,7 @@ interface ExamQuestion {
 }
 
 interface ExamData {
+  generation_context?: unknown;
   title: string;
   subject?: string;
   exam_board?: string;
@@ -1027,7 +1029,17 @@ export async function generateExamPDF(
   };
 
   // ============= Draw a single question group =============
+  let previousPaperQuestion: string | undefined;
   const drawQuestionGroup = async (group: QuestionGroup) => {
+    const firstNumber = group.questions[0]?.question_number ?? '';
+    const heading = gatewaySectionHeading(examData.generation_context, firstNumber, previousPaperQuestion);
+    if (heading) {
+      ensureSpace(35);
+      doc.setFontSize(12); doc.setFont('helvetica', 'bold'); setColor(COLORS.primary);
+      doc.text(heading.replace('—', '-'), MARGIN, yPosition);
+      yPosition += 10;
+    }
+    previousPaperQuestion = group.questions[group.questions.length - 1]?.question_number;
     // Question number header
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");

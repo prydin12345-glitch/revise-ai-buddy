@@ -1,3 +1,5 @@
+import { OCR_GATEWAY_BIOLOGY_ID } from '../_shared/assessment-tier.ts';
+import { paperPlanForAttempt } from '../_shared/course-selection.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { storedAssessmentTier } from "../_shared/profile-context.ts";
@@ -71,6 +73,12 @@ serve(async (req) => {
       console.warn('Ignoring client-supplied assessmentTier; using saved context:', assessmentTier);
     }
     delete profileMeta.assessmentTier;
+    const context = exam.generation_context;
+    if (context?.resolved_by === 'server' && context.context_version === 2) {
+      profileMeta.paperBlueprint = context.paper_contract ? {paperContract: context.paper_contract} :
+        (profileMeta.paperBlueprint?.sections ? {sections: profileMeta.paperBlueprint.sections} : null);
+    }
+    const plan = paperPlanForAttempt(context, profileMeta.paperBlueprint);
     const useOriginalStructure = format.useOriginal === true;
     const questionStructure = profileMeta.questionStructure
       ?? (useOriginalStructure && !format.profileMetadata ? 'original' : 'standalone');
@@ -99,6 +107,16 @@ serve(async (req) => {
       include_diagrams: profileMeta.includeDiagrams ?? null,
     };
 
+    if (plan?.courseId === OCR_GATEWAY_BIOLOGY_ID) {
+      Object.assign(formatPayload, {use_original_structure: false,
+        mcq_count: plan.parts.filter(p => p.responseType === 'mcq_single').length,
+        short_answer_count: plan.parts.filter(p => p.responseType === 'short_answer').length,
+        long_form_count: plan.parts.filter(p => p.responseType === 'long_form').length,
+        mcq_marks_each: 1, question_structure: 'mixed',
+        mark_distribution: {}, include_extended: false, extended_marks: 0, mcq_position: 'start',
+        include_tables: plan.parts.some(p => p.resource === 'data_table'), include_graphs: plan.parts.some(p => p.resource === 'graph'),
+        calculator_policy: 'allowed'});
+    }
     if (format.profileMetadata) {
       console.log('Profile metadata received:', JSON.stringify(format.profileMetadata));
     }

@@ -6,15 +6,15 @@
 
 import {
   type AssessmentTier,
-  getCourseCapability,
   isValidAssessmentTierFor,
   normaliseAssessmentTier,
   supportsAssessmentTier,
 } from "./assessment-tier.ts";
+import { profileCourseId, resolvePaperSelection, type ResolvedPaperSelection } from './course-selection.ts';
 
-export const GENERATION_CONTEXT_VERSION = 1;
+export const GENERATION_CONTEXT_VERSION = 2;
 
-export interface ResolvedGenerationContext {
+export interface ResolvedGenerationContext extends ResolvedPaperSelection {
   contextVersion: number;
   subjectName: string;
   profileId: string | null;
@@ -80,7 +80,7 @@ export const resolveProfileContext = async (
   const educationalTier =
     clean(profile?.educational_tier) ?? clean(args.educationalTier);
 
-  const lookup = { subject: subjectName, examBoard, educationalTier };
+  const lookup = { subject: subjectName, examBoard, educationalTier, courseId: profileCourseId(profile?.paper_blueprint) };
   const supported = supportsAssessmentTier(lookup);
 
   // `assessment_tier` may be absent until its migration has been applied.
@@ -95,6 +95,9 @@ export const resolveProfileContext = async (
     );
   }
 
+  let selection: ResolvedPaperSelection;
+  try { selection = resolvePaperSelection(lookup, supported ? normaliseAssessmentTier(rawTier) : null, profile?.paper_blueprint); }
+  catch (error) { throw new ProfileContextError(error instanceof Error ? error.message : 'Invalid course selection'); }
   return {
     contextVersion: GENERATION_CONTEXT_VERSION,
     subjectName,
@@ -104,7 +107,7 @@ export const resolveProfileContext = async (
     educationalTier,
     assessmentTier: supported ? normaliseAssessmentTier(rawTier) : null,
     assessmentTierSupported: supported,
-    courseId: getCourseCapability(lookup)?.id ?? null,
+    ...selection,
   };
 };
 
@@ -122,6 +125,9 @@ export const toStoredGenerationContext = (
   educational_tier: ctx.educationalTier,
   assessment_tier: ctx.assessmentTier,
   course_id: ctx.courseId,
+  paper_id: ctx.paperId,
+  component_code: ctx.componentCode,
+  paper_contract: ctx.paperContract,
   resolved_by: SERVER_RESOLVED_MARKER,
   resolved_at: new Date().toISOString(),
 });
@@ -137,8 +143,7 @@ export const isServerResolvedContext = (value: unknown): boolean =>
   !!value &&
   typeof value === "object" &&
   (value as Record<string, unknown>).resolved_by === SERVER_RESOLVED_MARKER &&
-  (value as Record<string, unknown>).context_version ===
-    GENERATION_CONTEXT_VERSION;
+  [1, GENERATION_CONTEXT_VERSION].includes((value as Record<string, unknown>).context_version as number);
 
 /** Does a trusted-looking snapshot actually belong to this row? */
 const matchesRow = (

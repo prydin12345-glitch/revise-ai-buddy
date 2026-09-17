@@ -1,3 +1,6 @@
+import { validateGatewayPlan } from './ocr-plan-validator.ts';
+import { gatewayPartInstruction } from './ocr-biology-scope.ts';
+import { OCR_GATEWAY_BIOLOGY_ID } from './assessment-tier.ts';
 import { analyseGroupRepair, type RepairDiagnostic, type RepairMode, type RepairResult } from './prepare-group-repair.ts';
 import { biologyScopeInstructions, type BiologyScope } from './gcse-biology-scope.ts';
 import type { PaperPlan } from './biology-paper-contract.ts';
@@ -36,6 +39,7 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     'Continuous observations need type line_chart with numeric datasets [{label,data:[{x,y}]}]. Never silently discard conflicting observations or invent point timestamps for interval summaries.',
     'Captions must be neutral; no [Graph showing ...] placeholders or answer-revealing descriptions.',
     'For MCQs preserve the planned choices/count and return an answer matching an option. Put mathematics inside $...$.',
+    input.plan?.courseId === OCR_GATEWAY_BIOLOGY_ID ? input.plan.parts.filter(p => input.group.some(row => String(row.question_number) === p.questionNumber)).map(gatewayPartInstruction).join('\n') : '',
     'Planned parts: ' + JSON.stringify(input.plan?.parts.filter(p => input.group.some(row => String(row.question_number) === p.questionNumber)) ?? []),
     'Current group: ' + JSON.stringify(input.group.map(row => ({ question_number: row.question_number,
       question_type: row.question_type, marks: row.marks, topic_tag: row.topic_tag, question_text: row.question_text,
@@ -72,6 +76,14 @@ export async function requestQuestionRepair(input: RepairRequest, apiKey: string
   const parts = Array.isArray(parsed) ? parsed : parsed?.parts ?? parsed?.questions;
   const requiredParts = new Set((input.plan?.parts ?? []).filter(p => p.resource !== 'none').map(p => p.questionNumber));
   const result = analyseGroupRepair(input.group, parts, input.scope, requiredParts, input.targetNumbers, input.mode);
+  if (result.ok && input.plan?.courseId === OCR_GATEWAY_BIOLOGY_ID) {
+    const numbers = new Set(input.group.map(row => String(row.question_number)));
+    const groupPlan = {...input.plan, parts: input.plan.parts.filter(p => numbers.has(p.questionNumber))};
+    const proposed = input.group.map(row => ({...row, ...result.replacements[String(row.question_number)]}));
+    const defects = validateGatewayPlan(proposed, groupPlan);
+    if (defects.length) return {ok: false, replacements: {}, phase: 'validation',
+      diagnostics: defects.map(d => ({code: d.code, detail: d.detail}))};
+  }
   return { ...result, phase: result.ok ? (result.diagnostics.length ? 'partial' : 'accepted') : 'validation' };
 }
 

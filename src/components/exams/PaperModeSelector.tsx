@@ -1,11 +1,13 @@
 import { Button } from "@/components/ui/button";
 import {
   buildPaperPlan,
+  biologyPaperDefinition,
   describePlan,
   type PaperMode,
 } from "@/lib/biology-paper-contract";
 
 interface PaperModeSelectorProps {
+  courseId?: string | null;
   mode: PaperMode;
   tier: "foundation" | "higher" | null;
   onModeChange: (mode: PaperMode) => void;
@@ -35,12 +37,14 @@ const MODES: Array<{ id: PaperMode; label: string; description: string }> = [
 
 export function PaperModeSelector({
   mode,
+  courseId,
   tier,
   onModeChange,
   onApplyPlan,
   applied,
 }: PaperModeSelectorProps) {
-  const plan = buildPaperPlan(mode, tier);
+  const definition = biologyPaperDefinition(courseId ?? "aqa_gcse_biology", tier);
+  const plan = tier ? buildPaperPlan(mode, tier, courseId ?? undefined) : null;
 
   return (
     <div className="space-y-2 rounded-lg border border-border/60 p-3">
@@ -64,12 +68,13 @@ export function PaperModeSelector({
           >
             <span className="block text-sm font-medium">{m.label}</span>
             <span className="mt-0.5 block text-[11px] text-muted-foreground">
-              {m.description}
+              {m.id === "full_mock" && definition ? `${definition.displayName}: ${definition.fullMockMarks} marks, ${definition.fullMockMinutes} minutes.` : m.description}
             </span>
           </button>
         ))}
       </div>
 
+      {mode !== "custom" && !tier && <p className="text-xs text-muted-foreground">Choose Foundation or Higher before applying a guided preset.</p>}
       {plan && (
         <div className="space-y-2 rounded-md bg-muted/40 p-2">
           <p className="text-[11px] text-muted-foreground">{describePlan(plan)}</p>

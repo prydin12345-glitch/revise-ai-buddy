@@ -1,6 +1,11 @@
-import { getCourseCapability, type AssessmentTier } from './assessment-tier.ts';
+import { getCourseCapability, OCR_GATEWAY_BIOLOGY_ID, type AssessmentTier } from './assessment-tier.ts';
+
+import { GATEWAY_RULES } from './ocr-biology-scope.ts';
 
 export interface BiologyScope {
+  courseId?: string | null;
+  paperId?: string | null;
+  componentCode?: string | null;
   subject?: string | null;
   educationalLevel?: string | null;
   examBoard?: string | null;
@@ -15,7 +20,6 @@ export const GCSE_BIOLOGY_RULES = [
   'Photosynthesis: chloroplasts, chlorophyll, light energy transfer, the endothermic reaction, glucose uses, rates and limiting factors.',
   'Do not require light-dependent/light-independent stages, thylakoid membranes, stroma functions, photolysis, the Calvin cycle, ATP/NADPH chemistry or chemiosmosis.',
   'Use GCSE calculations such as magnification, percentage change, surface-area-to-volume ratio and rate. No Hardy-Weinberg, chi-squared or water-potential equations.',
-  'For Paper 1 keep Cell biology, Organisation, Infection and response, and Bioenergetics. No genetics or ecology examples from other papers.',
   'Difficulty increases reasoning within GCSE; recall and read-off questions remain legitimate.',
 ].join('\n');
 
@@ -27,7 +31,9 @@ const isAqaFoundation = (scope: BiologyScope): boolean =>
 // AQA 8461 sections 4.3.2, 4.3.3.1, 4.4.1.2 and 4.4.2.2 mark these
 // requirements as HT only. These rules are deliberately scoped to this course.
 export function biologyScopeInstructions(scope: BiologyScope): string {
-  const lines = [isGcseBiology(scope) ? GCSE_BIOLOGY_RULES : ''];
+  const gateway = scope.courseId === OCR_GATEWAY_BIOLOGY_ID;
+  const lines = [isGcseBiology(scope) ? (gateway ? GATEWAY_RULES : GCSE_BIOLOGY_RULES) : ''];
+  if (getCourseCapability({ subject: scope.subject, examBoard: scope.examBoard, educationalTier: scope.educationalLevel, courseId: scope.courseId })?.id === 'aqa_gcse_biology' && (!scope.paperId || scope.paperId === 'paper_1')) lines.push('AQA Paper 1: Cell biology, Organisation, Infection and response, Bioenergetics. Do not import Paper 2 content.');
   if (scope.assessmentTier === 'foundation') lines.push(
     'ASSESSMENT TIER: Foundation. Keep the selected paper, its marks and required resources. Use Foundation content and accessible wording; a difficult setting never authorises Higher-only knowledge.',
     'Scaffold multi-step calculations explicitly, identify the data and units needed, and give every scored part a separate, complete task. Retain data handling and extended answers where planned.',
@@ -46,7 +52,12 @@ const OUT_OF_LEVEL = /\blight[-\s](?:dependent|independent)\b|\bthylakoids?\b|\b
 export function gcseBiologyIssue(part: { question_text?: unknown; task?: unknown; correct_answer?: unknown }, scope: BiologyScope): string | null {
   if (!isGcseBiology(scope)) return null;
   const text = [part.question_text, part.task, part.correct_answer].map(v => typeof v === 'string' ? v : v ? JSON.stringify(v) : '').join('\n');
-  const match = text.match(OUT_OF_LEVEL);
+  const gateway = scope.courseId === OCR_GATEWAY_BIOLOGY_ID;
+  const match = text.match(gateway ? /\bthylakoids?\b|\bstroma\b|\bCalvin cycle\b|\bNADPH\b|\bchemiosmosis\b|\belectron transport chain\b/i : OUT_OF_LEVEL);
+  if (gateway && scope.assessmentTier === 'foundation') {
+    const higher = text.match(/\btranscription\b|\btranslation\b|\btriplet code\b|\b[mt]RNA\b|\bglucagon\b|\bADH\b|\bantidiuretic\b|\binverse[-\s]square\b|\bthyroxine\b/i);
+    if (higher) return 'OCR Gateway Foundation contains Higher-only content (' + higher[0] + ').';
+  }
   if (match) return 'GCSE Biology contains A-level photosynthesis content (' + match[0] + '); regenerate the complete question and key within GCSE.';
   // Narrow deterministic checks supplement the prompt; they do not certify
   // every aspect of a paper's syllabus, demand or mark scheme.
@@ -55,4 +66,12 @@ export function gcseBiologyIssue(part: { question_text?: unknown; task?: unknown
     if (higherOnly) return 'AQA GCSE Biology Foundation contains Higher-only content (' + higherOnly[0] + ').';
   }
   return null;
+}
+
+/** Context comes from the protected database column, never request JSON. */
+export function biologyScopeFromContext(context: any, fallback: BiologyScope = {}): BiologyScope {
+  if (context?.resolved_by !== 'server' || ![1, 2].includes(context.context_version)) return fallback;
+  return {subject: context.subject_name ?? fallback.subject, educationalLevel: context.educational_tier ?? fallback.educationalLevel,
+    examBoard: context.exam_board ?? fallback.examBoard, assessmentTier: context.assessment_tier ?? null,
+    courseId: context.course_id ?? null, paperId: context.paper_id ?? null, componentCode: context.component_code ?? null};
 }

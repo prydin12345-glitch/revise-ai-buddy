@@ -1,3 +1,4 @@
+import { gatewayMarkingInstructions } from '../_shared/ocr-biology-scope.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { markSketch, type GraphPoint, type KeyFeatures, evaluateFormulaAtX } from "../_shared/math-engine.ts";
@@ -53,15 +54,10 @@ serve(async (req) => {
     // Subject-aware marking: fetch the set's subject so English isn't graded
     // by a "mathematics tutor" persona (the root of pedantic retrieval
     // marking and level-band drift on essay subjects).
-    let gradeSubject = '';
-    try {
-      const { data: gradeSet } = await supabase
-        .from('practice_question_sets')
-        .select('subject_name, subject_id')
-        .eq('id', setId)
-        .maybeSingle();
-      gradeSubject = String((gradeSet as any)?.subject_name || (gradeSet as any)?.subject_id || '');
-    } catch (_) { /* fall back to generic persona */ }
+    const {data: gradeSet, error: gradeSetError} = await supabase.from('practice_question_sets')
+      .select('subject_id, generation_context').eq('id', setId).eq('user_id', user.id).maybeSingle();
+    if (gradeSetError || !gradeSet) throw new Error('Practice set not found');
+    const gradeSubject = String(gradeSet.subject_id ?? '');
     const isHumanitiesMarking = /english|literature|history|religio|sociolog|politics|philosoph/i.test(gradeSubject);
 
     // Fetch question details
@@ -69,6 +65,7 @@ serve(async (req) => {
       .from('practice_questions')
       .select('*')
       .eq('id', questionId)
+      .eq('set_id', setId)
       .single();
 
     if (questionError || !question) {
@@ -1549,7 +1546,7 @@ Return your grading using the grade_practice_answer function.`;
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'system', content: systemPrompt + markingRules },
+          { role: 'system', content: systemPrompt + markingRules + '\n' + gatewayMarkingInstructions(gradeSet.generation_context) },
           { role: 'user', content: userPrompt }
         ],
         tools: [{

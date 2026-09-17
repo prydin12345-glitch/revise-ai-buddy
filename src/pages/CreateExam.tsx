@@ -430,6 +430,10 @@ export default function CreateExam() {
   };
 
   const handleGenerate = async () => {
+    if (generationContext.configurationError) {
+      toast({title: "Check exam profile", description: generationContext.configurationError, variant: "destructive"});
+      return;
+    }
     // Validation
     if (!examName.trim()) {
       setExamNameError(true);
@@ -1375,7 +1379,7 @@ export default function CreateExam() {
                     examName={examName}
                     subjectId={subjectId}
                     subjectColor={subjectColor}
-                    boardLabel={resolvedExamBoard ? getBoardDisplayName(resolvedExamBoard) : "Generic style"}
+                    boardLabel={[resolvedExamBoard ? getBoardDisplayName(resolvedExamBoard) : "Generic style", generationContext.componentCode, generationContext.assessmentTier].filter(Boolean).join(" · ")}
                     levelLabel={formatLevelLabel(profileEducationalTier || effectiveEducationalTier)}
                     totalQuestions={totalQuestions}
                     timerEnabled={timerEnabled}

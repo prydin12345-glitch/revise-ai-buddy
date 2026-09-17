@@ -14,8 +14,9 @@ import {
   normaliseAssessmentTier,
   supportsAssessmentTier,
 } from "./assessment-tier";
+import { profileCourseId, resolvePaperSelection, type ResolvedPaperSelection } from '../../supabase/functions/_shared/course-selection.ts';
 
-export const GENERATION_CONTEXT_VERSION = 1;
+export const GENERATION_CONTEXT_VERSION = 2;
 
 export interface ProfileContextProfile {
   id: string;
@@ -23,6 +24,7 @@ export interface ProfileContextProfile {
   exam_board?: string | null;
   educational_tier?: string | null;
   assessment_tier?: string | null;
+  paper_blueprint?: unknown;
 }
 
 export interface ProfileContextInput {
@@ -42,7 +44,7 @@ export type ContextSource =
   | "preference"
   | "none";
 
-export interface ResolvedGenerationContext {
+export interface ResolvedGenerationContext extends ResolvedPaperSelection {
   contextVersion: number;
   subjectName: string;
   profileId: string | null;
@@ -53,6 +55,7 @@ export interface ResolvedGenerationContext {
   assessmentTier: AssessmentTier | null;
   assessmentTierSupported: boolean;
   courseId: string | null;
+  configurationError: string | null;
   sources: { examBoard: ContextSource; educationalTier: ContextSource };
 }
 
@@ -88,9 +91,14 @@ export const resolveProfileContext = (
     subject: input.subjectName,
     examBoard,
     educationalTier,
+    courseId: profileCourseId(profile?.paper_blueprint),
   };
   const supported = supportsAssessmentTier(lookup);
   const stored = normaliseAssessmentTier(profile?.assessment_tier);
+  let selection: ResolvedPaperSelection = {courseId: getCourseCapability(lookup)?.id ?? null, paperId: null, componentCode: null, paperContract: null};
+  let configurationError: string | null = null;
+  try { selection = resolvePaperSelection(lookup, supported ? stored : null, profile?.paper_blueprint); }
+  catch (error) { configurationError = error instanceof Error ? error.message : 'Check the saved course and paper.'; }
 
   return {
     contextVersion: GENERATION_CONTEXT_VERSION,
@@ -102,7 +110,8 @@ export const resolveProfileContext = (
     // A stored tier is only honoured while the course still supports tiering.
     assessmentTier: supported ? stored : null,
     assessmentTierSupported: supported,
-    courseId: getCourseCapability(lookup)?.id ?? null,
+    ...selection,
+    configurationError,
     sources: { examBoard: boardSource, educationalTier: levelSource },
   };
 };
@@ -126,6 +135,9 @@ export const toStoredGenerationContext = (
   educational_tier: ctx.educationalTier,
   assessment_tier: ctx.assessmentTier,
   course_id: ctx.courseId,
+  paper_id: ctx.paperId,
+  component_code: ctx.componentCode,
+  paper_contract: ctx.paperContract,
   resolved_by: "client",
   resolved_at: new Date().toISOString(),
 });
