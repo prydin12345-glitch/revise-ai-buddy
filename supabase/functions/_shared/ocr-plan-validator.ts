@@ -1,6 +1,6 @@
 import { OCR_GATEWAY_BIOLOGY_ID } from './assessment-tier.ts';
 import type { PaperPlan } from './biology-paper-contract.ts';
-import type { CandidatePart, QuestionDefect } from './question-contract-validator.ts';
+import { coerceMcqOptions, type CandidatePart, type QuestionDefect } from './question-contract-validator.ts';
 import { resolveQuestionResources } from './question-resources.ts';
 
 export const canonicalPartNumber = (value: unknown): string => {

@@ -1,4 +1,4 @@
-import { assembleQuestionText, hasAssessedTask, normalizeRepairPart, validateQuestionCandidates } from './question-contract-validator.ts';
+import { assembleQuestionText, coerceMcqOptions, hasAssessedTask, normalizeRepairPart, validateQuestionCandidates } from './question-contract-validator.ts';
 import { resolveQuestionResources, isResourceChart } from './question-resources.ts';
 import type { BiologyScope } from './gcse-biology-scope.ts';
 
@@ -129,9 +129,15 @@ export function analyseGroupRepair(
       if (needsResource && (!diagram || typeof diagram !== 'object' || Array.isArray(diagram))) {
         fail('missing_required_resource', 'Complete group repairs must return every required resource.', number); continue;
       }
+      // MCQ choices are kept when the rewrite omits them: dropping them turned
+      // a valid repair into an "invalid_options" failure.
+      const keptOptions = row.question_type === 'mcq'
+        ? (coerceMcqOptions(part) ?? coerceMcqOptions(row) ?? row.options)
+        : (isResourceChart(row.options) ? null : row.options);
       candidate = { ...row, question_text: resources.text, correct_answer: normalized?.correctAnswer ?? row.correct_answer,
-        options: normalized?.options ?? (row.question_type === 'mcq' || isResourceChart(row.options) ? null : row.options),
+        options: normalized?.options ?? keptOptions,
         diagram_config: diagram, table_data: null, question_latex: null, context: null, task: null };
+
     }
     const validation = validateQuestionCandidates([candidate], { scope });
     if (!validation.ok) {
