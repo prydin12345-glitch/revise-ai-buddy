@@ -6,7 +6,7 @@ import {buildPaperPlan} from '../functions/_shared/biology-paper-contract';
 import {resolvePaperSelection, paperPlanForAttempt} from '../functions/_shared/course-selection';
 import {biologyScopeInstructions, gcseBiologyIssue} from '../functions/_shared/gcse-biology-scope';
 import {GATEWAY_HIGHER_ONLY, GATEWAY_SPEC, gatewayMarkingInstructions} from '../functions/_shared/ocr-biology-scope';
-import {validateQuestionCandidates} from '../functions/_shared/question-contract-validator';
+import {validateQuestionCandidates, hasAssessedTask, flattenAnswerKey} from '../functions/_shared/question-contract-validator';
 import {buildCacheKey} from '../functions/_shared/cache-utils';
 import {checkPracticeCourse, gatewayCachedRows, assertGatewayPractice} from '../functions/_shared/ocr-practice';
 import {resolveProfileContext, toStoredGenerationContext, establishGenerationContext} from '../functions/_shared/profile-context';
@@ -154,5 +154,15 @@ describe('OCR gate and syllabus separation', () => {
     const base = {subject:'Biology', examBoard:'OCR', educationalLevel:'GCSE', assessmentTier:'foundation', topics:['B1'], difficulty:'mixed', questionFormat:'mixed', questionCount:8, courseId:OCR, paperId:'first_paper', presetVersion:1, resourceVersion:'ocr-gateway-1'};
     const keys = await Promise.all([base, {...base,assessmentTier:'higher'}, {...base,paperId:'second_paper'}, {...base,presetVersion:2}, {...base,courseId:OCR_21C_BIOLOGY_ID}, {...base,examBoard:'AQA'}].map(buildCacheKey));
     expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe('repair acceptance regressions', () => {
+  it('accepts an adverb-led instruction', () => {
+    expect(hasAssessedTask('Briefly outline the two main stages of photosynthesis.')).toBe(true);
+  });
+  it('flattens a structured level-of-response key', () => {
+    const key = flattenAnswerKey({level_1: 'Simple statements', level_2: 'Links ideas', level_3: 'Full explanation'});
+    [1, 2, 3].forEach(n => expect(new RegExp(`level\\s*${n}`, 'i').test(key)).toBe(true));
   });
 });

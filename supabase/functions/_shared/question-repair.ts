@@ -33,6 +33,7 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     'Keep each stored question number, topic, question type and mark allocation. Return an explicit task field for every scored part.',
     'The task must contain a complete instruction such as Calculate, Describe, Explain, State, Name or Which. Background information alone is not a task.',
     'Every scored repair needs a freshly checked correct_answer string derived from the supplied context and data. Never invent missing measurements.',
+    'correct_answer must be a plain string. For any 6-mark extended-response part the string must contain "Level 1 (1-2 marks):", "Level 2 (3-4 marks):" and "Level 3 (5-6 marks):" descriptors plus indicative content.',
     taskOnly ? 'Return ONLY question_number, task and correct_answer for the targets. Do not emit a new context, table, graph, options or unrelated siblings.'
       : 'Return every sibling. For context-only unmarked parents, retain context and zero marks. For scored parts return context, task and correct_answer.',
     taskOnly ? '' : 'Keep all required resources. Store one coherent results table in diagram_config with type data_table, headers and rows; no Markdown/HTML copy. Rewrite keys to agree with the repaired data.',

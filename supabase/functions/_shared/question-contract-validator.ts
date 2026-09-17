@@ -105,9 +105,15 @@ const clauses = (s: string): string[] =>
     .map((c) => c.trim())
     .filter(Boolean);
 
-const startsWithCommand = (c: string): boolean =>
-  COMMAND_VERBS.some((v) => c.startsWith(v + " ") || c === v) ||
-  INTERROGATIVES.some((w) => c.startsWith(w + " "));
+/** Leading adverbs never stop a clause being an instruction ("Briefly outline…"). */
+const LEAD_ADVERB = /^(briefly|now|then|next|carefully|clearly|fully|concisely|also|finally|in your answer,?|for this question,?)\s+/;
+
+const startsWithCommand = (raw: string): boolean => {
+  const c = raw.replace(LEAD_ADVERB, "").trim();
+  return COMMAND_VERBS.some((v) => c.startsWith(v + " ") || c === v) ||
+    INTERROGATIVES.some((w) => c.startsWith(w + " "));
+};
+
 
 /**
  * Does this text ask the student to DO something?
@@ -202,6 +208,44 @@ export function coerceMcqOptions(raw: unknown): string[] | null {
 
 
 /**
+ * Level-of-response keys arrive as objects or arrays ({level_1: "..."} or
+ * [{level: 1, descriptor: "..."}]). Flatten them to readable marking text
+ * instead of discarding a perfectly good mark scheme.
+ */
+export function flattenAnswerKey(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  const line = (label: string, body: unknown): string => {
+    const text = flattenAnswerKey(body);
+    if (!text) return "";
+    const pretty = /^level[\s_-]*\d/i.test(label)
+      ? "Level " + label.replace(/\D+/g, "")
+      : label.replace(/[_-]+/g, " ").trim();
+    return /^\d+$/.test(label) ? text : `${pretty}: ${text}`;
+  };
+  if (Array.isArray(value)) {
+    return value.map((item, i) => {
+      if (item && typeof item === "object" && !Array.isArray(item)) {
+        const o = item as Record<string, unknown>;
+        const lvl = o.level ?? o.band;
+        const body = o.descriptor ?? o.description ?? o.content ?? o.text ?? o.answer ?? item;
+        if (lvl !== undefined) return line(`level_${String(lvl).replace(/\D+/g, "") || i + 1}`, body);
+      }
+      return flattenAnswerKey(item);
+    }).filter(Boolean).join("\n");
+  }
+  if (typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>)
+      .map(([key, body]) => line(key, body))
+      .filter(Boolean)
+      .join("\n");
+  }
+  return "";
+}
+
+/**
+
  * Normalise the two answer-key field names used by supported model outputs.
  * Generation asks for `correct_answer`, but Gemini may return the semantically
  * equivalent `expected_answer`. A repair is usable only when its number, task,
@@ -211,8 +255,9 @@ export function normalizeRepairPart(raw: unknown): NormalizedRepairPart | null {
   if (!raw || typeof raw !== "object") return null;
   const part = raw as Record<string, unknown>;
   const questionNumber = String(part.question_number ?? "").trim();
-  const answerValue = part.correct_answer ?? part.expected_answer;
-  const correctAnswer = typeof answerValue === "string" ? answerValue.trim() : "";
+  const answerValue = part.correct_answer ?? part.expected_answer ?? part.mark_scheme ?? part.answer;
+  const correctAnswer = flattenAnswerKey(answerValue);
+
   const questionText = assembleQuestionText({
     context: typeof part.context === "string" ? part.context : null,
     task: typeof part.task === "string" ? part.task : null,
