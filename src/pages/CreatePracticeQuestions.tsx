@@ -402,6 +402,7 @@ const CreatePracticeQuestions = () => {
         preferredExamBoard: preferences?.preferred_exam_board,
         preferredEducationalLevel: preferences?.preferred_educational_level,
       });
+      if (generationContext.configurationError) throw new Error(generationContext.configurationError);
 
       // Create practice set record
       const { data: setData, error: setError } = await supabase

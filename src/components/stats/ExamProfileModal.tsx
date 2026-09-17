@@ -17,14 +17,18 @@ import {
   type AssessmentTier,
   getAssessmentTierOptions,
   getCourseCapability,
+  getCourseOptions,
+  OCR_GATEWAY_BIOLOGY_ID,
   normaliseAssessmentTier,
 } from "@/lib/assessment-tier";
 import { AssessmentTierSelector } from "@/components/exams/AssessmentTierSelector";
+import { BiologyCourseSelector } from "@/components/exams/BiologyCourseSelector";
+import { profileCourseId } from "../../../supabase/functions/_shared/course-selection";
 import { PaperModeSelector } from "@/components/exams/PaperModeSelector";
 import {
   supportsBiologyPaperContract,
-  AQA_BIOLOGY_P1,
-  BIOLOGY_CONTRACT_VERSION,
+  biologyPaperDefinition,
+  buildPaperPlan,
   type PaperMode,
   type PaperPlan,
 } from "@/lib/biology-paper-contract";
@@ -255,6 +259,7 @@ export const ExamProfileModal = ({
   // Guided paper mode. "custom" keeps every manual count and media toggle.
   const [paperMode, setPaperMode] = useState<PaperMode>("custom");
   const [planApplied, setPlanApplied] = useState(false);
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
 
   const totalQuestionCount = writtenCount + mcqCount;
   const isMcqOnlyProfile = mcqCount > 0 && writtenCount === 0;
@@ -272,18 +277,18 @@ export const ExamProfileModal = ({
   const blueprintActive = blueprintEnabled && blueprintTotalQuestions > 0;
   const structureLocksWritten = (!isMcqOnlyProfile && questionStructure === "sub_questions") || blueprintActive;
   useEffect(() => {
-    if (structureLocksWritten) {
+    if (structureLocksWritten && paperMode === "custom") {
       const derived = blueprintActive
         ? Math.min(20, blueprintTotalQuestions)
         : Math.min(20, parentQuestionCount * maxPartsPerQuestion);
       if (writtenCount !== derived) setWrittenCount(derived);
     }
-  }, [structureLocksWritten, parentQuestionCount, maxPartsPerQuestion, blueprintActive, blueprintTotalQuestions]);
+  }, [structureLocksWritten, parentQuestionCount, maxPartsPerQuestion, blueprintActive, blueprintTotalQuestions, paperMode]);
   useEffect(() => {
-    if (!isMcqOnlyProfile && questionStructure === "mixed" && parentQuestionCount > writtenCount) {
+    if (paperMode === "custom" && !isMcqOnlyProfile && questionStructure === "mixed" && parentQuestionCount > writtenCount) {
       setParentQuestionCount(Math.max(1, writtenCount));
     }
-  }, [questionStructure, writtenCount]);
+  }, [questionStructure, writtenCount, paperMode]);
 
   useEffect(() => {
     if (open) {
@@ -291,6 +296,7 @@ export const ExamProfileModal = ({
       setSelectedTopics(initialData?.topics || []);
       setStudiedTexts(Array.isArray((initialData as any)?.studied_texts) ? (initialData as any).studied_texts : []);
       const bp = (initialData as any)?.paper_blueprint;
+      setSelectedCourseId(profileCourseId(bp));
       const bpSections = Array.isArray(bp?.sections) ? bp.sections : [];
       setBlueprintSections(bpSections);
       setBlueprintEnabled(bpSections.length > 0);
@@ -360,8 +366,9 @@ export const ExamProfileModal = ({
   const finalTier = educationalTier === "other" ? customTier.trim() : educationalTier;
   const courseLookup = {
     subject: subjectName,
-    examBoard: examBoard ?? initialData?.exam_board ?? null,
+    examBoard: initialData?.exam_board ?? examBoard ?? null,
     educationalTier: finalTier,
+    courseId: selectedCourseId,
   };
   const assessmentTierOptions = getAssessmentTierOptions(courseLookup);
   const courseCapability = getCourseCapability(courseLookup);
@@ -373,63 +380,68 @@ export const ExamProfileModal = ({
     (!examBoard || pr.boards.test(examBoard) || pr.boards.source === "."));
   const supportsGuidedPaper = supportsBiologyPaperContract({
     subject: subjectName,
-    examBoard: examBoard ?? initialData?.exam_board ?? null,
+    examBoard: initialData?.exam_board ?? examBoard ?? null,
     educationalLevel: finalTier,
+    courseId: selectedCourseId,
   });
+  const explicitCourseNeeded = getCourseOptions(courseLookup).length > 1;
+  const selectedTier = effectiveAssessmentTier === "foundation" || effectiveAssessmentTier === "higher" ? effectiveAssessmentTier : null;
+  const guidedActive = paperMode !== "custom" && planApplied && supportsGuidedPaper && !!selectedTier;
+  const paperDefinition = biologyPaperDefinition(courseCapability?.id ?? null, selectedTier);
+  const currentPlan = guidedActive ? buildPaperPlan(paperMode, selectedTier, courseCapability?.id) : null;
+  const configurationReady = (!explicitCourseNeeded || (!!courseCapability && courseCapability.generationAvailable !== false && !!selectedTier)) && (paperMode === "custom" || !!currentPlan);
 
   // Explicit conversion only — nothing is overwritten until the user accepts.
   const applyGuidedPlan = (plan: PaperPlan) => {
     setMcqCount(plan.parts.filter((p) => p.responseType === "mcq_single").length);
     setWrittenCount(plan.parts.filter((p) => p.responseType !== "mcq_single").length);
     setParentQuestionCount(plan.parentCount);
-    setQuestionStructure("sub_questions");
-    setMaxPartsPerQuestion(Math.ceil(plan.partCount / Math.max(plan.parentCount, 1)));
+    setQuestionStructure(plan.courseId === OCR_GATEWAY_BIOLOGY_ID ? "mixed" : "sub_questions");
+    setMcqOptionsCount(4);
+    setBlueprintEnabled(false);
+    setBlueprintSections([]);
+    setAdvanced(prev => ({...prev, mcqPosition: "start", markDistribution: {}, includeExtended: false, extendedMarks: 0, calculatorPolicy: "allowed"}));
+    setMaxPartsPerQuestion(Math.max(...plan.parts.map(p => plan.parts.filter(q => q.parentId === p.parentId).length)));
     setTimeLimitMinutes(String(plan.durationMinutes));
     setIncludeTables(plan.parts.some((p) => p.resource === "data_table"));
     setIncludeGraphs(plan.parts.some((p) => p.resource === "graph"));
-    setSelectedTopics((prev) => (prev.length ? prev : [...AQA_BIOLOGY_P1.topics]));
+    setSelectedTopics([...new Set(plan.parts.map(p => p.topic))]);
     setPlanApplied(true);
   };
 
   const handleSave = () => {
-    if (!profileName.trim() || selectedTopics.length === 0 || !finalTier) return;
+    if (!profileName.trim() || selectedTopics.length === 0 || !finalTier || !configurationReady) return;
     const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
     const advancedWithMcq = {
-      ...advanced, mcqCount,
+      ...advanced, mcqCount: currentPlan ? currentPlan.parts.filter(p => p.responseType === "mcq_single").length : mcqCount,
       assessmentTier: effectiveAssessmentTier,
-      examBoard: examBoard ?? initialData?.exam_board ?? null,
+      examBoard: initialData?.exam_board ?? examBoard ?? null,
       studiedTexts: isTextBasedSubject ? studiedTexts : undefined,
       paperBlueprint: (() => {
-        const sections = blueprintActive ? { sections: blueprintSections } : null;
-        if (paperMode === "custom" || !planApplied || !supportsGuidedPaper) return sections;
-        // Stable identity: course + paper + mode + contract version.
-        return {
-          ...(sections ?? {}),
-          paperContract: {
-            courseId: AQA_BIOLOGY_P1.courseId,
-            paperId: AQA_BIOLOGY_P1.paperId,
-            mode: paperMode,
-            contractVersion: BIOLOGY_CONTRACT_VERSION,
-          },
-        };
+        const courseSelection = courseCapability?.id === OCR_GATEWAY_BIOLOGY_ID && paperDefinition
+          ? {courseId: courseCapability.id, paperId: paperDefinition.paperId} : undefined;
+        if (!currentPlan) return blueprintActive || courseSelection ? { ...(blueprintActive ? { sections: blueprintSections } : {}), ...(courseSelection ? {courseSelection} : {}) } : null;
+        return {courseSelection: {courseId: currentPlan.courseId, paperId: currentPlan.paperId},
+          paperContract: {courseId: currentPlan.courseId, paperId: currentPlan.paperId,
+            mode: currentPlan.mode, contractVersion: currentPlan.contractVersion}};
       })(),
     };
     const resolvedQuestionStructure = isMcqOnlyProfile ? "mcq_only" : questionStructure;
     onSave(
       profileName.trim(),
-      selectedTopics,
-      totalQuestionCount,
+      currentPlan ? [...new Set(currentPlan.parts.map(p => p.topic))] : selectedTopics,
+      currentPlan?.partCount ?? totalQuestionCount,
       finalTier || undefined,
-      timeVal,
+      currentPlan?.durationMinutes ?? timeVal,
       advancedWithMcq,
-      writtenCount,
+      currentPlan ? currentPlan.parts.filter(p => p.responseType !== "mcq_single").length : writtenCount,
       {
         questionStructure: resolvedQuestionStructure,
-        parentQuestionCount,
-        maxPartsPerQuestion,
-        mcqOptionsCount,
-        includeGraphs,
-        includeTables,
+        parentQuestionCount: currentPlan?.parentCount ?? parentQuestionCount,
+        maxPartsPerQuestion: currentPlan ? Math.max(...currentPlan.parts.map(p => currentPlan.parts.filter(q => q.parentId === p.parentId).length)) : maxPartsPerQuestion,
+        mcqOptionsCount: currentPlan ? 4 : mcqOptionsCount,
+        includeGraphs: currentPlan ? currentPlan.parts.some(p => p.resource === "graph") : includeGraphs,
+        includeTables: currentPlan ? currentPlan.parts.some(p => p.resource === "data_table") : includeTables,
       }
     );
     onOpenChange(false);
@@ -462,7 +474,7 @@ export const ExamProfileModal = ({
   ];
 
   const blueprintHasInvalidMarks = blueprintActive && blueprintSections.some((s) => s.questions.some((q) => !q.marks || q.marks < 1));
-  const canSave = !!profileName.trim() && selectedTopics.length > 0 && !!finalTier && !blueprintHasInvalidMarks;
+  const canSave = configurationReady && !!profileName.trim() && selectedTopics.length > 0 && !!finalTier && !blueprintHasInvalidMarks;
   const missingLevel = !finalTier;
   const summaryParts = [
     `${totalQuestionCount} question${totalQuestionCount === 1 ? "" : "s"}`,
@@ -538,6 +550,7 @@ export const ExamProfileModal = ({
                               type="button"
                               onClick={() => {
                                 setEducationalTier(level.id);
+                                setSelectedCourseId(null); setAssessmentTier(null); setPaperMode("custom"); setPlanApplied(false);
                                 if (level.id !== "other") setCustomTier("");
                                 setLevelPopoverOpen(false);
                               }}
@@ -567,17 +580,20 @@ export const ExamProfileModal = ({
                 )}
               </div>
             </div>
+            <BiologyCourseSelector lookup={courseLookup} value={selectedCourseId} tier={selectedTier}
+              onChange={(id) => { setSelectedCourseId(id); setAssessmentTier(null); setPaperMode("short_practice"); setPlanApplied(false); }} />
             {assessmentTierOptions.length > 0 && (
               <AssessmentTierSelector
                 options={assessmentTierOptions}
                 value={effectiveAssessmentTier}
-                onChange={setAssessmentTier}
+                onChange={(tier) => { setAssessmentTier(tier); setPlanApplied(false); }}
                 accentColor={subjectColor}
                 courseLabel={courseCapability?.label ?? null}
               />
             )}
             {supportsGuidedPaper && (
               <PaperModeSelector
+                courseId={courseCapability?.id}
                 mode={paperMode}
                 tier={effectiveAssessmentTier === "foundation" || effectiveAssessmentTier === "higher" ? effectiveAssessmentTier : null}
                 onModeChange={(m) => { setPaperMode(m); setPlanApplied(m === "custom"); }}
@@ -600,6 +616,9 @@ export const ExamProfileModal = ({
             )}
           </SectionCard>
 
+          {guidedActive && <p className="text-xs text-muted-foreground">The guided preset controls the topics, counts, timing and resources. Choose Custom to set your own layout.</p>}
+          {!configurationReady && <p role="status" className="text-xs text-amber-600">Choose a supported course and tier, then use the guided settings, or select Custom.</p>}
+          {!guidedActive && <fieldset className="space-y-4">
           {/* ── Questions ── */}
           <SectionCard accent={subjectColor} icon={ListChecks} title="Questions" hint={`${totalQuestionCount} total`}>
             <div className="grid grid-cols-2 gap-4">
@@ -1023,6 +1042,7 @@ export const ExamProfileModal = ({
               curriculumRegion={preferences?.curriculum_region}
             />
           </SectionCard>
+          </fieldset>}
         </div>
 
         {/* ── Sticky footer with live summary + disabled reason ── */}
@@ -1030,7 +1050,7 @@ export const ExamProfileModal = ({
           <div className="text-left self-center min-w-0">
             <p className="text-xs font-medium truncate">{profileName.trim() || "Untitled profile"}</p>
             <p className="text-[11px] text-muted-foreground truncate">
-              {canSave ? summaryParts : (!profileName.trim() ? "Add a profile name" : selectedTopics.length === 0 ? "Pick at least one topic" : "Select an educational level") + " to continue"}
+              {!configurationReady ? "Choose the course, tier and apply the preset" : canSave ? summaryParts : (!profileName.trim() ? "Add a profile name" : selectedTopics.length === 0 ? "Pick at least one topic" : "Select an educational level") + " to continue"}
             </p>
           </div>
           <div className="flex gap-2 shrink-0">

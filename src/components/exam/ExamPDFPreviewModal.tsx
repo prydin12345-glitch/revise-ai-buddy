@@ -38,6 +38,7 @@ interface ExamQuestion {
 }
 
 interface ExamData {
+  generation_context?: unknown;
   title: string;
   subject?: string;
   exam_board?: string;

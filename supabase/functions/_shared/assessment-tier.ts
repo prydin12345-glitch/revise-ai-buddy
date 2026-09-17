@@ -33,7 +33,13 @@ export interface CourseCapability {
   boards: string[];
   levels: string[];
   tiers: AssessmentTier[];
+  specificationCode?: string;
+  generationAvailable?: boolean;
 }
+
+export const OCR_GATEWAY_BIOLOGY_ID = 'ocr_gcse_biology_a_j247';
+export const OCR_21C_BIOLOGY_ID = 'ocr_gcse_biology_b_j257';
+const OCR_BIOLOGY_NAMES = ['biology', 'biology a', 'biology b', 'gateway biology', 'gateway biology a', 'biology (single science)', 'twenty first century biology', 'twenty first century biology b'];
 
 export const COURSE_CAPABILITIES: CourseCapability[] = [
   {
@@ -43,12 +49,32 @@ export const COURSE_CAPABILITIES: CourseCapability[] = [
     boards: ["aqa"],
     levels: GCSE_LEVEL_IDS,
     tiers: ["foundation", "higher"],
+    specificationCode: '8461',
+  },
+  {
+    id: OCR_GATEWAY_BIOLOGY_ID,
+    label: 'OCR Gateway Biology A (J247)',
+    subjects: OCR_BIOLOGY_NAMES,
+    boards: ['ocr', 'cambridge ocr'],
+    levels: GCSE_LEVEL_IDS,
+    tiers: ['foundation', 'higher'],
+    specificationCode: 'J247',
+  },
+  {
+    id: OCR_21C_BIOLOGY_ID,
+    label: 'OCR Twenty First Century Biology B (J257)',
+    subjects: OCR_BIOLOGY_NAMES,
+    boards: ['ocr', 'cambridge ocr'],
+    levels: GCSE_LEVEL_IDS,
+    tiers: ['foundation', 'higher'],
+    specificationCode: 'J257',
+    generationAvailable: false,
   },
 ];
 
 const norm = (v?: string | null) => (v ?? "").trim().toLowerCase();
 
-const DECORATION = /\b(aqa|edexcel|ocr|wjec|eduqas|gcse|igcse|ks4|paper\s*\d+|higher|foundation|tier|hl|sl)\b/g;
+const DECORATION = /\b(aqa|edexcel|cambridge|ocr|wjec|eduqas|gcse|igcse|ks4|j247|j257|paper\s*\d+|higher|foundation|tier|hl|sl)\b/g;
 
 const subjectForms = (value?: string | null): string[] => {
   const base = norm(value);
@@ -66,23 +92,36 @@ export interface CourseLookup {
   subject?: string | null;
   examBoard?: string | null;
   educationalTier?: string | null;
+  /** A subject label never chooses between OCR's two Biology qualifications. */
+  courseId?: string | null;
 }
 
-export const getCourseCapability = (
+export const canonicalCourseId = (value?: string | null): string | null => {
+  const id = norm(value);
+  // Preserve historical AQA snapshot ids and its existing paper-contract id.
+  return id === 'aqa_gcse_biology_8461' ? 'aqa_gcse_biology' : id || null;
+};
+
+export const getCourseOptions = (
   lookup: CourseLookup,
-): CourseCapability | null => {
+): CourseCapability[] => {
   const subjects = subjectForms(lookup.subject);
   const board = norm(lookup.examBoard);
   const level = norm(lookup.educationalTier);
-  if (subjects.length === 0 || !board || !level) return null;
-  return (
-    COURSE_CAPABILITIES.find(
+  if (subjects.length === 0 || !board || !level) return [];
+  return COURSE_CAPABILITIES.filter(
       (c) =>
         subjects.some((s) => c.subjects.includes(s)) &&
         c.boards.includes(board) &&
         c.levels.includes(level),
-    ) ?? null
-  );
+    );
+};
+
+export const getCourseCapability = (lookup: CourseLookup): CourseCapability | null => {
+  const options = getCourseOptions(lookup);
+  const selected = canonicalCourseId(lookup.courseId);
+  if (selected) return options.find(c => c.id === selected) ?? null;
+  return options.length === 1 ? options[0] : null;
 };
 
 export const supportsAssessmentTier = (lookup: CourseLookup): boolean =>

@@ -183,16 +183,6 @@ serve(async (req) => {
       .select()
       .single();
 
-    if (examError && /generation_context/i.test(examError.message ?? '')) {
-      // The column arrives with the assessment-tier migration; keep working.
-      console.warn('generation_context column not available yet — inserting without it');
-      ({ data: examData, error: examError } = await supabase
-        .from('exams')
-        .insert(baseExamRow)
-        .select()
-        .single());
-    }
-
     if (examError || !examData) {
       console.error('Exam creation error:', examError);
       return new Response(JSON.stringify({ error: 'Failed to create exam' }), {

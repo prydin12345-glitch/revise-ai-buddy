@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, Pencil } from "lucide-react";
 import { formatEducationalTier } from "@/lib/level-display";
+import { profileCourseId } from "../../../supabase/functions/_shared/course-selection";
+import { biologyPaperDefinition } from "@/lib/biology-paper-contract";
 import { formatAssessmentTier } from "@/lib/assessment-tier";
 
 interface ExamProfileCardProps {
@@ -22,6 +24,7 @@ export const ExamProfileCard = ({ profile, subjectName, onEdit }: ExamProfileCar
   const navigate = useNavigate();
   const tierLabel = formatEducationalTier(profile.educational_tier);
   const assessmentLabel = formatAssessmentTier(profile.assessment_tier);
+  const paper = biologyPaperDefinition(profileCourseId(profile.paper_blueprint), profile.assessment_tier === "foundation" || profile.assessment_tier === "higher" ? profile.assessment_tier : null);
   const hasBlueprint = Array.isArray(profile.paper_blueprint?.sections) && profile.paper_blueprint.sections.length > 0;
 
   return (
@@ -42,6 +45,8 @@ export const ExamProfileCard = ({ profile, subjectName, onEdit }: ExamProfileCar
           {profile.topics.length > 0 && <Badge>{profile.topics.length} topics</Badge>}
           {tierLabel && <Badge>{tierLabel}</Badge>}
           {assessmentLabel && <Badge accent>{assessmentLabel}</Badge>}
+          {paper?.componentCode && <Badge accent>{paper.componentCode}</Badge>}
+          {profile.paper_blueprint?.paperContract && <Badge accent>{profile.paper_blueprint.paperContract.mode === "full_mock" ? "Full mock" : "Short practice"}</Badge>}
           {hasBlueprint && <Badge accent>Custom layout</Badge>}
         </div>
 

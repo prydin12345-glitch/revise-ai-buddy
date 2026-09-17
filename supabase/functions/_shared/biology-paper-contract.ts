@@ -7,7 +7,9 @@
 // Identity stored on an attempt is course + paper + mode + contract version —
 // never a display name such as "AQA_GCSE_BIO_P1".
 
-import { getCourseCapability } from './assessment-tier.ts';
+import { getCourseCapability, canonicalCourseId, OCR_GATEWAY_BIOLOGY_ID } from './assessment-tier.ts';
+import { buildGatewayPlan, OCR_GATEWAY_PAPER, gatewayComponent } from './ocr-biology-contract.ts';
+export { OCR_GATEWAY_PAPER, gatewayComponent } from './ocr-biology-contract.ts';
 
 export const BIOLOGY_CONTRACT_VERSION = 1;
 
@@ -42,6 +44,10 @@ export interface PlannedPart {
   demand: "AO1" | "AO2" | "AO3";
   resource: ResourceKind;
   resourceId?: string;
+  section?: 'A' | 'B';
+  specRefs?: string[];
+  mathsMarks?: number;
+  practicalMarks?: number;
 }
 
 export interface PaperPlan {
@@ -58,6 +64,7 @@ export interface PaperPlan {
   totalMarks: number;
   durationMinutes: number;
   label: string;
+  componentCode?: string;
 }
 
 const finalise = (
@@ -161,7 +168,10 @@ export function buildFullMockPlan(tier: PaperPlan["tier"]): PaperPlan {
 export function buildPaperPlan(
   mode: PaperMode,
   tier: PaperPlan["tier"],
+  courseId: string = AQA_BIOLOGY_P1.courseId,
 ): PaperPlan | null {
+  if (courseId === OCR_GATEWAY_BIOLOGY_ID) return buildGatewayPlan(mode, tier);
+  if (canonicalCourseId(courseId) !== 'aqa_gcse_biology') throw new Error('This course does not have a guided Biology paper yet.');
   if (mode === "full_mock") return buildFullMockPlan(tier);
   if (mode === "short_practice") return buildShortPracticePlan(tier);
   return null; // custom keeps the user's manual counts and media choices
@@ -172,16 +182,30 @@ export function supportsBiologyPaperContract(input: {
   subject?: string | null;
   examBoard?: string | null;
   educationalLevel?: string | null;
+  courseId?: string | null;
 }): boolean {
-  return getCourseCapability({
+  const course = getCourseCapability({
     subject: input.subject,
     examBoard: input.examBoard,
     educationalTier: input.educationalLevel,
-  })?.id === 'aqa_gcse_biology';
+    courseId: input.courseId,
+  });
+  return course?.id === 'aqa_gcse_biology' || course?.id === OCR_GATEWAY_BIOLOGY_ID;
+}
+
+export function biologyPaperDefinition(courseId: string | null, tier: PaperPlan['tier']) {
+  if (courseId === OCR_GATEWAY_BIOLOGY_ID) return {
+    ...OCR_GATEWAY_PAPER, componentCode: gatewayComponent(tier),
+    displayName: `OCR Gateway Biology A ${tier === 'higher' ? 'Paper 3' : 'Paper 1'}`,
+  };
+  if (canonicalCourseId(courseId) === 'aqa_gcse_biology') return {
+    ...AQA_BIOLOGY_P1, contractVersion: BIOLOGY_CONTRACT_VERSION, componentCode: null,
+  };
+  return null;
 }
 
 /** Human-readable summary used by the conversion preview in the UI. */
 export const describePlan = (plan: PaperPlan): string =>
-  `${plan.label} — ${plan.partCount} parts across ${plan.parentCount} questions, ` +
+  `${plan.label}${plan.componentCode ? ` (${plan.componentCode})` : ''} — ${plan.partCount} parts across ${plan.parentCount} questions, ` +
   `${plan.totalMarks} marks, ${plan.durationMinutes} minutes` +
   (plan.tier ? ` (${plan.tier})` : "");

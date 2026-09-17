@@ -14,9 +14,13 @@
 import { resolveQuestionResources, type ResourceQuestion } from './question-resources.ts';
 import { gcseBiologyIssue, type BiologyScope } from './gcse-biology-scope.ts';
 
+import type { PaperPlan } from './biology-paper-contract.ts';
+import { validateGatewayPlan } from './ocr-plan-validator.ts';
+
 export const CONTRACT_VERSION = 2;
 
 export type DefectCode =
+  | "plan_mismatch"
   | "missing_task"
   | "missing_required_resource"
   | "missing_answer"
@@ -210,6 +214,7 @@ export const referencesResource = (text: string): boolean =>
   /\b(the (table|graph|diagram) (above|below|shown))\b/i.test(text);
 
 export interface ValidateOptions {
+  plan?: PaperPlan | null;
   /** Server-resolved qualification, distinct from difficulty. */
   scope?: BiologyScope;
   /** Expected total marks from the plan; omitted when there is no plan. */
@@ -324,6 +329,8 @@ export function validateQuestionCandidates(
       });
     }
   }
+
+  defects.push(...validateGatewayPlan(parts, options.plan));
 
   const failedPartIds = [...new Set(defects.map((d) => d.partId))].filter((id) => id !== "paper");
   const failedGroupIds = [

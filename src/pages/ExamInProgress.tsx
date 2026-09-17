@@ -1,3 +1,5 @@
+import { PaperSectionHeading } from "@/components/exams/PaperSectionHeading";
+import { gatewayPaperDisplay } from "@/lib/biology-paper-display";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { InsertPanel } from "@/components/insert/InsertPanel";
 import { QuestionCardShell } from "@/components/quiz/QuestionCardShell";
@@ -204,6 +206,7 @@ const ExamInProgress = () => {
   const [submission, setSubmission] = useState<any>(null);
   const [examSubject, setExamSubject] = useState<string>('');
   const examSubjectRef = useRef<string>(''); // Ref to avoid stale closures
+  const [paperContext, setPaperContext] = useState<unknown>(null);
   const [examName, setExamName] = useState<string>('');
   const [insertFigures, setInsertFigures] = useState<any[]>([]);
   const [examView, setExamView] = useState<'questions' | 'insert'>('questions');
@@ -471,13 +474,14 @@ const ExamInProgress = () => {
       // Fetch exam metadata to get subject, name, and resource pack
       const { data: examData } = await supabase
         .from('exams')
-        .select('subject_id, title, resource_pack_id, insert_figures')
+        .select('subject_id, title, resource_pack_id, insert_figures, generation_context')
         .eq('id', examId)
         .single();
       
       if (examData) {
         setExamSubject(examData.subject_id || '');
         setExamName(examData.title || 'Exam in Progress');
+        setPaperContext(examData.generation_context);
         setInsertFigures(Array.isArray((examData as any).insert_figures) ? (examData as any).insert_figures : []);
         
         // Fetch subject color from user_subjects table
@@ -1302,6 +1306,7 @@ const ExamInProgress = () => {
               <Menu className="h-5 w-5" />
             </Button>
             <h1 className="text-sm sm:text-base lg:text-xl font-bold truncate">{examName || 'Exam in Progress'}</h1>
+            {gatewayPaperDisplay(paperContext) && <p className="text-xs text-muted-foreground">{gatewayPaperDisplay(paperContext)?.label}</p>}
           </div>
           
           {/* Center: Timer */}
@@ -1710,6 +1715,7 @@ const ExamInProgress = () => {
                 
                 return (
                   <div key={question.id} className={isSubPart ? 'ml-2' : ''}>
+                    <PaperSectionHeading context={paperContext} number={question.question_number} previous={prevQuestion?.question_number} />
                     {/* Parent question header for first sub-part */}
                     {showParentHeader && (
                       <h2 className="text-lg lg:text-xl font-bold mb-3 lg:mb-4 mt-2">Question {parentNum}</h2>

@@ -1,3 +1,4 @@
+import { gatewayPaperDisplay } from "@/lib/biology-paper-display";
 import { useState } from "react";
 import { Printer, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -63,6 +64,8 @@ export function PrintExamButton({
     subject?: string;
     exam_board?: string;
     qualification_level?: string;
+    generation_context?: unknown;
+    time_allowed?: number;
     questions: ExamQuestion[];
   } | null>(null);
 
@@ -71,7 +74,7 @@ export function PrintExamButton({
     try {
       const { data: exam, error: examError } = await supabase
         .from("exams")
-        .select("title, exam_board, qualification_level, detected_subject")
+        .select("title, exam_board, qualification_level, detected_subject, generation_context")
         .eq("id", examId)
         .single();
 
@@ -107,11 +110,14 @@ export function PrintExamButton({
         };
       });
 
+      const paper = gatewayPaperDisplay(exam.generation_context);
       setExamData({
         title: exam.title,
-        subject: exam.detected_subject || undefined,
+        subject: paper ? "Gateway Biology A" : exam.detected_subject || undefined,
         exam_board: exam.exam_board || undefined,
-        qualification_level: exam.qualification_level || undefined,
+        qualification_level: paper ? `GCSE · ${paper.plan.tier} · ${paper.plan.componentCode}` : exam.qualification_level || undefined,
+        generation_context: exam.generation_context,
+        time_allowed: paper?.plan.durationMinutes,
         questions: formattedQuestions,
       });
 

@@ -1,3 +1,4 @@
+import { PaperSectionHeading } from "@/components/exams/PaperSectionHeading";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -236,6 +237,7 @@ const ExamReview = () => {
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(true);
   const [scoresHidden, setScoresHidden] = useState(false);
+  const [paperContext, setPaperContext] = useState<unknown>(null);
   const [insertFigures, setInsertFigures] = useState<any[]>([]);
   const [isTutorAssigned, setIsTutorAssigned] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -283,9 +285,10 @@ const ExamReview = () => {
 
       const { data: exam } = await supabase
         .from('exams')
-        .select('insert_figures')
+        .select('insert_figures, generation_context')
         .eq('id', examId)
         .single();
+      setPaperContext(exam?.generation_context ?? null);
       setInsertFigures(Array.isArray((exam as any)?.insert_figures) ? (exam as any).insert_figures : []);
 
       setScoresHidden(data.scoresHidden === true);
@@ -613,6 +616,7 @@ const ExamReview = () => {
 
               return (
                 <div key={question.id} className={isSubPart ? 'ml-2' : ''}>
+                  <PaperSectionHeading context={paperContext} number={question.question_number} previous={prevQ?.question_number} />
                   {showParentHeader && (
                     <h2 className="font-serif text-xl font-bold mb-4 mt-2 text-foreground">Question {parentNum}</h2>
                   )}

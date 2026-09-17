@@ -1,3 +1,5 @@
+import { checkPracticeCourse, gatewayPracticeInstructions, assertGatewayPractice, gatewayCachedRows } from '../_shared/ocr-practice.ts';
+import { OCR_GATEWAY_BIOLOGY_ID } from '../_shared/assessment-tier.ts';
 // FILE: supabase/functions/generate-practice-questions/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -120,6 +122,8 @@ async function generateQuestionsInBackground(
       setData,
     );
 
+    checkPracticeCourse(generationContext);
+    const gatewayInstructions = gatewayPracticeInstructions(generationContext);
     const resolvedAssessmentTier = (generationContext?.assessment_tier as string | null) ?? null;
     const resolvedCourseId = (generationContext?.course_id as string | null) ?? null;
 
@@ -129,6 +133,9 @@ async function generateQuestionsInBackground(
       educationalLevel: setData.educational_tier ?? '',
       assessmentTier: resolvedAssessmentTier,
       courseId: resolvedCourseId,
+      paperId: (generationContext.paper_id as string | null) ?? null,
+      presetVersion: (generationContext.paper_contract as any)?.contractVersion ?? (resolvedCourseId === OCR_GATEWAY_BIOLOGY_ID ? 1 : null),
+      resourceVersion: resolvedCourseId === OCR_GATEWAY_BIOLOGY_ID ? "ocr-gateway-1" : null,
       topics: setData.subtopics ?? [],
       difficulty: setData.difficulty_level ?? 'mixed',
       questionFormat: setData.question_format ?? 'written_only',
@@ -193,6 +200,7 @@ async function generateQuestionsInBackground(
         .single();
 
       if (cached && isCacheEntryCompatible(cached as any, cacheParams)) {
+        assertGatewayPractice(cached.questions as any[], generationContext);
         console.log(`Cache HIT slot ${variationSlot} for key ${cacheKey} — skipping AI call`);
         await supabaseClient.from('question_generation_cache')
           .update({ hit_count: (cached.hit_count || 0) + 1 })
@@ -207,13 +215,16 @@ async function generateQuestionsInBackground(
           return q;
         });
         // Assign new IDs and set_id
-        const questionsToInsert = shuffledWithOptions.map((q: any, i: number) => ({
+        const questionsToInsert = resolvedCourseId === OCR_GATEWAY_BIOLOGY_ID
+          ? gatewayCachedRows(cached.questions as any[], setId, (setData as any).profile_id ?? null)
+          : shuffledWithOptions.map((q: any, i: number) => ({
           ...q,
           set_id: setId,
         }));
 
         await supabaseClient.from('practice_questions').delete().eq('set_id', setId);
-        await supabaseClient.from('practice_questions').insert(questionsToInsert);
+        const {error: cachedInsertError} = await supabaseClient.from('practice_questions').insert(questionsToInsert);
+        if (cachedInsertError) throw cachedInsertError;
         await supabaseClient.from('practice_question_sets').update({
           extraction_status: 'completed',
           total_questions_generated: questionsToInsert.length,
@@ -601,7 +612,7 @@ EXAMPLE QUESTION FORMATS:
       assessmentTier: resolvedAssessmentTier as any,
       courseId: resolvedCourseId,
     });
-    const generationContextPrompt = [formatGenerationContextPrompt(generationCtx), tierPrompt]
+    const generationContextPrompt = [formatGenerationContextPrompt(generationCtx), tierPrompt, gatewayInstructions]
       .filter(Boolean)
       .join('\n\n');
     console.log('Generation context:', generationCtx.region, generationCtx.level);
@@ -1329,7 +1340,7 @@ If the example or resource material contains a case study, source text, passage,
 ${transformationInstructions}
 ${subjectGraphInstructions}
 ${MULTI_PART_GRAPH_INSTRUCTIONS}
-${buildBiologyInstructions(subjectName)}
+${gatewayInstructions ? "" : buildBiologyInstructions(subjectName)}
 ${buildMathsInstructions(subjectName)}
 ${needsCircuitRules(detectSubject(subjectName), setData.subtopics || []) ? buildCircuitInstructions() : ''}
 ${detectSubject(subjectName).usePhysicsDiagramInstructions ? buildPhysicsInstructions() : ''}
@@ -2063,7 +2074,7 @@ ${notesSection}`;
 
 
     const callAi = async (attempt: 0 | 1 | 2) => {
-      const sys = attempt === 0 ? baseSystemPrompt : `${baseSystemPrompt} ${strictRetryPrompt}`;
+      const sys = (attempt === 0 ? baseSystemPrompt : `${baseSystemPrompt} ${strictRetryPrompt}`) + "\n" + gatewayInstructions;
 
       // Reliability fallback chain (tuned for heavy diagram-config prompts like physics):
       // - Attempt 1: Gemini Flash with generous timeout (handles 15-question diagram batches)
@@ -4418,6 +4429,8 @@ Generate questions that are meaningfully different from all of the above.`;
       );
     }
     // ───────────────────────────────────────────────────────────────────
+
+    assertGatewayPractice(questionsToInsert, generationContext);
 
     const { error: insertError } = await supabaseClient
       .from('practice_questions')

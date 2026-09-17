@@ -134,6 +134,7 @@ export default function UploadExam() {
         preferredExamBoard: preferences?.preferred_exam_board,
         preferredEducationalLevel: preferences?.preferred_educational_level,
       });
+      if (generationContext.configurationError) throw new Error(generationContext.configurationError);
       if (generationContext.assessmentTier) {
         formData.append('assessmentTier', generationContext.assessmentTier);
       }

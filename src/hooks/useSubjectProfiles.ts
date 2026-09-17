@@ -35,6 +35,7 @@ interface ExamProfile {
   exam_board: string | null;
   /** Foundation / Higher / not_tiered. null = unknown (legacy profile). */
   assessment_tier: string | null;
+  paper_blueprint?: import("@/integrations/supabase/types").Json;
   created_at: string;
   updated_at: string;
 }
