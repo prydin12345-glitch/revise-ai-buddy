@@ -85,7 +85,9 @@ Use complete instructions, consistent units and private answer keys. Every score
 export function gatewayPartInstruction(part: PlannedPart): string {
   return `${part.questionNumber} | Section ${part.section} | ${part.marks} marks | ${part.responseType} | ${part.demand} | ${part.topic}` +
     ` | ${(part.specRefs ?? []).map(ref => `${ref}: ${GATEWAY_SPEC[ref] ?? 'UNSUPPORTED REF'}`).join('; ')}` +
+    (part.responseType === 'mcq_single' ? ' | Return an "options" array of exactly four distinct non-empty choices (plain text, no A./B. prefixes) and a correct_answer matching one of them exactly.' : '') +
     (part.resource === 'none' ? '' : ` | Supply a complete ${part.resource} payload with real, self-consistent data.`) +
+
     (part.mathsMarks ? ` | At least ${part.mathsMarks} marks must require mathematical work, with workings and units in the private key.` : '') +
     (part.practicalMarks ? ` | At least ${part.practicalMarks} marks must assess practical methods, evidence or evaluation.` : '') +
     (part.marks === 6 ? ' | Use a level-of-response key: Level 1 (1–2), Level 2 (3–4), Level 3 (5–6), 0 no relevant science; specific science descriptors, indicative content and communication guidance.' : '');
