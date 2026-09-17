@@ -20,7 +20,7 @@ import { MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInst
 import { resolveQuestionResources, coerceChart, isResourceChart } from '../_shared/question-resources.ts';
 import { isGcseBiology, GCSE_BIOLOGY_RULES, biologyScopeInstructions, biologyScopeFromContext, type BiologyScope } from '../_shared/gcse-biology-scope.ts';
 import { getSubjectSpecificInstructions } from "../_shared/exam-extraction-prompts.ts";
-import { validateQuestionCandidates, describeDefects, hasAssessedTask, assembleQuestionText, CONTRACT_VERSION } from "../_shared/question-contract-validator.ts";
+import { validateQuestionCandidates, describeDefects, hasAssessedTask, assembleQuestionText, coerceMcqOptions, CONTRACT_VERSION } from "../_shared/question-contract-validator.ts";
 import { describePlan, AQA_BIOLOGY_P1, type PaperPlan } from "../_shared/biology-paper-contract.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
@@ -1153,7 +1153,8 @@ Stay inside ${AQA_BIOLOGY_P1.displayName} Paper 1 topics only. Every scored part
       }
     }
     let correctAnswer = q.correct_answer;
-    let options = q.options || null;
+    // Read every option shape models emit (choices/answer_options/{A:..}).
+    let options: any = (String(qType) === 'mcq' ? coerceMcqOptions(q) : null) ?? q.options ?? null;
     let graphWrapper: any = null;
 
     // Build a canonical graph wrapper { graphType, graphConfig, plottingAnswer }

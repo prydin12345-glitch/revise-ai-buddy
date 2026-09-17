@@ -38,7 +38,7 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     taskOnly ? '' : 'Keep all required resources. Store one coherent results table in diagram_config with type data_table, headers and rows; no Markdown/HTML copy. Rewrite keys to agree with the repaired data.',
     'Continuous observations need type line_chart with numeric datasets [{label,data:[{x,y}]}]. Never silently discard conflicting observations or invent point timestamps for interval summaries.',
     'Captions must be neutral; no [Graph showing ...] placeholders or answer-revealing descriptions.',
-    'For MCQs preserve the planned choices/count and return an answer matching an option. Put mathematics inside $...$.',
+    'For every MCQ row ALWAYS return an options array of exactly four distinct non-empty choices (plain text, no A./B. prefixes) plus a correct_answer that matches one of them exactly. Never omit or null the options. Put mathematics inside $...$.',
     input.plan?.courseId === OCR_GATEWAY_BIOLOGY_ID ? input.plan.parts.filter(p => input.group.some(row => String(row.question_number) === p.questionNumber)).map(gatewayPartInstruction).join('\n') : '',
     'Planned parts: ' + JSON.stringify(input.plan?.parts.filter(p => input.group.some(row => String(row.question_number) === p.questionNumber)) ?? []),
     'Current group: ' + JSON.stringify(input.group.map(row => ({ question_number: row.question_number,
