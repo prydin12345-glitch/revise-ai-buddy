@@ -221,9 +221,8 @@ export function normalizeRepairPart(raw: unknown): NormalizedRepairPart | null {
   if (!questionNumber || !questionText || !correctAnswer || !hasAssessedTask(questionText)) {
     return null;
   }
-  const options = Array.isArray(part.options)
-    ? part.options.map((option) => String(option ?? "").trim()).filter(Boolean)
-    : undefined;
+  const options = coerceMcqOptions(part) ?? undefined;
+
   return {
     questionNumber,
     questionText,
