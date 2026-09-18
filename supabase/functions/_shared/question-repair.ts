@@ -4,6 +4,7 @@ import { OCR_GATEWAY_BIOLOGY_ID } from './assessment-tier.ts';
 import { analyseGroupRepair, type RepairDiagnostic, type RepairMode, type RepairResult } from './prepare-group-repair.ts';
 import { biologyScopeInstructions, type BiologyScope } from './gcse-biology-scope.ts';
 import type { PaperPlan } from './biology-paper-contract.ts';
+import { isMcqType } from './model-question-normalization.ts';
 
 export interface RepairRequest {
   group: any[];
@@ -22,6 +23,11 @@ export const describeRepairDiagnostics = (items: RepairDiagnostic[]): string => 
 
 export function buildQuestionRepairPrompt(input: RepairRequest): string {
   const taskOnly = input.mode === 'task_only';
+  const sample = input.group.find(row => Number(row.marks) > 0);
+  const example = {question_number: sample?.question_number ?? '1(a)',
+    ...(taskOnly ? {} : {context: '...'}), task: '...', correct_answer: '...',
+    ...(!taskOnly && isMcqType(sample?.question_type) ? {options: ['Choice A', 'Choice B', 'Choice C', 'Choice D']} : {}),
+    ...(taskOnly ? {} : {diagram_config: null})};
   return [
     taskOnly ? 'Repair the missing assessed tasks for the named parts only. Original context, data and other siblings must remain unchanged.'
       : 'Repair the COMPLETE parent group, including every sibling, resource and private mark scheme.',
@@ -39,14 +45,15 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     taskOnly ? '' : 'Keep all required resources. Store one coherent results table in diagram_config with type data_table, headers and rows; no Markdown/HTML copy. Rewrite keys to agree with the repaired data.',
     'Continuous observations need type line_chart with numeric datasets [{label,data:[{x,y}]}]. Never silently discard conflicting observations or invent point timestamps for interval summaries.',
     'Captions must be neutral; no [Graph showing ...] placeholders or answer-revealing descriptions.',
-    'For every MCQ row ALWAYS return an options array of exactly four distinct non-empty choices (plain text, no A./B. prefixes) plus a correct_answer that matches one of them exactly. Never omit or null the options. Put mathematics inside $...$.',
-    input.plan?.courseId === OCR_GATEWAY_BIOLOGY_ID ? input.plan.parts.filter(p => input.group.some(row => String(row.question_number) === p.questionNumber)).map(gatewayPartInstruction).join('\n') : '',
+    taskOnly ? 'For an MCQ, use the ORIGINAL choices when checking correct_answer; do not emit or change the choices.'
+      : 'For every MCQ row return an options array of exactly four distinct non-empty choices (plain text, no A./B. prefixes) plus a correct_answer that matches one of them exactly. Never omit or null the options.',
+    'Put mathematics inside $...$.',
+    input.plan?.courseId === OCR_GATEWAY_BIOLOGY_ID ? input.plan.parts.filter(p => input.group.some(row => String(row.question_number) === p.questionNumber)).map(part => gatewayPartInstruction(part, !taskOnly)).join('\n') : '',
     'Planned parts: ' + JSON.stringify(input.plan?.parts.filter(p => input.group.some(row => String(row.question_number) === p.questionNumber)) ?? []),
     'Current group: ' + JSON.stringify(input.group.map(row => ({ question_number: row.question_number,
       question_type: row.question_type, marks: row.marks, topic_tag: row.topic_tag, question_text: row.question_text,
       correct_answer: row.correct_answer, options: row.options, diagram_config: row.diagram_config, table_data: row.table_data }))),
-    taskOnly ? 'Return JSON only: {"parts":[{"question_number":"1(a)","task":"...","correct_answer":"..."}]}'
-      : 'Return JSON only: {"parts":[{"question_number":"1(a)","context":"...","task":"...","correct_answer":"...","options":null,"diagram_config":null}]}',
+    'Return JSON only: ' + JSON.stringify({parts: [example]}),
   ].filter(Boolean).join('\n');
 }
 
@@ -83,7 +90,8 @@ export async function requestQuestionRepair(input: RepairRequest, apiKey: string
     const proposed = input.group.map(row => ({...row, ...result.replacements[String(row.question_number)]}));
     const defects = validateGatewayPlan(proposed, groupPlan);
     if (defects.length) return {ok: false, replacements: {}, phase: 'validation',
-      diagnostics: defects.map(d => ({code: d.code, detail: d.detail}))};
+      diagnostics: defects.map(d => ({code: d.code, detail: d.detail,
+        partNumber: proposed.find(row => String(row.id ?? row.question_number) === d.partId)?.question_number}))};
   }
   return { ...result, phase: result.ok ? (result.diagnostics.length ? 'partial' : 'accepted') : 'validation' };
 }
