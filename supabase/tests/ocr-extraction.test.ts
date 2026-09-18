@@ -6,20 +6,28 @@ import {describe, expect, it} from 'vitest';
 import {gatewayFixture} from './ocr-fixtures';
 import {OCR_GATEWAY_BIOLOGY_ID as OCR} from '../functions/_shared/assessment-tier';
 
-async function extract(tier: 'foundation'|'higher', missing = false) {
+interface ExtractionScenario {
+  mutate?: (questions: any[]) => void;
+  repair?: (request: any, questions: any[]) => any;
+  rejectRepairSave?: boolean;
+}
+async function extract(tier: 'foundation'|'higher', scenario: boolean | ExtractionScenario = false) {
   const {rows}=gatewayFixture(tier);
-  const questions=(missing?rows.slice(1):rows).map(({id,diagram_config,...r}) => ({...r, chart_data:diagram_config}));
+  const questions=(scenario === true?rows.slice(1):rows).map(({id,diagram_config,...r}) => ({...r, chart_data:diagram_config}));
+  const config = typeof scenario === 'object' ? scenario : {};
+  config.mutate?.(questions);
   const snapshot={resolved_by:'server',context_version:2,subject_name:'Biology Higher',exam_board:'OCR',educational_tier:'GCSE',assessment_tier:tier,course_id:OCR,paper_id:'first_paper',component_code:tier==='foundation'?'J247/01':'J247/03',paper_contract:{courseId:OCR,paperId:'first_paper',mode:'full_mock',contractVersion:1}};
   const exam:any={id:'exam',user_id:'owner',subject_id:'Biology Higher',exam_board:'OCR',qualification_level:'GCSE',generation_context:snapshot,
     exam_specifications:[{topic_name:'Infection and response'}],exam_format:[{use_original_structure:false,mcq_count:0,short_answer_count:8,profile_metadata:{paperBlueprint:{paperContract:{courseId:'aqa_gcse_biology_8461',paperId:'paper_1',mode:'full_mock'}}}}]};
   let drafts:any[]=[];
   const aiCalls:any[]=[];
   const client={from(table:string) {
-    let op='select',value:any; const filters:Record<string,unknown>={};
+    let op='select',value:any,single=false; const filters:Record<string,unknown>={};
     const q:any={};
     for(const method of ['select','update','insert','upsert','delete','order','eq','ilike','in','maybeSingle','single']) q[method]=(...args:any[])=>{
       if(['update','insert','upsert','delete'].includes(method)){op=method;value=args[0];}
       if(method==='eq') filters[args[0]]=args[1];
+      if(method==='single'||method==='maybeSingle') single=true;
       return q;
     };
     q.then=(resolve:any,reject:any)=>{
@@ -27,9 +35,12 @@ async function extract(tier: 'foundation'|'higher', missing = false) {
       if(table==='exams'){if(op==='update')Object.assign(exam,value);data=exam;}
       if(table==='user_preferences')data=null;
       if(table==='exam_question_drafts') {
+        if(op==='delete') drafts=[];
         if(op==='insert') drafts=value.map((r:any,i:number)=>({...r,id:`draft-${i}`}));
+        if(op==='update' && value.original_question_text && config.rejectRepairSave) return Promise.resolve({data:null,error:{message:'test write refused'}}).then(resolve,reject);
         if(op==='update') drafts=drafts.map(r=>!filters.id||filters.id===r.id?{...r,...value}:r);
-        data=drafts;
+        const selected=drafts.filter(r=>!filters.id||filters.id===r.id);
+        data=single?selected[0]??null:selected;
       }
       return Promise.resolve({data,error:null}).then(resolve,reject);
     };
@@ -41,7 +52,11 @@ async function extract(tier: 'foundation'|'higher', missing = false) {
     b.onLoad({filter:/.*/,namespace:'runtime'},args=>({loader:'js',contents:args.path.includes('supabase-js')?'export const createClient=()=>null;':args.path.includes('server.ts')?'export const serve=()=>{};':''}));
   }}]});
   const context:any={module:{exports:{}},exports:{},console:{log(){},warn(){},error(){}},Request,Response,Headers,URL,TextEncoder,TextDecoder,setTimeout,clearTimeout,
-    fetch:async(_url:any,options:any)=>{aiCalls.push(JSON.parse(options.body));return new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify({questions})}}]}));},Deno:{env:{get:()=>undefined}},EdgeRuntime:{waitUntil(){}}};
+    fetch:async(_url:any,options:any)=>{
+      const request=JSON.parse(options.body); aiCalls.push(request);
+      const content=aiCalls.length===1?{questions}:config.repair?.(request,questions)??{parts:[]};
+      return new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify(content)}}]}));
+    },Deno:{env:{get:()=>undefined}},EdgeRuntime:{waitUntil(){}}};
   vm.runInNewContext(result.outputFiles[0].text,context);
   let error:unknown;
   try {await context.module.exports.processExamExtraction('exam','owner',client,'test-key',false,null);} catch(e){error=e;}
@@ -67,14 +82,95 @@ describe('real OCR extraction pipeline with fixture model responses',()=>{
     expect(result.drafts.find(q=>q.question_number==='1')).toBeUndefined();
     expect(result.drafts.find(q=>q.question_number==='2')).toBeTruthy();
   });
+  it('normalises answer aliases and a separate structured level scheme before spending repair calls',async()=>{
+    const result=await extract('foundation',{mutate(questions){
+      for(const q of questions){
+        q.expected_answer=q.correct_answer; q.correct_answer='';
+        if(q.question_type==='mcq'){q.choices=Object.fromEntries(q.options.map((text:string,i:number)=>['ABCD'[i],text]));delete q.options;}
+        if(q.marks===6){q.expected_answer='A model explanation of temperature control.';q.mark_scheme=levelScheme;}
+      }
+    }});
+    expect(String(result.error??'')).toBe('');
+    expect(result.aiCalls).toHaveLength(1);
+    expect(result.exam.extraction_status).toBe('completed');
+    expect(result.drafts.find(q=>q.question_number==='24(b)').correct_answer).toContain('Level 3');
+    expect(result.drafts.find(q=>q.question_number==='24(b)').correct_answer).toContain('sweat evaporation');
+    expect(result.drafts.filter(q=>q.question_type==='mcq').every(q=>q.options.length===4 && q.options.includes(q.correct_answer))).toBe(true);
+  });
+  it.each(['foundation','higher'] as const)('repairs the reported photosynthesis and six-mark failures, persists them and completes the %s paper',async tier=>{
+    const result=await extract(tier,{
+      mutate(questions){
+        const photosynthesis=questions.find(q=>q.question_number==='19(a)');
+        photosynthesis.question_text='Photosynthesis takes place in chloroplasts.';
+        photosynthesis.correct_answer='The Calvin cycle produces sugars.';
+        questions.find(q=>q.question_number==='24(b)').correct_answer='A model answer without any levels.';
+      },
+      repair(request){
+        const prompt=request.messages[0].content;
+        const group=JSON.parse(prompt.split('Current group: ')[1].split('\nReturn JSON')[0]);
+        return {parts:group.map((row:any)=>({question_number:row.question_number,
+          context:'', instruction:row.question_number==='19(a)'?'Briefly outline the two main stages of photosynthesis.':row.question_text,
+          correct_answer:'', expected_answer:row.question_number==='19(a)'?'Light energy splits water. Hydrogen combines with carbon dioxide to make glucose.':row.correct_answer,
+          ...(row.question_number==='24(b)'?{mark_scheme:levelScheme}:{}), diagram_config:row.diagram_config,
+        }))};
+      },
+    });
+    expect(String(result.error??'')).toBe('');
+    expect(result.aiCalls).toHaveLength(3);
+    expect(result.exam.extraction_status).toBe('completed');
+    expect(result.drafts.find(q=>q.question_number==='19(a)').question_text).toContain('Briefly outline');
+    expect(result.drafts.find(q=>q.question_number==='19(a)').correct_answer).not.toContain('Calvin');
+    expect(result.drafts.find(q=>q.question_number==='24(b)').correct_answer).toContain('Level 3');
+    expect(result.drafts.reduce((n,q)=>n+q.marks,0)).toBe(90);
+    const boundary=await boundaryHandler('publish-exam',result.drafts,tier);
+    expect((await boundary.run({draftId:'exam'})).status).toBe(200);
+    expect(boundary.writes.find(w=>w.table==='exam_questions')?.value).toHaveLength(41);
+  });
+  it('accepts a task-only MCQ repair without replacing its four choices',async()=>{
+    const result=await extract('foundation',{
+      mutate(questions){questions[0].question_text='A plant cell has several structures.';},
+      repair(){return {parts:[{question_number:'1',instruction:'Which structure contains the genetic material?',expected_answer:'Nucleus'}]};},
+    });
+    expect(String(result.error??'')).toBe('');
+    expect(result.aiCalls).toHaveLength(2);
+    expect(result.drafts.find(q=>q.question_number==='1').options).toEqual(['Nucleus','Membrane','Ribosome','Cytoplasm']);
+  });
+  it('stops on a failed repair save and never marks the paper complete',async()=>{
+    const result=await extract('foundation',{
+      mutate(questions){questions[0].question_text='A plant cell has several structures.';},
+      repair(){return {parts:[{question_number:'1',task:'Which structure contains the genetic material?',correct_answer:'Nucleus'}]};},
+      rejectRepairSave:true,
+    });
+    expect(String(result.error)).toContain('Repair save failed');
+    expect(result.exam.extraction_status).not.toBe('completed');
+  });
+  it('still refuses genuinely out-of-level content and stops after the existing three group attempts',async()=>{
+    const result=await extract('foundation',{
+      mutate(questions){questions.find(q=>q.question_number==='19(a)').correct_answer='The Calvin cycle produces sugars.';},
+      repair(request){
+        const group=JSON.parse(request.messages[0].content.split('Current group: ')[1].split('\nReturn JSON')[0]);
+        return {parts:group.map((row:any)=>({...row,task:row.question_text}))};
+      },
+    });
+    expect(String(result.error)).toContain('after 3 repair attempt(s)');
+    expect(String(result.error)).toContain('out_of_level');
+    expect(result.aiCalls).toHaveLength(4);
+    expect(result.exam.extraction_status).toBe('failed');
+  });
 });
 
-async function boundaryHandler(name: string, rows: any[]) {
+const levelScheme=[
+  {level:1,marks:'1-2',descriptor:'Simple relevant statements about temperature regulation.',indicative_content:['Sweating occurs.']},
+  {level:2,marks:'3-4',descriptor:'Links an effector response to heat transfer.',indicative_content:['Energy is transferred by sweat evaporation.']},
+  {level:3,marks:'5-6',descriptor:'Explains coordinated negative feedback with linked scientific reasoning.',indicative_content:['Temperature returns towards its normal value.']},
+];
+
+async function boundaryHandler(name: string, rows: any[], tier: 'foundation'|'higher' = 'foundation') {
   const writes: Array<{table:string; value:any}>=[];
-  const contextSnapshot={resolved_by:'server',context_version:2,subject_name:'Biology',exam_board:'OCR',educational_tier:'GCSE',assessment_tier:'foundation',course_id:OCR,paper_id:'first_paper',component_code:'J247/01',paper_contract:{courseId:OCR,paperId:'first_paper',mode:'full_mock',contractVersion:1}};
+  const contextSnapshot={resolved_by:'server',context_version:2,subject_name:'Biology',exam_board:'OCR',educational_tier:'GCSE',assessment_tier:tier,course_id:OCR,paper_id:'first_paper',component_code:tier==='foundation'?'J247/01':'J247/03',paper_contract:{courseId:OCR,paperId:'first_paper',mode:'full_mock',contractVersion:1}};
   const client={auth:{getUser:async()=>({data:{user:{id:'owner'}}})},from(table:string){
     const q:any={};
-    for(const method of ['select','eq','order','single','maybeSingle','upsert','update','insert'])q[method]=(value:any)=>{
+    for(const method of ['select','eq','order','single','maybeSingle','upsert','update','insert','delete'])q[method]=(value:any)=>{
       if(['upsert','update','insert'].includes(method)) writes.push({table,value});return q;
     };
     q.then=(resolve:any,reject:any)=>Promise.resolve({data:table==='exams'?{id:'exam',subject_id:'Biology',exam_board:'OCR',qualification_level:'GCSE',generation_context:contextSnapshot}:rows,error:null}).then(resolve,reject);
