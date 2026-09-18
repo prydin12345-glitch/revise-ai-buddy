@@ -1,6 +1,7 @@
 import { assembleQuestionText, coerceMcqOptions, hasAssessedTask, normalizeRepairPart, validateQuestionCandidates } from './question-contract-validator.ts';
 import { resolveQuestionResources, isResourceChart } from './question-resources.ts';
 import type { BiologyScope } from './gcse-biology-scope.ts';
+import { canonicalMcqAnswer, isMcqType, readQuestionTask } from './model-question-normalization.ts';
 
 export type RepairMode = 'task_only' | 'full_group';
 export interface RepairDiagnostic { code: string; partNumber?: string; detail: string; }
@@ -26,10 +27,8 @@ const stable = (value: any): string => JSON.stringify(value === undefined ? null
 
 /** Models label the instruction inconsistently; accept the usual aliases. */
 const readRepairTask = (part: any, originalText = ''): string => {
-  for (const field of ['task', 'instruction', 'command', 'assessed_task', 'question_task', 'question']) {
-    const value = part?.[field];
-    if (typeof value === 'string' && value.trim()) return value.trim();
-  }
+  const explicit = readQuestionTask(part);
+  if (explicit) return explicit;
   const text = typeof part?.question_text === 'string' ? part.question_text.trim() : '';
   if (text && originalText && text.startsWith(originalText.trim())) {
     const suffix = text.slice(originalText.trim().length).trim();
@@ -97,7 +96,7 @@ export function analyseGroupRepair(
       fail('missing_task', `Return a separately stated task with an assessed instruction. Received: "${task.slice(0, 120)}"`, number); continue;
     }
 
-    const normalized = scored ? normalizeRepairPart(part) : null;
+    const normalized = scored ? normalizeRepairPart({...part, task}) : null;
     if (scored && !normalized) {
       fail('missing_answer', 'Scored repair requires a rewritten non-empty answer key.', number); continue;
     }
@@ -108,13 +107,17 @@ export function analyseGroupRepair(
       const contextChanged = typeof part.context === 'string' && part.context.trim() && flat(part.context) !== flat(originalText);
       const textChanged = typeof part.question_text === 'string' && part.question_text.trim()
         && ![flat(originalText), flat(`${originalText} ${task}`)].includes(flat(part.question_text));
-      const resourceChanged = ['diagram_config', 'chart_data', 'diagramConfig', 'table_data', 'options'].some(field =>
+      const resourceChanged = ['diagram_config', 'chart_data', 'diagramConfig', 'table_data'].some(field =>
         part[field] !== undefined && part[field] !== null && stable(part[field]) !== stable(row[field]));
-      if (contextChanged || textChanged || resourceChanged) {
+      const emitsChoices = ['options', 'choices', 'answer_options', 'mcq_options', 'answers'].some(field => part[field] != null);
+      const choicesChanged = emitsChoices && (isMcqType(row.question_type)
+        ? !coerceMcqOptions(part) || stable(coerceMcqOptions(part)) !== stable(coerceMcqOptions(row))
+        : stable(part.options) !== stable(row.options));
+      if (contextChanged || textChanged || resourceChanged || choicesChanged) {
         fail('source_changed', 'Task-only repair must preserve the original context, resources and choices.', number); continue;
       }
 
-      candidate = { ...row, question_text: `${originalText}\n\n${task}`.trim(), correct_answer: normalized!.correctAnswer,
+      candidate = { ...row, question_text: `${originalText}\n\n${task}`.trim(), correct_answer: isMcqType(row.question_type) ? canonicalMcqAnswer(normalized!.correctAnswer, coerceMcqOptions(row)) : normalized!.correctAnswer,
         context: null, task: null, question_latex: null };
     } else {
       const text = normalized?.questionText ?? assembleQuestionText(part);
@@ -131,7 +134,11 @@ export function analyseGroupRepair(
       }
       // MCQ choices are kept when the rewrite omits them: dropping them turned
       // a valid repair into an "invalid_options" failure.
-      const keptOptions = row.question_type === 'mcq'
+      const emittedOptions = ['options', 'choices', 'answer_options', 'mcq_options', 'answers'].some(field => part[field] != null);
+      if (isMcqType(row.question_type) && emittedOptions && !coerceMcqOptions(part)) {
+        fail('invalid_options', 'Rewritten choices have conflicting or invalid labels; do not fall back to older choices.', number); continue;
+      }
+      const keptOptions = isMcqType(row.question_type)
         ? (coerceMcqOptions(part) ?? coerceMcqOptions(row) ?? row.options)
         : (isResourceChart(row.options) ? null : row.options);
       candidate = { ...row, question_text: resources.text, correct_answer: normalized?.correctAnswer ?? row.correct_answer,
