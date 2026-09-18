@@ -17,7 +17,7 @@ import { assembledModelText, canonicalMcqAnswer, coerceMcqOptions, flattenAnswer
 export { coerceMcqOptions, flattenAnswerKey } from './model-question-normalization.ts';
 
 import type { PaperPlan } from './biology-paper-contract.ts';
-import { validateGatewayPlan } from './ocr-plan-validator.ts';
+import { validateBiologyPlan } from './biology-plan-validator.ts';
 
 export const CONTRACT_VERSION = 2;
 
@@ -332,7 +332,7 @@ export function validateQuestionCandidates(
     }
   }
 
-  defects.push(...validateGatewayPlan(parts, options.plan));
+  defects.push(...validateBiologyPlan(parts, options.plan));
 
   const failedPartIds = [...new Set(defects.map((d) => d.partId))].filter((id) => id !== "paper");
   const failedGroupIds = [

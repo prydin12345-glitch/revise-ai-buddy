@@ -1,0 +1,14 @@
+{
+  "capturedFromCommit": "dddad582901890adaae39395500d9225e6a5595e",
+  "description": "SHA-256 of the existing plan JSON, definition JSON and contract prompt before framework extraction. These are code baselines, not saved model papers or quality scores.",
+  "cases": [
+    {"courseId":"aqa_gcse_biology_8461","tier":"foundation","mode":"full_mock","planHash":"b8ce5d91f710fdc758e806a2e40e0e387fc63e6fdcf84d304d99eebcb632bcbc","definitionHash":"937acfcd1d10725567df44cf7563952c9dbe78505696d149467bb6d2e36b1c21","promptHash":"2130f0b886206a3082a9231b3252b15237be4aba97a22b8b113859daad72a7e8"},
+    {"courseId":"aqa_gcse_biology_8461","tier":"foundation","mode":"short_practice","planHash":"3ad8be08c3096dc3bd1ce62ab99b81eef7a9d5183dd27c1f1aa664c4e5b21aa0","definitionHash":"937acfcd1d10725567df44cf7563952c9dbe78505696d149467bb6d2e36b1c21","promptHash":"9c9a8d4f90063237c5c1f3928bf05f4c5e00a6a3ef78d6e83ba857c92c835c6d"},
+    {"courseId":"aqa_gcse_biology_8461","tier":"higher","mode":"full_mock","planHash":"16e4bd46e48e1cfca83c91208b9863529ccedd8926597dc9dfca918322acf17d","definitionHash":"937acfcd1d10725567df44cf7563952c9dbe78505696d149467bb6d2e36b1c21","promptHash":"c00ac0969ff1ad9b82857887b5c47c461ea86e8e407bb20eaa60c35ddd572397"},
+    {"courseId":"aqa_gcse_biology_8461","tier":"higher","mode":"short_practice","planHash":"7a1c946a144c4d3b68f58c58c8cfcfdf06f5440c0e865f469fcdd24b2b0828f6","definitionHash":"937acfcd1d10725567df44cf7563952c9dbe78505696d149467bb6d2e36b1c21","promptHash":"bc812ac2b67302672b8c10baf8fa52309c966d3325661939d7ce40133adfeb5a"},
+    {"courseId":"ocr_gcse_biology_a_j247","tier":"foundation","mode":"full_mock","planHash":"b022070312315ff9d05cdf29bb1c464b8418165806822606ad411446294df082","definitionHash":"cb73cf766ffec59a8c9ea8b4981c5538804fd47adc232cbae8f702a089034483","promptHash":"d8b6b73fba3bda1d607eacf8784e3213331d1d2483237229b5fb9c9157d58f71"},
+    {"courseId":"ocr_gcse_biology_a_j247","tier":"foundation","mode":"short_practice","planHash":"344b9bcc2e5528df97765e6971049a71b493b699b717972906a7b72cf8b364c7","definitionHash":"cb73cf766ffec59a8c9ea8b4981c5538804fd47adc232cbae8f702a089034483","promptHash":"96aa24b1eec2e3dfceae8e5cc4a9a7105559d6fa9c19cd482820ca305f8ddb83"},
+    {"courseId":"ocr_gcse_biology_a_j247","tier":"higher","mode":"full_mock","planHash":"3ce12bc763a03b92a31efcd94cee93eab015fdb129184f0d7978a3570d64fb3e","definitionHash":"307d32503214f4fd486369bc4119a7bf52490a1df77988f492850ca5d6ff238d","promptHash":"854aa36ca2026e2e4bea7520e7a3f0322c952dd6c09815534d99797b38b7be82"},
+    {"courseId":"ocr_gcse_biology_a_j247","tier":"higher","mode":"short_practice","planHash":"272336f9f18f4369f3eaf65d767c7b438b2fef2ad06d911641b51a47bfa1478e","definitionHash":"307d32503214f4fd486369bc4119a7bf52490a1df77988f492850ca5d6ff238d","promptHash":"42a1d331012ac8d3ed6e823d6c2d22ae1c7b612ac1246cb6ea5fe6daba58adb9"}
+  ]
+}

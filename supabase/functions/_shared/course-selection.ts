@@ -32,7 +32,7 @@ export function resolvePaperSelection(lookup: CourseLookup, tier: AssessmentTier
     throw new Error('The saved course selection and paper preset disagree. Reapply the correct preset.');
   }
   const paperId = choice.paperId ?? contract.paperId ?? null;
-  const definition = biologyPaperDefinition(course?.id ?? null, tier === 'foundation' || tier === 'higher' ? tier : null);
+  const definition = biologyPaperDefinition(course?.id ?? null, tier === 'foundation' || tier === 'higher' ? tier : null, paperId);
   if (paperId && (!definition || paperId !== definition.paperId)) throw new Error('This paper preset is not available for the selected course.');
   if (choice.paperId && contract.paperId && choice.paperId !== contract.paperId) throw new Error('The saved paper selections disagree.');
   if (course?.id === OCR_GATEWAY_BIOLOGY_ID) {
@@ -68,7 +68,7 @@ export function paperPlanForAttempt(context: any, legacyBlueprint?: unknown) {
     courseSelection: {courseId: context.course_id, paperId: context.paper_id ?? contract.paperId}, paperContract: contract,
   });
   if (!legacy && context.component_code !== selection.componentCode) throw new Error('Saved component and assessment tier do not match.');
-  return buildPaperPlan(contract.mode, context.assessment_tier, contract.courseId);
+  return buildPaperPlan(contract.mode, context.assessment_tier, contract.courseId, contract.paperId);
 }
 
 export function describeCourseSelection(selection: ResolvedPaperSelection): string {
