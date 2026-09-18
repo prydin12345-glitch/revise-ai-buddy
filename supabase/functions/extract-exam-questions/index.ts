@@ -1,6 +1,6 @@
 import { OCR_GATEWAY_BIOLOGY_ID } from "../_shared/assessment-tier.ts";
 import { paperPlanForAttempt } from "../_shared/course-selection.ts";
-import { gatewayPlanInstructions } from "../_shared/ocr-biology-scope.ts";
+import { biologyPlanInstructions, packForBiologyPlan } from "../_shared/biology-course-packs.ts";
 import { requestQuestionRepair, saveQuestionRepairs, describeRepairDiagnostics } from '../_shared/question-repair.ts';
 import type { RepairDiagnostic } from '../_shared/prepare-group-repair.ts';
 import { normalizeGeneratedQuestion } from '../_shared/model-question-normalization.ts';
@@ -22,7 +22,7 @@ import { resolveQuestionResources, coerceChart, isResourceChart } from '../_shar
 import { isGcseBiology, GCSE_BIOLOGY_RULES, biologyScopeInstructions, biologyScopeFromContext, type BiologyScope } from '../_shared/gcse-biology-scope.ts';
 import { getSubjectSpecificInstructions } from "../_shared/exam-extraction-prompts.ts";
 import { validateQuestionCandidates, describeDefects, hasAssessedTask, assembleQuestionText, coerceMcqOptions, CONTRACT_VERSION } from "../_shared/question-contract-validator.ts";
-import { describePlan, AQA_BIOLOGY_P1, type PaperPlan } from "../_shared/biology-paper-contract.ts";
+import { describePlan, type PaperPlan } from "../_shared/biology-paper-contract.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<any>): void };
 
@@ -396,8 +396,9 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   const authoritativeTier = storedAssessmentTier(storedContext);
   const generationScope = biologyScopeFromContext(storedContext, {subject: exam.subject_id, educationalLevel: exam.qualification_level, examBoard: exam.exam_board});
   const guidedPlan = paperPlanForAttempt(storedContext, formatData?.profile_metadata?.paperBlueprint);
-  const isGatewayGuided = guidedPlan?.courseId === OCR_GATEWAY_BIOLOGY_ID;
-  const useOriginalStructure = !isGatewayGuided && (formatData?.use_original_structure ?? true);
+  const guidedPack = guidedPlan ? packForBiologyPlan(guidedPlan) : null;
+  const usesContractOnlyGeneration = guidedPack?.generation.strategy === 'contract_only';
+  const useOriginalStructure = !usesContractOnlyGeneration && (formatData?.use_original_structure ?? true);
 
   // Download and extract PDF text early so original structure can guide inserts and prompting.
   const pdfText = exam.file_url ? await extractPdfText(exam.file_url, supabase) : '';
@@ -562,7 +563,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   let resourcePackContext = '';
   let hasResourcePack = false;
   
-  if (exam.resource_pack_id && !isGatewayGuided) {
+  if (exam.resource_pack_id && !usesContractOnlyGeneration) {
     const packResult = await loadResourcePack(exam.resource_pack_id, supabase, lovableApiKey, exam);
     resourcePackContext = packResult.context;
     hasResourcePack = packResult.hasResourcePack;
@@ -615,7 +616,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
 
   console.log('Desired parent question count:', desiredQuestionCount, 'MCQ:', desiredMcqCount, 'Written:', desiredWrittenCount);
 
-  if (guidedPlan && isGatewayGuided) {
+  if (guidedPlan && usesContractOnlyGeneration) {
     desiredQuestionCount = guidedPlan.parentCount;
     desiredMcqCount = guidedPlan.parts.filter(p => p.responseType === 'mcq_single').length;
     desiredWrittenCount = guidedPlan.partCount - desiredMcqCount;
@@ -677,8 +678,8 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     paperBlueprint: (formatData?.profile_metadata && typeof formatData.profile_metadata === 'object') ? (formatData.profile_metadata as any).paperBlueprint : null,
   });
 
-  let extractionPrompt = isGatewayGuided
-    ? gatewayPlanInstructions(guidedPlan) + '\nReturn {"questions":[...]} only. For a table, chart_data={"type":"data_table","headers":["..."],"rows":[[1]],"caption":"neutral caption"}. For a line graph, chart_data={"type":"line_chart","xAxisLabel":"... (units)","yAxisLabel":"... (units)","datasets":[{"label":"...","data":[{"x":0,"y":1},{"x":2,"y":3}]}]}. Use question_text as a joined copy of context and task. Give every part a nonempty correct_answer; use topic_tag from the plan. Do not copy official paper questions.'
+  let extractionPrompt = usesContractOnlyGeneration
+    ? biologyPlanInstructions(guidedPlan!) + '\nReturn {"questions":[...]} only. For a table, chart_data={"type":"data_table","headers":["..."],"rows":[[1]],"caption":"neutral caption"}. For a line graph, chart_data={"type":"line_chart","xAxisLabel":"... (units)","yAxisLabel":"... (units)","datasets":[{"label":"...","data":[{"x":0,"y":1},{"x":2,"y":3}]}]}. Use question_text as a joined copy of context and task. Give every part a nonempty correct_answer; use topic_tag from the plan. Do not copy official paper questions.'
     : extractionPrompt_raw;
 
   // AUTHORITATIVE TIER: the exam's server-resolved generation context. Format
@@ -699,12 +700,9 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   // When the profile stores a guided contract, the plan (parts, marks,
   // response types, resources) is decided here — before the model writes
   // anything — and the totals are computed from the plan, not trusted back.
-  if (guidedPlan && !isGatewayGuided) {
+  if (guidedPlan && !usesContractOnlyGeneration) {
     console.log(`[contract] ${describePlan(guidedPlan)} (v${guidedPlan.contractVersion})`);
-    extractionPrompt += `\n\nPAPER CONTRACT — ${describePlan(guidedPlan)}
-Produce EXACTLY these parts, in this order. Keep every question number, mark value, response type and topic:
-${guidedPlan.parts.map((p) => `- ${p.questionNumber} | ${p.topic} | ${p.responseType} | ${p.marks} mark(s) | ${p.demand}${p.resource === 'none' ? '' : ` | supply a ${p.resource} with real data`}`).join('\n')}
-Stay inside ${AQA_BIOLOGY_P1.displayName} Paper 1 topics only. Every scored part needs an explicit task; give "context" and "task" as separate fields.`;
+    extractionPrompt += biologyPlanInstructions(guidedPlan);
   }
 
   extractionPrompt += '\n\n' + biologyScopeInstructions(generationScope);
@@ -722,7 +720,7 @@ Stay inside ${AQA_BIOLOGY_P1.displayName} Paper 1 topics only. Every scored part
   extractionPrompt += '\n' + buildExtractSafetyInstruction(examBoard, exam.subject_id || '');
 
   const startTime = Date.now();
-  const parsedData = await callAI(lovableApiKey, isGatewayGuided ? "Write an original OCR Gateway GCSE Biology practice paper using the supplied immutable plan and tier. Output valid JSON only, with complete questions, canonical resources and private marking schemes." : systemPrompt, extractionPrompt, hasResourcePack);
+  const parsedData = await callAI(lovableApiKey, guidedPack?.generation.systemPrompt ?? systemPrompt, extractionPrompt, hasResourcePack);
   
   if (!parsedData.questions?.length) {
     await supabase.from('exams').update({ extraction_status: 'failed', extraction_error: 'No questions found' }).eq('id', draftId);
@@ -730,11 +728,11 @@ Stay inside ${AQA_BIOLOGY_P1.displayName} Paper 1 topics only. Every scored part
   }
 
   // Sort questions
-  let questions = (isGatewayGuided ? parsedData.questions.map(normalizeGeneratedQuestion) : parsedData.questions).sort((a: any, b: any) =>
+  let questions = (usesContractOnlyGeneration ? parsedData.questions.map(normalizeGeneratedQuestion) : parsedData.questions).sort((a: any, b: any) =>
     normalizeQNum(a.question_number).localeCompare(normalizeQNum(b.question_number))
   );
 
-  if (!isGatewayGuided) questions = repairFlatQuestionsToOriginalStructure(questions, detectedOriginalStructure);
+  if (!usesContractOnlyGeneration) questions = repairFlatQuestionsToOriginalStructure(questions, detectedOriginalStructure);
 
   // ── INSERT-REFERENCE FILTER ─────────────────────────────────────────────
   // Drop questions that reference an external paper insert / resource booklet /
@@ -830,7 +828,7 @@ Stay inside ${AQA_BIOLOGY_P1.displayName} Paper 1 topics only. Every scored part
   const figByNum = new Map(insertFigures.map((f: any) => [String(f.figureNumber), f]));
   const beforeFigGate = questions.length;
   questions = questions.filter((q: any) => {
-    if (isGatewayGuided) return true; // Question-local resources are checked by the shared gate.
+    if (usesContractOnlyGeneration) return true; // Question-local resources are checked by the shared gate.
     const text = String(q.question_text || '');
     const refs = [...text.matchAll(/Figure\s+(\d+)/gi)].map((m) => m[1]);
     const PHANTOM_RE = /shown in the (image|photograph|photo|diagram|figure)|in the (image|photograph|photo) (above|below|provided)/i;
@@ -952,7 +950,7 @@ Stay inside ${AQA_BIOLOGY_P1.displayName} Paper 1 topics only. Every scored part
   // sequential from 1 in order of appearance; sub-parts alphabetical from (a)
   // without gaps. Group by the ROOT number (extracted from question_number
   // when parent_question_number is missing) so gappy sub-letters collapse.
-  if (!isGatewayGuided) {
+  if (!usesContractOnlyGeneration) {
     const rootOf = (q: any): string => {
       const src = q.parent_question_number ?? q.root_question_number ?? q.question_number ?? '';
       return String(src).match(/\d+/)?.[0] || '0';
@@ -1002,7 +1000,7 @@ Stay inside ${AQA_BIOLOGY_P1.displayName} Paper 1 topics only. Every scored part
   };
 
   questions = questions.map((question: any) => {
-    if (isGatewayGuided) return question; // Never erase a task; validate/repair its actual resource.
+    if (usesContractOnlyGeneration) return question; // Never erase a task; validate/repair its actual resource.
     const hasDiagram = !!(question.diagramConfig || question.diagram_config);
     if (referencesValidInsertFigure(question.question_text || '')) {
       return question; // valid insert reference — not a broken diagram ref
@@ -1108,7 +1106,7 @@ Stay inside ${AQA_BIOLOGY_P1.displayName} Paper 1 topics only. Every scored part
   }
 
   // ── HARD ENFORCEMENT: Trim to desiredQuestionCount parent questions ──
-  if (!isGatewayGuided && desiredQuestionCount && desiredQuestionCount > 0 && !isMcqOnlyProfile) {
+  if (!usesContractOnlyGeneration && desiredQuestionCount && desiredQuestionCount > 0 && !isMcqOnlyProfile) {
     const uniqueRoots = [...new Set(questions.map((q: any) => {
       const root = q.root_question_number || String(q.question_number || '').match(/^\d+/)?.[0] || q.question_number;
       return String(root);
@@ -1443,7 +1441,7 @@ Stay inside ${AQA_BIOLOGY_P1.displayName} Paper 1 topics only. Every scored part
   const REGEN_THRESHOLD = 70;
   const regenQuestionType: 'mcq' | 'short_answer' | 'long_form' | 'mixed' = isMcqOnlyProfile ? 'mcq' : (desiredMcqCount === 0 ? 'mixed' : 'mixed');
 
-  if (!isGatewayGuided && qualityScore < REGEN_THRESHOLD) {
+  if (!usesContractOnlyGeneration && qualityScore < REGEN_THRESHOLD) {
     console.log(`Quality below ${REGEN_THRESHOLD} — running regeneration pass`);
     await regenerateQuestions(inserted?.filter((q: any) => !q.has_figures) || [], supabase, lovableApiKey, hasResourcePack, resourcePackContext, exam.subject_id, isCustomNicheForValidation, regenQuestionType, generationScope);
   } else {
@@ -2941,7 +2939,7 @@ async function enforceAnswerability(
   // count or total, so trim and re-mark BEFORE validating instead of burning
   // repair calls on an unrepairable defect.
   const reconcileToPlan = async (rows: any[]): Promise<boolean> => {
-    if (!plan || plan.courseId === OCR_GATEWAY_BIOLOGY_ID) return false;
+    if (!plan || packForBiologyPlan(plan).generation.strategy === 'contract_only') return false;
     const parentOf = (n: string) => String(n || '').match(/^\d+/)?.[0] ?? '0';
     const byParent = new Map<string, any[]>();
     for (const r of rows) {

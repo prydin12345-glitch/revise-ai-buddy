@@ -1,5 +1,5 @@
 import { OCR_GATEWAY_BIOLOGY_ID } from './assessment-tier.ts';
-import type { PaperMode, PaperPlan, PlannedPart, ResourceKind } from './biology-paper-contract.ts';
+import type { PaperMode, PaperPlan, PlannedPart, ResourceKind } from './paper-contract-types.ts';
 
 // OCR J247 v4.0 (August 2026), section 3a. Section A/B totals are official;
 // our particular Section B groups are a versioned Examly practice template.
