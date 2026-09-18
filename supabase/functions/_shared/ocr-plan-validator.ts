@@ -2,6 +2,7 @@ import { OCR_GATEWAY_BIOLOGY_ID } from './assessment-tier.ts';
 import type { PaperPlan } from './biology-paper-contract.ts';
 import { coerceMcqOptions, type CandidatePart, type QuestionDefect } from './question-contract-validator.ts';
 import { resolveQuestionResources } from './question-resources.ts';
+import { hasThreeLevelScheme, isMcqType } from './model-question-normalization.ts';
 
 export const canonicalPartNumber = (value: unknown): string => {
   const text = String(value ?? '').trim().replace(/^Q\s*/i, '');
@@ -22,7 +23,7 @@ export function validateGatewayPlan(rows: CandidatePart[], plan?: PaperPlan | nu
     if (!expected || seen.has(number)) { push(`Unexpected or duplicate scored row ${number}; do not silently renumber or discard it.`); continue; }
     seen.add(number);
     if (Number(row.marks) !== expected.marks) push(`Q${number} requires ${expected.marks} marks and a matching scheme.`);
-    const isMcq = /^(mcq|mcq_single|multiple.choice)$/.test(String(row.question_type));
+    const isMcq = isMcqType(row.question_type);
     if (isMcq !== (expected.responseType === 'mcq_single')) push(`Q${number} must be ${expected.responseType}.`);
     if (expected.responseType === 'mcq_single') {
       const options = coerceMcqOptions(row) ?? [];
@@ -34,8 +35,7 @@ export function validateGatewayPlan(rows: CandidatePart[], plan?: PaperPlan | nu
     if (expected.resource === 'data_table' && !resources.table) push(`Q${number} requires the planned data table.`, "missing_required_resource");
     if (expected.resource === 'graph' && (!resources.chart || resources.chart.type === 'data_table')) push(`Q${number} requires the planned graph.`, "missing_required_resource");
     if (expected.marks === 6) {
-      const key = typeof row.correct_answer === 'string' ? row.correct_answer : JSON.stringify(row.correct_answer ?? '');
-      if (![1, 2, 3].every(level => new RegExp(`level\\s*${level}`, 'i').test(key))) push(`Q${number} requires a private three-level response scheme, not only a model answer.`, "missing_answer");
+      if (!hasThreeLevelScheme(row.correct_answer)) push(`Q${number} requires a private three-level response scheme with a descriptor for each level, not only a model answer.`, "missing_answer");
     }
   }
   for (const [number] of byNumber) if (!seen.has(number)) defects.push({partId: 'paper', parentId: null,
