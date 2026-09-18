@@ -3,6 +3,7 @@ import { paperPlanForAttempt } from "../_shared/course-selection.ts";
 import { gatewayPlanInstructions } from "../_shared/ocr-biology-scope.ts";
 import { requestQuestionRepair, saveQuestionRepairs, describeRepairDiagnostics } from '../_shared/question-repair.ts';
 import type { RepairDiagnostic } from '../_shared/prepare-group-repair.ts';
+import { normalizeGeneratedQuestion } from '../_shared/model-question-normalization.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { assessmentTierPrompt, storedAssessmentTier } from "../_shared/profile-context.ts";
@@ -729,7 +730,7 @@ Stay inside ${AQA_BIOLOGY_P1.displayName} Paper 1 topics only. Every scored part
   }
 
   // Sort questions
-  let questions = parsedData.questions.sort((a: any, b: any) => 
+  let questions = (isGatewayGuided ? parsedData.questions.map(normalizeGeneratedQuestion) : parsedData.questions).sort((a: any, b: any) =>
     normalizeQNum(a.question_number).localeCompare(normalizeQNum(b.question_number))
   );
 
