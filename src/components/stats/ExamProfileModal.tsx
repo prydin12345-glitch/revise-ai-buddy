@@ -389,6 +389,7 @@ export const ExamProfileModal = ({
   const guidedActive = paperMode !== "custom" && planApplied && supportsGuidedPaper && !!selectedTier;
   const paperDefinition = biologyPaperDefinition(courseCapability?.id ?? null, selectedTier);
   const currentPlan = guidedActive ? buildPaperPlan(paperMode, selectedTier, courseCapability?.id) : null;
+  const effectiveTopics = currentPlan ? [...new Set(currentPlan.parts.map(p => p.topic))] : selectedTopics;
   const configurationReady = (!explicitCourseNeeded || (!!courseCapability && courseCapability.generationAvailable !== false && !!selectedTier)) && (paperMode === "custom" || !!currentPlan);
 
   // Explicit conversion only — nothing is overwritten until the user accepts.
@@ -405,12 +406,13 @@ export const ExamProfileModal = ({
     setTimeLimitMinutes(String(plan.durationMinutes));
     setIncludeTables(plan.parts.some((p) => p.resource === "data_table"));
     setIncludeGraphs(plan.parts.some((p) => p.resource === "graph"));
-    setSelectedTopics([...new Set(plan.parts.map(p => p.topic))]);
+    // Keep the user's manual topic selection while the guided view uses its
+    // own plan topics. Switching back to Custom restores that selection.
     setPlanApplied(true);
   };
 
   const handleSave = () => {
-    if (!profileName.trim() || selectedTopics.length === 0 || !finalTier || !configurationReady) return;
+    if (!profileName.trim() || effectiveTopics.length === 0 || !finalTier || !configurationReady) return;
     const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
     const advancedWithMcq = {
       ...advanced, mcqCount: currentPlan ? currentPlan.parts.filter(p => p.responseType === "mcq_single").length : mcqCount,
@@ -429,7 +431,7 @@ export const ExamProfileModal = ({
     const resolvedQuestionStructure = isMcqOnlyProfile ? "mcq_only" : questionStructure;
     onSave(
       profileName.trim(),
-      currentPlan ? [...new Set(currentPlan.parts.map(p => p.topic))] : selectedTopics,
+      effectiveTopics,
       currentPlan?.partCount ?? totalQuestionCount,
       finalTier || undefined,
       currentPlan?.durationMinutes ?? timeVal,
@@ -474,11 +476,11 @@ export const ExamProfileModal = ({
   ];
 
   const blueprintHasInvalidMarks = blueprintActive && blueprintSections.some((s) => s.questions.some((q) => !q.marks || q.marks < 1));
-  const canSave = configurationReady && !!profileName.trim() && selectedTopics.length > 0 && !!finalTier && !blueprintHasInvalidMarks;
+  const canSave = configurationReady && !!profileName.trim() && effectiveTopics.length > 0 && !!finalTier && !blueprintHasInvalidMarks;
   const missingLevel = !finalTier;
   const summaryParts = [
     `${totalQuestionCount} question${totalQuestionCount === 1 ? "" : "s"}`,
-    selectedTopics.length ? `${selectedTopics.length} topic${selectedTopics.length === 1 ? "" : "s"}` : null,
+    effectiveTopics.length ? `${effectiveTopics.length} topic${effectiveTopics.length === 1 ? "" : "s"}` : null,
     timeLimitMinutes ? `${timeLimitMinutes} min` : "no time limit",
   ].filter(Boolean).join(" · ");
 
@@ -1050,7 +1052,7 @@ export const ExamProfileModal = ({
           <div className="text-left self-center min-w-0">
             <p className="text-xs font-medium truncate">{profileName.trim() || "Untitled profile"}</p>
             <p className="text-[11px] text-muted-foreground truncate">
-              {!configurationReady ? "Choose the course, tier and apply the preset" : canSave ? summaryParts : (!profileName.trim() ? "Add a profile name" : selectedTopics.length === 0 ? "Pick at least one topic" : "Select an educational level") + " to continue"}
+              {!configurationReady ? "Choose the course, tier and apply the preset" : canSave ? summaryParts : (!profileName.trim() ? "Add a profile name" : effectiveTopics.length === 0 ? "Pick at least one topic" : "Select an educational level") + " to continue"}
             </p>
           </div>
           <div className="flex gap-2 shrink-0">
