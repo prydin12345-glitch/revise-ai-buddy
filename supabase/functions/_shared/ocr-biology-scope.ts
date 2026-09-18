@@ -23,7 +23,7 @@ export const GATEWAY_SPEC: Record<string, string> = {
   'B1.3e': 'Amino acids as monomers in protein synthesis and breakdown.',
   'B1.3f': 'Fatty acids and glycerol in lipid synthesis and breakdown.',
   'B1.4a': 'Photosynthetic organisms as producers of food and biomass.',
-  'B1.4b': 'Simple two-stage photosynthesis: light energy splits water; hydrogen combines with carbon dioxide to make glucose. No A-level pathways.',
+  'B1.4b': 'Simple two-stage photosynthesis: light energy splits water, releasing oxygen; hydrogen combines with carbon dioxide to make glucose. Use only this GCSE account in the task AND key; do not name advanced cycles or describe biochemical pathways.',
   'B1.4c': 'Photosynthesis as an endothermic process.',
   'B1.4d': 'Photosynthesis experiments, such as testing a light-excluded leaf for starch.',
   'B1.4e': 'Effects of light, temperature and carbon dioxide on photosynthesis rate, with data interpretation.',
@@ -79,13 +79,14 @@ export const GATEWAY_RULES = `OCR GATEWAY BIOLOGY A J247 — FIRST PAPER ONLY:
 Foundation J247/01 (Paper 1), Higher J247/03 (Paper 3). Scope B1 Cell level systems, B2 Scaling up, B3 Organism level systems, with B7 practical skills.
 Do not import AQA's Paper 1 topic list. Exclude assessed knowledge from B4 Community level systems, B5 Genes/inheritance/selection and B6 Global challenges, including disease/immunity/ecology. DNA structure and cell division in B1/B2 ARE allowed; do not exclude them just because they concern DNA.
 Basic ATP in respiration, qualitative water potential and a simple two-stage account of photosynthesis ARE GCSE Gateway content at both tiers. Higher also includes simple protein synthesis and hormonal feedback. Never require Calvin-cycle intermediates, NADPH, chemiosmosis, electron transport chains or detailed thylakoid/stroma mechanisms.
+For B1.4b, the entire answer is the simple account above: light energy splits water and releases oxygen; hydrogen combines with carbon dioxide to make glucose. Do not mention the Calvin cycle, thylakoids or stroma anywhere in the generated question or private key, including as optional credit or an exclusion note.
 Foundation must not assess bold Higher-only outcomes: standard-form microscopy calculations, transcription/translation/triplet code, inverse-square law, interacting photosynthesis limiting factors, brain-research/treatment difficulties, thyroxine/adrenaline feedback, reproductive-hormone interactions or infertility treatment, uses of plant hormones, glucagon/ADH feedback or osmotic regulation mechanisms. Basic insulin, brain/eye structures and gross kidney functions remain allowed.
 Use complete instructions, consistent units and private answer keys. Every scored part must be answerable from its text and actual attached resources. Graphs for sampled continuous time use numeric x values and a line, not categorical bars. Never invent a second dataset to draw a resource.`;
 
-export function gatewayPartInstruction(part: PlannedPart): string {
+export function gatewayPartInstruction(part: PlannedPart, includeOptions = true): string {
   return `${part.questionNumber} | Section ${part.section} | ${part.marks} marks | ${part.responseType} | ${part.demand} | ${part.topic}` +
     ` | ${(part.specRefs ?? []).map(ref => `${ref}: ${GATEWAY_SPEC[ref] ?? 'UNSUPPORTED REF'}`).join('; ')}` +
-    (part.responseType === 'mcq_single' ? ' | Return an "options" array of exactly four distinct non-empty choices (plain text, no A./B. prefixes) and a correct_answer matching one of them exactly.' : '') +
+    (includeOptions && part.responseType === 'mcq_single' ? ' | Return an "options" array of exactly four distinct non-empty choices (plain text, no A./B. prefixes) and a correct_answer matching one of them exactly.' : '') +
     (part.resource === 'none' ? '' : ` | Supply a complete ${part.resource} payload with real, self-consistent data.`) +
 
     (part.mathsMarks ? ` | At least ${part.mathsMarks} marks must require mathematical work, with workings and units in the private key.` : '') +
@@ -99,7 +100,7 @@ ${plan.mode === 'full_mock' ? 'Section A: questions 1–15, 15 marks. Section B:
 Generate exactly the listed scored rows, in order. No extra context-only parent rows. Do not regroup or renumber. Section A MCQs use question_type="mcq", exactly four distinct options A–D, one answer (letter or exact option). Other rows use question_type="written".
 Each row must contain separate context and task fields, marks, question_number, root_question_number and a private correct_answer. Section A roots equal their own numbers and have no parent; Section B parent/root equal the leading number. Use the exact listed topic as topic_tag. Use chart_data with type=data_table for tables, type=line_chart for sampled continuous data; supply real data, labels and units. Only one canonical payload per resource, no duplicate markdown tables.
 The Section B allocation below is Examly's practice template, not a claim that every OCR paper uses these groups.
-${plan.parts.map(gatewayPartInstruction).join('\n')}`;
+${plan.parts.map(part => gatewayPartInstruction(part)).join('\n')}`;
 }
 export function gatewayMarkingInstructions(context: any): string {
   if (context?.resolved_by !== 'server' || context.course_id !== OCR_GATEWAY_BIOLOGY_ID) return '';
