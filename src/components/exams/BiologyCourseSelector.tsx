@@ -13,9 +13,10 @@ export function BiologyCourseSelector({lookup, value, tier, onChange}: {
       value={value ?? ''} onChange={event => onChange(event.target.value)}>
       <option value="" disabled>Choose the course your school teaches</option>
       {options.map(course => <option key={course.id} value={course.id} disabled={course.generationAvailable === false}>
-        {course.label}{course.generationAvailable === false ? ' — coming later' : ''}
+        {course.id === OCR_GATEWAY_BIOLOGY_ID ? 'Gateway Biology A' : 'Twenty First Century Biology B'}{course.generationAvailable === false ? ' — coming later' : ''}
       </option>)}
     </select>
+    <p className="text-xs text-muted-foreground">Gateway Biology A: J247 · Twenty First Century Biology B: J257.</p>
     {value === OCR_GATEWAY_BIOLOGY_ID && <p className="text-xs text-muted-foreground">
       First paper: {tier ? `${gatewayComponent(tier)} · Paper ${tier === 'foundation' ? '1' : '3'}` : 'Paper 1 Foundation / Paper 3 Higher'}.
       {' '}B1 Cell level systems, B2 Scaling up, B3 Organism level systems, with practical skills.
