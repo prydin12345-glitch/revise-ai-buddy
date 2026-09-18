@@ -13,6 +13,8 @@
 
 import { resolveQuestionResources, type ResourceQuestion } from './question-resources.ts';
 import { gcseBiologyIssue, type BiologyScope } from './gcse-biology-scope.ts';
+import { assembledModelText, canonicalMcqAnswer, coerceMcqOptions, flattenAnswerKey, isMcqType, readAnswerKey, readQuestionTask } from './model-question-normalization.ts';
+export { coerceMcqOptions, flattenAnswerKey } from './model-question-normalization.ts';
 
 import type { PaperPlan } from './biology-paper-contract.ts';
 import { validateGatewayPlan } from './ocr-plan-validator.ts';
@@ -109,7 +111,13 @@ const clauses = (s: string): string[] =>
 const LEAD_ADVERB = /^(briefly|now|then|next|carefully|clearly|fully|concisely|also|finally|in your answer,?|for this question,?)\s+/;
 
 const startsWithCommand = (raw: string): boolean => {
-  const c = raw.replace(LEAD_ADVERB, "").trim();
+  let c = raw;
+  // More than one modifier is common: "Now briefly outline ...".
+  for (let i = 0; i < 4; i++) {
+    const next = c.replace(LEAD_ADVERB, "").trim();
+    if (next === c) break;
+    c = next;
+  }
   return COMMAND_VERBS.some((v) => c.startsWith(v + " ") || c === v) ||
     INTERROGATIVES.some((w) => c.startsWith(w + " "));
 };
@@ -157,95 +165,10 @@ export function hasAssessedTask(raw: string | null | undefined): boolean {
 
 /** Deterministically assemble displayed text so the task survives every transform. */
 export function assembleQuestionText(part: CandidatePart): string {
-  const context = (part.context ?? "").trim();
-  const task = (part.task ?? "").trim();
-  if (context && task) return `${context}\n\n${task}`;
-  return task || context || (part.question_text ?? "").trim();
+  return assembledModelText(part);
 }
 
 /**
- * Models label multiple-choice answers inconsistently (`choices`,
- * `answer_options`, or an {A: "...", B: "..."} object). The choices are real
- * content, so read every supported shape instead of failing the paper.
- */
-export function coerceMcqOptions(raw: unknown): string[] | null {
-  if (!raw || typeof raw !== "object") return null;
-  const part = raw as Record<string, unknown>;
-  const clean = (list: unknown[]): string[] =>
-    list
-      .map((item) => {
-        if (item && typeof item === "object") {
-          const o = item as Record<string, unknown>;
-          const text = o.text ?? o.option ?? o.value ?? o.label ?? o.answer;
-          return typeof text === "string" ? text : "";
-        }
-        return String(item ?? "");
-      })
-      .map((text) => text.replace(/^\s*[A-Da-d][.)]\s*/, "").trim())
-      .filter(Boolean);
-  for (const field of ["options", "choices", "answer_options", "mcq_options", "answers"]) {
-    const value = part[field];
-    if (Array.isArray(value)) {
-      // Chart payloads are also stored in `options` on legacy rows.
-      if (value.some((item) => item && typeof item === "object" && !("text" in (item as any) ||
-        "option" in (item as any) || "value" in (item as any) || "label" in (item as any) ||
-        "answer" in (item as any)))) continue;
-      const list = clean(value);
-      if (list.length >= 3) return list;
-      continue;
-    }
-    if (value && typeof value === "object" && !Array.isArray(value)) {
-      const entries = Object.entries(value as Record<string, unknown>)
-        .filter(([key]) => /^[A-Da-d]$/.test(key))
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([, text]) => text);
-      const list = clean(entries);
-      if (list.length >= 3) return list;
-    }
-  }
-  return null;
-}
-
-
-/**
- * Level-of-response keys arrive as objects or arrays ({level_1: "..."} or
- * [{level: 1, descriptor: "..."}]). Flatten them to readable marking text
- * instead of discarding a perfectly good mark scheme.
- */
-export function flattenAnswerKey(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "string") return value.trim();
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-  const line = (label: string, body: unknown): string => {
-    const text = flattenAnswerKey(body);
-    if (!text) return "";
-    const pretty = /^level[\s_-]*\d/i.test(label)
-      ? "Level " + label.replace(/\D+/g, "")
-      : label.replace(/[_-]+/g, " ").trim();
-    return /^\d+$/.test(label) ? text : `${pretty}: ${text}`;
-  };
-  if (Array.isArray(value)) {
-    return value.map((item, i) => {
-      if (item && typeof item === "object" && !Array.isArray(item)) {
-        const o = item as Record<string, unknown>;
-        const lvl = o.level ?? o.band;
-        const body = o.descriptor ?? o.description ?? o.content ?? o.text ?? o.answer ?? item;
-        if (lvl !== undefined) return line(`level_${String(lvl).replace(/\D+/g, "") || i + 1}`, body);
-      }
-      return flattenAnswerKey(item);
-    }).filter(Boolean).join("\n");
-  }
-  if (typeof value === "object") {
-    return Object.entries(value as Record<string, unknown>)
-      .map(([key, body]) => line(key, body))
-      .filter(Boolean)
-      .join("\n");
-  }
-  return "";
-}
-
-/**
-
  * Normalise the two answer-key field names used by supported model outputs.
  * Generation asks for `correct_answer`, but Gemini may return the semantically
  * equivalent `expected_answer`. A repair is usable only when its number, task,
@@ -255,14 +178,8 @@ export function normalizeRepairPart(raw: unknown): NormalizedRepairPart | null {
   if (!raw || typeof raw !== "object") return null;
   const part = raw as Record<string, unknown>;
   const questionNumber = String(part.question_number ?? "").trim();
-  const answerValue = part.correct_answer ?? part.expected_answer ?? part.mark_scheme ?? part.answer;
-  const correctAnswer = flattenAnswerKey(answerValue);
-
-  const questionText = assembleQuestionText({
-    context: typeof part.context === "string" ? part.context : null,
-    task: typeof part.task === "string" ? part.task : null,
-    question_text: typeof part.question_text === "string" ? part.question_text : null,
-  });
+  const correctAnswer = readAnswerKey(part);
+  const questionText = assembledModelText(part);
   if (!questionNumber || !questionText || !correctAnswer || !hasAssessedTask(questionText)) {
     return null;
   }
@@ -271,7 +188,7 @@ export function normalizeRepairPart(raw: unknown): NormalizedRepairPart | null {
   return {
     questionNumber,
     questionText,
-    correctAnswer,
+    correctAnswer: options ? canonicalMcqAnswer(correctAnswer, options) : correctAnswer,
     options: options?.length ? options : undefined,
   };
 }
@@ -332,7 +249,7 @@ export function validateQuestionCandidates(
     const marks = Number(part.marks ?? 0);
     const scored = marks > 0;
     const displayed = assembleQuestionText(part);
-    const type = String(part.question_type ?? "").toLowerCase();
+    const type = isMcqType(part.question_type) ? 'mcq' : String(part.question_type ?? "").toLowerCase();
     const push = (code: DefectCode, detail: string) =>
       defects.push({ partId, parentId, code, detail });
 
@@ -346,7 +263,7 @@ export function validateQuestionCandidates(
     if (!scored) return; // unmarked context parents are legitimate
 
     // 1. Assessed task
-    const taskText = (part.task ?? "").trim();
+    const taskText = readQuestionTask(part);
     const taskPresent = taskText
       ? hasAssessedTask(taskText)
       : hasAssessedTask(displayed);
@@ -356,14 +273,12 @@ export function validateQuestionCandidates(
 
     // 2. Options
     const mcqOptions = type === "mcq" ? coerceMcqOptions(part) : null;
-    if (type === "mcq" && !mcqOptions) {
-      push("invalid_options", "Single-select MCQ needs at least 3 non-empty options.");
+    if (type === "mcq" && (!mcqOptions || mcqOptions.length < 3 || mcqOptions.some(o => !o.trim()) || new Set(mcqOptions.map(words)).size !== mcqOptions.length)) {
+      push("invalid_options", "Single-select MCQ needs at least 3 distinct non-empty options with unambiguous labels.");
     }
 
     // 3. Answer key
-    const answer = typeof part.correct_answer === "string"
-      ? part.correct_answer.trim()
-      : part.correct_answer;
+    const answer = flattenAnswerKey(part.correct_answer);
     if (answer === undefined || answer === null || answer === "") {
       push("missing_answer", "Scored part has no expected answer / mark scheme.");
     } else if (type === "mcq" && mcqOptions) {
