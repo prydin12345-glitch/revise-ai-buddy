@@ -47,7 +47,7 @@ describe('Biology adapters preserve the installed version-1 contracts', () => {
       expect(() => buildPaperPlan('full_mock', 'foundation', course)).toThrow();
     }
     expect(getBiologyPaperPack(OCR, 'second_paper')).toBeNull();
-    expect(getBiologyPaperPack(aqa, 'paper_2')).toBeNull();
+    expect(getBiologyPaperPack(aqa, 'paper_3')).toBeNull();
     expect(() => buildPaperPlan('full_mock', 'foundation', OCR, 'second_paper')).toThrow();
     expect(supportsBiologyPaperContract({ subject: 'Biology', examBoard: 'AQA', educationalLevel: 'A Level', courseId: aqa })).toBe(false);
     expect(supportsBiologyPaperContract({ subject: 'Combined Science', examBoard: 'AQA', educationalLevel: 'GCSE' })).toBe(false);
