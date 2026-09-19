@@ -32,6 +32,8 @@ export interface BiologyPaperPack {
   validation: { rows: 'legacy_totals' | 'exact_parts'; mcqOptions: number; levelSchemeAtMarks: number | null };
   /** Retain the proven AQA path while other adapters are migrated separately. */
   generation: { strategy: 'augment_existing' | 'contract_only'; systemPrompt?: string };
+  /** Board/paper scope rules, repeated in every batch request of this paper. */
+  rules?: string;
   definition: (tier: PaperPlan['tier']) => BiologyPaperDefinition;
   build: (mode: PaperMode, tier: PaperPlan['tier']) => PaperPlan | null;
   instructions: (plan: PaperPlan) => string;
