@@ -728,29 +728,24 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   extractionPrompt += '\n' + buildExtractSafetyInstruction(examBoard, exam.subject_id || '');
 
   const startTime = Date.now();
-  const parsedData = await callAI(lovableApiKey, guidedPack?.generation.systemPrompt ?? systemPrompt, extractionPrompt, hasResourcePack);
-  
+  // A guided paper is written in bounded batches of whole parent groups from
+  // the outset: one response cannot reliably carry 36 planned parts.
+  const guidedSystemPrompt = guidedPack?.generation.systemPrompt ?? systemPrompt;
+  const parsedData = (usesContractOnlyGeneration && guidedPlan)
+    ? { questions: await generateGuidedPaper(guidedPlan, lovableApiKey, guidedSystemPrompt, extractionPrompt, guidedPromptSuffix, hasResourcePack), topics: [] }
+    : await callAI(lovableApiKey, guidedSystemPrompt, extractionPrompt, hasResourcePack);
+
   if (!parsedData.questions?.length) {
     await supabase.from('exams').update({ extraction_status: 'failed', extraction_error: 'No questions found' }).eq('id', draftId);
     throw new Error('No questions found');
   }
 
-  // Sort questions
-  let questions = (usesContractOnlyGeneration ? parsedData.questions.map(normalizeGeneratedQuestion) : parsedData.questions).sort((a: any, b: any) =>
+  // Sort questions (guided rows are already normalised by the batch pass)
+  let questions = ((usesContractOnlyGeneration && guidedPlan) ? parsedData.questions
+    : usesContractOnlyGeneration ? parsedData.questions.map(normalizeGeneratedQuestion)
+    : parsedData.questions).sort((a: any, b: any) =>
     normalizeQNum(a.question_number).localeCompare(normalizeQNum(b.question_number))
   );
-
-  // ── GUIDED PLAN COMPLETION ──────────────────────────────────────────────
-  // A long guided paper (36 planned parts) routinely exceeds what one model
-  // response can carry, which used to surface as "Planned Q5(a) is missing".
-  // Any planned part the first response omitted is requested again in small
-  // batches; nothing is renumbered or relabelled to fill a gap.
-  if (usesContractOnlyGeneration && guidedPlan) {
-    questions = await completePlannedParts(
-      questions, guidedPlan, lovableApiKey,
-      guidedPack?.generation.systemPrompt ?? systemPrompt, hasResourcePack,
-    );
-  }
 
   if (!usesContractOnlyGeneration) questions = repairFlatQuestionsToOriginalStructure(questions, detectedOriginalStructure);
 
