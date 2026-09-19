@@ -2,6 +2,8 @@
 
 Based on `dddad582901890adaae39395500d9225e6a5595e` (the restored OCR test file). This batch extracts the existing AQA and OCR paper definitions into registered adapters and adds an offline audit command. The website remains in development.
 
+**Paper 2 update, 19 September 2026:** AQA GCSE Biology Paper 2 is now implemented through this framework for Foundation and Higher. See [the Paper 2 notes](aqa-biology-paper-2.md) for selection, scope, tests and the current eight-function deployment list. The sections below record the original B1 extraction; its eight baselines remain unchanged. The inventory now contains twelve combinations.
+
 ## What now shares an interface
 
 `biology-course-packs.ts` registers each supported course/paper/version with its tier choices, specification sources, official assessment constraints, Examly layout choices, template builder, prompt contribution, repair instructions and validation policy. `biology-paper-contract.ts` retains the old import paths and delegates to those adapters. The frontend profile preview and protected backend snapshot therefore build the same plans.
