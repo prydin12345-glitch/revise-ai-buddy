@@ -2736,11 +2736,11 @@ Match genuine AQA/Edexcel/OCR A-level standard:
 // Track which model was actually used for logging
 let modelUsed = 'google/gemini-2.5-flash';
 
-async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean) {
+async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean, purpose = 'generation') {
   // ── OPTIMISATION 4: Always try Flash first, only upgrade to Pro on failure ──
   try {
     console.log('Attempting generation with gemini-2.5-flash');
-    const result = await callAIWithModel(apiKey, systemPrompt, userPrompt, hasResourcePack, 'google/gemini-2.5-flash');
+    const result = await callAIWithModel(apiKey, systemPrompt, userPrompt, hasResourcePack, 'google/gemini-2.5-flash', purpose);
     if (result?.questions && result.questions.length > 0) {
       console.log('Flash generation successful');
       modelUsed = 'google/gemini-2.5-flash';
@@ -2748,136 +2748,134 @@ async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, 
     }
     console.log('Flash returned no questions — upgrading to Pro');
   } catch (flashError: any) {
+    if (flashError instanceof AiBudgetExhaustedError) throw flashError;
     console.log('Flash failed — upgrading to Pro:', flashError.message);
   }
 
   // Only reach here if Flash failed
   console.log('Attempting generation with gemini-2.5-pro');
   modelUsed = 'google/gemini-2.5-pro';
-  return await callAIWithModel(apiKey, systemPrompt, userPrompt, hasResourcePack, 'google/gemini-2.5-pro');
+  return await callAIWithModel(apiKey, systemPrompt, userPrompt, hasResourcePack, 'google/gemini-2.5-pro', purpose);
 }
 
-async function callAIWithModel(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean, model: string) {
+async function callAIWithModel(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean, model: string, purpose = 'generation') {
   console.log(`AI model selected: ${model}`);
+  aiBudget.reserve(`${purpose} (${model})`);
+  const started = Date.now();
 
-  const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
-      max_tokens: 32000,
-      temperature: hasResourcePack ? 0.1 : 0.8,
-      response_format: { type: 'json_object' },
-    }),
-  });
+  let resp: Response;
+  try {
+    resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+        max_tokens: 32000,
+        temperature: hasResourcePack ? 0.1 : 0.8,
+        response_format: { type: 'json_object' },
+      }),
+    });
+  } catch (error) {
+    aiBudget.record({ purpose, model, ok: false, promptTokens: 0, completionTokens: 0, ms: Date.now() - started });
+    throw error;
+  }
 
-  if (!resp.ok) throw new Error('AI extraction failed');
-  
+  if (!resp.ok) {
+    aiBudget.record({ purpose, model, ok: false, status: resp.status, promptTokens: 0, completionTokens: 0, ms: Date.now() - started });
+    throw new Error('AI extraction failed');
+  }
+
   const data = await resp.json();
   const finishReason = data.choices?.[0]?.finish_reason ?? 'unknown';
-  if (finishReason === 'length') console.warn('[ai] response hit the output limit — recovering complete questions only');
+  const tokens = usageTokens(data?.usage);
+  aiBudget.record({ purpose, model, ok: true, status: resp.status, finishReason, ...tokens, ms: Date.now() - started });
+  if (finishReason === 'length') console.warn(`[ai] ${purpose}: response hit the output limit — recovering complete questions only`);
   let content = data.choices?.[0]?.message?.content || '{}';
   content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-  
-  try { return JSON.parse(content); } 
-  catch { return { questions: salvageTruncatedQuestions(content), topics: [] }; }
-}
 
-/**
- * A response cut off mid-array is not a paper with missing questions — it is a
- * partial transport. Recover every syntactically complete question object so
- * the guided completion pass only has to request the genuine remainder.
- */
-function salvageTruncatedQuestions(content: string): any[] {
-  const start = content.indexOf('"questions"');
-  if (start < 0) return [];
-  const arrayStart = content.indexOf('[', start);
-  if (arrayStart < 0) return [];
-  const recovered: any[] = [];
-  let depth = 0, objStart = -1, inString = false, escaped = false;
-  for (let i = arrayStart; i < content.length; i++) {
-    const ch = content[i];
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (ch === '\\') escaped = true;
-      else if (ch === '"') inString = false;
-      continue;
-    }
-    if (ch === '"') { inString = true; continue; }
-    if (ch === '{') { if (depth === 0) objStart = i; depth++; continue; }
-    if (ch === '}') {
-      depth--;
-      if (depth === 0 && objStart >= 0) {
-        try { recovered.push(JSON.parse(content.slice(objStart, i + 1))); } catch { /* skip partial */ }
-        objStart = -1;
-      }
-      continue;
-    }
-    if (ch === ']' && depth === 0) break;
+  try { return JSON.parse(content); }
+  catch {
+    const recovered = salvageTruncatedQuestions(content);
+    console.warn(`[ai] ${purpose}: salvaged ${recovered.length} complete question(s) from a truncated response`);
+    return { questions: recovered, topics: [] };
   }
-  console.warn(`[ai] salvaged ${recovered.length} complete question(s) from a truncated response`);
-  return recovered;
 }
 
-/** Canonical "5(a)" form so plan and model numbering compare reliably. */
-const plannedPartKey = (value: unknown): string => {
-  const text = String(value ?? '').trim().replace(/^Q\s*/i, '');
-  const match = text.match(/^(\d+)\s*[.\-]?\s*\(?([a-z])\)?$/i);
-  return match ? `${Number(match[1])}(${match[2].toLowerCase()})` : text.toLowerCase();
-};
-
 /**
- * Requests any planned part the model omitted, in small batches, and merges
- * the results. Missing parts are never filled by relabelling another question.
+ * Writes a guided paper in bounded batches of whole parent groups, then
+ * completes anything still missing. Batch instructions state the whole-paper
+ * plan as context and list only the parts required in that response. Accepted
+ * parts and their canonical resource data are handed to later batches so
+ * siblings stay consistent; duplicates, out-of-batch and unplanned rows are
+ * rejected rather than renumbered into a gap.
  */
-async function completePlannedParts(
-  questions: any[], plan: PaperPlan, apiKey: string, systemPrompt: string, hasResourcePack: boolean,
+async function generateGuidedPaper(
+  plan: PaperPlan,
+  apiKey: string,
+  systemPrompt: string,
+  wholePaperPrompt: string,
+  promptSuffix: string,
+  hasResourcePack: boolean,
 ): Promise<any[]> {
-  const BATCH_SIZE = 6, MAX_ROUNDS = 6;
   const produced = new Map<string, any>();
-  for (const q of questions) produced.set(plannedPartKey(q.question_number), q);
+  const batches = planGroupBatches(plan.parts, MAX_PARTS_PER_BATCH);
 
-  for (let round = 1; round <= MAX_ROUNDS; round++) {
-    const missing = plan.parts.filter(p => !produced.has(plannedPartKey(p.questionNumber)));
-    if (missing.length === 0) break;
-    const batch = missing.slice(0, BATCH_SIZE);
-    const subPlan: PaperPlan = {
-      ...plan, parts: batch, partCount: batch.length,
-      parentCount: new Set(batch.map(p => p.parentId)).size,
-      totalMarks: batch.reduce((sum, p) => sum + p.marks, 0),
-    };
-    console.log(`[plan] completion round ${round}: ${missing.length} planned part(s) missing, requesting ${batch.map(p => p.questionNumber).join(', ')}`);
+  const siblingsFor = (batch: { parentId: string }[]) => {
+    const parents = new Set(batch.map(part => part.parentId));
+    const related = plan.parts.filter(part => parents.has(part.parentId));
+    return related
+      .map(part => produced.get(plannedPartKey(part.questionNumber)))
+      .filter(Boolean)
+      .map((row: any) => ({ question_number: String(row.question_number), marks: row.marks,
+        question_text: row.question_text, chart_data: row.diagram_config ?? row.chart_data ?? null }));
+  };
+
+  const runBatch = async (batch: any[], label: string): Promise<number> => {
+    const siblings = siblingsFor(batch);
+    const prompt = (batches.length === 1 && !siblings.length)
+      ? wholePaperPrompt
+      : biologyBatchInstructions(plan, batch, { siblings }) + '\n' + promptSuffix;
     let data: any;
     try {
-      data = await callAI(apiKey, systemPrompt, [
-        'You are completing an existing paper. Write ONLY the planned parts listed below, using their exact question numbers.',
-        'Do not rewrite, renumber, duplicate or reference any other question.',
-        biologyPlanInstructions(subPlan),
-        'Return {"questions":[...]} only, one object per listed part. For a table, chart_data={"type":"data_table","headers":["..."],"rows":[[1]],"caption":"neutral caption"}. For a line graph, chart_data={"type":"line_chart","xAxisLabel":"... (units)","yAxisLabel":"... (units)","datasets":[{"label":"...","data":[{"x":0,"y":1},{"x":2,"y":3}]}]}. Use question_text as a joined copy of context and task. Give every part a nonempty correct_answer; use topic_tag from the plan. Do not copy official paper questions.',
-        'Parts required now: ' + batch.map(p => `${p.questionNumber} (${p.marks} marks, ${p.responseType})`).join('; '),
-      ].join('\n\n'), hasResourcePack);
+      data = await callAI(apiKey, systemPrompt, prompt, hasResourcePack, label);
     } catch (error) {
-      console.error(`[plan] completion round ${round} failed:`, (error as Error).message);
-      break;
+      if (error instanceof AiBudgetExhaustedError) throw error;
+      console.error(`[plan] ${label} failed: ${(error as Error).message}`);
+      return 0;
     }
     const rows = Array.isArray(data?.questions) ? data.questions.map(normalizeGeneratedQuestion) : [];
-    let added = 0;
-    for (const row of rows) {
-      const key = plannedPartKey(row.question_number);
-      if (produced.has(key)) continue;
-      if (!plan.parts.some(p => plannedPartKey(p.questionNumber) === key)) continue;
-      produced.set(key, row);
-      added++;
+    const { added, rejections } = mergeBatchRows(produced, rows, batch, plan);
+    if (rejections.length) console.warn(`[plan] ${label} rejected ${rejections.length} row(s): ${describeRejections(rejections)}`);
+    console.log(`[plan] ${label} accepted ${added}/${batch.length} planned part(s)`);
+    return added;
+  };
+
+  try {
+    for (const [index, batch] of batches.entries()) {
+      await runBatch(batch, `batch ${index + 1}/${batches.length} [${batch.map(p => p.questionNumber).join(',')}]`);
     }
-    console.log(`[plan] completion round ${round} added ${added} part(s)`);
-    if (added === 0) break;
+
+    // Completion rounds: request only what is still missing, grouped by parent
+    // so a partially written group is finished with its siblings in context.
+    for (let round = 1; round <= MAX_COMPLETION_ROUNDS; round++) {
+      const missing = missingPlannedParts(plan, produced);
+      if (!missing.length) break;
+      const batch = planGroupBatches(missing, COMPLETION_BATCH_SIZE)[0];
+      const added = await runBatch(batch, `completion round ${round} [${batch.map(p => p.questionNumber).join(',')}]`);
+      if (added === 0) {
+        console.warn(`[plan] completion round ${round} made no progress; stopping before the validation gate`);
+        break;
+      }
+    }
+  } catch (error) {
+    if (!(error instanceof AiBudgetExhaustedError)) throw error;
+    console.error(`[plan] ${error.message}. ${aiBudget.summary()}`);
   }
 
-  const stillMissing = plan.parts.filter(p => !produced.has(plannedPartKey(p.questionNumber)));
-  if (stillMissing.length) console.warn(`[plan] still missing after completion: ${stillMissing.map(p => p.questionNumber).join(', ')}`);
-  return [...produced.values()].sort((a: any, b: any) =>
-    normalizeQNum(a.question_number).localeCompare(normalizeQNum(b.question_number)));
+  const stillMissing = missingPlannedParts(plan, produced);
+  if (stillMissing.length) console.warn(`[plan] still missing after batching: ${stillMissing.map(p => p.questionNumber).join(', ')} (${aiBudget.summary()})`);
+  return [...produced.values()];
 }
 
 // ── OPTIMISATION 2: Quality scoring function ──
@@ -3040,6 +3038,14 @@ function normalizeQNum(qNum: string): string {
 
 const MAX_ATTEMPTS_PER_GROUP = 3;
 const MAX_REPAIR_CALLS_PER_REQUEST = 8;
+// Whole-request ceilings shared by batched generation, completion, Flash/Pro
+// fallbacks and repairs. The per-group repair limits above are unchanged.
+const MAX_AI_CALLS_PER_REQUEST = 26;
+const MAX_AI_MS_PER_REQUEST = 9 * 60 * 1000;
+const MAX_PARTS_PER_BATCH = 10;
+const COMPLETION_BATCH_SIZE = 6;
+const MAX_COMPLETION_ROUNDS = 6;
+let aiBudget = new AiCallBudget({ maxCalls: MAX_AI_CALLS_PER_REQUEST, maxMs: MAX_AI_MS_PER_REQUEST });
 
 
 async function enforceAnswerability(
@@ -3153,13 +3159,17 @@ async function enforceAnswerability(
   let callsUsed = 0;
   const lastRejections: Record<string, RepairDiagnostic[]> = {};
 
+  let budgetStop: string | null = null;
   while (!result.ok && callsUsed < MAX_REPAIR_CALLS_PER_REQUEST) {
+    budgetStop = aiBudget.exhausted();
+    if (budgetStop) { console.warn(`[repair] stopping: ${budgetStop}`); break; }
     const groupId = result.failedGroupIds.find(
       (g) => (attempts[g] ?? 0) < MAX_ATTEMPTS_PER_GROUP,
     );
     if (!groupId) break;
     attempts[groupId] = (attempts[groupId] ?? 0) + 1;
     callsUsed += 1;
+    aiBudget.reserve(`repair group ${groupId}`);
 
     const group = drafts.filter((d: any) =>
       String(d.root_question_number ?? d.parent_question_number ?? String(d.question_number).match(/^\d+/)?.[0]) === groupId
@@ -3202,7 +3212,7 @@ async function enforceAnswerability(
 
   if (!result.ok) {
     const rejectionDetails = Object.entries(lastRejections).map(([group, items]) => `Group ${group}: ${describeRepairDiagnostics(items)}`).join(" | ");
-    const message = `Generation failed the answerability gate after ${callsUsed} repair attempt(s): ${describeDefects(result.defects)}${rejectionDetails ? ". Repair rejections: " + rejectionDetails : ""}`;
+    const message = `Generation failed the answerability gate after ${callsUsed} repair attempt(s) [${aiBudget.summary()}${budgetStop ? '; ' + budgetStop : ''}]: ${describeDefects(result.defects)}${rejectionDetails ? ". Repair rejections: " + rejectionDetails : ""}`;
     console.error(message);
     await supabase.from('exams').update({
       extraction_status: 'failed',
