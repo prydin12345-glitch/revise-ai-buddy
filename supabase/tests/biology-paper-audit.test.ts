@@ -13,13 +13,13 @@ function input(tier: 'foundation' | 'higher' = 'foundation'): BiologyDraftAuditI
 }
 
 describe('offline Biology audit', () => {
-  it('reports all eight supported combinations and no invented external scores', () => {
+  it('reports all twelve supported combinations and no invented external scores', () => {
     const rows = auditBiologyTemplates();
-    expect(rows).toHaveLength(8);
-    expect(new Set(rows.map(r => `${r.packId}/${r.tier}/${r.mode}`)).size).toBe(8);
+    expect(rows).toHaveLength(12);
+    expect(new Set(rows.map(r => `${r.packId}/${r.tier}/${r.mode}`)).size).toBe(12);
     expect(rows.every(r => r.status === 'template_checked' && !r.realPaperGenerated && r.externalRating === null)).toBe(true);
-    expect(rows.filter(r => r.courseId.startsWith('aqa')).every(r => r.annotatedMathsMarks === null)).toBe(true);
-    expect(rows.filter(r => r.mode === 'full_mock').map(r => r.marks).sort()).toEqual([100, 100, 90, 90].sort());
+    expect(rows.filter(r => r.packId === 'aqa-8461-paper-1-v1').every(r => r.annotatedMathsMarks === null)).toBe(true);
+    expect(rows.filter(r => r.mode === 'full_mock').map(r => r.marks).sort()).toEqual([100, 100, 100, 100, 90, 90].sort());
   });
 
   it.each(['foundation', 'higher'] as const)('checks canonical OCR %s drafts without modifying them', tier => {
@@ -62,7 +62,7 @@ describe('offline Biology audit', () => {
 
   it('the CLI returns usable JSON and a failing exit code for a blocked saved draft', () => {
     const inventory = JSON.parse(execFileSync(process.execPath, ['scripts/audit-biology.mjs', '--json'], { encoding: 'utf8' }));
-    expect(inventory).toHaveLength(8);
+    expect(inventory).toHaveLength(12);
     const directory = mkdtempSync(join(tmpdir(), 'examly-biology-audit-'));
     try {
       const draft = input(); draft.questions = draft.questions.slice(1);
