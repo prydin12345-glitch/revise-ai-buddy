@@ -3,6 +3,7 @@ import { AQA_BIOLOGY_P1, BIOLOGY_CONTRACT_VERSION, buildAqaPlan, aqaPlanInstruct
 import { OCR_GATEWAY_PAPER, buildGatewayPlan, gatewayComponent } from './ocr-biology-contract.ts';
 import { gatewayPartInstruction, gatewayPlanInstructions } from './ocr-biology-scope.ts';
 import type { PaperMode, PaperPlan, PlannedPart } from './paper-contract-types.ts';
+import { AQA_BIOLOGY_P2, aqaPaper2Component, buildAqaPaper2Plan, aqaPaper2Instructions, aqaPaper2PartInstruction } from './aqa-biology-paper2.ts';
 
 export interface BiologyPaperDefinition {
   courseId: string;
@@ -63,13 +64,36 @@ export const BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [
     definition: tier => ({ ...OCR_GATEWAY_PAPER, componentCode: gatewayComponent(tier), displayName: `OCR Gateway Biology A ${tier === 'higher' ? 'Paper 3' : 'Paper 1'}` }),
     build: buildGatewayPlan, instructions: gatewayPlanInstructions, repairPartInstructions: gatewayPartInstruction,
   },
+  {
+    id: 'aqa-8461-paper-2-v1', courseId: AQA_BIOLOGY_P2.courseId, paperId: AQA_BIOLOGY_P2.paperId,
+    contractVersion: 1, curriculum, examBoard: 'AQA', tiers: ['foundation', 'higher'],
+    sources: ['specification-at-a-glance', 'scheme-of-assessment', 'subject-content/homeostasis-and-response',
+      'subject-content/inheritance-variation-and-evolution', 'subject-content/ecology'].map(section => ({
+        url: `https://www.aqa.org.uk/subjects/biology/gcse/biology-8461/specification/${section}`,
+        section, checkedOn: '2026-09-19',
+      })),
+    official: { fullMarks: 100, durationMinutes: 105 },
+    layoutChoices: ['Nine groups, 36 parts, nine MCQs and four six-mark responses are Examly template choices.',
+      'Planned AO marks are 40/40/20; maths and practical annotations are targets, not proof of generated content.',
+      'Short practice has eight parts and 20 marks; it is not a full paper.'],
+    validation: { rows: 'exact_parts', mcqOptions: 4, levelSchemeAtMarks: 6 },
+    generation: { strategy: 'contract_only', systemPrompt: 'Write an original AQA GCSE separate Biology 8461 Paper 2 practice paper at the saved Foundation or Higher tier. Follow the immutable part plan, Paper 2 scope and resource schema. Return complete JSON only, including private answer keys.' },
+    definition: tier => ({...AQA_BIOLOGY_P2, componentCode: aqaPaper2Component(tier)}),
+    build: buildAqaPaper2Plan, instructions: aqaPaper2Instructions, repairPartInstructions: aqaPaper2PartInstruction,
+  },
 ];
+
+export const biologyPaperOptions = (courseId: string | null | undefined) =>
+  BIOLOGY_PAPER_PACKS.filter(pack => canonicalCourseId(pack.courseId) === canonicalCourseId(courseId));
 
 /** Explicit paper/version lookups never fall back to a different registered paper. */
 export function getBiologyPaperPack(courseId: string | null | undefined, paperId?: string | null, contractVersion?: number): BiologyPaperPack | null {
   const course = canonicalCourseId(courseId);
+  // Before Paper 2 shipped, an absent AQA paper meant Paper 1. Preserve old
+  // callers/profiles explicitly; never infer Paper 2 from a display name.
+  const selectedPaper = paperId ?? (course === 'aqa_gcse_biology' ? 'paper_1' : null);
   const matches = BIOLOGY_PAPER_PACKS.filter(pack => canonicalCourseId(pack.courseId) === course &&
-    (paperId == null || pack.paperId === paperId) && (contractVersion === undefined || pack.contractVersion === contractVersion));
+    (selectedPaper == null || pack.paperId === selectedPaper) && (contractVersion === undefined || pack.contractVersion === contractVersion));
   // Ambiguous defaults require an explicit paper/version; never select the first match.
   return matches.length === 1 ? matches[0] : null;
 }
