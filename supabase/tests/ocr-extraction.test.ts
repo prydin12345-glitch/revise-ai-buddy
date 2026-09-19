@@ -21,6 +21,8 @@ async function extract(tier: 'foundation'|'higher', scenario: boolean | Extracti
     exam_specifications:[{topic_name:'Infection and response'}],exam_format:[{use_original_structure:false,mcq_count:0,short_answer_count:8,profile_metadata:{paperBlueprint:{paperContract:{courseId:'aqa_gcse_biology_8461',paperId:'paper_1',mode:'full_mock'}}}}]};
   let drafts:any[]=[];
   const aiCalls:any[]=[];
+  const generationCalls:any[]=[];
+  const repairCalls:any[]=[];
   const client={from(table:string) {
     let op='select',value:any,single=false; const filters:Record<string,unknown>={};
     const q:any={};
@@ -54,13 +56,19 @@ async function extract(tier: 'foundation'|'higher', scenario: boolean | Extracti
   const context:any={module:{exports:{}},exports:{},console:{log(){},warn(){},error(){}},Request,Response,Headers,URL,TextEncoder,TextDecoder,setTimeout,clearTimeout,
     fetch:async(_url:any,options:any)=>{
       const request=JSON.parse(options.body); aiCalls.push(request);
-      const content=aiCalls.length===1?{questions}:config.repair?.(request,questions)??{parts:[]};
+      const prompt=request.messages.map((m:any)=>m.content).join('\n');
+      const isGeneration=prompt.includes('Return {"questions":[...]} only.');
+      if(isGeneration) generationCalls.push(request); else repairCalls.push(request);
+      const batch=/PARTS IN THIS RESPONSE: (.+)/.exec(prompt)?.[1].split(', ').map(s=>s.trim());
+      const content=isGeneration
+        ?{questions:batch?questions.filter(q=>batch.includes(String(q.question_number))):questions}
+        :config.repair?.(request,questions)??{parts:[]};
       return new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify(content)}}]}));
     },Deno:{env:{get:()=>undefined}},EdgeRuntime:{waitUntil(){}}};
   vm.runInNewContext(result.outputFiles[0].text,context);
   let error:unknown;
   try {await context.module.exports.processExamExtraction('exam','owner',client,'test-key',false,null);} catch(e){error=e;}
-  return {drafts,exam,aiCalls,error};
+  return {drafts,exam,aiCalls,generationCalls,repairCalls,error};
 }
 describe('real OCR extraction pipeline with fixture model responses',()=>{
   it.each(['foundation','higher'] as const)('retains the complete %s paper and question-local figures',async tier=>{
@@ -70,7 +78,7 @@ describe('real OCR extraction pipeline with fixture model responses',()=>{
     expect(result.drafts.reduce((n,q)=>n+q.marks,0)).toBe(90);
     expect(result.drafts.filter(q=>q.question_type==='mcq')).toHaveLength(15);
     expect(result.drafts.some(q=>q.question_number==='19(b)' && q.diagram_config?.type==='line_chart')).toBe(true);
-    expect(result.aiCalls).toHaveLength(1);
+    expect(result.repairCalls).toHaveLength(0);
     const prompt=result.aiCalls[0].messages.map((m:any)=>m.content).join('\n');
     expect(prompt).toContain(tier==='foundation'?'J247/01':'J247/03');
     expect(prompt).not.toContain('AQA GCSE Biology Paper 1');
@@ -79,7 +87,7 @@ describe('real OCR extraction pipeline with fixture model responses',()=>{
     const result=await extract('foundation',true);
     expect(String(result.error)).toContain('Planned Q1 is missing');
     // Bounded completion attempts are allowed; no text-repair loop, no renumbering.
-    expect(result.aiCalls.length).toBeLessThanOrEqual(4);
+    expect(result.repairCalls.length).toBeLessThanOrEqual(3);
     expect(result.drafts.find(q=>q.question_number==='1')).toBeUndefined();
     expect(result.drafts.find(q=>q.question_number==='2')).toBeTruthy();
   });
@@ -92,7 +100,7 @@ describe('real OCR extraction pipeline with fixture model responses',()=>{
       }
     }});
     expect(String(result.error??'')).toBe('');
-    expect(result.aiCalls).toHaveLength(1);
+    expect(result.repairCalls).toHaveLength(0);
     expect(result.exam.extraction_status).toBe('completed');
     expect(result.drafts.find(q=>q.question_number==='24(b)').correct_answer).toContain('Level 3');
     expect(result.drafts.find(q=>q.question_number==='24(b)').correct_answer).toContain('sweat evaporation');
@@ -117,7 +125,7 @@ describe('real OCR extraction pipeline with fixture model responses',()=>{
       },
     });
     expect(String(result.error??'')).toBe('');
-    expect(result.aiCalls).toHaveLength(3);
+    expect(result.repairCalls).toHaveLength(2);
     expect(result.exam.extraction_status).toBe('completed');
     expect(result.drafts.find(q=>q.question_number==='19(a)').question_text).toContain('Briefly outline');
     expect(result.drafts.find(q=>q.question_number==='19(a)').correct_answer).not.toContain('Calvin');
@@ -133,7 +141,7 @@ describe('real OCR extraction pipeline with fixture model responses',()=>{
       repair(){return {parts:[{question_number:'1',instruction:'Which structure contains the genetic material?',expected_answer:'Nucleus'}]};},
     });
     expect(String(result.error??'')).toBe('');
-    expect(result.aiCalls).toHaveLength(2);
+    expect(result.repairCalls).toHaveLength(1);
     expect(result.drafts.find(q=>q.question_number==='1').options).toEqual(['Nucleus','Membrane','Ribosome','Cytoplasm']);
   });
   it('stops on a failed repair save and never marks the paper complete',async()=>{
@@ -155,7 +163,7 @@ describe('real OCR extraction pipeline with fixture model responses',()=>{
     });
     expect(String(result.error)).toContain('after 3 repair attempt(s)');
     expect(String(result.error)).toContain('out_of_level');
-    expect(result.aiCalls).toHaveLength(4);
+    expect(result.repairCalls).toHaveLength(3);
     expect(result.exam.extraction_status).toBe('failed');
   });
 });

@@ -10,6 +10,8 @@ interface ExtractionScenario {
   mutate?: (questions: any[]) => void;
   repair?: (request: any, questions: any[]) => any;
   rejectRepairSave?: boolean;
+  truncateFirstBatch?: boolean;
+  dropSecondBatch?: boolean;
 }
 async function extract(tier: 'foundation'|'higher', scenario: boolean | ExtractionScenario = false, mode: 'full_mock'|'short_practice' = 'full_mock') {
   const {rows}=paper2Fixture(tier, mode);
@@ -21,6 +23,8 @@ async function extract(tier: 'foundation'|'higher', scenario: boolean | Extracti
     exam_specifications:[{topic_name:'Infection and response'}],exam_format:[{use_original_structure:false,mcq_count:0,short_answer_count:8,profile_metadata:{paperBlueprint:{paperContract:{courseId:'aqa_gcse_biology_8461',paperId:'paper_1',mode:'full_mock'}}}}]};
   let drafts:any[]=[];
   const aiCalls:any[]=[];
+  const generationCalls:any[]=[];
+  const repairCalls:any[]=[];
   const client={from(table:string) {
     let op='select',value:any,single=false; const filters:Record<string,unknown>={};
     const q:any={};
@@ -54,13 +58,25 @@ async function extract(tier: 'foundation'|'higher', scenario: boolean | Extracti
   const context:any={module:{exports:{}},exports:{},console:{log(){},warn(){},error(){}},Request,Response,Headers,URL,TextEncoder,TextDecoder,setTimeout,clearTimeout,
     fetch:async(_url:any,options:any)=>{
       const request=JSON.parse(options.body); aiCalls.push(request);
-      const content=aiCalls.length===1?{questions}:config.repair?.(request,questions)??{parts:[]};
+      const prompt=request.messages.map((m:any)=>m.content).join('\n');
+      const isGeneration=prompt.includes('Return {"questions":[...]} only.');
+      if(isGeneration) generationCalls.push(request); else repairCalls.push(request);
+      const batch=/PARTS IN THIS RESPONSE: (.+)/.exec(prompt)?.[1].split(', ').map(s=>s.trim());
+      const content=isGeneration
+        ?{questions:batch?questions.filter(q=>batch.includes(String(q.question_number))):questions}
+        :config.repair?.(request,questions)??{parts:[]};
+      if(isGeneration&&config.dropSecondBatch&&generationCalls.length>=2)
+        return new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:'{"questions":[]}'}}]}));
+      if(isGeneration&&config.truncateFirstBatch&&generationCalls.length===1){
+        const body=JSON.stringify(content);
+        return new Response(JSON.stringify({choices:[{finish_reason:'length',message:{content:body.slice(0,Math.floor(body.length*0.72))}}]}));
+      }
       return new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify(content)}}]}));
     },Deno:{env:{get:()=>undefined}},EdgeRuntime:{waitUntil(){}}};
   vm.runInNewContext(result.outputFiles[0].text,context);
   let error:unknown;
   try {await context.module.exports.processExamExtraction('exam','owner',client,'test-key',false,null);} catch(e){error=e;}
-  return {drafts,exam,aiCalls,error};
+  return {drafts,exam,aiCalls,generationCalls,repairCalls,error};
 }
 async function boundaryHandler(name: string, rows: any[], tier: 'foundation'|'higher' = 'foundation', mode: 'full_mock'|'short_practice' = 'full_mock') {
   const writes: Array<{table:string; value:any}>=[];
@@ -90,7 +106,7 @@ describe.each(['foundation','higher'] as const)('real AQA Paper 2 %s pipeline',t
     expect(result.drafts).toHaveLength(mode==='full_mock'?36:8);
     expect(result.drafts.reduce((n,q)=>n+q.marks,0)).toBe(mode==='full_mock'?100:20);
     expect(result.drafts.filter(q=>q.question_type==='mcq')).toHaveLength(mode==='full_mock'?9:2);
-    expect(result.aiCalls).toHaveLength(1);
+    expect(result.repairCalls).toHaveLength(0);
     const prompt=result.aiCalls[0].messages.map((m:any)=>m.content).join('\n');
     expect(prompt).toContain(tier==='foundation'?'8461/2F':'8461/2H');
     expect(prompt).not.toContain('AQA GCSE Biology Paper 1');
@@ -111,7 +127,7 @@ describe.each(['foundation','higher'] as const)('real AQA Paper 2 %s pipeline',t
       },
     });
     expect(String(result.error??'')).toBe('');
-    expect(result.aiCalls).toHaveLength(3);
+    expect(result.repairCalls).toHaveLength(2);
     expect(result.drafts[0].options).toHaveLength(4);
     expect(result.drafts.find(q=>q.question_number==='4(d)').correct_answer).toContain('Level 3');
     expect(result.exam.extraction_status).toBe('completed');
@@ -131,7 +147,7 @@ describe('Paper 2 stops rather than manufacturing a passing paper',()=>{
     const result=await extract('foundation',true);
     expect(String(result.error)).toContain('Planned Q1(a) is missing');
     // Bounded completion attempts are allowed; the gate still blocks the paper.
-    expect(result.aiCalls.length).toBeLessThanOrEqual(4);
+    expect(result.repairCalls.length).toBeLessThanOrEqual(3);
     expect(result.exam.extraction_status).not.toBe('completed');
   });
   it('requires a successful repair save before completion',async()=>{
@@ -145,12 +161,49 @@ describe('Paper 2 stops rather than manufacturing a passing paper',()=>{
       repair(request){const group=JSON.parse(request.messages[0].content.split('Current group: ')[1].split('\nReturn JSON')[0]);
         return {parts:group.map((row:any)=>({...row,task:row.question_text,correct_answer:row.question_number==='2(d)'?'Kidneys remove excess water in urine.':row.correct_answer}))};},
     });
-    expect(String(result.error??'')).toBe(''); expect(result.aiCalls).toHaveLength(2);
+    expect(String(result.error??'')).toBe(''); expect(result.repairCalls).toHaveLength(1);
     expect(result.drafts.find(q=>q.question_number==='2(d)').correct_answer).not.toContain('ADH');
   });
   it('finalisation repeats the gate and will not copy incomplete rows',async()=>{
     const h=await boundaryHandler('publish-exam',paper2Fixture().rows.slice(1));
     const response=await h.run({draftId:'exam'});
     expect(response.status).toBe(422); expect(h.writes.some(w=>w.table==='exam_questions')).toBe(false);
+  });
+
+  it('writes a full paper in bounded batches of whole parent groups, with siblings for context',async()=>{
+    const result=await extract('foundation');
+    expect(String(result.error??'')).toBe('');
+    expect(result.generationCalls.length).toBeGreaterThan(1);
+    for(const call of result.generationCalls){
+      const prompt=call.messages.map((m:any)=>m.content).join('\n');
+      const listed=/PARTS IN THIS RESPONSE: (.+)/.exec(prompt)?.[1].split(', ')??[];
+      const parents=new Set(listed.map(n=>n.replace(/\(.*/,'')));
+      for(const parent of parents){
+        const siblingsInPaper=result.drafts.filter(d=>String(d.question_number).replace(/\(.*/,'')===parent).length;
+        expect(listed.filter(n=>n.startsWith(parent)).length).toBe(siblingsInPaper);
+      }
+      expect(prompt).toContain('WHOLE PAPER (context only');
+    }
+  });
+
+  it('recovers a truncated batch and completes the remaining planned parts',async()=>{
+    const result=await extract('foundation',{truncateFirstBatch:true});
+    expect(String(result.error??'')).toBe('');
+    expect(result.exam.extraction_status).toBe('completed');
+    const numbers=result.drafts.map(d=>String(d.question_number));
+    expect(new Set(numbers).size).toBe(numbers.length);
+    expect(result.repairCalls).toHaveLength(0);
+    // The completion request carries the already-written siblings of the part
+    // group it is finishing, so shared resource values stay consistent.
+    const completion=result.generationCalls.map((c:any)=>c.messages.map((m:any)=>m.content).join('\n'))
+      .filter(p=>p.includes('ALREADY WRITTEN in this paper'));
+    expect(completion.length).toBeGreaterThan(0);
+  });
+
+  it('stops on a no-progress batch, keeps the paper blocked and stays within the call budget',async()=>{
+    const result=await extract('foundation',{dropSecondBatch:true});
+    expect(String(result.error)).toContain('plan_mismatch');
+    expect(result.exam.extraction_status).not.toBe('completed');
+    expect(result.aiCalls.length).toBeLessThanOrEqual(26);
   });
 });
