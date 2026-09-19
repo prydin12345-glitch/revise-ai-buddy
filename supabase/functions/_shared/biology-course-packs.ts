@@ -62,6 +62,7 @@ export const BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [
     official: { fullMarks: 90, durationMinutes: 105, sections: [{ id: 'A', marks: 15 }, { id: 'B', marks: 75 }] },
     layoutChoices: ['The nine Section B groups and their specific allocations belong to Examly template v1.', 'The short practice is a reduced exercise, not an official-length paper.'],
     validation: { rows: 'exact_parts', mcqOptions: 4, levelSchemeAtMarks: 6 },
+    rules: GATEWAY_RULES,
     generation: { strategy: 'contract_only', systemPrompt: 'Write an original OCR Gateway GCSE Biology practice paper using the supplied immutable plan and tier. Output valid JSON only, with complete questions, canonical resources and private marking schemes.' },
     definition: tier => ({ ...OCR_GATEWAY_PAPER, componentCode: gatewayComponent(tier), displayName: `OCR Gateway Biology A ${tier === 'higher' ? 'Paper 3' : 'Paper 1'}` }),
     build: buildGatewayPlan, instructions: gatewayPlanInstructions, repairPartInstructions: gatewayPartInstruction,
@@ -79,6 +80,7 @@ export const BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [
       'Planned AO marks are 40/40/20; maths and practical annotations are targets, not proof of generated content.',
       'Short practice has eight parts and 20 marks; it is not a full paper.'],
     validation: { rows: 'exact_parts', mcqOptions: 4, levelSchemeAtMarks: 6 },
+    rules: AQA_P2_RULES,
     generation: { strategy: 'contract_only', systemPrompt: 'Write an original AQA GCSE separate Biology 8461 Paper 2 practice paper at the saved Foundation or Higher tier. Follow the immutable part plan, Paper 2 scope and resource schema. Return complete JSON only, including private answer keys.' },
     definition: tier => ({...AQA_BIOLOGY_P2, componentCode: aqaPaper2Component(tier)}),
     build: buildAqaPaper2Plan, instructions: aqaPaper2Instructions, repairPartInstructions: aqaPaper2PartInstruction,
@@ -107,6 +109,48 @@ export function packForBiologyPlan(plan: PaperPlan): BiologyPaperPack {
 }
 
 export const biologyPlanInstructions = (plan: PaperPlan): string => packForBiologyPlan(plan).instructions(plan);
+
+export interface BiologyBatchSibling {
+  question_number: string;
+  marks?: number;
+  question_text?: string;
+  chart_data?: unknown;
+}
+
+/**
+ * Instructions for ONE batch of a guided paper. The whole-paper plan is stated
+ * as context only; the parts required in this response are listed explicitly,
+ * so a six-part batch is never told to write nine groups and 36 parts.
+ */
+export function biologyBatchInstructions(
+  plan: PaperPlan,
+  batch: readonly PlannedPart[],
+  context: { siblings?: readonly BiologyBatchSibling[] } = {},
+): string {
+  const pack = packForBiologyPlan(plan);
+  const numbers = batch.map(part => part.questionNumber);
+  const lines: string[] = [
+    pack.rules ?? '',
+    `${pack.examBoard} GUIDED PAPER, written in batches. ${plan.label}${plan.componentCode ? `, component ${plan.componentCode}` : ''}; saved tier ${plan.tier ?? 'not tiered'}.`,
+    `WHOLE PAPER (context only, do NOT write it now): ${plan.partCount} scored parts, ${plan.totalMarks} marks, ${plan.durationMinutes} minutes. The layout is an Examly template, not an official fixed blueprint.`,
+    `PARTS IN THIS RESPONSE: ${numbers.join(', ')}`,
+    `Write exactly ${batch.length} scored row(s) - only the parts listed above, in order, with their exact question numbers, marks, response types and topic tags. Never renumber, relabel, split, merge, omit or add a part, and never restate a part that is not listed.`,
+    'Each row needs question_number, root_question_number (leading integer as a string), parent_question_number (same leading integer), context, task, question_text (context joined to task), question_type, marks, topic_tag and a private correct_answer. Every scored part needs an explicit assessed instruction, including parts with a table or graph.',
+    'Resources are question-local: one canonical chart_data payload per required resource, with real self-consistent values used by the task and a neutral caption. Keep answer keys and level descriptors out of the stem and resource.',
+  ];
+  if (context.siblings?.length) {
+    lines.push(
+      'ALREADY WRITTEN in this paper (reference only - do not rewrite, repeat or renumber them). Where a listed part depends on this data, reuse these exact values and name the earlier part:',
+      JSON.stringify(context.siblings),
+    );
+  }
+  const instruction = pack.repairPartInstructions;
+  lines.push(instruction
+    ? batch.map(part => instruction(part, true)).join('\n')
+    : pack.instructions({ ...plan, parts: [...batch], partCount: batch.length,
+        parentCount: new Set(batch.map(part => part.parentId)).size }));
+  return lines.filter(line => line.trim().length > 0).join('\n');
+}
 
 export function biologyRepairInstructions(plan: PaperPlan | null | undefined, numbers: Set<string>, includeOptions: boolean): string {
   if (!plan) return '';
