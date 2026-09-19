@@ -1,5 +1,5 @@
 import { PaperSectionHeading } from "@/components/exams/PaperSectionHeading";
-import { gatewayPaperDisplay } from "@/lib/biology-paper-display";
+import { biologyPaperDisplay } from "@/lib/biology-paper-display";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { InsertPanel } from "@/components/insert/InsertPanel";
 import { QuestionCardShell } from "@/components/quiz/QuestionCardShell";
@@ -1306,7 +1306,7 @@ const ExamInProgress = () => {
               <Menu className="h-5 w-5" />
             </Button>
             <h1 className="text-sm sm:text-base lg:text-xl font-bold truncate">{examName || 'Exam in Progress'}</h1>
-            {gatewayPaperDisplay(paperContext) && <p className="text-xs text-muted-foreground">{gatewayPaperDisplay(paperContext)?.label}</p>}
+            {biologyPaperDisplay(paperContext) && <p className="text-xs text-muted-foreground">{biologyPaperDisplay(paperContext)?.label}</p>}
           </div>
           
           {/* Center: Timer */}
