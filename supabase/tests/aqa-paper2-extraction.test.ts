@@ -10,6 +10,8 @@ interface ExtractionScenario {
   mutate?: (questions: any[]) => void;
   repair?: (request: any, questions: any[]) => any;
   rejectRepairSave?: boolean;
+  truncateFirstBatch?: boolean;
+  dropSecondBatch?: boolean;
 }
 async function extract(tier: 'foundation'|'higher', scenario: boolean | ExtractionScenario = false, mode: 'full_mock'|'short_practice' = 'full_mock') {
   const {rows}=paper2Fixture(tier, mode);
@@ -63,6 +65,12 @@ async function extract(tier: 'foundation'|'higher', scenario: boolean | Extracti
       const content=isGeneration
         ?{questions:batch?questions.filter(q=>batch.includes(String(q.question_number))):questions}
         :config.repair?.(request,questions)??{parts:[]};
+      if(isGeneration&&config.dropSecondBatch&&generationCalls.length>=2)
+        return new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:'{"questions":[]}'}}]}));
+      if(isGeneration&&config.truncateFirstBatch&&generationCalls.length===1){
+        const body=JSON.stringify(content);
+        return new Response(JSON.stringify({choices:[{finish_reason:'length',message:{content:body.slice(0,Math.floor(body.length*0.55))}}]}));
+      }
       return new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify(content)}}]}));
     },Deno:{env:{get:()=>undefined}},EdgeRuntime:{waitUntil(){}}};
   vm.runInNewContext(result.outputFiles[0].text,context);
@@ -160,5 +168,39 @@ describe('Paper 2 stops rather than manufacturing a passing paper',()=>{
     const h=await boundaryHandler('publish-exam',paper2Fixture().rows.slice(1));
     const response=await h.run({draftId:'exam'});
     expect(response.status).toBe(422); expect(h.writes.some(w=>w.table==='exam_questions')).toBe(false);
+  });
+
+  it('writes a full paper in bounded batches of whole parent groups, with siblings for context',async()=>{
+    const result=await extract('foundation');
+    expect(String(result.error??'')).toBe('');
+    expect(result.generationCalls.length).toBeGreaterThan(1);
+    for(const call of result.generationCalls){
+      const prompt=call.messages.map((m:any)=>m.content).join('\n');
+      const listed=/PARTS IN THIS RESPONSE: (.+)/.exec(prompt)?.[1].split(', ')??[];
+      const parents=new Set(listed.map(n=>n.replace(/\(.*/,'')));
+      for(const parent of parents){
+        const siblingsInPaper=result.drafts.filter(d=>String(d.question_number).replace(/\(.*/,'')===parent).length;
+        expect(listed.filter(n=>n.startsWith(parent)).length).toBe(siblingsInPaper);
+      }
+      expect(prompt).toContain('WHOLE PAPER (context only');
+    }
+    const later=result.generationCalls.slice(1).map((c:any)=>c.messages.map((m:any)=>m.content).join('\n'));
+    expect(later.some(p=>p.includes('ALREADY WRITTEN in this paper'))).toBe(true);
+  });
+
+  it('recovers a truncated batch and completes the remaining planned parts',async()=>{
+    const result=await extract('foundation',{truncateFirstBatch:true});
+    expect(String(result.error??'')).toBe('');
+    expect(result.exam.extraction_status).toBe('completed');
+    const numbers=result.drafts.map(d=>String(d.question_number));
+    expect(new Set(numbers).size).toBe(numbers.length);
+    expect(result.repairCalls).toHaveLength(0);
+  });
+
+  it('stops on a no-progress batch, keeps the paper blocked and stays within the call budget',async()=>{
+    const result=await extract('foundation',{dropSecondBatch:true});
+    expect(String(result.error)).toContain('plan_mismatch');
+    expect(result.exam.extraction_status).not.toBe('completed');
+    expect(result.aiCalls.length).toBeLessThanOrEqual(26);
   });
 });
