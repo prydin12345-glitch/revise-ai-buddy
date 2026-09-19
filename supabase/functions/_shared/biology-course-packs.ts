@@ -1,9 +1,9 @@
 import { canonicalCourseId } from './assessment-tier.ts';
 import { AQA_BIOLOGY_P1, BIOLOGY_CONTRACT_VERSION, buildAqaPlan, aqaPlanInstructions } from './aqa-biology-contract.ts';
 import { OCR_GATEWAY_PAPER, buildGatewayPlan, gatewayComponent } from './ocr-biology-contract.ts';
-import { gatewayPartInstruction, gatewayPlanInstructions } from './ocr-biology-scope.ts';
+import { gatewayPartInstruction, gatewayPlanInstructions, GATEWAY_RULES } from './ocr-biology-scope.ts';
 import type { PaperMode, PaperPlan, PlannedPart } from './paper-contract-types.ts';
-import { AQA_BIOLOGY_P2, aqaPaper2Component, buildAqaPaper2Plan, aqaPaper2Instructions, aqaPaper2PartInstruction } from './aqa-biology-paper2.ts';
+import { AQA_BIOLOGY_P2, aqaPaper2Component, buildAqaPaper2Plan, aqaPaper2Instructions, aqaPaper2PartInstruction, AQA_P2_RULES } from './aqa-biology-paper2.ts';
 
 export interface BiologyPaperDefinition {
   courseId: string;
