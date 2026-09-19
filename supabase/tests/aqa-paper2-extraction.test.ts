@@ -184,8 +184,6 @@ describe('Paper 2 stops rather than manufacturing a passing paper',()=>{
       }
       expect(prompt).toContain('WHOLE PAPER (context only');
     }
-    const later=result.generationCalls.slice(1).map((c:any)=>c.messages.map((m:any)=>m.content).join('\n'));
-    expect(later.some(p=>p.includes('ALREADY WRITTEN in this paper'))).toBe(true);
   });
 
   it('recovers a truncated batch and completes the remaining planned parts',async()=>{
@@ -195,6 +193,11 @@ describe('Paper 2 stops rather than manufacturing a passing paper',()=>{
     const numbers=result.drafts.map(d=>String(d.question_number));
     expect(new Set(numbers).size).toBe(numbers.length);
     expect(result.repairCalls).toHaveLength(0);
+    // The completion request carries the already-written siblings of the part
+    // group it is finishing, so shared resource values stay consistent.
+    const completion=result.generationCalls.map((c:any)=>c.messages.map((m:any)=>m.content).join('\n'))
+      .filter(p=>p.includes('ALREADY WRITTEN in this paper'));
+    expect(completion.length).toBeGreaterThan(0);
   });
 
   it('stops on a no-progress batch, keeps the paper blocked and stays within the call budget',async()=>{
