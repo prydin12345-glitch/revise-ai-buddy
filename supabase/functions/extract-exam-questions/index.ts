@@ -733,6 +733,18 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     normalizeQNum(a.question_number).localeCompare(normalizeQNum(b.question_number))
   );
 
+  // ── GUIDED PLAN COMPLETION ──────────────────────────────────────────────
+  // A long guided paper (36 planned parts) routinely exceeds what one model
+  // response can carry, which used to surface as "Planned Q5(a) is missing".
+  // Any planned part the first response omitted is requested again in small
+  // batches; nothing is renumbered or relabelled to fill a gap.
+  if (usesContractOnlyGeneration && guidedPlan) {
+    questions = await completePlannedParts(
+      questions, guidedPlan, lovableApiKey,
+      guidedPack?.generation.systemPrompt ?? systemPrompt, hasResourcePack,
+    );
+  }
+
   if (!usesContractOnlyGeneration) questions = repairFlatQuestionsToOriginalStructure(questions, detectedOriginalStructure);
 
   // ── INSERT-REFERENCE FILTER ─────────────────────────────────────────────
