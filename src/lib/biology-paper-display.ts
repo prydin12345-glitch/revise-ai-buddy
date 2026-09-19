@@ -1,6 +1,17 @@
 import { paperPlanForAttempt } from '../../supabase/functions/_shared/course-selection';
 import { OCR_GATEWAY_BIOLOGY_ID } from '@/lib/assessment-tier';
 import { canonicalPartNumber } from '../../supabase/functions/_shared/ocr-plan-validator';
+import { isAqaPaper2 } from '../../supabase/functions/_shared/aqa-biology-paper2';
+
+export function biologyPaperDisplay(context: unknown) {
+  const gateway = gatewayPaperDisplay(context);
+  if (gateway) return {...gateway, subject: 'Gateway Biology A'};
+  try {
+    const plan = paperPlanForAttempt(context);
+    if (!plan || !isAqaPaper2(plan)) return null;
+    return {plan, subject: 'Biology', label: `AQA Biology Paper 2 · ${plan.componentCode} · ${plan.tier === 'foundation' ? 'Foundation' : 'Higher'}`};
+  } catch { return null; }
+}
 
 export function gatewayPaperDisplay(context: unknown) {
   try {
