@@ -1,4 +1,5 @@
 import { OCR_GATEWAY_BIOLOGY_ID } from "../_shared/assessment-tier.ts";
+import { isAqaPaper2 } from "../_shared/aqa-biology-paper2.ts";
 import { paperPlanForAttempt } from "../_shared/course-selection.ts";
 import { biologyPlanInstructions, packForBiologyPlan } from "../_shared/biology-course-packs.ts";
 import { requestQuestionRepair, saveQuestionRepairs, describeRepairDiagnostics } from '../_shared/question-repair.ts';
@@ -2641,7 +2642,8 @@ Do NOT include chart_data for concept-only questions like "Explain what the medi
     : /gcse|igcse|ks4|secondary_14_16/.test(lvl)
       ? 'medium'
       : 'medium';
-  let difficultyBlock = params.scope?.courseId === OCR_GATEWAY_BIOLOGY_ID ? biologyScopeInstructions(params.scope) : buildExamDifficultyInstructions(examDifficulty, subject, educationalLevel);
+  const dedicatedBiologyScope = params.scope?.courseId === OCR_GATEWAY_BIOLOGY_ID || isAqaPaper2(params.scope ?? {});
+  let difficultyBlock = dedicatedBiologyScope ? biologyScopeInstructions(params.scope!) : buildExamDifficultyInstructions(examDifficulty, subject, educationalLevel);
   // A-level calibration: match the register and demand of real board papers,
   // not generic quiz questions.
   if (/a[-_ ]?level|level ?3|16[-_]?18/i.test(String(educationalLevel || ''))) {
@@ -2658,7 +2660,7 @@ Match genuine AQA/Edexcel/OCR A-level standard:
 - PAPER ARCHITECTURE (hard constraint): AT MOST ONE 15-20 mark essay and AT MOST TWO 9-mark extended responses per paper; most questions carry 1-6 marks; total around 60 marks unless the requested count demands more.
 - MODULE ISOLATION: draw questions from AT MOST 3 curriculum modules of the topic scope; NEVER mix physical-geography modules (cycles, hazards, coasts, glaciation) with human-geography modules (global systems, changing places, urban) in one paper — pick one component and stay in it.`;
   }
-  const subjectSpecificBlock = params.scope?.courseId === OCR_GATEWAY_BIOLOGY_ID ? biologyScopeInstructions(params.scope) : getSubjectSpecificInstructions(subject, examBoard, educationalLevel);
+  const subjectSpecificBlock = dedicatedBiologyScope ? biologyScopeInstructions(params.scope!) : getSubjectSpecificInstructions(subject, examBoard, educationalLevel);
 
   // ── ASSEMBLE USER PROMPT ──────────────────────────────────────────────────
   const studiedTextsBlock = buildStudiedTextsPrompt(Array.isArray(studiedTexts) ? studiedTexts : []);
@@ -2697,7 +2699,7 @@ Match genuine AQA/Edexcel/OCR A-level standard:
     graphBlock,
     MULTI_PART_GRAPH_INSTRUCTIONS,
     circuitBlock,
-    params.scope?.courseId === OCR_GATEWAY_BIOLOGY_ID ? "" : buildBiologyInstructions(subject, educationalLevel),
+    dedicatedBiologyScope ? "" : buildBiologyInstructions(subject, educationalLevel),
     buildMathsInstructions(subject),
     (/physics|physical\s*science|natural\s*science|\bscience\b|combined\s*science|gcse\s*science|a[\s-]level\s*science|triple\s*science|optics|electronics|engineering|igcse\s*physics|ib\s*physics|ap\s*physics/i.test(subject) && !suppressDiagrams) ? buildPhysicsInstructions() : '',
     deltaWyeBlock,
@@ -3023,7 +3025,7 @@ async function enforceAnswerability(
     console.log(`Answerability gate passed (contract v${CONTRACT_VERSION}, ${drafts.length} parts)`);
     return;
   }
-  if (result.defects.some(d => d.code === 'plan_mismatch')) throw new Error('OCR paper structure does not match its saved plan: ' + describeDefects(result.defects.filter(d => d.code === 'plan_mismatch')));
+  if (result.defects.some(d => d.code === 'plan_mismatch')) throw new Error('Biology paper structure does not match its saved plan: ' + describeDefects(result.defects.filter(d => d.code === 'plan_mismatch')));
   console.warn(`Answerability defects: ${describeDefects(result.defects)}`);
 
   const attempts: Record<string, number> = {};
