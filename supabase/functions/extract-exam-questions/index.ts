@@ -1,7 +1,9 @@
 import { OCR_GATEWAY_BIOLOGY_ID } from "../_shared/assessment-tier.ts";
 import { isAqaPaper2 } from "../_shared/aqa-biology-paper2.ts";
 import { paperPlanForAttempt } from "../_shared/course-selection.ts";
-import { biologyPlanInstructions, packForBiologyPlan } from "../_shared/biology-course-packs.ts";
+import { biologyPlanInstructions, biologyBatchInstructions, packForBiologyPlan } from "../_shared/biology-course-packs.ts";
+import { AiCallBudget, AiBudgetExhaustedError, usageTokens } from "../_shared/ai-call-budget.ts";
+import { plannedPartKey, salvageTruncatedQuestions, planGroupBatches, mergeBatchRows, missingPlannedParts, describeRejections } from "../_shared/guided-batching.ts";
 import { requestQuestionRepair, saveQuestionRepairs, describeRepairDiagnostics } from '../_shared/question-repair.ts';
 import type { RepairDiagnostic } from '../_shared/prepare-group-repair.ts';
 import { normalizeGeneratedQuestion } from '../_shared/model-question-normalization.ts';
@@ -381,6 +383,11 @@ serve(async (req) => {
 
 async function processExamExtraction(draftId: string, userId: string, supabase: any, lovableApiKey: string, includeInsert: boolean = true, bodyTopics: string[] | null = null) {
   console.log('Starting background extraction for:', draftId);
+  // One shared provider budget for this request: initial batches, completion
+  // rounds, Flash/Pro fallbacks and answerability repairs all draw on it, and
+  // failed attempts consume their slot. Quota enforcement is unchanged and
+  // still applies before any of this.
+  aiBudget = new AiCallBudget({ maxCalls: MAX_AI_CALLS_PER_REQUEST, maxMs: MAX_AI_MS_PER_REQUEST });
 
   const { data: exam, error: examError } = await supabase
     .from('exams')
