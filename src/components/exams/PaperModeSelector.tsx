@@ -8,6 +8,7 @@ import {
 
 interface PaperModeSelectorProps {
   courseId?: string | null;
+  paperId?: string | null;
   mode: PaperMode;
   tier: "foundation" | "higher" | null;
   onModeChange: (mode: PaperMode) => void;
@@ -21,7 +22,7 @@ const MODES: Array<{ id: PaperMode; label: string; description: string }> = [
   {
     id: "full_mock",
     label: "Full mock",
-    description: "Complete Paper 1: 100 marks, 105 minutes, all four topic areas.",
+    description: "Complete selected paper, with its planned marks and timing.",
   },
   {
     id: "short_practice",
@@ -38,13 +39,14 @@ const MODES: Array<{ id: PaperMode; label: string; description: string }> = [
 export function PaperModeSelector({
   mode,
   courseId,
+  paperId,
   tier,
   onModeChange,
   onApplyPlan,
   applied,
 }: PaperModeSelectorProps) {
-  const definition = biologyPaperDefinition(courseId ?? "aqa_gcse_biology", tier);
-  const plan = tier ? buildPaperPlan(mode, tier, courseId ?? undefined) : null;
+  const definition = biologyPaperDefinition(courseId ?? "aqa_gcse_biology", tier, paperId);
+  const plan = tier && definition ? buildPaperPlan(mode, tier, courseId ?? undefined, paperId) : null;
 
   return (
     <div className="space-y-2 rounded-lg border border-border/60 p-3">
