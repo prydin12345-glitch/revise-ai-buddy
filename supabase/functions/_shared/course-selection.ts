@@ -18,6 +18,12 @@ export function profileCourseId(blueprint: unknown): string | null {
   return typeof value === 'string' ? canonicalCourseId(value) : null;
 }
 
+export function profilePaperId(blueprint: unknown): string | null {
+  const bp = object(blueprint);
+  const value = object(bp.courseSelection).paperId ?? object(bp.paperContract).paperId;
+  return typeof value === 'string' ? value : null;
+}
+
 /** Validate the configuration read from an OWNED profile, not request metadata. */
 export function resolvePaperSelection(lookup: CourseLookup, tier: AssessmentTier | null, blueprint: unknown): ResolvedPaperSelection {
   const bp = object(blueprint);
@@ -35,6 +41,9 @@ export function resolvePaperSelection(lookup: CourseLookup, tier: AssessmentTier
   const definition = biologyPaperDefinition(course?.id ?? null, tier === 'foundation' || tier === 'higher' ? tier : null, paperId);
   if (paperId && (!definition || paperId !== definition.paperId)) throw new Error('This paper preset is not available for the selected course.');
   if (choice.paperId && contract.paperId && choice.paperId !== contract.paperId) throw new Error('The saved paper selections disagree.');
+  if (course?.id === 'aqa_gcse_biology' && paperId === 'paper_2' && tier !== 'foundation' && tier !== 'higher') {
+    throw new Error('Select and save Foundation or Higher in your AQA Paper 2 profile.');
+  }
   if (course?.id === OCR_GATEWAY_BIOLOGY_ID) {
     if (!paperId) throw new Error('Select the OCR Gateway first paper in your profile.');
     if (tier !== 'foundation' && tier !== 'higher') throw new Error('Select and save Foundation or Higher in your OCR profile.');
@@ -63,6 +72,9 @@ export function paperPlanForAttempt(context: any, legacyBlueprint?: unknown) {
   }
   const contract = legacy ? object(legacyBlueprint).paperContract : context.paper_contract;
   if (!contract) return null;
+  if (legacy && canonicalCourseId(contract.courseId) === 'aqa_gcse_biology' && contract.paperId === 'paper_2') {
+    throw new Error('Create a fresh attempt from your AQA Paper 2 profile so its paper and tier are saved by the server.');
+  }
   const selection = resolvePaperSelection({subject: context.subject_name, examBoard: context.exam_board,
     educationalTier: context.educational_tier}, context.assessment_tier, {
     courseSelection: {courseId: context.course_id, paperId: context.paper_id ?? contract.paperId}, paperContract: contract,
