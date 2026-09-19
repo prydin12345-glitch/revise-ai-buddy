@@ -98,7 +98,7 @@ describe.each(['foundation','higher'] as const)('real AQA Paper 2 %s pipeline',t
     expect(result.drafts).toHaveLength(mode==='full_mock'?36:8);
     expect(result.drafts.reduce((n,q)=>n+q.marks,0)).toBe(mode==='full_mock'?100:20);
     expect(result.drafts.filter(q=>q.question_type==='mcq')).toHaveLength(mode==='full_mock'?9:2);
-    expect(result.aiCalls).toHaveLength(1);
+    expect(result.repairCalls).toHaveLength(0);
     const prompt=result.aiCalls[0].messages.map((m:any)=>m.content).join('\n');
     expect(prompt).toContain(tier==='foundation'?'8461/2F':'8461/2H');
     expect(prompt).not.toContain('AQA GCSE Biology Paper 1');
@@ -119,7 +119,7 @@ describe.each(['foundation','higher'] as const)('real AQA Paper 2 %s pipeline',t
       },
     });
     expect(String(result.error??'')).toBe('');
-    expect(result.aiCalls).toHaveLength(3);
+    expect(result.repairCalls).toHaveLength(2);
     expect(result.drafts[0].options).toHaveLength(4);
     expect(result.drafts.find(q=>q.question_number==='4(d)').correct_answer).toContain('Level 3');
     expect(result.exam.extraction_status).toBe('completed');
@@ -139,7 +139,7 @@ describe('Paper 2 stops rather than manufacturing a passing paper',()=>{
     const result=await extract('foundation',true);
     expect(String(result.error)).toContain('Planned Q1(a) is missing');
     // Bounded completion attempts are allowed; the gate still blocks the paper.
-    expect(result.aiCalls.length).toBeLessThanOrEqual(4);
+    expect(result.repairCalls.length).toBeLessThanOrEqual(3);
     expect(result.exam.extraction_status).not.toBe('completed');
   });
   it('requires a successful repair save before completion',async()=>{
@@ -153,7 +153,7 @@ describe('Paper 2 stops rather than manufacturing a passing paper',()=>{
       repair(request){const group=JSON.parse(request.messages[0].content.split('Current group: ')[1].split('\nReturn JSON')[0]);
         return {parts:group.map((row:any)=>({...row,task:row.question_text,correct_answer:row.question_number==='2(d)'?'Kidneys remove excess water in urine.':row.correct_answer}))};},
     });
-    expect(String(result.error??'')).toBe(''); expect(result.aiCalls).toHaveLength(2);
+    expect(String(result.error??'')).toBe(''); expect(result.repairCalls).toHaveLength(1);
     expect(result.drafts.find(q=>q.question_number==='2(d)').correct_answer).not.toContain('ADH');
   });
   it('finalisation repeats the gate and will not copy incomplete rows',async()=>{
