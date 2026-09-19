@@ -1,4 +1,4 @@
-import { gatewayMarkingInstructions } from '../_shared/ocr-biology-scope.ts';
+import { biologyMarkingInstructions } from '../_shared/biology-marking.ts';
 import { requireExamAccess, ExamRequestError } from '../_shared/exam-access.ts';
 import { enforceRateLimit } from '../_shared/rate-limiter.ts';
 import { validatedGrade } from '../_shared/marking-result.ts';
@@ -515,7 +515,7 @@ IMPORTANT: Address the student directly using "You" (e.g., "You have provided th
           } else {
             systemPrompt = 'You are an expert exam grader. Score student answers based on correctness, completeness, and accuracy. Address the student directly using "You" rather than "The student".';
           }
-          systemPrompt += FEEDBACK_FORMATTING_RULE + MARKING_QUALITY_RULES + "\n" + gatewayMarkingInstructions(examData.generation_context);
+          systemPrompt += FEEDBACK_FORMATTING_RULE + MARKING_QUALITY_RULES + "\n" + biologyMarkingInstructions(examData.generation_context);
           
           // Build the user prompt based on answer type
           let userPrompt = '';
