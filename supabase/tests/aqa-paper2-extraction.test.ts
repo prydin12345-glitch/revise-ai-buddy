@@ -69,7 +69,7 @@ async function extract(tier: 'foundation'|'higher', scenario: boolean | Extracti
         return new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:'{"questions":[]}'}}]}));
       if(isGeneration&&config.truncateFirstBatch&&generationCalls.length===1){
         const body=JSON.stringify(content);
-        return new Response(JSON.stringify({choices:[{finish_reason:'length',message:{content:body.slice(0,Math.floor(body.length*0.55))}}]}));
+        return new Response(JSON.stringify({choices:[{finish_reason:'length',message:{content:body.slice(0,Math.floor(body.length*0.72))}}]}));
       }
       return new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify(content)}}]}));
     },Deno:{env:{get:()=>undefined}},EdgeRuntime:{waitUntil(){}}};
