@@ -1,0 +1,21 @@
+import { biologyPaperOptions } from '../../../supabase/functions/_shared/biology-course-packs';
+
+export function BiologyPaperSelector({courseId, value, tier, onChange}: {
+  courseId: string | null; value: string | null; tier: 'foundation' | 'higher' | null;
+  onChange: (paperId: string) => void;
+}) {
+  const options = biologyPaperOptions(courseId);
+  if (options.length < 2) return null;
+  const selected = options.find(pack => pack.paperId === (value ?? 'paper_1'));
+  return <div className="space-y-2">
+    <label htmlFor="biology-paper" className="text-sm font-medium">Biology paper</label>
+    <select id="biology-paper" className="w-full rounded-md border bg-background p-2 text-sm"
+      value={value ?? 'paper_1'} onChange={event => onChange(event.target.value)}>
+      {options.map(pack => <option key={pack.id} value={pack.paperId}>{pack.definition(tier).displayName}</option>)}
+    </select>
+    {selected && <p className="text-xs text-muted-foreground">
+      {selected.definition(tier).topics.join(' · ')}.
+      {selected.definition(tier).componentCode ? ` Component ${selected.definition(tier).componentCode}.` : ''}
+    </p>}
+  </div>;
+}
