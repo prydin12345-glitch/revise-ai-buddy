@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, Pencil } from "lucide-react";
 import { formatEducationalTier } from "@/lib/level-display";
-import { profileCourseId } from "../../../supabase/functions/_shared/course-selection";
+import { profileCourseId, profilePaperId } from "../../../supabase/functions/_shared/course-selection";
 import { biologyPaperDefinition } from "@/lib/biology-paper-contract";
 import { formatAssessmentTier } from "@/lib/assessment-tier";
 
@@ -24,7 +24,7 @@ export const ExamProfileCard = ({ profile, subjectName, onEdit }: ExamProfileCar
   const navigate = useNavigate();
   const tierLabel = formatEducationalTier(profile.educational_tier);
   const assessmentLabel = formatAssessmentTier(profile.assessment_tier);
-  const paper = biologyPaperDefinition(profileCourseId(profile.paper_blueprint), profile.assessment_tier === "foundation" || profile.assessment_tier === "higher" ? profile.assessment_tier : null);
+  const paper = biologyPaperDefinition(profileCourseId(profile.paper_blueprint), profile.assessment_tier === "foundation" || profile.assessment_tier === "higher" ? profile.assessment_tier : null, profilePaperId(profile.paper_blueprint));
   const hasBlueprint = Array.isArray(profile.paper_blueprint?.sections) && profile.paper_blueprint.sections.length > 0;
 
   return (
