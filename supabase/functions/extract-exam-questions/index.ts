@@ -686,8 +686,12 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     paperBlueprint: (formatData?.profile_metadata && typeof formatData.profile_metadata === 'object') ? (formatData.profile_metadata as any).paperBlueprint : null,
   });
 
+  const GUIDED_JSON_ENVELOPE = '\nReturn {"questions":[...]} only. For a table, chart_data={"type":"data_table","headers":["..."],"rows":[[1]],"caption":"neutral caption"}. For a line graph, chart_data={"type":"line_chart","xAxisLabel":"... (units)","yAxisLabel":"... (units)","datasets":[{"label":"...","data":[{"x":0,"y":1},{"x":2,"y":3}]}]}. Use question_text as a joined copy of context and task. Give every part a nonempty correct_answer; use topic_tag from the plan. Do not copy official paper questions.';
+  // The tail (scope, tier, copyright, safety) applies to every guided request,
+  // batches included, so batch prompts stay internally consistent.
+  const guidedPromptTail: string[] = [];
   let extractionPrompt = usesContractOnlyGeneration
-    ? biologyPlanInstructions(guidedPlan!) + '\nReturn {"questions":[...]} only. For a table, chart_data={"type":"data_table","headers":["..."],"rows":[[1]],"caption":"neutral caption"}. For a line graph, chart_data={"type":"line_chart","xAxisLabel":"... (units)","yAxisLabel":"... (units)","datasets":[{"label":"...","data":[{"x":0,"y":1},{"x":2,"y":3}]}]}. Use question_text as a joined copy of context and task. Give every part a nonempty correct_answer; use topic_tag from the plan. Do not copy official paper questions.'
+    ? biologyPlanInstructions(guidedPlan!) + GUIDED_JSON_ENVELOPE
     : extractionPrompt_raw;
 
   // AUTHORITATIVE TIER: the exam's server-resolved generation context. Format
@@ -713,6 +717,8 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     extractionPrompt += biologyPlanInstructions(guidedPlan);
   }
 
+  guidedPromptTail.push(biologyScopeInstructions(generationScope));
+  if (assessmentTierPromptBlock) guidedPromptTail.push(assessmentTierPromptBlock);
   extractionPrompt += '\n\n' + biologyScopeInstructions(generationScope);
   if (assessmentTierPromptBlock) {
     extractionPrompt += '\n\n' + assessmentTierPromptBlock;
@@ -722,10 +728,13 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   const specTopicNames = topicsList;
   const detectedLitText = detectLiteraryText(exam.subject_id || '', specTopicNames);
   if (detectedLitText) {
+    guidedPromptTail.push(buildLiteraryTextInstructions(detectedLitText));
     extractionPrompt += '\n' + buildLiteraryTextInstructions(detectedLitText);
     console.log('Literary text detected:', detectedLitText, '— copyright rules injected');
   }
+  guidedPromptTail.push(buildExtractSafetyInstruction(examBoard, exam.subject_id || ''));
   extractionPrompt += '\n' + buildExtractSafetyInstruction(examBoard, exam.subject_id || '');
+  const guidedPromptSuffix = GUIDED_JSON_ENVELOPE + '\n\n' + guidedPromptTail.filter(Boolean).join('\n\n');
 
   const startTime = Date.now();
   // A guided paper is written in bounded batches of whole parent groups from
