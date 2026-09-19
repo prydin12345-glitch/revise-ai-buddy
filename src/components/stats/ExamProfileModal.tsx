@@ -23,7 +23,8 @@ import {
 } from "@/lib/assessment-tier";
 import { AssessmentTierSelector } from "@/components/exams/AssessmentTierSelector";
 import { BiologyCourseSelector } from "@/components/exams/BiologyCourseSelector";
-import { profileCourseId } from "../../../supabase/functions/_shared/course-selection";
+import { BiologyPaperSelector } from "@/components/exams/BiologyPaperSelector";
+import { profileCourseId, profilePaperId } from "../../../supabase/functions/_shared/course-selection";
 import { PaperModeSelector } from "@/components/exams/PaperModeSelector";
 import {
   supportsBiologyPaperContract,
@@ -260,6 +261,7 @@ export const ExamProfileModal = ({
   const [paperMode, setPaperMode] = useState<PaperMode>("custom");
   const [planApplied, setPlanApplied] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [selectedPaperId, setSelectedPaperId] = useState<string | null>(null);
 
   const totalQuestionCount = writtenCount + mcqCount;
   const isMcqOnlyProfile = mcqCount > 0 && writtenCount === 0;
@@ -297,6 +299,7 @@ export const ExamProfileModal = ({
       setStudiedTexts(Array.isArray((initialData as any)?.studied_texts) ? (initialData as any).studied_texts : []);
       const bp = (initialData as any)?.paper_blueprint;
       setSelectedCourseId(profileCourseId(bp));
+      setSelectedPaperId(profilePaperId(bp));
       const bpSections = Array.isArray(bp?.sections) ? bp.sections : [];
       setBlueprintSections(bpSections);
       setBlueprintEnabled(bpSections.length > 0);
@@ -383,14 +386,16 @@ export const ExamProfileModal = ({
     examBoard: initialData?.exam_board ?? examBoard ?? null,
     educationalLevel: finalTier,
     courseId: selectedCourseId,
+    paperId: selectedPaperId,
   });
   const explicitCourseNeeded = getCourseOptions(courseLookup).length > 1;
   const selectedTier = effectiveAssessmentTier === "foundation" || effectiveAssessmentTier === "higher" ? effectiveAssessmentTier : null;
   const guidedActive = paperMode !== "custom" && planApplied && supportsGuidedPaper && !!selectedTier;
-  const paperDefinition = biologyPaperDefinition(courseCapability?.id ?? null, selectedTier);
-  const currentPlan = guidedActive ? buildPaperPlan(paperMode, selectedTier, courseCapability?.id) : null;
+  const paperDefinition = biologyPaperDefinition(courseCapability?.id ?? null, selectedTier, selectedPaperId);
+  const currentPlan = guidedActive ? buildPaperPlan(paperMode, selectedTier, courseCapability?.id, selectedPaperId) : null;
   const effectiveTopics = currentPlan ? [...new Set(currentPlan.parts.map(p => p.topic))] : selectedTopics;
-  const configurationReady = (!explicitCourseNeeded || (!!courseCapability && courseCapability.generationAvailable !== false && !!selectedTier)) && (paperMode === "custom" || !!currentPlan);
+  const configurationReady = (!explicitCourseNeeded || (!!courseCapability && courseCapability.generationAvailable !== false && !!selectedTier)) &&
+    (!selectedPaperId || !!paperDefinition) && (selectedPaperId !== 'paper_2' || !!selectedTier) && (paperMode === "custom" || !!currentPlan);
 
   // Explicit conversion only — nothing is overwritten until the user accepts.
   const applyGuidedPlan = (plan: PaperPlan) => {
@@ -420,7 +425,7 @@ export const ExamProfileModal = ({
       examBoard: initialData?.exam_board ?? examBoard ?? null,
       studiedTexts: isTextBasedSubject ? studiedTexts : undefined,
       paperBlueprint: (() => {
-        const courseSelection = courseCapability?.id === OCR_GATEWAY_BIOLOGY_ID && paperDefinition
+        const courseSelection = (courseCapability?.id === OCR_GATEWAY_BIOLOGY_ID || selectedPaperId) && paperDefinition
           ? {courseId: courseCapability.id, paperId: paperDefinition.paperId} : undefined;
         if (!currentPlan) return blueprintActive || courseSelection ? { ...(blueprintActive ? { sections: blueprintSections } : {}), ...(courseSelection ? {courseSelection} : {}) } : null;
         return {courseSelection: {courseId: currentPlan.courseId, paperId: currentPlan.paperId},
@@ -583,7 +588,9 @@ export const ExamProfileModal = ({
               </div>
             </div>
             <BiologyCourseSelector lookup={courseLookup} value={selectedCourseId} tier={selectedTier}
-              onChange={(id) => { setSelectedCourseId(id); setAssessmentTier(null); setPaperMode("short_practice"); setPlanApplied(false); }} />
+              onChange={(id) => { setSelectedCourseId(id); setSelectedPaperId(null); setAssessmentTier(null); setPaperMode("short_practice"); setPlanApplied(false); }} />
+            <BiologyPaperSelector courseId={courseCapability?.id ?? null} value={selectedPaperId} tier={selectedTier}
+              onChange={(id) => { setSelectedPaperId(id); setPlanApplied(false); }} />
             {assessmentTierOptions.length > 0 && (
               <AssessmentTierSelector
                 options={assessmentTierOptions}
@@ -596,6 +603,7 @@ export const ExamProfileModal = ({
             {supportsGuidedPaper && (
               <PaperModeSelector
                 courseId={courseCapability?.id}
+                paperId={selectedPaperId}
                 mode={paperMode}
                 tier={effectiveAssessmentTier === "foundation" || effectiveAssessmentTier === "higher" ? effectiveAssessmentTier : null}
                 onModeChange={(m) => { setPaperMode(m); setPlanApplied(m === "custom"); }}
