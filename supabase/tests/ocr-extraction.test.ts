@@ -21,6 +21,8 @@ async function extract(tier: 'foundation'|'higher', scenario: boolean | Extracti
     exam_specifications:[{topic_name:'Infection and response'}],exam_format:[{use_original_structure:false,mcq_count:0,short_answer_count:8,profile_metadata:{paperBlueprint:{paperContract:{courseId:'aqa_gcse_biology_8461',paperId:'paper_1',mode:'full_mock'}}}}]};
   let drafts:any[]=[];
   const aiCalls:any[]=[];
+  const generationCalls:any[]=[];
+  const repairCalls:any[]=[];
   const client={from(table:string) {
     let op='select',value:any,single=false; const filters:Record<string,unknown>={};
     const q:any={};
@@ -54,13 +56,19 @@ async function extract(tier: 'foundation'|'higher', scenario: boolean | Extracti
   const context:any={module:{exports:{}},exports:{},console:{log(){},warn(){},error(){}},Request,Response,Headers,URL,TextEncoder,TextDecoder,setTimeout,clearTimeout,
     fetch:async(_url:any,options:any)=>{
       const request=JSON.parse(options.body); aiCalls.push(request);
-      const content=aiCalls.length===1?{questions}:config.repair?.(request,questions)??{parts:[]};
+      const prompt=request.messages.map((m:any)=>m.content).join('\n');
+      const isGeneration=prompt.includes('Return {"questions":[...]} only.');
+      if(isGeneration) generationCalls.push(request); else repairCalls.push(request);
+      const batch=/PARTS IN THIS RESPONSE: (.+)/.exec(prompt)?.[1].split(', ').map(s=>s.trim());
+      const content=isGeneration
+        ?{questions:batch?questions.filter(q=>batch.includes(String(q.question_number))):questions}
+        :config.repair?.(request,questions)??{parts:[]};
       return new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify(content)}}]}));
     },Deno:{env:{get:()=>undefined}},EdgeRuntime:{waitUntil(){}}};
   vm.runInNewContext(result.outputFiles[0].text,context);
   let error:unknown;
   try {await context.module.exports.processExamExtraction('exam','owner',client,'test-key',false,null);} catch(e){error=e;}
-  return {drafts,exam,aiCalls,error};
+  return {drafts,exam,aiCalls,generationCalls,repairCalls,error};
 }
 describe('real OCR extraction pipeline with fixture model responses',()=>{
   it.each(['foundation','higher'] as const)('retains the complete %s paper and question-local figures',async tier=>{
