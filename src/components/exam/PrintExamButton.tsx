@@ -1,4 +1,4 @@
-import { gatewayPaperDisplay } from "@/lib/biology-paper-display";
+import { biologyPaperDisplay } from "@/lib/biology-paper-display";
 import { useState } from "react";
 import { Printer, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -110,10 +110,10 @@ export function PrintExamButton({
         };
       });
 
-      const paper = gatewayPaperDisplay(exam.generation_context);
+      const paper = biologyPaperDisplay(exam.generation_context);
       setExamData({
         title: exam.title,
-        subject: paper ? "Gateway Biology A" : exam.detected_subject || undefined,
+        subject: paper?.subject ?? exam.detected_subject ?? undefined,
         exam_board: exam.exam_board || undefined,
         qualification_level: paper ? `GCSE · ${paper.plan.tier} · ${paper.plan.componentCode}` : exam.qualification_level || undefined,
         generation_context: exam.generation_context,
