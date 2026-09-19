@@ -197,7 +197,6 @@ describe('Paper 2 stops rather than manufacturing a passing paper',()=>{
     // group it is finishing, so shared resource values stay consistent.
     const completion=result.generationCalls.map((c:any)=>c.messages.map((m:any)=>m.content).join('\n'))
       .filter(p=>p.includes('ALREADY WRITTEN in this paper'));
-    console.error('CALLS', result.generationCalls.map((c:any)=>{const t=c.messages.map((m:any)=>m.content).join('\n');return [/PARTS IN THIS RESPONSE: (.+)/.exec(t)?.[1], t.includes('ALREADY WRITTEN in this paper')];}));
     expect(completion.length).toBeGreaterThan(0);
   });
 
