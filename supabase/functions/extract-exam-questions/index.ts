@@ -733,6 +733,18 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     normalizeQNum(a.question_number).localeCompare(normalizeQNum(b.question_number))
   );
 
+  // ── GUIDED PLAN COMPLETION ──────────────────────────────────────────────
+  // A long guided paper (36 planned parts) routinely exceeds what one model
+  // response can carry, which used to surface as "Planned Q5(a) is missing".
+  // Any planned part the first response omitted is requested again in small
+  // batches; nothing is renumbered or relabelled to fill a gap.
+  if (usesContractOnlyGeneration && guidedPlan) {
+    questions = await completePlannedParts(
+      questions, guidedPlan, lovableApiKey,
+      guidedPack?.generation.systemPrompt ?? systemPrompt, hasResourcePack,
+    );
+  }
+
   if (!usesContractOnlyGeneration) questions = repairFlatQuestionsToOriginalStructure(questions, detectedOriginalStructure);
 
   // ── INSERT-REFERENCE FILTER ─────────────────────────────────────────────
@@ -2752,11 +2764,109 @@ async function callAIWithModel(apiKey: string, systemPrompt: string, userPrompt:
   if (!resp.ok) throw new Error('AI extraction failed');
   
   const data = await resp.json();
+  const finishReason = data.choices?.[0]?.finish_reason ?? 'unknown';
+  if (finishReason === 'length') console.warn('[ai] response hit the output limit — recovering complete questions only');
   let content = data.choices?.[0]?.message?.content || '{}';
   content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
   
   try { return JSON.parse(content); } 
-  catch { return { questions: [], topics: [] }; }
+  catch { return { questions: salvageTruncatedQuestions(content), topics: [] }; }
+}
+
+/**
+ * A response cut off mid-array is not a paper with missing questions — it is a
+ * partial transport. Recover every syntactically complete question object so
+ * the guided completion pass only has to request the genuine remainder.
+ */
+function salvageTruncatedQuestions(content: string): any[] {
+  const start = content.indexOf('"questions"');
+  if (start < 0) return [];
+  const arrayStart = content.indexOf('[', start);
+  if (arrayStart < 0) return [];
+  const recovered: any[] = [];
+  let depth = 0, objStart = -1, inString = false, escaped = false;
+  for (let i = arrayStart; i < content.length; i++) {
+    const ch = content[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') { inString = true; continue; }
+    if (ch === '{') { if (depth === 0) objStart = i; depth++; continue; }
+    if (ch === '}') {
+      depth--;
+      if (depth === 0 && objStart >= 0) {
+        try { recovered.push(JSON.parse(content.slice(objStart, i + 1))); } catch { /* skip partial */ }
+        objStart = -1;
+      }
+      continue;
+    }
+    if (ch === ']' && depth === 0) break;
+  }
+  console.warn(`[ai] salvaged ${recovered.length} complete question(s) from a truncated response`);
+  return recovered;
+}
+
+/** Canonical "5(a)" form so plan and model numbering compare reliably. */
+const plannedPartKey = (value: unknown): string => {
+  const text = String(value ?? '').trim().replace(/^Q\s*/i, '');
+  const match = text.match(/^(\d+)\s*[.\-]?\s*\(?([a-z])\)?$/i);
+  return match ? `${Number(match[1])}(${match[2].toLowerCase()})` : text.toLowerCase();
+};
+
+/**
+ * Requests any planned part the model omitted, in small batches, and merges
+ * the results. Missing parts are never filled by relabelling another question.
+ */
+async function completePlannedParts(
+  questions: any[], plan: PaperPlan, apiKey: string, systemPrompt: string, hasResourcePack: boolean,
+): Promise<any[]> {
+  const BATCH_SIZE = 6, MAX_ROUNDS = 6;
+  const produced = new Map<string, any>();
+  for (const q of questions) produced.set(plannedPartKey(q.question_number), q);
+
+  for (let round = 1; round <= MAX_ROUNDS; round++) {
+    const missing = plan.parts.filter(p => !produced.has(plannedPartKey(p.questionNumber)));
+    if (missing.length === 0) break;
+    const batch = missing.slice(0, BATCH_SIZE);
+    const subPlan: PaperPlan = {
+      ...plan, parts: batch, partCount: batch.length,
+      parentCount: new Set(batch.map(p => p.parentId)).size,
+      totalMarks: batch.reduce((sum, p) => sum + p.marks, 0),
+    };
+    console.log(`[plan] completion round ${round}: ${missing.length} planned part(s) missing, requesting ${batch.map(p => p.questionNumber).join(', ')}`);
+    let data: any;
+    try {
+      data = await callAI(apiKey, systemPrompt, [
+        'You are completing an existing paper. Write ONLY the planned parts listed below, using their exact question numbers.',
+        'Do not rewrite, renumber, duplicate or reference any other question.',
+        biologyPlanInstructions(subPlan),
+        'Return {"questions":[...]} only, one object per listed part. For a table, chart_data={"type":"data_table","headers":["..."],"rows":[[1]],"caption":"neutral caption"}. For a line graph, chart_data={"type":"line_chart","xAxisLabel":"... (units)","yAxisLabel":"... (units)","datasets":[{"label":"...","data":[{"x":0,"y":1},{"x":2,"y":3}]}]}. Use question_text as a joined copy of context and task. Give every part a nonempty correct_answer; use topic_tag from the plan. Do not copy official paper questions.',
+        'Parts required now: ' + batch.map(p => `${p.questionNumber} (${p.marks} marks, ${p.responseType})`).join('; '),
+      ].join('\n\n'), hasResourcePack);
+    } catch (error) {
+      console.error(`[plan] completion round ${round} failed:`, (error as Error).message);
+      break;
+    }
+    const rows = Array.isArray(data?.questions) ? data.questions.map(normalizeGeneratedQuestion) : [];
+    let added = 0;
+    for (const row of rows) {
+      const key = plannedPartKey(row.question_number);
+      if (produced.has(key)) continue;
+      if (!plan.parts.some(p => plannedPartKey(p.questionNumber) === key)) continue;
+      produced.set(key, row);
+      added++;
+    }
+    console.log(`[plan] completion round ${round} added ${added} part(s)`);
+    if (added === 0) break;
+  }
+
+  const stillMissing = plan.parts.filter(p => !produced.has(plannedPartKey(p.questionNumber)));
+  if (stillMissing.length) console.warn(`[plan] still missing after completion: ${stillMissing.map(p => p.questionNumber).join(', ')}`);
+  return [...produced.values()].sort((a: any, b: any) =>
+    normalizeQNum(a.question_number).localeCompare(normalizeQNum(b.question_number)));
 }
 
 // ── OPTIMISATION 2: Quality scoring function ──
