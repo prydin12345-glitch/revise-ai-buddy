@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "sdk_version": "3.0.1",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://ynhevbrihlnwzehrfoft.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "revise-ai-buddy",
+      "version": "0.1.0",
+      "title": "revise-ai-buddy"
+    },
+    "tools": [
+      {
+        "name": "list_subjects",
+        "title": "List my subjects",
+        "description": "List the subjects the signed-in student or tutor has added, with exam board and category.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_exams",
+        "title": "List my exam papers",
+        "description": "List the signed-in user's exam papers, newest first, with board, level and status.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "default": 20,
+              "description": "How many papers to return.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "status": {
+              "description": "Only return papers with this status.",
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_practice_sets",
+        "title": "List my practice quizzes",
+        "description": "List the signed-in user's practice quiz sets, newest first, with topics and difficulty.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "default": 20,
+              "description": "How many practice sets to return.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_exam_results",
+        "title": "List my exam results",
+        "description": "List the signed-in student's completed exam attempts with score, marks and time taken.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "default": 20,
+              "description": "How many attempts to return.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "examId": {
+              "description": "Only return attempts for this exam paper.",
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
