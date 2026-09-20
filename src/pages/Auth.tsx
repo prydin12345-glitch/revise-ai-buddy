@@ -126,14 +126,15 @@ const Auth = () => {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/`,
+            emailRedirectTo: `${window.location.origin}${nextPath || "/"}`,
             data: { first_name: firstName, last_name: lastName || null, signup_role: selectedRole },
           },
         });
         if (error) throw error;
         if (data.user && data.session) {
           toast({ title: "Account created!", description: "Welcome! Let's set up your profile." });
-          navigate("/onboarding");
+          if (nextPath) window.location.href = nextPath;
+          else navigate("/onboarding");
         } else {
           setConfirmedEmail(email);
           setShowEmailConfirmation(true);
@@ -142,7 +143,8 @@ const Auth = () => {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast({ title: "Welcome back!", description: "Successfully logged in." });
-        navigate("/dashboard");
+        if (nextPath) window.location.href = nextPath;
+        else navigate("/dashboard");
       }
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "An error occurred", variant: "destructive" });
