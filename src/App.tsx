@@ -17,6 +17,7 @@ import NotFound from "./pages/NotFound";
 // Everything else is lazy loaded (with stale-chunk auto-recovery)
 const Auth = lazyWithReload(() => import("./pages/Auth"));
 const ResetPassword = lazyWithReload(() => import("./pages/ResetPassword"));
+const OAuthConsent = lazyWithReload(() => import("./pages/OAuthConsent"));
 const Dashboard = lazyWithReload(() => import("./pages/Dashboard"));
 const Onboarding = lazyWithReload(() => import("./pages/Onboarding"));
 const MyExams = lazyWithReload(() => import("./pages/MyExams"));
@@ -93,6 +94,7 @@ const App = () => {
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
