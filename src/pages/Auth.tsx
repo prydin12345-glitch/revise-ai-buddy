@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { GraduationCap, Users, BookOpen, Mail, ChevronLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getSafeRedirectFromParams } from "@/lib/safe-redirect";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { motion } from "framer-motion";
@@ -43,11 +44,17 @@ const Auth = () => {
     { value: "tutor", label: "Tutor", icon: Users, description: "I tutor students privately" },
   ] as const;
 
+  // Where to return after authenticating (e.g. an OAuth consent request)
+  const nextPath = getSafeRedirectFromParams(searchParams, "next", "");
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate("/dashboard");
+      if (session) {
+        if (nextPath) window.location.href = nextPath;
+        else navigate("/dashboard");
+      }
     });
-  }, [navigate]);
+  }, [navigate, nextPath]);
 
   const handleForgotPassword = async () => {
     if (!forgotEmail.trim()) {
