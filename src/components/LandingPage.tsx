@@ -18,11 +18,113 @@ import {
    the curve SKETCHES → marks TICK in (held long enough to land).
    Chrome is the product's own: subject pill, timer, marks total.      */
 
-const TOPIC_TEXT = "A-Level Maths · Sketching quadratics";
-const QUESTION_TEXT =
-  "The curve C has equation y = x\u00b2 \u2212 6x + 5.  Sketch C, showing the coordinates of the turning point and any points where C crosses the axes.";
-
 type Act = "typing" | "generating" | "writing" | "sketching" | "marked";
+
+/* ── Theatre content: three subjects on rotation ──
+   Pure display data — no state, no side effects. The Act state machine below
+   is unchanged; this only decides *what* it renders on a given loop. Adding a
+   subject means adding an entry here, nothing else. */
+
+interface TheatreTimers {
+  writing: string;
+  sketching: string;
+  marked: string;
+}
+
+interface TheatreBase {
+  subject: string;
+  topic: string;
+  qLabel: string;
+  question: string;
+  marksTotal: number;
+  marksAwarded: number;
+  timers: TheatreTimers;
+  feedback: string;
+}
+
+interface TheatreGraphExample extends TheatreBase {
+  kind: "graph";
+  /** SVG path `d` for the self-drawing curve, in the shared 300×200 grid. */
+  graphPath: string;
+  /** Extra annotations (points, shading, labels) revealed once marked. */
+  markedOverlay: JSX.Element;
+}
+
+interface TheatreMcqExample extends TheatreBase {
+  kind: "mcq";
+  options: { key: string; text: string }[];
+  correctKey: string;
+}
+
+type TheatreExample = TheatreGraphExample | TheatreMcqExample;
+
+const THEATRE_EXAMPLES: TheatreExample[] = [
+  {
+    kind: "graph",
+    subject: "A-Level Maths",
+    topic: "A-Level Maths · Sketching quadratics",
+    qLabel: "Q2",
+    question:
+      "The curve C has equation y = x\u00b2 \u2212 6x + 5.  Sketch C, showing the coordinates of the turning point and any points where C crosses the axes.",
+    marksTotal: 3,
+    marksAwarded: 3,
+    timers: { writing: "0:21", sketching: "0:39", marked: "0:47" },
+    feedback: "Turning point (3, \u22124) correct; both intercepts labelled. Full marks.",
+    // y = x²−6x+5 · origin (60,130) · 20px/x · 10px/y
+    graphPath: "M 60 80 C 73 114, 88 142, 105 160 C 113 168, 127 168, 135 160 C 152 142, 167 114, 180 80",
+    markedOverlay: (
+      <g>
+        <circle cx={80} cy={130} r={3} fill="hsl(var(--primary))" />
+        <circle cx={160} cy={130} r={3} fill="hsl(var(--primary))" />
+        <circle cx={120} cy={170} r={3} fill="hsl(var(--primary))" />
+        <text x={128} y={178} fontSize="9" fill="hsl(var(--muted-foreground))">(3, \u22124)</text>
+        <text x={76} y={124} fontSize="9" fill="hsl(var(--muted-foreground))">1</text>
+        <text x={156} y={124} fontSize="9" fill="hsl(var(--muted-foreground))">5</text>
+      </g>
+    ),
+  },
+  {
+    kind: "graph",
+    subject: "GCSE Physics",
+    topic: "GCSE Physics · Motion graphs",
+    qLabel: "Q4",
+    question:
+      "The velocity\u2013time graph shows a cyclist's journey. Calculate the total distance travelled in the first 8 seconds.",
+    marksTotal: 4,
+    marksAwarded: 4,
+    timers: { writing: "0:24", sketching: "0:42", marked: "0:53" },
+    feedback: "Area under the graph = 48 m. All three sections identified and calculated correctly. Full marks.",
+    // v/t trapezium · origin (60,130) · accelerate 0\u21923s, constant 3\u21925s, decelerate 5\u21928s
+    graphPath: "M 60 130 L 135 40 L 185 40 L 260 130",
+    markedOverlay: (
+      <g>
+        <polygon points="60,130 135,40 185,40 260,130" fill="hsl(var(--primary))" fillOpacity={0.12} />
+        <circle cx={135} cy={40} r={3} fill="hsl(var(--primary))" />
+        <circle cx={185} cy={40} r={3} fill="hsl(var(--primary))" />
+        <text x={128} y={30} fontSize="9" fill="hsl(var(--muted-foreground))">d = 48 m</text>
+      </g>
+    ),
+  },
+  {
+    kind: "mcq",
+    subject: "GCSE Chemistry",
+    topic: "GCSE Chemistry · Rates of reaction",
+    qLabel: "Q1",
+    question:
+      "Which change would increase the rate of reaction between magnesium and dilute hydrochloric acid?",
+    marksTotal: 1,
+    marksAwarded: 1,
+    timers: { writing: "0:14", sketching: "0:16", marked: "0:19" },
+    feedback: "Higher temperature increases particle energy and collision frequency, so the reaction rate increases. Correct.",
+    options: [
+      { key: "A", text: "Using a lower concentration of acid" },
+      { key: "B", text: "Using larger pieces of magnesium" },
+      { key: "C", text: "Increasing the temperature of the acid" },
+      { key: "D", text: "Removing the catalyst" },
+    ],
+    correctKey: "C",
+  },
+];
 
 const useTypewriter = (text: string, active: boolean, speed = 28) => {
   const [shown, setShown] = useState(active ? "" : text);
@@ -60,10 +162,14 @@ const ExamTheatre = () => {
     return () => clearTimeout(t);
   }, [act, reduced]);
 
-  const typedTopic = useTypewriter(TOPIC_TEXT, !reduced && act === "typing", 45);
-  const typedQuestion = useTypewriter(QUESTION_TEXT, !reduced && act === "writing", 22);
+  // Which subject this loop shows. Derived from the existing cycle counter —
+  // no new state — so a full loop always lands on a new subject.
+  const example = THEATRE_EXAMPLES[cycle % THEATRE_EXAMPLES.length];
+
+  const typedTopic = useTypewriter(example.topic, !reduced && act === "typing", 45);
+  const typedQuestion = useTypewriter(example.question, !reduced && act === "writing", 22);
   const questionVisible = act !== "typing" && act !== "generating";
-  const questionText = act === "writing" ? typedQuestion : questionVisible ? QUESTION_TEXT : "";
+  const questionText = act === "writing" ? typedQuestion : questionVisible ? example.question : "";
   const sketchOn = act === "sketching" || act === "marked";
   const marked = act === "marked";
 
@@ -82,14 +188,14 @@ const ExamTheatre = () => {
           <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-border bg-secondary/60">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary text-[11px] font-semibold px-2.5 py-1">
               <GraduationCap className="h-3 w-3" />
-              A-Level Maths
+              {example.subject}
             </span>
             <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
               <Timer className="h-3 w-3" />
-              {marked ? "0:47" : act === "sketching" ? "0:39" : questionVisible ? "0:21" : "0:00"}
+              {marked ? example.timers.marked : act === "sketching" ? example.timers.sketching : questionVisible ? example.timers.writing : "0:00"}
             </span>
             <span className="ml-auto text-[11px] font-medium text-muted-foreground">
-              Marks: <span className={marked ? "text-green-600 font-semibold" : ""}>{marked ? "3" : "0"}</span> / 3
+              Marks: <span className={marked ? "text-green-600 font-semibold" : ""}>{marked ? example.marksAwarded : 0}</span> / {example.marksTotal}
             </span>
           </div>
 
@@ -98,7 +204,7 @@ const ExamTheatre = () => {
             <div className="rounded-xl border border-border bg-background px-3.5 py-2.5 flex items-center gap-2.5">
               <PenLine className="h-4 w-4 text-primary shrink-0" />
               <span className="text-sm text-foreground min-h-[1.25rem]">
-                {act === "typing" ? typedTopic : TOPIC_TEXT}
+                {act === "typing" ? typedTopic : example.topic}
                 {act === "typing" && <span className="inline-block w-[2px] h-4 ml-px bg-primary align-middle animate-pulse" />}
               </span>
             </div>
@@ -121,42 +227,83 @@ const ExamTheatre = () => {
                 <motion.div
                   initial={reduced ? false : { opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="rounded-xl border border-border bg-background overflow-hidden"
+                  className={
+                    example.kind === "graph"
+                      ? "rounded-xl border border-border bg-background overflow-hidden grid sm:grid-cols-[1fr_300px]"
+                      : "rounded-xl border border-border bg-background overflow-hidden"
+                  }
                 >
-                  <div className="grid sm:grid-cols-[1fr_300px]">
-                    <div>
-                      <div className="flex items-start justify-between gap-3 px-4 pt-3.5">
-                        <span className="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold px-2 py-1">
-                          Q2
-                        </span>
-                        <span className="text-xs text-muted-foreground pt-1 shrink-0 sm:hidden">(3 marks)</span>
-                      </div>
-                      <p className="font-serif text-sm leading-relaxed text-foreground px-4 pt-2 pb-3 min-h-[5rem]">
-                        {questionText}
-                        {act === "writing" && <span className="inline-block w-[2px] h-4 ml-px bg-foreground/60 align-middle animate-pulse" />}
-                      </p>
-                      <div className="px-4 pb-4 min-h-[3.4rem]">
-                        <AnimatePresence>
-                          {marked && (
-                            <motion.div
-                              initial={reduced ? false : { opacity: 0, y: 6 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className="flex items-start gap-2 rounded-lg border border-green-600/30 bg-green-500/10 px-3 py-2"
-                            >
-                              <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
-                              <p className="text-xs text-foreground">
-                                <span className="font-semibold text-green-700 dark:text-green-400">3/3.</span>{" "}
-                                Turning point (3, −4) correct; both intercepts labelled. Full marks.
-                              </p>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
+                  <div>
+                    <div className="flex items-start justify-between gap-3 px-4 pt-3.5">
+                      <span className="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold px-2 py-1">
+                        {example.qLabel}
+                      </span>
+                      <span className="text-xs text-muted-foreground pt-1 shrink-0">
+                        ({example.marksTotal} mark{example.marksTotal === 1 ? "" : "s"})
+                      </span>
                     </div>
+                    <p className="font-serif text-sm leading-relaxed text-foreground px-4 pt-2 pb-3 min-h-[5rem]">
+                      {questionText}
+                      {act === "writing" && <span className="inline-block w-[2px] h-4 ml-px bg-foreground/60 align-middle animate-pulse" />}
+                    </p>
 
-                    {/* Graph paper + self-sketching curve */}
+                    {/* Multiple-choice options — this subject has no graph to sketch */}
+                    {example.kind === "mcq" && questionVisible && (
+                      <div className="px-4 pb-2 space-y-1.5">
+                        {example.options.map((opt) => {
+                          const isCorrect = opt.key === example.correctKey;
+                          return (
+                            <div
+                              key={opt.key}
+                              className={
+                                "flex items-center gap-2.5 rounded-lg border px-3 py-2 text-xs transition-colors " +
+                                (marked && isCorrect
+                                  ? "border-green-600/40 bg-green-500/10"
+                                  : marked
+                                  ? "border-border opacity-50"
+                                  : "border-border")
+                              }
+                            >
+                              <span
+                                className={
+                                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold " +
+                                  (marked && isCorrect
+                                    ? "border-green-600 text-green-700 dark:text-green-400"
+                                    : "border-muted-foreground/40 text-muted-foreground")
+                                }
+                              >
+                                {opt.key}
+                              </span>
+                              <span className="text-foreground">{opt.text}</span>
+                              {marked && isCorrect && <CheckCircle2 className="h-4 w-4 text-green-600 ml-auto shrink-0" />}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div className="px-4 pb-4 min-h-[3.4rem]">
+                      <AnimatePresence>
+                        {marked && (
+                          <motion.div
+                            initial={reduced ? false : { opacity: 0, y: 6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="flex items-start gap-2 rounded-lg border border-green-600/30 bg-green-500/10 px-3 py-2"
+                          >
+                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                            <p className="text-xs text-foreground">
+                              <span className="font-semibold text-green-700 dark:text-green-400">{example.marksAwarded}/{example.marksTotal}.</span>{" "}
+                              {example.feedback}
+                            </p>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+
+                  {/* Graph paper + self-sketching curve — only for graph-kind subjects */}
+                  {example.kind === "graph" && (
                     <div className="border-t sm:border-t-0 sm:border-l border-border relative">
-                      <span className="hidden sm:block absolute top-2 right-3 text-xs text-muted-foreground">(3 marks)</span>
                       <svg viewBox="0 0 300 200" className="w-full block bg-background">
                         {Array.from({ length: 14 }).map((_, i) => (
                           <line key={`v${i}`} x1={20 + i * 20} y1={10} x2={20 + i * 20} y2={190} stroke="hsl(var(--border))" strokeWidth="0.6" />
@@ -166,9 +313,8 @@ const ExamTheatre = () => {
                         ))}
                         <line x1={20} y1={130} x2={280} y2={130} stroke="hsl(var(--muted-foreground))" strokeWidth="1.1" />
                         <line x1={60} y1={10} x2={60} y2={190} stroke="hsl(var(--muted-foreground))" strokeWidth="1.1" />
-                        {/* y = x²−6x+5 · origin (60,130) · 20px/x · 10px/y */}
                         <motion.path
-                          d="M 60 80 C 73 114, 88 142, 105 160 C 113 168, 127 168, 135 160 C 152 142, 167 114, 180 80"
+                          d={example.graphPath}
                           fill="none"
                           stroke="hsl(var(--primary))"
                           strokeWidth="2.4"
@@ -177,19 +323,10 @@ const ExamTheatre = () => {
                           animate={{ pathLength: sketchOn ? 1 : 0 }}
                           transition={{ duration: reduced ? 0 : 2.1, ease: "easeInOut" }}
                         />
-                        {marked && (
-                          <g>
-                            <circle cx={80} cy={130} r={3} fill="hsl(var(--primary))" />
-                            <circle cx={160} cy={130} r={3} fill="hsl(var(--primary))" />
-                            <circle cx={120} cy={170} r={3} fill="hsl(var(--primary))" />
-                            <text x={128} y={178} fontSize="9" fill="hsl(var(--muted-foreground))">(3, −4)</text>
-                            <text x={76} y={124} fontSize="9" fill="hsl(var(--muted-foreground))">1</text>
-                            <text x={156} y={124} fontSize="9" fill="hsl(var(--muted-foreground))">5</text>
-                          </g>
-                        )}
+                        {marked && example.markedOverlay}
                       </svg>
                     </div>
-                  </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
