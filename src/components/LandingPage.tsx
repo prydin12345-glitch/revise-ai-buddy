@@ -186,15 +186,15 @@ const ExamTheatre = () => {
         >
           {/* Product chrome: subject pill · timer · running marks total */}
           <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-border bg-secondary/60">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary text-[11px] font-semibold px-2.5 py-1">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold px-2.5 py-1">
               <GraduationCap className="h-3 w-3" />
               {example.subject}
             </span>
-            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
               <Timer className="h-3 w-3" />
               {marked ? example.timers.marked : act === "sketching" ? example.timers.sketching : questionVisible ? example.timers.writing : "0:00"}
             </span>
-            <span className="ml-auto text-[11px] font-medium text-muted-foreground">
+            <span className="ml-auto text-xs font-medium text-muted-foreground">
               Marks: <span className={marked ? "text-green-600 font-semibold" : ""}>{marked ? example.marksAwarded : 0}</span> / {example.marksTotal}
             </span>
           </div>
@@ -266,7 +266,7 @@ const ExamTheatre = () => {
                             >
                               <span
                                 className={
-                                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold " +
+                                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs font-semibold " +
                                   (marked && isCorrect
                                     ? "border-green-600 text-green-700 dark:text-green-400"
                                     : "border-muted-foreground/40 text-muted-foreground")
@@ -357,7 +357,7 @@ const SketchVignette = () => (
 );
 
 const MarkingVignette = () => (
-  <div className="rounded-lg border border-border bg-background p-3 space-y-1.5 text-[11px]">
+  <div className="rounded-lg border border-border bg-background p-3 space-y-1.5 text-xs">
     <div className="flex items-center justify-between">
       <span className="text-muted-foreground">Method — completing the square</span>
       <span className="font-semibold text-green-600">M1 ✓</span>
@@ -378,7 +378,7 @@ const MarkingVignette = () => (
 
 const UploadVignette = () => (
   <div className="rounded-lg border border-border bg-background p-3 space-y-2">
-    <div className="flex items-center gap-2 text-[11px]">
+    <div className="flex items-center gap-2 text-xs">
       <FileText className="h-3.5 w-3.5 text-primary" />
       <span className="font-medium">June-2023-Paper-2.pdf</span>
       <span className="ml-auto text-muted-foreground">14 questions found</span>
@@ -388,7 +388,7 @@ const UploadVignette = () => (
     </div>
     <div className="flex gap-1.5 flex-wrap">
       {["MCQ × 4", "Graphs × 3", "Multi-part × 5", "Tables × 2"].map((t) => (
-        <span key={t} className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">{t}</span>
+        <span key={t} className="rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">{t}</span>
       ))}
     </div>
   </div>
@@ -403,7 +403,7 @@ const HeatmapVignette = () => (
           style={{ background: v === 0 ? "hsl(var(--secondary))" : `hsl(var(--primary) / ${0.25 + v * 0.65})` }} />
       ))}
     </div>
-    <p className="mt-2 text-[11px] text-muted-foreground">23 sessions · strongest: algebra · revise next: vectors</p>
+    <p className="mt-2 text-xs text-muted-foreground">23 sessions · strongest: algebra · revise next: vectors</p>
   </div>
 );
 
@@ -416,7 +416,7 @@ const FEATURES = [
   },
   {
     icon: BadgeCheck,
-    title: "Marked like an examiner",
+    title: "Method marks, not just right or wrong",
     body: "Method marks and accuracy marks broken down against the mark scheme, with feedback on exactly what was missing.",
     vignette: MarkingVignette,
   },
@@ -437,7 +437,7 @@ const FEATURES = [
 const STEPS = [
   { icon: PenLine, title: "Tell it your topic", body: "Pick your subject, level and topics — or upload a past paper and Examly reads it." },
   { icon: Sparkles, title: "Your paper writes itself", body: "Exam-style questions in seconds: MCQs, calculations, data tables, sketch graphs." },
-  { icon: BadgeCheck, title: "Marked like an examiner", body: "Answer on screen — draw the curve, show your working — and get method marks with feedback." },
+  { icon: BadgeCheck, title: "Marked in seconds", body: "Answer on screen — draw the curve, show your working — and get method marks with feedback." },
 ];
 
 const PLANS = [
@@ -714,7 +714,7 @@ const LandingPage = () => {
           </Reveal>
           <Reveal delay={0.12}>
             <div className="rounded-2xl border border-border bg-card p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
                 The tutor dashboard
               </p>
               <div className="space-y-3">
@@ -773,15 +773,19 @@ const LandingPage = () => {
       </section>
 
       {/* ── Final CTA — contrasting band to land the close ── */}
-      <section className="py-24 px-4 bg-foreground text-background">
+      <section className="py-24 px-4 bg-primary text-primary-foreground">
         <Reveal className="max-w-2xl mx-auto text-center">
-          <h2 className="font-serif text-3xl sm:text-5xl font-bold tracking-tight leading-tight">
+          <h2 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight leading-tight">
             For students who'd rather practise than panic.
           </h2>
-          <p className="mt-5 text-background/70">
+          <p className="mt-5 text-primary-foreground">
             Generate it, sit it, get it marked — before your kettle boils.
           </p>
-          <Button size="lg" variant="secondary" className="mt-8 text-base px-8" onClick={goSignup}>
+          <Button
+            size="lg"
+            className="mt-8 text-base px-8 bg-background text-foreground hover:bg-background/90"
+            onClick={goSignup}
+          >
             Generate your first paper
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
