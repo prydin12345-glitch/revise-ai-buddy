@@ -33,9 +33,17 @@ const PRIVATE_KEYS = new Set([
 /** Strip known solution metadata recursively, including JSON stored as text. */
 export function stripSolutionData(value: any): any {
   if (Array.isArray(value)) return value.map(stripSolutionData);
-  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value)
-    .filter(([key]) => !PRIVATE_KEYS.has(key.replace(/[^a-z]/gi, '').toLowerCase()))
-    .map(([key, item]) => [key, stripSolutionData(item)]));
+  if (value && typeof value === 'object') {
+    // Genetics scaffolds and calculation contracts contain GIVEN inputs only.
+    // Projection also removes unknown solution/result aliases emitted by a model.
+    const allowed = value.type === 'punnett_square'
+      ? new Set(['type','crossType','parent1','parent2','dominantTrait','recessiveTrait','showGametes','biology_calculation'])
+      : value.kind === 'monohybrid_percentage' ? new Set(['kind','parent1','parent2','target'])
+      : value.kind === 'biomass_transfer' ? new Set(['kind','from','to','organismColumn','valueColumn','unit']) : null;
+    return Object.fromEntries(Object.entries(value)
+      .filter(([key]) => (!allowed || allowed.has(key)) && !PRIVATE_KEYS.has(key.replace(/[^a-z]/gi, '').toLowerCase()))
+      .map(([key, item]) => [key, stripSolutionData(item)]));
+  }
   if (typeof value === 'string' && /^[\[{]/.test(value.trim())) {
     try { return JSON.stringify(stripSolutionData(JSON.parse(value))); } catch { /* ordinary text */ }
   }

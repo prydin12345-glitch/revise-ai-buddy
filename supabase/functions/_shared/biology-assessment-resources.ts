@@ -1,5 +1,3 @@
-
-
 /** Scientific inputs belong to the saved question. Never invent them in a renderer. */
 export const BIOLOGY_DIAGRAM_TYPES = new Set([
   'animal_cell', 'plant_cell', 'bacterial_cell', 'neuron', 'heart', 'dna_helix',

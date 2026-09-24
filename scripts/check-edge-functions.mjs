@@ -6,7 +6,9 @@ assertEdgeIdentifiers(ts.sys.readDirectory('supabase/functions', ['.ts'], undefi
 console.log('Edge Function identifier check passed (including shared modules).');
 const directories=(await readdir('supabase/functions',{withFileTypes:true})).filter(d=>d.isDirectory() && d.name!=='_shared');
 for(const dir of directories) {
+  // Deno resolves npm: dependencies at deployment/runtime, just like URL imports.
+  // Local imports are still bundled; the identifier check above is unchanged.
   await build({entryPoints:[`supabase/functions/${dir.name}/index.ts`],bundle:true,write:false,
-    format:'esm',platform:'neutral',external:['https://*','http://*'],logLevel:'error'});
+    format:'esm',platform:'neutral',external:['https://*','http://*','npm:*'],logLevel:'error'});
 }
-console.log(`Bundled ${directories.length} Edge Functions successfully (remote runtime imports remain external).`);
+console.log(`Bundled ${directories.length} Edge Functions successfully (Deno URL/npm runtime imports remain external).`);

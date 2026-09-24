@@ -7,6 +7,7 @@ import { resolvePaperSelection } from './course-selection.ts';
 import { biologyScopeFromContext } from './gcse-biology-scope.ts';
 import { validateQuestionCandidates, describeDefects } from './question-contract-validator.ts';
 import { hasThreeLevelScheme, assembledModelText, coerceMcqOptions, canonicalMcqAnswer, isMcqType, readAnswerKey } from './model-question-normalization.ts';
+import { BIOLOGY_RESOURCE_RULES } from './biology-assessment-resources.ts';
 
 const isPaper2 = (context: any) => context?.resolved_by === 'server' && context.context_version === 2 &&
   isAqaPaper2({courseId: context.course_id, paperId: context.paper_id});
@@ -22,7 +23,7 @@ export function checkBiologyPracticeCourse(context: any): void {
 
 export function biologyPracticeInstructions(context: any): string {
   if (!isPaper2(context)) return gatewayPracticeInstructions(context);
-  return `${AQA_P2_RULES}\nSAVED QUIZ: ${context.component_code}, ${context.assessment_tier} tier.
+  return `${AQA_P2_RULES}\n${BIOLOGY_RESOURCE_RULES}\nSAVED QUIZ: ${context.component_code}, ${context.assessment_tier} tier.
 This is a practice quiz, not a full paper: keep the requested question count and question format. Requested topics and external notes must stay within Paper 2; use only the reviewed outcomes below. For each question use one of the three Paper 2 topic names as topic_tag and place its narrower skill in the task. Any six-mark response needs private Level 1 (1–2), Level 2 (3–4), Level 3 (5–6) descriptors, indicative content and zero for no relevant science.
 ` + Object.entries(AQA_P2_OUTCOMES).filter(([ref]) => context.assessment_tier === 'higher' || !ref.endsWith('-HT'))
     .map(([ref, text]) => `${ref}: ${text}`).join('\n');
@@ -57,6 +58,6 @@ export const usesBiologyPracticeValidation = (context: any): boolean =>
   context?.course_id === OCR_GATEWAY_BIOLOGY_ID || isPaper2(context);
 
 export const biologyPracticeCacheVersion = (context: any): string | null =>
-  context?.course_id === OCR_GATEWAY_BIOLOGY_ID ? 'ocr-gateway-1' : isPaper2(context) ? 'aqa-8461-paper-2-1' : null;
+  context?.course_id === OCR_GATEWAY_BIOLOGY_ID ? 'ocr-gateway-1' : isPaper2(context) ? 'aqa-8461-paper-2-resources-2' : null;
 
 export const biologyCachedRows = gatewayCachedRows;

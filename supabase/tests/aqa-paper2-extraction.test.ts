@@ -5,6 +5,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {describe, expect, it} from 'vitest';
 import {paper2Fixture, paper2Snapshot, fixtureScheme} from './aqa-paper2-fixtures';
+import {mouseQuestion, parentTable, lakeQuestion, lakeTable} from './fixtures/biology-resource-cases';
 
 interface ExtractionScenario {
   mutate?: (questions: any[]) => void;
@@ -99,6 +100,31 @@ async function boundaryHandler(name: string, rows: any[], tier: 'foundation'|'hi
 }
 
 describe.each(['foundation','higher'] as const)('real AQA Paper 2 %s pipeline',tier=>{
+  it.each([false,true])('persists matching Biology resources and keys (repair needed: %s)',async needsRepair=>{
+    const result=await extract(tier,{
+      mutate(questions) {
+        Object.assign(questions.find(q=>q.question_number==='4(c)'),{
+          question_text:mouseQuestion.question_text,
+          correct_answer:needsRepair?'Final answer: 75%.':mouseQuestion.correct_answer, chart_data:parentTable});
+        Object.assign(questions.find(q=>q.question_number==='9(c)'),{
+          question_text:lakeQuestion.question_text, correct_answer:lakeQuestion.correct_answer, chart_data:lakeTable});
+      },
+      repair(request) {
+        const group=JSON.parse(request.messages[0].content.split('Current group: ')[1].split('\nReturn JSON')[0]);
+        return {parts:group.map((row:any)=>({
+          question_number:row.question_number,context:'',instruction:row.question_text,
+          expected_answer:row.question_number==='4(c)'?mouseQuestion.correct_answer:row.correct_answer,
+          diagram_config:row.question_number==='4(c)'?parentTable:row.diagram_config}))};
+      },
+    });
+    expect(String(result.error??'')).toBe('');
+    expect(result.exam.extraction_status).toBe('completed');
+    expect(result.drafts.find(q=>q.question_number==='4(c)').diagram_config.biology_calculation).toEqual(parentTable.biology_calculation);
+    expect(result.drafts.find(q=>q.question_number==='9(c)').diagram_config.biology_calculation).toEqual(lakeTable.biology_calculation);
+    expect(result.drafts.find(q=>q.question_number==='4(c)').correct_answer).toContain('50%');
+    expect(result.repairCalls).toHaveLength(needsRepair?1:0);
+    expect(result.aiCalls[0].messages.map((m:any)=>m.content).join('\n')).toContain('BIOLOGY ASSESSMENT RESOURCES');
+  });
   it.each(['short_practice','full_mock'] as const)('generates, persists and finalises the %s contract',async mode=>{
     const result=await extract(tier,false,mode);
     expect(String(result.error??'')).toBe('');
