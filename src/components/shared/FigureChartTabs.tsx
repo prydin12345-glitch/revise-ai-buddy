@@ -1,6 +1,6 @@
 import React from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BiologyFigurePanel, detectBiologyDiagram } from '@/components/biology';
+import { AssessmentBiologyFigure } from '@/components/biology/AssessmentBiologyFigure';
+import { savedBiologyDiagram } from '@/lib/biology-assessment-resources';
 import {
   BoxPlotChart, isBoxPlotQuestion,
   HistogramChart, isHistogramQuestion,
@@ -37,38 +37,28 @@ const renderChart = (chartData: any, className: string) => {
   );
 };
 
-/**
- * If a question has BOTH a biology figure AND a chart/data table,
- * render them in a tab switcher so the student can flip between them.
- * Returns null when this combo isn't present — caller falls back to its
- * existing separate figure & chart blocks.
- */
+/** Required data is always visible. Keep this export for existing page imports. */
 export const FigureChartTabs: React.FC<Props> = ({ question, isExam = false, className = '' }) => {
-  const bioConfig = detectBiologyDiagram(question?.question_text, (question as any)?.subject);
+  const bioConfig = savedBiologyDiagram(question ?? {});
   const chartData = getChartData(question);
   if (!bioConfig || !chartData) return null;
 
   return (
-    <Tabs defaultValue="figure" className={`w-full mt-3 mb-4 ${className}`}>
-      <TabsList className="h-8 mb-2">
-        <TabsTrigger value="figure" className="text-[12px] h-7 px-4">Figure</TabsTrigger>
-        <TabsTrigger value="data" className="text-[12px] h-7 px-4">Data</TabsTrigger>
-      </TabsList>
-      <TabsContent value="figure" className="mt-0">
-        <BiologyFigurePanel config={bioConfig} isExam={isExam} />
-      </TabsContent>
-      <TabsContent value="data" className="mt-0">
-        {renderChart(chartData, 'mb-0')}
-      </TabsContent>
-    </Tabs>
+    <div className={`w-full mt-3 mb-4 space-y-4 ${className}`}>
+      {renderChart(chartData, 'mb-0')}
+      <AssessmentBiologyFigure question={question} />
+    </div>
   );
 };
 
 /** Helper for caller: should the page suppress its standalone bio + chart blocks? */
 export const hasFigureAndChart = (question: any): boolean => {
-  const bioConfig = detectBiologyDiagram(question?.question_text, (question as any)?.subject);
+  const bioConfig = savedBiologyDiagram(question ?? {});
   const chartData = getChartData(question);
   return !!(bioConfig && chartData);
 };
+
+/** For review surfaces that did not previously render stored chart data. */
+export const QuestionChart = ({question, className = ''}: Props) => renderChart(getChartData(question), className);
 
 export default FigureChartTabs;
