@@ -95,12 +95,8 @@ export const detectMathsDiagram = (
       has(lower, 'probability', 'fraction', 'chance', 'likelihood', 'calculate', 'find the probability')) ||
     (has(lower, 'genetic cross') && has(lower, 'maths', 'statistics', 'probability'))
   ) {
-    return {
-      type: 'punnett_maths',
-      parent1: 'Aa',
-      parent2: 'Aa',
-      showAsFractions: true,
-    };
+    // Genetic inputs must come from the saved resource, never assumed Aa × Aa.
+    return null;
   }
 
   return null;
