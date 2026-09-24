@@ -1,10 +1,11 @@
+import { biologyDiagramIssues, isBiologyDiagram, savedBiologyDiagram } from './biology-assessment-resources.ts';
 /** Shared resource checks. Contradictory measurements must never be hidden by precedence. */
 export interface ResourceQuestion {
   question_text?: unknown; chart_data?: unknown; diagram_config?: unknown;
   diagramConfig?: unknown; options?: unknown; table_data?: unknown;
 }
 export interface ResourceIssue {
-  code: 'conflicting_resource_data' | 'invalid_resource' | 'inappropriate_graph';
+  code: 'conflicting_resource_data' | 'invalid_resource' | 'inappropriate_graph' | 'answer_mismatch';
   detail: string;
 }
 export interface DataTable {
@@ -133,6 +134,12 @@ export function stripResourcePlaceholders(text: string, hasPayload: boolean): st
 export function resolveQuestionResources(q: ResourceQuestion) {
   const text = typeof q.question_text === 'string' ? q.question_text : '';
   const issues: ResourceIssue[] = [];
+  for (const config of [q.diagram_config, q.diagramConfig, q.chart_data]) {
+    issues.push(...biologyDiagramIssues(config, text));
+  }
+  if (isBiologyDiagram(q.diagram_config) && isBiologyDiagram(q.diagramConfig) && !savedBiologyDiagram(q)) {
+    issues.push({code:'conflicting_resource_data',detail:'The saved Biology diagram copies disagree or are invalid. Repair the resource and key together.'});
+  }
   const charts = [q.chart_data, q.diagram_config, q.diagramConfig, q.options].filter(isResourceChart);
   let chart: any = charts[0] ?? null;
   const tables = charts.map(asTable).filter((t): t is DataTable => !!t);

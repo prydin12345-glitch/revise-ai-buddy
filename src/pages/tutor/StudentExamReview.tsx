@@ -12,7 +12,8 @@ import { MathRenderer } from "@/components/MathRenderer";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
-import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
+import { AssessmentBiologyFigure } from '@/components/biology/AssessmentBiologyFigure';
+import { QuestionChart } from '@/components/shared/FigureChartTabs';
 
 interface Question {
   id: string;
@@ -21,6 +22,9 @@ interface Question {
   questionType: string;
   marks: number;
   correctAnswer: string | null;
+  diagram_config?: unknown;
+  table_data?: string | null;
+  options?: unknown;
 }
 
 interface Answer {
@@ -95,7 +99,7 @@ const StudentExamReview = () => {
         // Load questions
         const { data: questionsData } = await supabase
           .from("exam_questions")
-          .select("id, question_number, question_text, question_type, marks, correct_answer")
+          .select("id, question_number, question_text, question_type, marks, correct_answer, diagram_config, table_data, options")
           .eq("exam_id", examId)
           .order("question_number");
 
@@ -107,6 +111,9 @@ const StudentExamReview = () => {
             questionType: q.question_type,
             marks: q.marks,
             correctAnswer: q.correct_answer,
+            diagram_config: q.diagram_config,
+            table_data: q.table_data,
+            options: q.options,
           })));
         }
 
@@ -286,11 +293,9 @@ const StudentExamReview = () => {
                   })()}
 
                   {/* Biology figure panel */}
-                  {(() => {
-                    const bioConfig = detectBiologyDiagram(question.questionText, (question as any).subject);
-                    if (!bioConfig) return null;
-                    return <BiologyFigurePanel config={bioConfig} />;
-                  })()}
+                  <QuestionChart question={{...question, question_text: question.questionText}} />
+                  <AssessmentBiologyFigure question={{...question, question_text: question.questionText}}
+                    solutionsReleased={!!question.correctAnswer} />
 
                   {/* Student's Answer */}
                   <div>

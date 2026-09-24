@@ -94,7 +94,7 @@ import QuestionCardShell from "@/components/quiz/QuestionCardShell";
 import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
-import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
+import { AssessmentBiologyFigure } from '@/components/biology/AssessmentBiologyFigure';
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
 import { MathsFigurePanel } from "@/components/maths";
 import { PhysicsFigurePanel } from "@/components/physics";
@@ -1980,11 +1980,7 @@ const TakePracticeQuiz = () => {
                   })()}
 
                   {/* Biology figure panel */}
-                  {(() => {
-                    const bioConfig = detectBiologyDiagram(currentQuestion.question_text, (currentQuestion as any).subject);
-                    if (!bioConfig) return null;
-                    return <BiologyFigurePanel config={bioConfig} />;
-                  })()}
+                  <AssessmentBiologyFigure question={currentQuestion} solutionsReleased={isReviewMode && typeof currentAnswer?.score === 'number' && !!currentQuestion.correct_answer} />
 
                   <EconomicsFigurePanel
                     questionText={currentQuestion.question_text ?? ''}

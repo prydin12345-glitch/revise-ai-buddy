@@ -26,8 +26,14 @@ export const DIAGRAM_KEYWORD_MAP: Record<string, DiagramSignal> = {
   punnett:              { subject: 'biology', type: 'punnett_square',
                           config: { crossType: 'monohybrid', parent1: 'Aa', parent2: 'Aa',
                                     dominantTrait: 'A', recessiveTrait: 'a' } },
-  food_web:             { subject: 'biology', type: 'food_web' },
-  food_chain:           { subject: 'biology', type: 'food_chain' },
+  // Explicit teaching examples only. Assessment pages never use this catalogue.
+  food_web:             { subject: 'biology', type: 'food_web', config: {
+                          teachingExample: true,
+                          organisms: ['Grass', 'Rabbit', 'Grasshopper', 'Frog', 'Fox'],
+                          feedingLinks: [{from:'Grass',to:'Rabbit'}, {from:'Grass',to:'Grasshopper'},
+                            {from:'Grasshopper',to:'Frog'}, {from:'Rabbit',to:'Fox'}, {from:'Frog',to:'Fox'}] } },
+  food_chain:           { subject: 'biology', type: 'food_chain', config: {
+                          teachingExample: true, organisms: ['Grass', 'Rabbit', 'Fox'] } },
   ecological_pyramid:   { subject: 'biology', type: 'ecological_pyramid' },
   enzyme:               { subject: 'biology', type: 'enzyme_substrate',
                           config: { model: 'lock_and_key' } },

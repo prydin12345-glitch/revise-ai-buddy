@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Calculator, CheckCircle2, Loader2 } from 'lucide-react';
 import { MathRenderer } from '@/components/MathRenderer';
-import { BiologyFigurePanel, detectBiologyDiagram } from '@/components/biology';
+import { AssessmentBiologyFigure } from '@/components/biology/AssessmentBiologyFigure';
 import { MathsFigurePanel } from '@/components/maths';
 import { EconomicsFigurePanel } from '@/components/economics/EconomicsFigurePanel';
 import { PhysicsFigurePanel } from '@/components/physics';
@@ -576,15 +576,7 @@ export function QuestionItem({
         <MathRenderer content={question.question_text} hasMath={question.has_math} />
       </div>
 
-      {(() => {
-        const saved = question.diagram_config && typeof question.diagram_config === 'object'
-          && ['animal_cell','plant_cell','bacterial_cell','neuron','heart','dna_helix',
-              'mitosis','punnett_square','food_web','food_chain','ecological_pyramid',
-              'enzyme_substrate'].includes((question.diagram_config as any).type)
-          ? (question.diagram_config as any) : null;
-        const cfg = saved ?? detectBiologyDiagram(question.question_text ?? '', question.subject ?? '');
-        return cfg ? <BiologyFigurePanel config={cfg} /> : null;
-      })()}
+      <AssessmentBiologyFigure question={question} solutionsReleased={answer?.submitted && typeof answer?.score === 'number' && !!question.correct_answer && (workedSolutionVisible || isReviewMode)} />
 
       <MathsFigurePanel
         questionText={question.question_text ?? ''}

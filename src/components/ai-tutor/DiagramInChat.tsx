@@ -27,7 +27,7 @@ export const DiagramInChat = ({ signal }: DiagramInChatProps) => {
 
   const renderDispatcher = () => {
     switch (signal.subject) {
-      case 'biology':    return <BiologyDiagramDraw config={config} />;
+      case 'biology':    return <BiologyDiagramDraw config={config} mode="solution" />;
       case 'chemistry':  return <ChemistryDiagramDraw config={config} />;
       case 'physics':    return <PhysicsDiagramDraw config={config} />;
       case 'economics':  return <EconomicsDiagramDraw config={config} />;
@@ -43,7 +43,7 @@ export const DiagramInChat = ({ signal }: DiagramInChatProps) => {
       <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border bg-muted/40">
         <ImageIcon className="w-3 h-3 text-muted-foreground" />
         <span className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-wide">
-          {label}
+          {label}{signal.config?.teachingExample ? ' — teaching example' : ''}
         </span>
       </div>
       <div className="p-3 flex items-center justify-center bg-white">

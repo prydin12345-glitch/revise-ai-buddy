@@ -4,6 +4,7 @@ import html2canvas from "html2canvas";
 import ReactDOM from "react-dom/client";
 import React from "react";
 import { requireConsistentResources, formatHeaderUnit } from '@/lib/question-resources';
+import { isBiologyDiagram, savedBiologyDiagram } from '@/lib/biology-assessment-resources';
 
 // ============= Type Definitions =============
 interface ExamQuestion {
@@ -410,13 +411,19 @@ async function renderDiagramToPDF(
   x: number,
   y: number,
   maxWidth: number,
+  maxHeight: number,
 ): Promise<number> {
+  const container = document.createElement('div');
+  let root: ReturnType<typeof ReactDOM.createRoot> | null = null;
   try {
-    const container = document.createElement('div');
     container.style.cssText = `position:fixed;top:-9999px;left:-9999px;width:${maxWidth * 3.78}px;background:white;`;
+    for (const [key, value] of Object.entries({foreground: '222 47% 11%', background: '0 0% 100%',
+      card: '0 0% 100%', muted: '210 40% 96%', 'muted-foreground': '215 16% 35%', border: '215 20% 65%', primary: '221 83% 40%'})) {
+      container.style.setProperty(`--${key}`, value);
+    }
     document.body.appendChild(container);
 
-    const root = ReactDOM.createRoot(container);
+    root = ReactDOM.createRoot(container);
 
     // Dynamically import the correct diagram component
     let DiagramComponent: any = null;
@@ -424,7 +431,6 @@ async function renderDiagramToPDF(
 
     const mechanicsTypes = ['slope', 'free_body', 'projectile', 'beam', 'pulley', 'conical_pendulum', 'vertical_motion', 'rod', 'vertical_lift'];
     const circuitTypes = ['circuit', 'dual'];
-    const biologyTypes = ['animal_cell', 'plant_cell', 'neuron', 'heart', 'dna_helix', 'mitosis'];
     const chemistryTypes = ['titration', 'reflux', 'electrolysis', 'dot_cross', 'chromatography'];
 
     if (mechanicsTypes.includes(type)) {
@@ -433,7 +439,7 @@ async function renderDiagramToPDF(
     } else if (circuitTypes.includes(type)) {
       const mod = await import('@/components/circuit');
       DiagramComponent = mod.CircuitDraw;
-    } else if (biologyTypes.includes(type)) {
+    } else if (isBiologyDiagram(diagramConfig)) {
       const mod = await import('@/components/biology');
       DiagramComponent = mod.BiologyDiagramDraw;
     } else if (chemistryTypes.includes(type)) {
@@ -446,13 +452,13 @@ async function renderDiagramToPDF(
     }
 
     if (!DiagramComponent) {
-      document.body.removeChild(container);
       return 0;
     }
 
     root.render(
       React.createElement(DiagramComponent, {
         config: diagramConfig,
+        mode: 'assessment',
         chartData: diagramConfig,
         showLabels: true,
         labelMode: 'visible',
@@ -471,17 +477,19 @@ async function renderDiagramToPDF(
 
     const imgData = canvas.toDataURL('image/png');
     const aspectRatio = canvas.height / canvas.width;
-    const imgHeight = maxWidth * aspectRatio;
+    const imgHeight = Math.min(maxWidth * aspectRatio, maxHeight);
+    const imgWidth = imgHeight / aspectRatio;
 
-    doc.addImage(imgData, 'PNG', x, y, maxWidth, imgHeight);
-
-    root.unmount();
-    document.body.removeChild(container);
+    doc.addImage(imgData, 'PNG', x + (maxWidth - imgWidth) / 2, y, imgWidth, imgHeight);
 
     return imgHeight;
   } catch (error) {
     console.error('Diagram render failed:', error);
+    if (isBiologyDiagram(diagramConfig)) throw new Error('The saved Biology figure could not be rendered for printing.');
     return 0;
+  } finally {
+    root?.unmount();
+    container.remove();
   }
 }
 
@@ -646,6 +654,9 @@ export async function generateExamPDF(
   // The screen and PDF share a validated source. Never export conflicting data.
   examData = { ...examData, questions: examData.questions.map(question => {
     const resources = requireConsistentResources(question);
+    const rawDiagram = question.diagramConfig ?? question.diagram_config;
+    const biologyDiagram = savedBiologyDiagram(question);
+    if (isBiologyDiagram(rawDiagram) && !biologyDiagram) throw new Error(`Q${question.question_number}: the saved Biology figure is inconsistent.`);
     return {
       ...question,
       question_text: resources.text,
@@ -653,8 +664,8 @@ export async function generateExamPDF(
         resources.table.headers.map((h, i) => formatHeaderUnit(h, resources.table!.units?.[i])),
         ...resources.table.rows,
       ]) : question.table_data,
-      diagramConfig: (question.diagramConfig ?? question.diagram_config)?.type === 'data_table'
-        ? undefined : (question.diagramConfig ?? question.diagram_config),
+      diagramConfig: biologyDiagram ?? (resources.chart?.type !== 'data_table' ? resources.chart : null)
+        ?? (rawDiagram?.type === 'data_table' ? undefined : rawDiagram),
     };
   }) };
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -1111,10 +1122,10 @@ export async function generateExamPDF(
 
       // ============= DIAGRAM RENDERING =============
       if (includeDiagrams && question.diagramConfig) {
-        ensureSpace(80);
+        ensureSpace(130);
         const diagramWidth = CONTENT_WIDTH * 0.6;
         const diagramX = MARGIN + (CONTENT_WIDTH - diagramWidth) / 2;
-        const diagramHeight = await renderDiagramToPDF(doc, question.diagramConfig, diagramX, yPosition, diagramWidth);
+        const diagramHeight = await renderDiagramToPDF(doc, question.diagramConfig, diagramX, yPosition, diagramWidth, getRemainingSpace() - 8);
 
         if (diagramHeight > 0) {
           // Figure caption

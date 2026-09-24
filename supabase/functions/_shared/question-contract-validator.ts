@@ -12,12 +12,13 @@
 // never needs a question mark.
 
 import { resolveQuestionResources, type ResourceQuestion } from './question-resources.ts';
-import { gcseBiologyIssue, type BiologyScope } from './gcse-biology-scope.ts';
+import { gcseBiologyIssue, isGcseBiology, type BiologyScope } from './gcse-biology-scope.ts';
 import { assembledModelText, canonicalMcqAnswer, coerceMcqOptions, flattenAnswerKey, isMcqType, readAnswerKey, readQuestionTask } from './model-question-normalization.ts';
 export { coerceMcqOptions, flattenAnswerKey } from './model-question-normalization.ts';
 
 import type { PaperPlan } from './biology-paper-contract.ts';
 import { validateBiologyPlan } from './biology-plan-validator.ts';
+import { biologyQuestionIssues, statedFoodChain } from './biology-assessment-resources.ts';
 
 export const CONTRACT_VERSION = 2;
 
@@ -242,6 +243,14 @@ export function validateQuestionCandidates(
   );
 
   let totalMarks = 0;
+  const groupChains = new Map<string, string[][]>();
+  parts.forEach((part, index) => {
+    const chain = statedFoodChain(assembleQuestionText(part));
+    if (chain) {
+      const group = groupIdOf(part, index);
+      groupChains.set(group, [...(groupChains.get(group) ?? []), chain]);
+    }
+  });
 
   parts.forEach((part, index) => {
     const partId = partIdOf(part, index);
@@ -257,6 +266,11 @@ export function validateQuestionCandidates(
 
     const resources = resolveQuestionResources({ ...part, question_text: displayed });
     resources.issues.forEach(issue => push(issue.code, issue.detail));
+    const chains = groupChains.get(groupIdOf(part, index)) ?? [];
+    const unambiguousChain = chains.length && chains.every(chain => JSON.stringify(chain).toLowerCase() === JSON.stringify(chains[0]).toLowerCase()) ? chains[0] : undefined;
+    biologyQuestionIssues({ ...part, question_text: displayed }, resources.chart ?? part.diagram_config ?? part.diagramConfig, unambiguousChain,
+      scored && !!options.scope && isGcseBiology(options.scope))
+      .forEach(issue => push(issue.code, issue.detail));
     const levelIssue = options.scope ? gcseBiologyIssue({ ...part, question_text: displayed }, options.scope) : null;
     if (levelIssue) push('out_of_level', levelIssue);
 

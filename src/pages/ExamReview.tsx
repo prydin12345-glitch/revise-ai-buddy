@@ -27,7 +27,7 @@ import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanic
 import { CircuitFigurePanel } from "@/components/circuit";
 import { PhysicsFigurePanel } from "@/components/physics";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
-import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
+import { AssessmentBiologyFigure } from '@/components/biology/AssessmentBiologyFigure';
 import { MathsFigurePanel } from "@/components/maths";
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
 import { InsertPanel } from "@/components/insert/InsertPanel";
@@ -725,11 +725,7 @@ const ExamReview = () => {
                    })()}
 
                    {/* Biology diagram panel */}
-                   {(() => {
-                     const bioConfig = detectBiologyDiagram(question.question_text, (question as any).subject);
-                     if (!bioConfig) return null;
-                       return <BiologyFigurePanel config={bioConfig} />;
-                     })()}
+                   <AssessmentBiologyFigure question={question} solutionsReleased={!scoresHidden && !!question.correct_answer} />
 
                      <MathsFigurePanel
                        questionText={question.question_text ?? ''}

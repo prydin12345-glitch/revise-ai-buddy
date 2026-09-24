@@ -2,6 +2,7 @@ import { getCourseCapability, OCR_GATEWAY_BIOLOGY_ID, type AssessmentTier } from
 
 import { GATEWAY_RULES } from './ocr-biology-scope.ts';
 import { AQA_P2_RULES, isAqaPaper2, aqaPaper2ContentIssue } from './aqa-biology-paper2.ts';
+import { BIOLOGY_RESOURCE_RULES } from './biology-assessment-resources.ts';
 
 export interface BiologyScope {
   courseId?: string | null;
@@ -34,6 +35,7 @@ const isAqaFoundation = (scope: BiologyScope): boolean =>
 export function biologyScopeInstructions(scope: BiologyScope): string {
   const gateway = scope.courseId === OCR_GATEWAY_BIOLOGY_ID;
   const lines = [isGcseBiology(scope) ? (gateway ? GATEWAY_RULES : GCSE_BIOLOGY_RULES) : ''];
+  if (isGcseBiology(scope)) lines.push(BIOLOGY_RESOURCE_RULES);
   if (isAqaPaper2(scope)) lines.push(AQA_P2_RULES);
   if (getCourseCapability({ subject: scope.subject, examBoard: scope.examBoard, educationalTier: scope.educationalLevel, courseId: scope.courseId })?.id === 'aqa_gcse_biology' && (!scope.paperId || scope.paperId === 'paper_1')) lines.push('AQA Paper 1: Cell biology, Organisation, Infection and response, Bioenergetics. Do not import Paper 2 content.');
   if (scope.assessmentTier === 'foundation') lines.push(
