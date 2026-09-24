@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import {
   PenLine, Sparkles, CheckCircle2, Upload, Users, LineChart, Timer,
   GraduationCap, ArrowRight, Menu, X, FunctionSquare, FileText, BadgeCheck,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
 
 /* ───────────────────────── Exam theatre v2 ─────────────────────────
@@ -142,29 +143,86 @@ const useTypewriter = (text: string, active: boolean, speed = 28) => {
   return shown;
 };
 
+/** Faded side card — a glanceable title card, not a full replica of the live
+ *  paper (too little room at this width for that to read well). Click jumps
+ *  straight to it. Height matches the stage's min-height so the row stays
+ *  visually aligned regardless of which example is centred. */
+const TheatrePeek = ({
+  example, onClick, ariaLabel,
+}: { example: TheatreExample; onClick: () => void; ariaLabel: string }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label={ariaLabel}
+    className="hidden xl:flex flex-col shrink-0 w-[130px] h-[560px] sm:h-[400px] rounded-2xl border border-border bg-card p-4 opacity-40 hover:opacity-70 focus-visible:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-opacity text-left"
+  >
+    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary text-[10px] font-semibold px-2 py-0.5 w-fit">
+      <GraduationCap className="h-2.5 w-2.5" />
+      {example.subject}
+    </span>
+    <p className="font-serif text-xs leading-relaxed text-foreground mt-3 line-clamp-[10]">
+      {example.question}
+    </p>
+  </button>
+);
+
+const NavArrow = ({
+  side, onClick,
+}: { side: "left" | "right"; onClick: () => void }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label={side === "left" ? "Previous example" : "Next example"}
+    className="hidden md:flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+  >
+    {side === "left" ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+  </button>
+);
+
 const ExamTheatre = () => {
   const reduced = useReducedMotion();
   const [act, setAct] = useState<Act>(reduced ? "marked" : "typing");
   const [cycle, setCycle] = useState(0);
+  // Which way the slide transition animates from — purely decorative, no
+  // bearing on which example is shown (that's `cycle` alone, as before).
+  const [direction, setDirection] = useState(1);
 
   useEffect(() => {
     if (reduced) return;
-    // "marked" holds 7s — the payoff gets time to land before the loop fades.
+    // Durations sum to 20s — the carousel settles into an auto-advance
+    // every ~20 seconds, using the same clock that already drove the
+    // single-card loop rather than a second, competing timer.
     const durations: Record<Act, number> = {
-      typing: 2300, generating: 1400, writing: 4300, sketching: 2600, marked: 7000,
+      typing: 2300, generating: 1400, writing: 4300, sketching: 2600, marked: 9400,
     };
     const order: Act[] = ["typing", "generating", "writing", "sketching", "marked"];
     const idx = order.indexOf(act);
     const t = setTimeout(() => {
-      if (idx === order.length - 1) { setCycle((c) => c + 1); setAct("typing"); }
+      if (idx === order.length - 1) { setDirection(1); setCycle((c) => c + 1); setAct("typing"); }
       else setAct(order[idx + 1]);
     }, durations[act]);
     return () => clearTimeout(t);
   }, [act, reduced]);
 
-  // Which subject this loop shows. Derived from the existing cycle counter —
-  // no new state — so a full loop always lands on a new subject.
-  const example = THEATRE_EXAMPLES[cycle % THEATRE_EXAMPLES.length];
+  const len = THEATRE_EXAMPLES.length;
+  const activeIndex = ((cycle % len) + len) % len;
+  const example = THEATRE_EXAMPLES[activeIndex];
+  const prevExample = THEATRE_EXAMPLES[(activeIndex - 1 + len) % len];
+  const nextExample = THEATRE_EXAMPLES[(activeIndex + 1) % len];
+
+  // Manual navigation (arrow, peek, dot, swipe) resets the act machine for
+  // the newly-centred example — the exact same reset the natural end of a
+  // loop already performs, just triggered early instead of by the timeout.
+  const goBy = (delta: number) => {
+    setDirection(delta > 0 ? 1 : -1);
+    setCycle((c) => c + delta);
+    setAct("typing");
+  };
+  const goToIndex = (target: number) => {
+    const forward = (target - activeIndex + len) % len;
+    const backward = (activeIndex - target + len) % len;
+    goBy(forward <= backward ? forward : -backward);
+  };
 
   const typedTopic = useTypewriter(example.topic, !reduced && act === "typing", 45);
   const typedQuestion = useTypewriter(example.question, !reduced && act === "writing", 22);
@@ -173,166 +231,213 @@ const ExamTheatre = () => {
   const sketchOn = act === "sketching" || act === "marked";
   const marked = act === "marked";
 
+  const slideVariants = {
+    enter: (dir: number) => ({ opacity: 0, x: dir > 0 ? 36 : -36 }),
+    center: { opacity: 1, x: 0 },
+    exit: (dir: number) => ({ opacity: 0, x: dir > 0 ? -36 : 36 }),
+  };
+
   return (
-    <div className="relative w-full max-w-[760px] mx-auto select-none" aria-hidden="true">
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={cycle}
-          initial={reduced ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.5 }}
-          className="rounded-2xl border border-border bg-card shadow-[0_32px_80px_-28px_hsl(var(--primary)/0.4)] overflow-hidden"
-        >
-          {/* Product chrome: subject pill · timer · running marks total */}
-          <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-border bg-secondary/60">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold px-2.5 py-1">
-              <GraduationCap className="h-3 w-3" />
-              {example.subject}
-            </span>
-            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-              <Timer className="h-3 w-3" />
-              {marked ? example.timers.marked : act === "sketching" ? example.timers.sketching : questionVisible ? example.timers.writing : "0:00"}
-            </span>
-            <span className="ml-auto text-xs font-medium text-muted-foreground">
-              Marks: <span className={marked ? "text-green-600 font-semibold" : ""}>{marked ? example.marksAwarded : 0}</span> / {example.marksTotal}
-            </span>
-          </div>
+    <div className="relative w-full select-none">
+      <div className="flex items-center justify-center gap-3 md:gap-4">
+        <NavArrow side="left" onClick={() => goBy(-1)} />
+        <TheatrePeek example={prevExample} onClick={() => goBy(-1)} ariaLabel={`Show the ${prevExample.subject} example`} />
 
-          <div className="p-4 sm:p-6 space-y-4">
-            {/* Topic input */}
-            <div className="rounded-xl border border-border bg-background px-3.5 py-2.5 flex items-center gap-2.5">
-              <PenLine className="h-4 w-4 text-primary shrink-0" />
-              <span className="text-sm text-foreground min-h-[1.25rem]">
-                {act === "typing" ? typedTopic : example.topic}
-                {act === "typing" && <span className="inline-block w-[2px] h-4 ml-px bg-primary align-middle animate-pulse" />}
-              </span>
-            </div>
+        {/* Fixed-height stage: the card never visibly resizes switching
+            between the two-column graph layout and the single-column MCQ
+            layout — min-height is a floor, so it only ever grows, never jumps
+            smaller. (Sized generously from the tallest variant; nudge if the
+            live preview shows extra headroom either way.) */}
+        <div className="relative w-full max-w-[680px] min-h-[560px] sm:min-h-[400px]">
+          <AnimatePresence mode="wait" custom={direction}>
+            <motion.div
+              key={cycle}
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.45, ease: [0.32, 0.72, 0, 1] }}
+              drag={reduced ? false : "x"}
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.65}
+              onDragEnd={(_, info) => {
+                if (info.offset.x < -70) goBy(1);
+                else if (info.offset.x > 70) goBy(-1);
+              }}
+              className="absolute inset-0 rounded-2xl border border-border bg-card shadow-[0_32px_80px_-28px_hsl(var(--primary)/0.4)] overflow-hidden cursor-grab active:cursor-grabbing md:cursor-default"
+            >
+              {/* Product chrome: subject pill · timer · running marks total */}
+              <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-border bg-secondary/60">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold px-2.5 py-1">
+                  <GraduationCap className="h-3 w-3" />
+                  {example.subject}
+                </span>
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <Timer className="h-3 w-3" />
+                  {marked ? example.timers.marked : act === "sketching" ? example.timers.sketching : questionVisible ? example.timers.writing : "0:00"}
+                </span>
+                <span className="ml-auto text-xs font-medium text-muted-foreground">
+                  Marks: <span className={marked ? "text-green-600 font-semibold" : ""}>{marked ? example.marksAwarded : 0}</span> / {example.marksTotal}
+                </span>
+              </div>
 
-            <AnimatePresence>
-              {act === "generating" && (
-                <motion.div
-                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                  className="flex items-center gap-2 text-sm text-muted-foreground px-1"
-                >
-                  <Sparkles className="h-4 w-4 text-primary animate-pulse" />
-                  Writing your paper…
-                </motion.div>
-              )}
-            </AnimatePresence>
+              <div className="p-4 sm:p-6 space-y-4" aria-hidden="true">
+                {/* Topic input */}
+                <div className="rounded-xl border border-border bg-background px-3.5 py-2.5 flex items-center gap-2.5">
+                  <PenLine className="h-4 w-4 text-primary shrink-0" />
+                  <span className="text-sm text-foreground min-h-[1.25rem]">
+                    {act === "typing" ? typedTopic : example.topic}
+                    {act === "typing" && <span className="inline-block w-[2px] h-4 ml-px bg-primary align-middle animate-pulse" />}
+                  </span>
+                </div>
 
-            {/* The exam paper */}
-            <AnimatePresence>
-              {questionVisible && (
-                <motion.div
-                  initial={reduced ? false : { opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={
-                    example.kind === "graph"
-                      ? "rounded-xl border border-border bg-background overflow-hidden grid sm:grid-cols-[1fr_300px]"
-                      : "rounded-xl border border-border bg-background overflow-hidden"
-                  }
-                >
-                  <div>
-                    <div className="flex items-start justify-between gap-3 px-4 pt-3.5">
-                      <span className="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold px-2 py-1">
-                        {example.qLabel}
-                      </span>
-                      <span className="text-xs text-muted-foreground pt-1 shrink-0">
-                        ({example.marksTotal} mark{example.marksTotal === 1 ? "" : "s"})
-                      </span>
-                    </div>
-                    <p className="font-serif text-sm leading-relaxed text-foreground px-4 pt-2 pb-3 min-h-[5rem]">
-                      {questionText}
-                      {act === "writing" && <span className="inline-block w-[2px] h-4 ml-px bg-foreground/60 align-middle animate-pulse" />}
-                    </p>
-
-                    {/* Multiple-choice options — this subject has no graph to sketch */}
-                    {example.kind === "mcq" && questionVisible && (
-                      <div className="px-4 pb-2 space-y-1.5">
-                        {example.options.map((opt) => {
-                          const isCorrect = opt.key === example.correctKey;
-                          return (
-                            <div
-                              key={opt.key}
-                              className={
-                                "flex items-center gap-2.5 rounded-lg border px-3 py-2 text-xs transition-colors " +
-                                (marked && isCorrect
-                                  ? "border-green-600/40 bg-green-500/10"
-                                  : marked
-                                  ? "border-border opacity-50"
-                                  : "border-border")
-                              }
-                            >
-                              <span
-                                className={
-                                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs font-semibold " +
-                                  (marked && isCorrect
-                                    ? "border-green-600 text-green-700 dark:text-green-400"
-                                    : "border-muted-foreground/40 text-muted-foreground")
-                                }
-                              >
-                                {opt.key}
-                              </span>
-                              <span className="text-foreground">{opt.text}</span>
-                              {marked && isCorrect && <CheckCircle2 className="h-4 w-4 text-green-600 ml-auto shrink-0" />}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    <div className="px-4 pb-4 min-h-[3.4rem]">
-                      <AnimatePresence>
-                        {marked && (
-                          <motion.div
-                            initial={reduced ? false : { opacity: 0, y: 6 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="flex items-start gap-2 rounded-lg border border-green-600/30 bg-green-500/10 px-3 py-2"
-                          >
-                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
-                            <p className="text-xs text-foreground">
-                              <span className="font-semibold text-green-700 dark:text-green-400">{example.marksAwarded}/{example.marksTotal}.</span>{" "}
-                              {example.feedback}
-                            </p>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  </div>
-
-                  {/* Graph paper + self-sketching curve — only for graph-kind subjects */}
-                  {example.kind === "graph" && (
-                    <div className="border-t sm:border-t-0 sm:border-l border-border relative">
-                      <svg viewBox="0 0 300 200" className="w-full block bg-background">
-                        {Array.from({ length: 14 }).map((_, i) => (
-                          <line key={`v${i}`} x1={20 + i * 20} y1={10} x2={20 + i * 20} y2={190} stroke="hsl(var(--border))" strokeWidth="0.6" />
-                        ))}
-                        {Array.from({ length: 9 }).map((_, i) => (
-                          <line key={`h${i}`} x1={20} y1={20 + i * 20} x2={280} y2={20 + i * 20} stroke="hsl(var(--border))" strokeWidth="0.6" />
-                        ))}
-                        <line x1={20} y1={130} x2={280} y2={130} stroke="hsl(var(--muted-foreground))" strokeWidth="1.1" />
-                        <line x1={60} y1={10} x2={60} y2={190} stroke="hsl(var(--muted-foreground))" strokeWidth="1.1" />
-                        <motion.path
-                          d={example.graphPath}
-                          fill="none"
-                          stroke="hsl(var(--primary))"
-                          strokeWidth="2.4"
-                          strokeLinecap="round"
-                          initial={{ pathLength: reduced ? 1 : 0 }}
-                          animate={{ pathLength: sketchOn ? 1 : 0 }}
-                          transition={{ duration: reduced ? 0 : 2.1, ease: "easeInOut" }}
-                        />
-                        {marked && example.markedOverlay}
-                      </svg>
-                    </div>
+                <AnimatePresence>
+                  {act === "generating" && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                      className="flex items-center gap-2 text-sm text-muted-foreground px-1"
+                    >
+                      <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+                      Writing your paper…
+                    </motion.div>
                   )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </motion.div>
-      </AnimatePresence>
+                </AnimatePresence>
+
+                {/* The exam paper */}
+                <AnimatePresence>
+                  {questionVisible && (
+                    <motion.div
+                      initial={reduced ? false : { opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={
+                        example.kind === "graph"
+                          ? "rounded-xl border border-border bg-background overflow-hidden grid sm:grid-cols-[1fr_300px]"
+                          : "rounded-xl border border-border bg-background overflow-hidden"
+                      }
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-3 px-4 pt-3.5">
+                          <span className="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold px-2 py-1">
+                            {example.qLabel}
+                          </span>
+                          <span className="text-xs text-muted-foreground pt-1 shrink-0">
+                            ({example.marksTotal} mark{example.marksTotal === 1 ? "" : "s"})
+                          </span>
+                        </div>
+                        <p className="font-serif text-sm leading-relaxed text-foreground px-4 pt-2 pb-3 min-h-[5rem]">
+                          {questionText}
+                          {act === "writing" && <span className="inline-block w-[2px] h-4 ml-px bg-foreground/60 align-middle animate-pulse" />}
+                        </p>
+
+                        {/* Multiple-choice options — this subject has no graph to sketch */}
+                        {example.kind === "mcq" && questionVisible && (
+                          <div className="px-4 pb-2 space-y-1.5">
+                            {example.options.map((opt) => {
+                              const isCorrect = opt.key === example.correctKey;
+                              return (
+                                <div
+                                  key={opt.key}
+                                  className={
+                                    "flex items-center gap-2.5 rounded-lg border px-3 py-2 text-xs transition-colors " +
+                                    (marked && isCorrect
+                                      ? "border-green-600/40 bg-green-500/10"
+                                      : marked
+                                      ? "border-border opacity-50"
+                                      : "border-border")
+                                  }
+                                >
+                                  <span
+                                    className={
+                                      "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs font-semibold " +
+                                      (marked && isCorrect
+                                        ? "border-green-600 text-green-700 dark:text-green-400"
+                                        : "border-muted-foreground/40 text-muted-foreground")
+                                    }
+                                  >
+                                    {opt.key}
+                                  </span>
+                                  <span className="text-foreground">{opt.text}</span>
+                                  {marked && isCorrect && <CheckCircle2 className="h-4 w-4 text-green-600 ml-auto shrink-0" />}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        <div className="px-4 pb-4 min-h-[3.4rem]">
+                          <AnimatePresence>
+                            {marked && (
+                              <motion.div
+                                initial={reduced ? false : { opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="flex items-start gap-2 rounded-lg border border-green-600/30 bg-green-500/10 px-3 py-2"
+                              >
+                                <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                                <p className="text-xs text-foreground">
+                                  <span className="font-semibold text-green-700 dark:text-green-400">{example.marksAwarded}/{example.marksTotal}.</span>{" "}
+                                  {example.feedback}
+                                </p>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+
+                      {/* Graph paper + self-sketching curve — only for graph-kind subjects */}
+                      {example.kind === "graph" && (
+                        <div className="border-t sm:border-t-0 sm:border-l border-border relative">
+                          <svg viewBox="0 0 300 200" className="w-full block bg-background">
+                            {Array.from({ length: 14 }).map((_, i) => (
+                              <line key={`v${i}`} x1={20 + i * 20} y1={10} x2={20 + i * 20} y2={190} stroke="hsl(var(--border))" strokeWidth="0.6" />
+                            ))}
+                            {Array.from({ length: 9 }).map((_, i) => (
+                              <line key={`h${i}`} x1={20} y1={20 + i * 20} x2={280} y2={20 + i * 20} stroke="hsl(var(--border))" strokeWidth="0.6" />
+                            ))}
+                            <line x1={20} y1={130} x2={280} y2={130} stroke="hsl(var(--muted-foreground))" strokeWidth="1.1" />
+                            <line x1={60} y1={10} x2={60} y2={190} stroke="hsl(var(--muted-foreground))" strokeWidth="1.1" />
+                            <motion.path
+                              d={example.graphPath}
+                              fill="none"
+                              stroke="hsl(var(--primary))"
+                              strokeWidth="2.4"
+                              strokeLinecap="round"
+                              initial={{ pathLength: reduced ? 1 : 0 }}
+                              animate={{ pathLength: sketchOn ? 1 : 0 }}
+                              transition={{ duration: reduced ? 0 : 2.1, ease: "easeInOut" }}
+                            />
+                            {marked && example.markedOverlay}
+                          </svg>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        <TheatrePeek example={nextExample} onClick={() => goBy(1)} ariaLabel={`Show the ${nextExample.subject} example`} />
+        <NavArrow side="right" onClick={() => goBy(1)} />
+      </div>
+
+      {/* Pagination — also answers "how many examples are there" at a glance */}
+      <div className="flex items-center justify-center gap-1.5 mt-4">
+        {THEATRE_EXAMPLES.map((ex, i) => (
+          <button
+            key={ex.subject}
+            type="button"
+            onClick={() => goToIndex(i)}
+            aria-label={`Show the ${ex.subject} example`}
+            aria-current={i === activeIndex}
+            className={
+              "h-1.5 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary " +
+              (i === activeIndex ? "w-6 bg-primary" : "w-1.5 bg-border hover:bg-muted-foreground/40")
+            }
+          />
+        ))}
+      </div>
     </div>
   );
 };
@@ -588,7 +693,7 @@ const LandingPage = () => {
         <div className="absolute inset-0 pointer-events-none" style={paperGrid} />
         <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-background/30 to-background" />
 
-        <div className="relative max-w-4xl mx-auto text-center">
+        <div className="relative max-w-2xl">
           <Reveal>
             <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.06]">
               A full exam-style paper
@@ -598,14 +703,14 @@ const LandingPage = () => {
             </h1>
           </Reveal>
           <Reveal delay={0.1}>
-            <p className="mt-5 text-base sm:text-lg text-muted-foreground max-w-xl mx-auto">
+            <p className="mt-5 text-base sm:text-lg text-muted-foreground max-w-lg">
               Pick a topic. Examly writes the paper, you sit it on screen, and every answer —
               even the graphs you draw — comes back with method marks and feedback.
             </p>
           </Reveal>
           <Reveal delay={0.18}>
-            <div className="mt-7 flex flex-col items-center gap-3">
-              <Button size="lg" className="text-base px-8" onClick={goSignup}>
+            <div className="mt-7 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5">
+              <Button size="lg" className="text-base px-8 w-fit" onClick={goSignup}>
                 Generate your first paper
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
