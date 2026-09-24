@@ -79,7 +79,7 @@ import { MultiDiagramOptionPanel } from "@/components/shared/MultiDiagramOptionP
 import { FigureChartTabs, hasFigureAndChart } from "@/components/shared/FigureChartTabs";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
-import { BiologyFigurePanel, detectBiologyDiagram } from "@/components/biology";
+import { AssessmentBiologyFigure } from '@/components/biology/AssessmentBiologyFigure';
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
 import { MathsFigurePanel } from "@/components/maths";
 import { PhysicsFigurePanel } from "@/components/physics";
@@ -1850,12 +1850,7 @@ const ExamInProgress = () => {
                   <FigureChartTabs question={question} isExam={true} />
 
                   {/* Biology diagram panel */}
-                  {(() => {
-                    if (hasFigureAndChart(question)) return null;
-                    const bioConfig = detectBiologyDiagram(question.question_text, (question as any).subject);
-                    if (!bioConfig) return null;
-                    return <BiologyFigurePanel config={bioConfig} isExam={true} />;
-                  })()}
+                  {!hasFigureAndChart(question) && <AssessmentBiologyFigure question={question} />}
 
                   <EconomicsFigurePanel
                     questionText={question.question_text ?? ''}
