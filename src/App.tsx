@@ -1,4 +1,3 @@
-import TmpBioCheck from "./pages/TmpBioCheck";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -93,7 +92,6 @@ const App = () => {
             <Routes>
               {/* Public routes — no guard */}
               <Route path="/" element={<Index />} />
-              <Route path="/tmp-bio-check" element={<TmpBioCheck />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
