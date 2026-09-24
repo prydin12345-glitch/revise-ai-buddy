@@ -80,8 +80,12 @@ export interface BiologyDiagramConfig extends DiagramProps {
   parent2?: string;
   dominantTrait?: string;
   recessiveTrait?: string;
+  /** Given gametes are optional scaffolding. Completed offspring are review-only. */
+  showGametes?: boolean;
   // Food web/chain:
   organisms?: string[];
+  /** Direction is food -> consumer. Never inferred from organism names. */
+  feedingLinks?: Array<{from: string; to: string}>;
   pyramidType?: 'numbers' | 'biomass' | 'energy';
   // Enzyme:
   model?: 'lock_and_key' | 'induced_fit';
