@@ -7,12 +7,14 @@ interface BiologyFigurePanelProps {
   config: BiologyDiagramConfig;
   figureNumber?: number;
   isExam?: boolean;
+  mode?: 'assessment' | 'solution';
 }
 
 const BiologyFigurePanel: React.FC<BiologyFigurePanelProps> = ({
   config,
   figureNumber = 1,
   isExam = false,
+  mode = 'assessment',
 }) => {
   const [enlarged, setEnlarged] = useState(false);
   // Note: previously hid biology figures in exam mode — removed so figures
@@ -34,7 +36,7 @@ const BiologyFigurePanel: React.FC<BiologyFigurePanelProps> = ({
         }}
       >
         <div className="p-3">
-          <BiologyDiagramDraw config={config} />
+          <BiologyDiagramDraw config={config} mode={mode} />
         </div>
         <ZoomHint />
         <div
@@ -43,7 +45,7 @@ const BiologyFigurePanel: React.FC<BiologyFigurePanelProps> = ({
             bottom: 6,
             left: 10,
             fontSize: 10,
-            color: 'hsl(var(--muted-foreground))',
+            color: '#475569',
             letterSpacing: '0.04em',
           }}
         >
@@ -57,7 +59,7 @@ const BiologyFigurePanel: React.FC<BiologyFigurePanelProps> = ({
         title={`Figure ${figureNumber}`}
       >
         <div style={{ padding: 16 }}>
-          <BiologyDiagramDraw config={{ ...config, scale: 1.6 }} />
+          <BiologyDiagramDraw config={{ ...config, scale: 1.6 }} mode={mode} />
         </div>
       </DiagramModal>
     </>
