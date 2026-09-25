@@ -147,33 +147,124 @@ const useTypewriter = (text: string, active: boolean, speed = 28) => {
  *  paper (too little room at this width for that to read well). Click jumps
  *  straight to it. Height matches the stage's min-height so the row stays
  *  visually aligned regardless of which example is centred. */
-const TheatrePeek = ({
-  example, onClick, ariaLabel,
-}: { example: TheatreExample; onClick: () => void; ariaLabel: string }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    aria-label={ariaLabel}
-    className="hidden xl:flex flex-col shrink-0 w-[130px] h-[560px] sm:h-[400px] rounded-2xl border border-border bg-card p-4 opacity-40 hover:opacity-70 focus-visible:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-opacity text-left"
-  >
-    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary text-[10px] font-semibold px-2 py-0.5 w-fit">
-      <GraduationCap className="h-2.5 w-2.5" />
-      {example.subject}
-    </span>
-    <p className="font-serif text-xs leading-relaxed text-foreground mt-3 line-clamp-[10]">
-      {example.question}
-    </p>
-  </button>
+/** The chrome+content markup, frozen at its "fully resolved" moment (question
+ *  visible, graph fully drawn or MCQ answer revealed, marked). Used for the
+ *  peek cards — visually the same shape as the live stage so a peek reads as
+ *  a real settled paper, not a stripped-down teaser, but with no typewriter
+ *  or draw-in animation of its own (the slot it sits in handles the motion). */
+const TheatreStaticCard = ({ example }: { example: TheatreExample }) => (
+  <>
+    <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-border bg-secondary/60">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold px-2.5 py-1">
+        <GraduationCap className="h-3 w-3" />
+        {example.subject}
+      </span>
+      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+        <Timer className="h-3 w-3" />
+        {example.timers.marked}
+      </span>
+      <span className="ml-auto text-xs font-medium text-muted-foreground">
+        Marks: <span className="text-green-600 font-semibold">{example.marksAwarded}</span> / {example.marksTotal}
+      </span>
+    </div>
+
+    <div className="p-4 sm:p-6 space-y-4">
+      <div className="rounded-xl border border-border bg-background px-3.5 py-2.5 flex items-center gap-2.5">
+        <PenLine className="h-4 w-4 text-primary shrink-0" />
+        <span className="text-sm text-foreground">{example.topic}</span>
+      </div>
+
+      <div
+        className={
+          example.kind === "graph"
+            ? "rounded-xl border border-border bg-background overflow-hidden grid sm:grid-cols-[1fr_300px]"
+            : "rounded-xl border border-border bg-background overflow-hidden"
+        }
+      >
+        <div>
+          <div className="flex items-start justify-between gap-3 px-4 pt-3.5">
+            <span className="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold px-2 py-1">
+              {example.qLabel}
+            </span>
+            <span className="text-xs text-muted-foreground pt-1 shrink-0">
+              ({example.marksTotal} mark{example.marksTotal === 1 ? "" : "s"})
+            </span>
+          </div>
+          <p className="font-serif text-sm leading-relaxed text-foreground px-4 pt-2 pb-3 min-h-[5rem]">
+            {example.question}
+          </p>
+
+          {example.kind === "mcq" && (
+            <div className="px-4 pb-2 space-y-1.5">
+              {example.options.map((opt) => {
+                const isCorrect = opt.key === example.correctKey;
+                return (
+                  <div
+                    key={opt.key}
+                    className={
+                      "flex items-center gap-2.5 rounded-lg border px-3 py-2 text-xs " +
+                      (isCorrect ? "border-green-600/40 bg-green-500/10" : "border-border opacity-50")
+                    }
+                  >
+                    <span
+                      className={
+                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs font-semibold " +
+                        (isCorrect ? "border-green-600 text-green-700 dark:text-green-400" : "border-muted-foreground/40 text-muted-foreground")
+                      }
+                    >
+                      {opt.key}
+                    </span>
+                    <span className="text-foreground">{opt.text}</span>
+                    {isCorrect && <CheckCircle2 className="h-4 w-4 text-green-600 ml-auto shrink-0" />}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="px-4 pb-4 min-h-[3.4rem]">
+            <div className="flex items-start gap-2 rounded-lg border border-green-600/30 bg-green-500/10 px-3 py-2">
+              <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+              <p className="text-xs text-foreground">
+                <span className="font-semibold text-green-700 dark:text-green-400">{example.marksAwarded}/{example.marksTotal}.</span>{" "}
+                {example.feedback}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {example.kind === "graph" && (
+          <div className="border-t sm:border-t-0 sm:border-l border-border relative">
+            <svg viewBox="0 0 300 200" className="w-full block bg-background">
+              {Array.from({ length: 14 }).map((_, i) => (
+                <line key={`v${i}`} x1={20 + i * 20} y1={10} x2={20 + i * 20} y2={190} stroke="hsl(var(--border))" strokeWidth="0.6" />
+              ))}
+              {Array.from({ length: 9 }).map((_, i) => (
+                <line key={`h${i}`} x1={20} y1={20 + i * 20} x2={280} y2={20 + i * 20} stroke="hsl(var(--border))" strokeWidth="0.6" />
+              ))}
+              <line x1={20} y1={130} x2={280} y2={130} stroke="hsl(var(--muted-foreground))" strokeWidth="1.1" />
+              <line x1={60} y1={10} x2={60} y2={190} stroke="hsl(var(--muted-foreground))" strokeWidth="1.1" />
+              <path d={example.graphPath} fill="none" stroke="hsl(var(--primary))" strokeWidth="2.4" strokeLinecap="round" />
+              {example.markedOverlay}
+            </svg>
+          </div>
+        )}
+      </div>
+    </div>
+  </>
 );
 
 const NavArrow = ({
-  side, onClick,
-}: { side: "left" | "right"; onClick: () => void }) => (
+  side, onClick, className = "",
+}: { side: "left" | "right"; onClick: () => void; className?: string }) => (
   <button
     type="button"
     onClick={onClick}
     aria-label={side === "left" ? "Previous example" : "Next example"}
-    className="hidden md:flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    className={
+      "hidden md:flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary " +
+      className
+    }
   >
     {side === "left" ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
   </button>
@@ -231,25 +322,48 @@ const ExamTheatre = () => {
   const sketchOn = act === "sketching" || act === "marked";
   const marked = act === "marked";
 
+  // Same slide language on all three regions — the stage and both peeks move
+  // by the same amount in the same direction at once, which is what reads as
+  // "one deck being shifted" rather than three independent fades. Dropping
+  // `mode="wait"` (below) lets the outgoing and incoming card overlap in
+  // time instead of the old vanish-then-materialise.
   const slideVariants = {
-    enter: (dir: number) => ({ opacity: 0, x: dir > 0 ? 36 : -36 }),
+    enter: (dir: number) => ({ opacity: 0, x: dir > 0 ? 40 : -40 }),
     center: { opacity: 1, x: 0 },
-    exit: (dir: number) => ({ opacity: 0, x: dir > 0 ? -36 : 36 }),
+    exit: (dir: number) => ({ opacity: 0, x: dir > 0 ? -40 : 40 }),
   };
 
   return (
     <div className="relative w-full select-none">
-      <div className="flex items-center justify-center gap-3 md:gap-4">
-        <NavArrow side="left" onClick={() => goBy(-1)} />
-        <TheatrePeek example={prevExample} onClick={() => goBy(-1)} ariaLabel={`Show the ${prevExample.subject} example`} />
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_min(680px,100%)_1fr] items-center">
+        {/* Left overflow zone — a peek this wide only fits from lg: up */}
+        <div className="relative hidden lg:block h-[560px] sm:h-[400px] overflow-hidden">
+          <AnimatePresence custom={direction}>
+            <motion.button
+              key={`prev-${prevExample.subject}`}
+              type="button"
+              onClick={() => goBy(-1)}
+              aria-label={`Show the ${prevExample.subject} example`}
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.45, ease: [0.32, 0.72, 0, 1] }}
+              className="absolute inset-y-0 right-0 w-[680px] max-w-none rounded-2xl border border-border bg-card text-left opacity-35 hover:opacity-55 focus-visible:opacity-70 focus-visible:outline-none transition-opacity overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_60%)]"
+            >
+              <TheatreStaticCard example={prevExample} />
+            </motion.button>
+          </AnimatePresence>
+        </div>
 
         {/* Fixed-height stage: the card never visibly resizes switching
             between the two-column graph layout and the single-column MCQ
             layout — min-height is a floor, so it only ever grows, never jumps
             smaller. (Sized generously from the tallest variant; nudge if the
             live preview shows extra headroom either way.) */}
-        <div className="relative w-full max-w-[680px] min-h-[560px] sm:min-h-[400px]">
-          <AnimatePresence mode="wait" custom={direction}>
+        <div className="relative w-full max-w-[680px] mx-auto min-h-[560px] sm:min-h-[400px]">
+          <AnimatePresence custom={direction}>
             <motion.div
               key={cycle}
               custom={direction}
@@ -265,7 +379,7 @@ const ExamTheatre = () => {
                 if (info.offset.x < -70) goBy(1);
                 else if (info.offset.x > 70) goBy(-1);
               }}
-              className="absolute inset-0 rounded-2xl border border-border bg-card shadow-[0_32px_80px_-28px_hsl(var(--primary)/0.4)] overflow-hidden cursor-grab active:cursor-grabbing md:cursor-default"
+              className="absolute inset-0 rounded-2xl border border-border bg-card shadow-[0_32px_80px_-28px_hsl(var(--primary)/0.4)] overflow-hidden cursor-grab active:cursor-grabbing md:cursor-default z-10"
             >
               {/* Product chrome: subject pill · timer · running marks total */}
               <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-border bg-secondary/60">
@@ -418,9 +532,31 @@ const ExamTheatre = () => {
           </AnimatePresence>
         </div>
 
-        <TheatrePeek example={nextExample} onClick={() => goBy(1)} ariaLabel={`Show the ${nextExample.subject} example`} />
-        <NavArrow side="right" onClick={() => goBy(1)} />
+        {/* Right overflow zone */}
+        <div className="relative hidden lg:block h-[560px] sm:h-[400px] overflow-hidden">
+          <AnimatePresence custom={direction}>
+            <motion.button
+              key={`next-${nextExample.subject}`}
+              type="button"
+              onClick={() => goBy(1)}
+              aria-label={`Show the ${nextExample.subject} example`}
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.45, ease: [0.32, 0.72, 0, 1] }}
+              className="absolute inset-y-0 left-0 w-[680px] max-w-none rounded-2xl border border-border bg-card text-left opacity-35 hover:opacity-55 focus-visible:opacity-70 focus-visible:outline-none transition-opacity overflow-hidden [mask-image:linear-gradient(to_left,transparent,black_60%)]"
+            >
+              <TheatreStaticCard example={nextExample} />
+            </motion.button>
+          </AnimatePresence>
+        </div>
       </div>
+
+      {/* Arrows overlaid near the stage edges, above the peek layer */}
+      <NavArrow side="left" onClick={() => goBy(-1)} className="absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 z-20" />
+      <NavArrow side="right" onClick={() => goBy(1)} className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 z-20" />
 
       {/* Pagination — also answers "how many examples are there" at a glance */}
       <div className="flex items-center justify-center gap-1.5 mt-4">
@@ -693,7 +829,7 @@ const LandingPage = () => {
         <div className="absolute inset-0 pointer-events-none" style={paperGrid} />
         <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-background/30 to-background" />
 
-        <div className="relative max-w-2xl">
+        <div className="relative max-w-4xl flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
           <Reveal>
             <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.06]">
               A full exam-style paper
@@ -702,20 +838,15 @@ const LandingPage = () => {
               <span className="block text-primary mt-1">Marked like an examiner.</span>
             </h1>
           </Reveal>
-          <Reveal delay={0.1}>
-            <p className="mt-5 text-base sm:text-lg text-muted-foreground max-w-lg">
-              Pick a topic. Examly writes the paper, you sit it on screen, and every answer —
-              even the graphs you draw — comes back with method marks and feedback.
-            </p>
-          </Reveal>
-          <Reveal delay={0.18}>
-            <div className="mt-7 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5">
-              <Button size="lg" className="text-base px-8 w-fit" onClick={goSignup}>
-                Generate your first paper
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-              <p className="text-xs text-muted-foreground">Free to start · No card needed</p>
-            </div>
+          <Reveal delay={0.14} className="shrink-0">
+            <Button
+              size="lg"
+              onClick={goSignup}
+              className="group text-base px-8 w-fit font-semibold shadow-[0_8px_28px_-6px_hsl(var(--primary)/0.55)] hover:shadow-[0_14px_36px_-6px_hsl(var(--primary)/0.65)] hover:-translate-y-0.5 transition-all duration-200"
+            >
+              Generate your first paper
+              <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
+            </Button>
           </Reveal>
         </div>
 
