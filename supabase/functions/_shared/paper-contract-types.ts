@@ -19,6 +19,8 @@ export interface PlannedPart {
   specRefs?: string[];
   mathsMarks?: number;
   practicalMarks?: number;
+  /** Authored common-tier demand target, not a claim that independent papers share questions. */
+  commonTierTarget?: boolean;
 }
 
 export interface PaperPlan {

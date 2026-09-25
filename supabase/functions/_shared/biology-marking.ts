@@ -1,7 +1,20 @@
 import { gatewayMarkingInstructions } from './ocr-biology-scope.ts';
 import { aqaPaper2Component, isAqaPaper2 } from './aqa-biology-paper2.ts';
+import { isEdexcelBiology } from './edexcel-biology-scope.ts';
+import { edexcelBiologyComponent, edexcelBiologyDefinition } from './edexcel-biology-contract.ts';
+import { resolvePaperSelection } from './course-selection.ts';
 
 export function biologyMarkingInstructions(context: any): string {
+  if (context?.resolved_by === 'server' && context.context_version === 2 && isEdexcelBiology({courseId: context.course_id})) {
+    const selection = resolvePaperSelection({subject: context.subject_name, examBoard: context.exam_board,
+      educationalTier: context.educational_tier}, context.assessment_tier,
+      {courseSelection: {courseId: context.course_id, paperId: context.paper_id}, paperContract: context.paper_contract});
+    const component = edexcelBiologyComponent(context.paper_id, context.assessment_tier);
+    if (!component || component !== context.component_code || component !== selection.componentCode) throw new Error('Saved Edexcel Biology marking context has an invalid tier/component.');
+    return `COURSE: Pearson Edexcel GCSE separate Biology 1BI0, ${component}, ${context.assessment_tier} tier.
+Assessed topic areas: ${edexcelBiologyDefinition(context.paper_id, context.assessment_tier).topics.join('; ')}. Topic 1 is shared by both papers. Use Edexcel's course boundaries, not AQA/OCR exclusions. For example, named mitotic stages and ABO codominance are common Paper 1 content; nephron structure and nitrogen cycling are common Paper 2 content. Higher Paper 1 permits GCSE protein-synthesis detail; Higher Paper 2 permits the specified hormone feedback mechanisms. Do not add unassessed requirements to the saved key.
+Mark only the saved task against its private key, actual resource values and assessed outcomes. For a six-mark level response use holistic best fit: select Level 1 (1–2), Level 2 (3–4) or Level 3 (5–6) from the saved task-specific science and reasoning descriptors, then the mark within that level; zero for no relevant science. Credit scientifically valid alternatives and equivalent units or working where appropriate. Never demand Higher-only material for Foundation full marks and never penalise an otherwise correct answer for exceeding its tier. Do not score by counting facts or award marks for answers already printed in a scaffold.`;
+  }
   if (context?.resolved_by !== 'server' || context.context_version !== 2 ||
     !isAqaPaper2({courseId: context.course_id, paperId: context.paper_id})) return gatewayMarkingInstructions(context);
   const component = aqaPaper2Component(context.assessment_tier);

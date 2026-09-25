@@ -39,6 +39,7 @@ export interface CourseCapability {
 
 export const OCR_GATEWAY_BIOLOGY_ID = 'ocr_gcse_biology_a_j247';
 export const OCR_21C_BIOLOGY_ID = 'ocr_gcse_biology_b_j257';
+export const EDEXCEL_BIOLOGY_ID = 'edexcel_gcse_biology_1bi0';
 const OCR_BIOLOGY_NAMES = ['biology', 'biology a', 'biology b', 'gateway biology', 'gateway biology a', 'biology (single science)', 'twenty first century biology', 'twenty first century biology b'];
 
 export const COURSE_CAPABILITIES: CourseCapability[] = [
@@ -50,6 +51,15 @@ export const COURSE_CAPABILITIES: CourseCapability[] = [
     levels: GCSE_LEVEL_IDS,
     tiers: ["foundation", "higher"],
     specificationCode: '8461',
+  },
+  {
+    id: EDEXCEL_BIOLOGY_ID,
+    label: 'Pearson Edexcel GCSE Biology (1BI0)',
+    subjects: ['biology', 'gcse biology', 'biology (single science)'],
+    boards: ['edexcel', 'pearson edexcel'],
+    levels: GCSE_LEVEL_IDS,
+    tiers: ['foundation', 'higher'],
+    specificationCode: '1BI0',
   },
   {
     id: OCR_GATEWAY_BIOLOGY_ID,
@@ -74,7 +84,7 @@ export const COURSE_CAPABILITIES: CourseCapability[] = [
 
 const norm = (v?: string | null) => (v ?? "").trim().toLowerCase();
 
-const DECORATION = /\b(aqa|edexcel|cambridge|ocr|wjec|eduqas|gcse|igcse|ks4|j247|j257|paper\s*\d+|higher|foundation|tier|hl|sl)\b/g;
+const DECORATION = /\b(aqa|pearson|edexcel|cambridge|ocr|wjec|eduqas|gcse|igcse|ks4|j247|j257|1bi0|paper\s*\d+|higher|foundation|tier|hl|sl)\b/g;
 
 const subjectForms = (value?: string | null): string[] => {
   const base = norm(value);
