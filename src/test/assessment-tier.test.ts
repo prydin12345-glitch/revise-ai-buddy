@@ -25,7 +25,7 @@ describe("assessment tier catalogue", () => {
 
   it("does not add tiers to other GCSEs, boards or levels", () => {
     expect(supportsAssessmentTier({ ...aqaGcseBiology, subject: "History" })).toBe(false);
-    expect(supportsAssessmentTier({ ...aqaGcseBiology, examBoard: "edexcel" })).toBe(false);
+    expect(supportsAssessmentTier({ ...aqaGcseBiology, examBoard: "wjec" })).toBe(false);
     expect(supportsAssessmentTier({ ...aqaGcseBiology, educationalTier: "level3_a_level" })).toBe(false);
     expect(supportsAssessmentTier({ subject: "Biology", examBoard: "ib", educationalTier: "ib_dp" })).toBe(false);
   });

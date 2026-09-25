@@ -62,7 +62,7 @@ describe("profile context resolver", () => {
   it("drops a stale tier when the course no longer supports tiering", () => {
     const ctx = resolveProfileContext({
       subjectName: "Biology",
-      profile: { ...biologyProfile, exam_board: "edexcel" },
+      profile: { ...biologyProfile, exam_board: "wjec" },
     });
     expect(ctx.assessmentTierSupported).toBe(false);
     expect(ctx.assessmentTier).toBeNull();

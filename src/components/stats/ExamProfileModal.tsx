@@ -19,6 +19,7 @@ import {
   getCourseCapability,
   getCourseOptions,
   OCR_GATEWAY_BIOLOGY_ID,
+  EDEXCEL_BIOLOGY_ID,
   normaliseAssessmentTier,
 } from "@/lib/assessment-tier";
 import { AssessmentTierSelector } from "@/components/exams/AssessmentTierSelector";
@@ -395,6 +396,7 @@ export const ExamProfileModal = ({
   const currentPlan = guidedActive ? buildPaperPlan(paperMode, selectedTier, courseCapability?.id, selectedPaperId) : null;
   const effectiveTopics = currentPlan ? [...new Set(currentPlan.parts.map(p => p.topic))] : selectedTopics;
   const configurationReady = (!explicitCourseNeeded || (!!courseCapability && courseCapability.generationAvailable !== false && !!selectedTier)) &&
+    (courseCapability?.id !== EDEXCEL_BIOLOGY_ID || (!!selectedPaperId && !!selectedTier)) &&
     (!selectedPaperId || !!paperDefinition) && (selectedPaperId !== 'paper_2' || !!selectedTier) && (paperMode === "custom" || !!currentPlan);
 
   // Explicit conversion only — nothing is overwritten until the user accepts.
@@ -402,11 +404,11 @@ export const ExamProfileModal = ({
     setMcqCount(plan.parts.filter((p) => p.responseType === "mcq_single").length);
     setWrittenCount(plan.parts.filter((p) => p.responseType !== "mcq_single").length);
     setParentQuestionCount(plan.parentCount);
-    setQuestionStructure(plan.courseId === OCR_GATEWAY_BIOLOGY_ID ? "mixed" : "sub_questions");
+    setQuestionStructure([OCR_GATEWAY_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID].includes(plan.courseId) ? "mixed" : "sub_questions");
     setMcqOptionsCount(4);
     setBlueprintEnabled(false);
     setBlueprintSections([]);
-    setAdvanced(prev => ({...prev, mcqPosition: "start", markDistribution: {}, includeExtended: false, extendedMarks: 0, calculatorPolicy: "allowed"}));
+    setAdvanced(prev => ({...prev, mcqPosition: plan.courseId === EDEXCEL_BIOLOGY_ID ? "mixed" : "start", markDistribution: {}, includeExtended: false, extendedMarks: 0, calculatorPolicy: "allowed"}));
     setMaxPartsPerQuestion(Math.max(...plan.parts.map(p => plan.parts.filter(q => q.parentId === p.parentId).length)));
     setTimeLimitMinutes(String(plan.durationMinutes));
     setIncludeTables(plan.parts.some((p) => p.resource === "data_table"));
@@ -627,7 +629,7 @@ export const ExamProfileModal = ({
           </SectionCard>
 
           {guidedActive && <p className="text-xs text-muted-foreground">The guided preset controls the topics, counts, timing and resources. Choose Custom to set your own layout.</p>}
-          {!configurationReady && <p role="status" className="text-xs text-amber-600">Choose a supported course and tier, then use the guided settings, or select Custom.</p>}
+          {!configurationReady && <p role="status" className="text-xs text-amber-600">{courseCapability?.id === EDEXCEL_BIOLOGY_ID ? 'Choose Paper 1 or Paper 2 and Foundation or Higher. Then apply the guided settings, or choose Custom with your own topics.' : 'Choose a supported course and tier, then use the guided settings, or select Custom.'}</p>}
           {!guidedActive && <fieldset className="space-y-4">
           {/* ── Questions ── */}
           <SectionCard accent={subjectColor} icon={ListChecks} title="Questions" hint={`${totalQuestionCount} total`}>

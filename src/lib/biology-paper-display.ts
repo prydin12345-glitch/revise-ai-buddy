@@ -1,5 +1,5 @@
 import { paperPlanForAttempt } from '../../supabase/functions/_shared/course-selection';
-import { OCR_GATEWAY_BIOLOGY_ID } from '@/lib/assessment-tier';
+import { OCR_GATEWAY_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID } from '@/lib/assessment-tier';
 import { canonicalPartNumber } from '../../supabase/functions/_shared/ocr-plan-validator';
 import { isAqaPaper2 } from '../../supabase/functions/_shared/aqa-biology-paper2';
 
@@ -8,6 +8,8 @@ export function biologyPaperDisplay(context: unknown) {
   if (gateway) return {...gateway, subject: 'Gateway Biology A'};
   try {
     const plan = paperPlanForAttempt(context);
+    if (plan?.courseId === EDEXCEL_BIOLOGY_ID) return {plan, subject: 'Biology',
+      label: `Pearson Edexcel Biology Paper ${plan.paperId === 'paper_1' ? '1' : '2'} · ${plan.componentCode} · ${plan.tier === 'foundation' ? 'Foundation' : 'Higher'}`};
     if (!plan || !isAqaPaper2(plan)) return null;
     return {plan, subject: 'Biology', label: `AQA Biology Paper 2 · ${plan.componentCode} · ${plan.tier === 'foundation' ? 'Foundation' : 'Higher'}`};
   } catch { return null; }

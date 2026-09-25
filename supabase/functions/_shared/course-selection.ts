@@ -1,4 +1,4 @@
-import { canonicalCourseId, getCourseCapability, getCourseOptions, OCR_GATEWAY_BIOLOGY_ID,
+import { canonicalCourseId, getCourseCapability, getCourseOptions, OCR_GATEWAY_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID,
   type AssessmentTier, type CourseLookup } from './assessment-tier.ts';
 import { biologyPaperDefinition, buildPaperPlan, type PaperMode } from './biology-paper-contract.ts';
 
@@ -48,6 +48,10 @@ export function resolvePaperSelection(lookup: CourseLookup, tier: AssessmentTier
     if (!paperId) throw new Error('Select the OCR Gateway first paper in your profile.');
     if (tier !== 'foundation' && tier !== 'higher') throw new Error('Select and save Foundation or Higher in your OCR profile.');
   }
+  if (course?.id === EDEXCEL_BIOLOGY_ID) {
+    if (!paperId) throw new Error('Select and save Paper 1 or Paper 2 in your Edexcel Biology profile.');
+    if (tier !== 'foundation' && tier !== 'higher') throw new Error('Select and save Foundation or Higher in your Edexcel Biology profile.');
+  }
   let resolvedContract: SavedPaperContract | null = null;
   if (Object.keys(contract).length) {
     if (!definition || !['full_mock', 'short_practice', 'custom'].includes(contract.mode)) throw new Error('The saved paper preset is invalid.');
@@ -70,6 +74,9 @@ export function paperPlanForAttempt(context: any, legacyBlueprint?: unknown) {
   if (legacy && String(context.exam_board ?? '').toLowerCase().includes('ocr') && /biology/i.test(context.subject_name ?? '')) {
     throw new Error('Create a fresh attempt from an OCR profile with its course, paper and tier saved.');
   }
+  if (legacy && canonicalCourseId(context.course_id ?? object(object(legacyBlueprint).paperContract).courseId) === EDEXCEL_BIOLOGY_ID) {
+    throw new Error('Create a fresh attempt from your Edexcel Biology profile with its paper and tier saved by the server.');
+  }
   const contract = legacy ? object(legacyBlueprint).paperContract : context.paper_contract;
   if (!contract) return null;
   if (legacy && canonicalCourseId(contract.courseId) === 'aqa_gcse_biology' && contract.paperId === 'paper_2') {
@@ -84,5 +91,6 @@ export function paperPlanForAttempt(context: any, legacyBlueprint?: unknown) {
 }
 
 export function describeCourseSelection(selection: ResolvedPaperSelection): string {
-  return [selection.componentCode, selection.courseId === OCR_GATEWAY_BIOLOGY_ID ? 'Gateway Biology A' : null].filter(Boolean).join(' · ');
+  return [selection.componentCode, selection.courseId === OCR_GATEWAY_BIOLOGY_ID ? 'Gateway Biology A' :
+    selection.courseId === EDEXCEL_BIOLOGY_ID ? 'Pearson Edexcel Biology' : null].filter(Boolean).join(' · ');
 }

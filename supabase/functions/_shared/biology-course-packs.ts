@@ -4,6 +4,10 @@ import { OCR_GATEWAY_PAPER, buildGatewayPlan, gatewayComponent } from './ocr-bio
 import { gatewayPartInstruction, gatewayPlanInstructions, GATEWAY_RULES } from './ocr-biology-scope.ts';
 import type { PaperMode, PaperPlan, PlannedPart } from './paper-contract-types.ts';
 import { AQA_BIOLOGY_P2, aqaPaper2Component, buildAqaPaper2Plan, aqaPaper2Instructions, aqaPaper2PartInstruction, AQA_P2_RULES } from './aqa-biology-paper2.ts';
+import { EDEXCEL_BIOLOGY_ID } from './assessment-tier.ts';
+import { edexcelBiologyDefinition, buildEdexcelBiologyPlan, edexcelBiologyInstructions,
+  edexcelBiologyPartInstruction, assertEdexcelBiologyPlan } from './edexcel-biology-contract.ts';
+import { edexcelBiologyRules, type EdexcelBiologyPaper } from './edexcel-biology-scope.ts';
 
 export interface BiologyPaperDefinition {
   courseId: string;
@@ -27,7 +31,7 @@ export interface BiologyPaperPack {
   tiers: readonly ['foundation', 'higher'];
   sources: readonly { url: string; section: string; checkedOn: string }[];
   official: { fullMarks: number; durationMinutes: number; sections?: readonly { id: 'A' | 'B'; marks: number }[] };
-  /** Our templates are not an official fixed question count or topic weighting. */
+  /** Separate each board's official structure from our subpart/topic choices. */
   layoutChoices: readonly string[];
   validation: { rows: 'legacy_totals' | 'exact_parts'; mcqOptions: number; levelSchemeAtMarks: number | null };
   /** Retain the proven AQA path while other adapters are migrated separately. */
@@ -38,9 +42,35 @@ export interface BiologyPaperPack {
   build: (mode: PaperMode, tier: PaperPlan['tier']) => PaperPlan | null;
   instructions: (plan: PaperPlan) => string;
   repairPartInstructions?: (part: PlannedPart, includeOptions: boolean) => string;
+  validatePlan?: (plan: PaperPlan) => void;
 }
 
 const curriculum = { country: 'GB', jurisdiction: 'England', qualification: 'GCSE', subject: 'Biology' } as const;
+
+const edexcelPack = (paper: EdexcelBiologyPaper): BiologyPaperPack => ({
+  id: `edexcel-1bi0-${paper.replace('_', '-')}-v1`, courseId: EDEXCEL_BIOLOGY_ID, paperId: paper,
+  contractVersion: 1, curriculum, examBoard: 'Pearson Edexcel', tiers: ['foundation', 'higher'],
+  sources: [
+    {url: 'https://qualifications.pearson.com/content/dam/pdf/GCSE/Science/2016/Specification/gcse-biology-spec.pdf',
+      section: 'Issue 4 (March 2024): qualification overview, subject content (bold Higher content), assessment information', checkedOn: '2026-09-24'},
+    {url: 'https://qualifications.pearson.com/content/dam/pdf/GCSE/Science/2016/Specification/SAMs_GCSE_L1-L2_in_Biology.pdf',
+      section: 'Sample assessment materials, Issue 1: both tiers, papers and marking guidance', checkedOn: '2026-09-24'},
+    {url: 'https://www.gov.uk/government/publications/gcse-9-to-1-subject-level-conditions-and-requirements-for-single-science',
+      section: 'Assessment requirements: mathematical and practical skills across the qualification', checkedOn: '2026-09-25'},
+  ],
+  official: {fullMarks: 100, durationMinutes: 105},
+  layoutChoices: ['Pearson specifies ten parent questions; 40 parts, eight MCQs and three six-mark responses are Examly choices.',
+    'AO marks 40/40/20, maths/practical marks and 27 common-tier demand marks are template targets, not certification of generated content.',
+    'Separately generated tier papers do not contain the 27 identical overlap marks of an official paired set.',
+    'Short practice covers five topic areas with ten parts, 25 marks and 26 minutes; it is not a full paper.'],
+  validation: {rows: 'exact_parts', mcqOptions: 4, levelSchemeAtMarks: 6},
+  rules: edexcelBiologyRules(paper),
+  generation: {strategy: 'contract_only', systemPrompt: 'Write an original Pearson Edexcel GCSE separate Biology 1BI0 paper using the supplied saved paper, tier, immutable part plan and Edexcel specification outcomes. Do not import AQA/OCR content exclusions or an OCR Section A. Return complete JSON with canonical resources and private marking schemes.'},
+  definition: tier => edexcelBiologyDefinition(paper, tier),
+  build: (mode, tier) => buildEdexcelBiologyPlan(paper, mode, tier),
+  instructions: edexcelBiologyInstructions, repairPartInstructions: edexcelBiologyPartInstruction,
+  validatePlan: assertEdexcelBiologyPlan,
+});
 
 /** Register only implemented paper versions. A catalogue entry alone never enables generation. */
 export const BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [
@@ -85,6 +115,8 @@ export const BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [
     definition: tier => ({...AQA_BIOLOGY_P2, componentCode: aqaPaper2Component(tier)}),
     build: buildAqaPaper2Plan, instructions: aqaPaper2Instructions, repairPartInstructions: aqaPaper2PartInstruction,
   },
+  edexcelPack('paper_1'),
+  edexcelPack('paper_2'),
 ];
 
 export const biologyPaperOptions = (courseId: string | null | undefined) =>
@@ -189,4 +221,5 @@ export function assertBiologyPlanIntegrity(plan: PaperPlan, pack = packForBiolog
       if (plan.parts.filter(p => p.section === section.id).reduce((sum, p) => sum + p.marks, 0) !== section.marks) reject(`Section ${section.id} total mismatch`);
     }
   }
+  pack.validatePlan?.(plan);
 }
