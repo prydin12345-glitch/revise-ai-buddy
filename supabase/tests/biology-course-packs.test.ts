@@ -41,7 +41,7 @@ describe('Biology adapters preserve the installed version-1 contracts', () => {
       { paperContract: { courseId: aqa, paperId: 'paper_1', mode: 'full_mock', contractVersion: 1 } })).toThrow(/Foundation or Higher/);
   });
 
-  it('does not enable unavailable papers, qualifications or courses', () => {
+  it('does not choose unavailable or ambiguous papers, qualifications or courses', () => {
     for (const course of [OCR_21C_BIOLOGY_ID, 'edexcel_gcse_biology', 'unknown']) {
       expect(getBiologyPaperPack(course)).toBeNull();
       expect(() => buildPaperPlan('full_mock', 'foundation', course)).toThrow();

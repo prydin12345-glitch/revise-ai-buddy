@@ -39,8 +39,8 @@ describe('explicit OCR course selection', () => {
     expect(() => resolvePaperSelection(lookup, null, blueprint)).toThrow(/Foundation or Higher/);
     expect(() => resolvePaperSelection(lookup, 'higher', {courseSelection: {courseId: OCR}})).toThrow(/paper/);
   });
-  it('blocks J257 and Gateway second papers until implemented', () => {
-    expect(() => resolvePaperSelection(lookup, 'higher', {courseSelection: {courseId: OCR_21C_BIOLOGY_ID, paperId: 'breadth'}})).toThrow(/not available/);
+  it('keeps Gateway second papers blocked and resolves J257 separately', () => {
+    expect(resolvePaperSelection(lookup, 'higher', {courseSelection: {courseId: OCR_21C_BIOLOGY_ID, paperId: 'breadth'}}).componentCode).toBe('J257/03');
     expect(() => resolvePaperSelection(lookup, 'higher', {...blueprint, courseSelection: {courseId: OCR, paperId: 'second_paper'}})).toThrow(/not available/);
   });
   it('rejects stale AQA presets and stale contract versions', () => {

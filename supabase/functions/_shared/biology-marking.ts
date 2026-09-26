@@ -4,7 +4,18 @@ import { isEdexcelBiology } from './edexcel-biology-scope.ts';
 import { edexcelBiologyComponent, edexcelBiologyDefinition } from './edexcel-biology-contract.ts';
 import { resolvePaperSelection } from './course-selection.ts';
 
+import {isOcr21cBiology} from './ocr21c-biology-scope.ts';
+
 export function biologyMarkingInstructions(context: any): string {
+  if (context?.resolved_by === 'server' && context.context_version === 2 && isOcr21cBiology({courseId:context.course_id})) {
+    const selection = resolvePaperSelection({subject:context.subject_name, examBoard:context.exam_board, educationalTier:context.educational_tier},
+      context.assessment_tier,{courseSelection:{courseId:context.course_id,paperId:context.paper_id},paperContract:context.paper_contract});
+    if (!selection.componentCode || context.component_code !== selection.componentCode) throw new Error('Saved OCR Biology B marking context has an invalid tier/component.');
+    return `COURSE: OCR Twenty First Century GCSE Biology B J257, ${context.component_code}, ${context.paper_id}, ${context.assessment_tier} tier.
+Both papers cover B1-B6 with B7 Ideas about Science and B8 practical skills; do not apply Gateway's chapter partition. Use the saved task and its private key, actual resource values and selected tier outcomes. The simple two-stage photosynthesis model and relative ATP yield are permitted GCSE J257 content. Do not require A-level mechanisms or Higher-only knowledge for Foundation full marks.
+${context.paper_id === 'breadth' ? 'Breadth uses short point-marked answers, no level-of-response scheme.' : 'For a six-mark Depth response use the saved task-specific Level 1 (1–2), Level 2 (3–4), Level 3 (5–6) descriptors and indicative science. Select the level by holistic best fit and then the mark within it; zero for no relevant response. Assess the sustained line of reasoning, not a mechanical count of six facts.'}
+Credit scientifically correct alternatives, equivalent units and valid working. Do not penalise a correct answer for going beyond its tier and do not add unassessed requirements. Do not award marks for information already supplied in an assessment scaffold.`;
+  }
   if (context?.resolved_by === 'server' && context.context_version === 2 && isEdexcelBiology({courseId: context.course_id})) {
     const selection = resolvePaperSelection({subject: context.subject_name, examBoard: context.exam_board,
       educationalTier: context.educational_tier}, context.assessment_tier,

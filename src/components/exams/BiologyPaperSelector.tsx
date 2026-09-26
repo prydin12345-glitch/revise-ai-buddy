@@ -1,5 +1,5 @@
 import { biologyPaperOptions } from '../../../supabase/functions/_shared/biology-course-packs';
-import { canonicalCourseId } from '@/lib/assessment-tier';
+import { canonicalCourseId, OCR_21C_BIOLOGY_ID } from '@/lib/assessment-tier';
 
 export function BiologyPaperSelector({courseId, value, tier, onChange}: {
   courseId: string | null; value: string | null; tier: 'foundation' | 'higher' | null;
@@ -15,7 +15,7 @@ export function BiologyPaperSelector({courseId, value, tier, onChange}: {
     <label htmlFor="biology-paper" className="text-sm font-medium">Biology paper</label>
     <select id="biology-paper" className="w-full rounded-md border bg-background p-2 text-sm"
       value={selectedId} onChange={event => onChange(event.target.value)}>
-      {!selectedId && <option value="" disabled>Choose Paper 1 or Paper 2</option>}
+      {!selectedId && <option value="" disabled>{courseId === OCR_21C_BIOLOGY_ID ? 'Choose Breadth or Depth' : 'Choose Paper 1 or Paper 2'}</option>}
       {options.map(pack => <option key={pack.id} value={pack.paperId}>{pack.definition(tier).displayName}</option>)}
     </select>
     {selected && <p className="text-xs text-muted-foreground">

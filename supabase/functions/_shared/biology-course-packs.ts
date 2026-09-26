@@ -4,10 +4,13 @@ import { OCR_GATEWAY_PAPER, buildGatewayPlan, gatewayComponent } from './ocr-bio
 import { gatewayPartInstruction, gatewayPlanInstructions, GATEWAY_RULES } from './ocr-biology-scope.ts';
 import type { PaperMode, PaperPlan, PlannedPart } from './paper-contract-types.ts';
 import { AQA_BIOLOGY_P2, aqaPaper2Component, buildAqaPaper2Plan, aqaPaper2Instructions, aqaPaper2PartInstruction, AQA_P2_RULES } from './aqa-biology-paper2.ts';
-import { EDEXCEL_BIOLOGY_ID } from './assessment-tier.ts';
+import { EDEXCEL_BIOLOGY_ID, OCR_21C_BIOLOGY_ID } from './assessment-tier.ts';
 import { edexcelBiologyDefinition, buildEdexcelBiologyPlan, edexcelBiologyInstructions,
   edexcelBiologyPartInstruction, assertEdexcelBiologyPlan } from './edexcel-biology-contract.ts';
 import { edexcelBiologyRules, type EdexcelBiologyPaper } from './edexcel-biology-scope.ts';
+
+import {ocr21cDefinition, buildOcr21cPlan, ocr21cInstructions, ocr21cPartInstruction, assertOcr21cPlan} from './ocr21c-biology-contract.ts';
+import {ocr21cBiologyRules, type Ocr21cPaper} from './ocr21c-biology-scope.ts';
 
 export interface BiologyPaperDefinition {
   courseId: string;
@@ -72,6 +75,31 @@ const edexcelPack = (paper: EdexcelBiologyPaper): BiologyPaperPack => ({
   validatePlan: assertEdexcelBiologyPlan,
 });
 
+const ocr21cPack = (paper: Ocr21cPaper): BiologyPaperPack => ({
+  id:`ocr-j257-${paper}-v1`, courseId:OCR_21C_BIOLOGY_ID, paperId:paper, contractVersion:1,
+  curriculum, examBoard:'OCR', tiers:['foundation','higher'],
+  sources:[
+    {url:'https://www.ocr.org.uk/Images/234595-specification-accredited-gcse-twenty-first-century-science-suite-biology-b-j257.pdf',
+      section:'Version 4.0 (August 2026), sections 2a/2c and 3a/3b; bold Higher-only content',checkedOn:'2026-09-25'},
+    {url:'https://www.ocr.org.uk/Images/462607-exploring-our-question-papers-twenty-first-century-science.pdf',
+      section:'Assessment approach: Breadth short tasks (maximum four marks), Depth level responses, interspersed MCQs',checkedOn:'2026-09-25'},
+    {url:'https://www.ocr.org.uk/qualifications/gcse/twenty-first-century-science-suite-biology-b-j257-from-2016/assessment/',
+      section:'J257/01-04 sample question papers and mark schemes',checkedOn:'2026-09-25'},
+  ],
+  official:{fullMarks:90,durationMinutes:105},
+  layoutChoices:[
+    'Both papers assess B1-B6 with B7/B8 embedded. There is no Gateway-style MCQ section.',
+    'Breadth: 15 groups, 45 parts and six MCQs. Depth: nine groups, 36 parts, three MCQs and two six-mark responses. These are Examly choices, not fixed OCR counts.',
+    'Whole-mark AO targets are Breadth 43/33/14 and Depth 29/39/22; together 72/72/36. They approximate OCR component proportions and do not certify generated demand.',
+    'Short practice samples six chapters in 12 parts: Breadth 24 marks/28 minutes; Depth 30 marks/35 minutes. Independently generated tier papers do not promise identical overlap questions.',
+  ],
+  validation:{rows:'exact_parts',mcqOptions:4,levelSchemeAtMarks:paper==='depth'?6:null},
+  rules:ocr21cBiologyRules(paper),
+  generation:{strategy:'contract_only',systemPrompt:'Write an original OCR Twenty First Century GCSE Biology B J257 paper at the saved tier and Breadth/Depth component. Follow the immutable plan and reviewed J257 outcomes. Use complete assessed tasks, consistent resources and private answer keys. Return valid JSON only.'},
+  definition:tier=>ocr21cDefinition(paper,tier), build:(mode,tier)=>buildOcr21cPlan(paper,mode,tier),
+  instructions:ocr21cInstructions, repairPartInstructions:ocr21cPartInstruction, validatePlan:assertOcr21cPlan,
+});
+
 /** Register only implemented paper versions. A catalogue entry alone never enables generation. */
 export const BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [
   {
@@ -117,6 +145,8 @@ export const BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [
   },
   edexcelPack('paper_1'),
   edexcelPack('paper_2'),
+  ocr21cPack('breadth'),
+  ocr21cPack('depth'),
 ];
 
 export const biologyPaperOptions = (courseId: string | null | undefined) =>

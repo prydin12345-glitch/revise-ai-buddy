@@ -1,4 +1,4 @@
-import { canonicalCourseId, getCourseCapability, getCourseOptions, OCR_GATEWAY_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID,
+import { canonicalCourseId, getCourseCapability, getCourseOptions, OCR_GATEWAY_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID,
   type AssessmentTier, type CourseLookup } from './assessment-tier.ts';
 import { biologyPaperDefinition, buildPaperPlan, type PaperMode } from './biology-paper-contract.ts';
 
@@ -48,6 +48,10 @@ export function resolvePaperSelection(lookup: CourseLookup, tier: AssessmentTier
     if (!paperId) throw new Error('Select the OCR Gateway first paper in your profile.');
     if (tier !== 'foundation' && tier !== 'higher') throw new Error('Select and save Foundation or Higher in your OCR profile.');
   }
+  if (course?.id === OCR_21C_BIOLOGY_ID) {
+    if (!paperId) throw new Error('Select and save Breadth or Depth in your OCR Biology B profile.');
+    if (tier !== 'foundation' && tier !== 'higher') throw new Error('Select and save Foundation or Higher in your OCR Biology B profile.');
+  }
   if (course?.id === EDEXCEL_BIOLOGY_ID) {
     if (!paperId) throw new Error('Select and save Paper 1 or Paper 2 in your Edexcel Biology profile.');
     if (tier !== 'foundation' && tier !== 'higher') throw new Error('Select and save Foundation or Higher in your Edexcel Biology profile.');
@@ -92,5 +96,6 @@ export function paperPlanForAttempt(context: any, legacyBlueprint?: unknown) {
 
 export function describeCourseSelection(selection: ResolvedPaperSelection): string {
   return [selection.componentCode, selection.courseId === OCR_GATEWAY_BIOLOGY_ID ? 'Gateway Biology A' :
+    selection.courseId === OCR_21C_BIOLOGY_ID ? 'Twenty First Century Biology B' :
     selection.courseId === EDEXCEL_BIOLOGY_ID ? 'Pearson Edexcel Biology' : null].filter(Boolean).join(' · ');
 }
