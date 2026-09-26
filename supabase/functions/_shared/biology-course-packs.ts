@@ -4,13 +4,17 @@ import { OCR_GATEWAY_PAPER, buildGatewayPlan, gatewayComponent } from './ocr-bio
 import { gatewayPartInstruction, gatewayPlanInstructions, GATEWAY_RULES } from './ocr-biology-scope.ts';
 import type { PaperMode, PaperPlan, PlannedPart } from './paper-contract-types.ts';
 import { AQA_BIOLOGY_P2, aqaPaper2Component, buildAqaPaper2Plan, aqaPaper2Instructions, aqaPaper2PartInstruction, AQA_P2_RULES } from './aqa-biology-paper2.ts';
-import { EDEXCEL_BIOLOGY_ID, OCR_21C_BIOLOGY_ID } from './assessment-tier.ts';
+import { EDEXCEL_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, WJEC_BIOLOGY_ID } from './assessment-tier.ts';
 import { edexcelBiologyDefinition, buildEdexcelBiologyPlan, edexcelBiologyInstructions,
   edexcelBiologyPartInstruction, assertEdexcelBiologyPlan } from './edexcel-biology-contract.ts';
 import { edexcelBiologyRules, type EdexcelBiologyPaper } from './edexcel-biology-scope.ts';
 
 import {ocr21cDefinition, buildOcr21cPlan, ocr21cInstructions, ocr21cPartInstruction, assertOcr21cPlan} from './ocr21c-biology-contract.ts';
 import {ocr21cBiologyRules, type Ocr21cPaper} from './ocr21c-biology-scope.ts';
+
+import {wjecBiologyDefinition,buildWjecBiologyPlan,assertWjecBiologyPlan,wjecBiologyInstructions,wjecPartInstruction} from './wjec-biology-contract.ts';
+import {wjecBiologyRules} from './wjec-biology-scope.ts';
+import {WJEC_BIOLOGY_SPEC_URL,type WjecBiologyUnit} from './wjec-biology-specification.ts';
 
 export interface BiologyPaperDefinition {
   courseId: string;
@@ -21,6 +25,7 @@ export interface BiologyPaperDefinition {
   fullMockMarks: number;
   fullMockMinutes: number;
   componentCode: string | null;
+  specificationVersion?: string;
 }
 
 export interface BiologyPaperPack {
@@ -29,7 +34,7 @@ export interface BiologyPaperPack {
   courseId: string;
   paperId: string;
   contractVersion: number;
-  curriculum: { country: 'GB'; jurisdiction: 'England'; qualification: 'GCSE'; subject: 'Biology' };
+  curriculum: { country: 'GB'; jurisdiction: 'England' | 'Wales'; qualification: 'GCSE'; subject: 'Biology' };
   examBoard: string;
   tiers: readonly ['foundation', 'higher'];
   sources: readonly { url: string; section: string; checkedOn: string }[];
@@ -100,6 +105,28 @@ const ocr21cPack = (paper: Ocr21cPaper): BiologyPaperPack => ({
   instructions:ocr21cInstructions, repairPartInstructions:ocr21cPartInstruction, validatePlan:assertOcr21cPlan,
 });
 
+const wjecPack=(unit:WjecBiologyUnit):BiologyPaperPack=>({
+  id:`wjec-3400-${unit.replace('_','-')}-v1`,courseId:WJEC_BIOLOGY_ID,paperId:unit,contractVersion:1,
+  curriculum:{...curriculum,jurisdiction:'Wales'},examBoard:'WJEC Wales',tiers:['foundation','higher'],
+  sources:[
+    {url:WJEC_BIOLOGY_SPEC_URL,section:'Version 3 February 2026: Units 1/2, bold Higher clauses, assessment and entry codes',checkedOn:'2026-09-26'},
+    {url:'https://www.wjec.co.uk/media/4gchi5ze/wjec-gcse-biology-sams-from-2016.pdf',section:'Written units at both tiers; QER science and communication descriptors',checkedOn:'2026-09-26'},
+    {url:'https://www.wjec.co.uk/articles/survey-outcomes-gcse-biology-chemistry-and-physics/',section:'Unit 3 changes for September 2026 cohorts; Units 1/2 unchanged',checkedOn:'2026-09-26'},
+  ],
+  official:{fullMarks:80,durationMinutes:105},
+  layoutChoices:[
+    'Each written unit contributes 45%. Unit 3 is a separate untiered practical assessment and is not generated here.',
+    'Eight groups, 32 parts, four MCQs and two six-mark QER tasks are Examly choices, not fixed WJEC counts.',
+    'AO targets 32/32/16, at least eight maths and twelve enquiry marks are design annotations, not proof of generated demand.',
+    'Short practice samples four topics in 12 parts, 27 marks and 35 minutes. English-medium components only.',
+    'Wales uses A*–G grades. Raw marks are not UMS; this template does not predict an official grade.',
+  ],
+  validation:{rows:'exact_parts',mcqOptions:4,levelSchemeAtMarks:6},rules:wjecBiologyRules(unit),
+  generation:{strategy:'contract_only',systemPrompt:'Write an original WJEC Wales GCSE separate Biology 3400QS written-unit mock at the saved Foundation/Higher tier. Follow this unit plan, WJEC common/Higher outcomes and canonical resources. Do not import Eduqas or English-board topic boundaries. Return complete JSON with private task-specific marking schemes.'},
+  definition:tier=>wjecBiologyDefinition(unit,tier),build:(mode,tier)=>buildWjecBiologyPlan(unit,mode,tier),
+  instructions:wjecBiologyInstructions,repairPartInstructions:wjecPartInstruction,validatePlan:assertWjecBiologyPlan,
+});
+
 /** Register only implemented paper versions. A catalogue entry alone never enables generation. */
 export const BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [
   {
@@ -147,6 +174,8 @@ export const BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [
   edexcelPack('paper_2'),
   ocr21cPack('breadth'),
   ocr21cPack('depth'),
+  wjecPack('unit_1'),
+  wjecPack('unit_2'),
 ];
 
 export const biologyPaperOptions = (courseId: string | null | undefined) =>

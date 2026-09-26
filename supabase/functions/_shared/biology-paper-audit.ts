@@ -5,7 +5,7 @@ import type { PaperPlan } from './paper-contract-types.ts';
 
 function identity(pack: BiologyPaperPack, plan: PaperPlan) {
   return { packId: pack.id, courseId: plan.courseId, paperId: plan.paperId, contractVersion: plan.contractVersion,
-    tier: plan.tier, mode: plan.mode, componentCode: plan.componentCode ?? null };
+    tier: plan.tier, mode: plan.mode, componentCode: plan.componentCode ?? null, ...(plan.specificationVersion?{specificationVersion:plan.specificationVersion}:{}) };
 }
 
 /** Inventory is computed from registered adapters, never another hardcoded course list. */

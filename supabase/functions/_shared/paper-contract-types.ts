@@ -38,6 +38,8 @@ export interface PaperPlan {
   durationMinutes: number;
   label: string;
   componentCode?: string;
+  /** Reviewed awarding-body edition, separate from the Examly layout version. */
+  specificationVersion?: string;
 }
 
 /** Human-readable summary used by the conversion preview in the UI. */

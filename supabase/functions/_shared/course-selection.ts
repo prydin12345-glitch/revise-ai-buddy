@@ -1,13 +1,16 @@
-import { canonicalCourseId, getCourseCapability, getCourseOptions, OCR_GATEWAY_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID,
+import { canonicalCourseId, getCourseCapability, getCourseOptions, OCR_GATEWAY_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID, WJEC_BIOLOGY_ID,
   type AssessmentTier, type CourseLookup } from './assessment-tier.ts';
 import { biologyPaperDefinition, buildPaperPlan, type PaperMode } from './biology-paper-contract.ts';
 
-export interface SavedPaperContract { courseId: string; paperId: string; mode: PaperMode; contractVersion: number; }
+import {WJEC_BIOLOGY_SPECIFICATION} from './wjec-biology-specification.ts';
+
+export interface SavedPaperContract { courseId: string; paperId: string; mode: PaperMode; contractVersion: number; specificationVersion?: string; }
 export interface ResolvedPaperSelection {
   courseId: string | null;
   paperId: string | null;
   componentCode: string | null;
   paperContract: SavedPaperContract | null;
+  specificationVersion?: string;
 }
 const object = (v: unknown): Record<string, any> => v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, any> : {};
 
@@ -56,15 +59,21 @@ export function resolvePaperSelection(lookup: CourseLookup, tier: AssessmentTier
     if (!paperId) throw new Error('Select and save Paper 1 or Paper 2 in your Edexcel Biology profile.');
     if (tier !== 'foundation' && tier !== 'higher') throw new Error('Select and save Foundation or Higher in your Edexcel Biology profile.');
   }
+  if(course?.id===WJEC_BIOLOGY_ID){
+    if(!paperId)throw new Error('Select and save Unit 1 or Unit 2 in your WJEC Wales Biology profile.');
+    if(tier!=='foundation'&&tier!=='higher')throw new Error('Select and save Foundation or Higher for the WJEC written unit.');
+    for(const saved of [choice.specificationVersion,contract.specificationVersion])
+      if(saved!=null&&saved!==WJEC_BIOLOGY_SPECIFICATION)throw new Error('Reapply the reviewed WJEC written-unit specification version.');
+  }
   let resolvedContract: SavedPaperContract | null = null;
   if (Object.keys(contract).length) {
     if (!definition || !['full_mock', 'short_practice', 'custom'].includes(contract.mode)) throw new Error('The saved paper preset is invalid.');
     if (contract.contractVersion !== definition.contractVersion || contract.paperId !== definition.paperId) throw new Error('Reapply the supported paper preset before generating.');
     if (canonicalCourseId(contract.courseId) !== course?.id) throw new Error('The saved paper preset belongs to a different course.');
     if (contract.mode !== 'custom' && tier !== 'foundation' && tier !== 'higher') throw new Error('Select Foundation or Higher before generating a guided paper.');
-    resolvedContract = {courseId: definition.courseId, paperId: definition.paperId, mode: contract.mode, contractVersion: definition.contractVersion};
+    resolvedContract = {courseId: definition.courseId, paperId: definition.paperId, mode: contract.mode, contractVersion: definition.contractVersion, ...(definition.specificationVersion?{specificationVersion:definition.specificationVersion}:{})};
   }
-  return {courseId: course?.id ?? null, paperId, componentCode: paperId ? definition?.componentCode ?? null : null, paperContract: resolvedContract};
+  return {courseId: course?.id ?? null, paperId, componentCode: paperId ? definition?.componentCode ?? null : null, paperContract: resolvedContract, ...(definition?.specificationVersion?{specificationVersion:definition.specificationVersion}:{})};
 }
 
 /** v2 snapshots freeze the profile preset at attempt creation. Legacy AQA
@@ -75,6 +84,8 @@ export function paperPlanForAttempt(context: any, legacyBlueprint?: unknown) {
     return null;
   }
   const legacy = context.context_version === 1;
+  if(canonicalCourseId(context.course_id??object(object(legacyBlueprint).paperContract).courseId)===WJEC_BIOLOGY_ID&&
+    (legacy||context.specification_version!==WJEC_BIOLOGY_SPECIFICATION))throw new Error('Create a fresh WJEC attempt with its reviewed specification version saved by the server.');
   if (legacy && String(context.exam_board ?? '').toLowerCase().includes('ocr') && /biology/i.test(context.subject_name ?? '')) {
     throw new Error('Create a fresh attempt from an OCR profile with its course, paper and tier saved.');
   }
@@ -97,5 +108,6 @@ export function paperPlanForAttempt(context: any, legacyBlueprint?: unknown) {
 export function describeCourseSelection(selection: ResolvedPaperSelection): string {
   return [selection.componentCode, selection.courseId === OCR_GATEWAY_BIOLOGY_ID ? 'Gateway Biology A' :
     selection.courseId === OCR_21C_BIOLOGY_ID ? 'Twenty First Century Biology B' :
+    selection.courseId === WJEC_BIOLOGY_ID ? 'WJEC Biology — Wales' :
     selection.courseId === EDEXCEL_BIOLOGY_ID ? 'Pearson Edexcel Biology' : null].filter(Boolean).join(' · ');
 }

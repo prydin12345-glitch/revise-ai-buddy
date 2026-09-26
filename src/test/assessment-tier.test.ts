@@ -21,11 +21,12 @@ describe("assessment tier catalogue", () => {
       "higher",
     ]);
     expect(getCourseCapability(aqaGcseBiology)?.id).toBe("aqa_gcse_biology");
+    expect(getAssessmentTierOptions({...aqaGcseBiology,examBoard:"wjec"})).toEqual(["foundation","higher"]);
   });
 
   it("does not add tiers to other GCSEs, boards or levels", () => {
     expect(supportsAssessmentTier({ ...aqaGcseBiology, subject: "History" })).toBe(false);
-    expect(supportsAssessmentTier({ ...aqaGcseBiology, examBoard: "wjec" })).toBe(false);
+    expect(supportsAssessmentTier({ ...aqaGcseBiology, examBoard: "eduqas" })).toBe(false);
     expect(supportsAssessmentTier({ ...aqaGcseBiology, educationalTier: "level3_a_level" })).toBe(false);
     expect(supportsAssessmentTier({ subject: "Biology", examBoard: "ib", educationalTier: "ib_dp" })).toBe(false);
   });

@@ -6,6 +6,9 @@ import { AQA_P2_RULES, isAqaPaper2, aqaPaper2ContentIssue } from './aqa-biology-
 import { BIOLOGY_RESOURCE_RULES } from './biology-assessment-resources.ts';
 import { isEdexcelBiology, edexcelBiologyRules, edexcelBiologyContentIssue, type EdexcelBiologyPaper } from './edexcel-biology-scope.ts';
 
+import {isWjecBiology,wjecBiologyRules,wjecBiologyContentIssue} from './wjec-biology-scope.ts';
+import {isWjecWrittenUnit} from './wjec-biology-specification.ts';
+
 export interface BiologyScope {
   courseId?: string | null;
   paperId?: string | null;
@@ -39,7 +42,8 @@ export function biologyScopeInstructions(scope: BiologyScope): string {
   const gateway = scope.courseId === OCR_GATEWAY_BIOLOGY_ID;
   const edexcel = isEdexcelBiology(scope) && (scope.paperId === 'paper_1' || scope.paperId === 'paper_2');
   const twentyFirst = isOcr21cBiology(scope) && (scope.paperId === 'breadth' || scope.paperId === 'depth');
-  const lines = [isGcseBiology(scope) ? (twentyFirst ? ocr21cBiologyRules(scope.paperId as Ocr21cPaper) : edexcel ? edexcelBiologyRules(scope.paperId as EdexcelBiologyPaper) : gateway ? GATEWAY_RULES : GCSE_BIOLOGY_RULES) : ''];
+  const wjec = isWjecBiology(scope) && isWjecWrittenUnit(scope.paperId);
+  const lines = [isGcseBiology(scope) ? (wjec ? wjecBiologyRules(scope.paperId as 'unit_1'|'unit_2') : twentyFirst ? ocr21cBiologyRules(scope.paperId as Ocr21cPaper) : edexcel ? edexcelBiologyRules(scope.paperId as EdexcelBiologyPaper) : gateway ? GATEWAY_RULES : GCSE_BIOLOGY_RULES) : ''];
   if (isGcseBiology(scope)) lines.push(BIOLOGY_RESOURCE_RULES);
   if (isAqaPaper2(scope)) lines.push(AQA_P2_RULES);
   if (getCourseCapability({ subject: scope.subject, examBoard: scope.examBoard, educationalTier: scope.educationalLevel, courseId: scope.courseId })?.id === 'aqa_gcse_biology' && (!scope.paperId || scope.paperId === 'paper_1')) lines.push('AQA Paper 1: Cell biology, Organisation, Infection and response, Bioenergetics. Do not import Paper 2 content.');
@@ -62,6 +66,7 @@ export function gcseBiologyIssue(part: { question_text?: unknown; task?: unknown
   if (!isGcseBiology(scope)) return null;
   const text = [part.question_text, part.task, part.correct_answer].map(v => typeof v === 'string' ? v : v ? JSON.stringify(v) : '').join('\n');
   const gateway = scope.courseId === OCR_GATEWAY_BIOLOGY_ID;
+  if (isWjecBiology(scope)) return wjecBiologyContentIssue(text, scope.assessmentTier);
   if (isOcr21cBiology(scope)) return ocr21cBiologyContentIssue(text, scope.assessmentTier);
   const match = text.match(gateway ? /\bthylakoids?\b|\bstroma\b|\bCalvin cycle\b|\bNADPH\b|\bchemiosmosis\b|\belectron transport chain\b/i : OUT_OF_LEVEL);
   if (gateway && scope.assessmentTier === 'foundation') {
