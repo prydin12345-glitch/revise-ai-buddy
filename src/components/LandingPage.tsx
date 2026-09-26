@@ -335,7 +335,7 @@ const ExamTheatre = () => {
 
   return (
     <div className="relative w-full select-none">
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_min(680px,100%)_1fr] items-center">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_min(680px,100%)_1fr] items-center gap-4 xl:gap-6">
         {/* Left overflow zone — a peek this wide only fits from lg: up */}
         <div className="relative hidden lg:block h-[560px] sm:h-[400px] overflow-hidden">
           <AnimatePresence custom={direction}>
@@ -350,7 +350,7 @@ const ExamTheatre = () => {
               animate="center"
               exit="exit"
               transition={{ duration: 0.45, ease: [0.32, 0.72, 0, 1] }}
-              className="absolute inset-y-0 right-0 w-[680px] max-w-none rounded-2xl border border-border bg-card text-left opacity-35 hover:opacity-55 focus-visible:opacity-70 focus-visible:outline-none transition-opacity overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_60%)]"
+              className="absolute inset-y-0 right-0 z-0 w-[560px] max-w-none scale-[0.94] origin-right rounded-2xl border border-border bg-card text-left opacity-35 hover:opacity-55 focus-visible:opacity-70 focus-visible:outline-none transition-opacity overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_55%)]"
             >
               <TheatreStaticCard example={prevExample} />
             </motion.button>
@@ -546,7 +546,7 @@ const ExamTheatre = () => {
               animate="center"
               exit="exit"
               transition={{ duration: 0.45, ease: [0.32, 0.72, 0, 1] }}
-              className="absolute inset-y-0 left-0 w-[680px] max-w-none rounded-2xl border border-border bg-card text-left opacity-35 hover:opacity-55 focus-visible:opacity-70 focus-visible:outline-none transition-opacity overflow-hidden [mask-image:linear-gradient(to_left,transparent,black_60%)]"
+              className="absolute inset-y-0 left-0 z-0 w-[560px] max-w-none scale-[0.94] origin-left rounded-2xl border border-border bg-card text-left opacity-35 hover:opacity-55 focus-visible:opacity-70 focus-visible:outline-none transition-opacity overflow-hidden [mask-image:linear-gradient(to_left,transparent,black_55%)]"
             >
               <TheatreStaticCard example={nextExample} />
             </motion.button>
@@ -829,15 +829,17 @@ const LandingPage = () => {
         <div className="absolute inset-0 pointer-events-none" style={paperGrid} />
         <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-background/30 to-background" />
 
-        <div className="relative max-w-4xl flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
-          <Reveal>
-            <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.06]">
-              A full exam-style paper
-              <br />
-              in under a minute.
-              <span className="block text-primary mt-1">Marked like an examiner.</span>
-            </h1>
-          </Reveal>
+        <div className="relative max-w-6xl flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+          <div className="max-w-3xl">
+            <Reveal>
+              <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.06]">
+                A full exam-style paper
+                <br />
+                in under a minute.
+                <span className="block text-primary mt-1">Marked like an examiner.</span>
+              </h1>
+            </Reveal>
+          </div>
           <Reveal delay={0.14} className="shrink-0">
             <Button
               size="lg"
