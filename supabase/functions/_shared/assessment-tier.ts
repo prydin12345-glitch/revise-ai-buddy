@@ -78,7 +78,7 @@ export const COURSE_CAPABILITIES: CourseCapability[] = [
     levels: GCSE_LEVEL_IDS,
     tiers: ['foundation', 'higher'],
     specificationCode: 'J257',
-    generationAvailable: false,
+    generationAvailable: true,
   },
 ];
 

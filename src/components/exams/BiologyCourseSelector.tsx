@@ -1,4 +1,4 @@
-import { getCourseOptions, OCR_GATEWAY_BIOLOGY_ID, type CourseLookup } from '@/lib/assessment-tier';
+import { getCourseOptions, OCR_GATEWAY_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, type CourseLookup } from '@/lib/assessment-tier';
 import { gatewayComponent } from '@/lib/biology-paper-contract';
 
 export function BiologyCourseSelector({lookup, value, tier, onChange}: {
@@ -17,6 +17,10 @@ export function BiologyCourseSelector({lookup, value, tier, onChange}: {
       </option>)}
     </select>
     <p className="text-xs text-muted-foreground">Gateway Biology A: J247 · Twenty First Century Biology B: J257.</p>
+    {value === OCR_21C_BIOLOGY_ID && <p className="text-xs text-muted-foreground">
+      Choose Breadth or Depth below. Both assess B1–B6, with Ideas about Science (B7) and practical skills (B8).
+      {' '}Full papers are 90 marks and 105 minutes. Breadth uses short tasks; Depth includes six-mark extended responses.
+    </p>}
     {value === OCR_GATEWAY_BIOLOGY_ID && <p className="text-xs text-muted-foreground">
       First paper: {tier ? `${gatewayComponent(tier)} · Paper ${tier === 'foundation' ? '1' : '3'}` : 'Paper 1 Foundation / Paper 3 Higher'}.
       {' '}B1 Cell level systems, B2 Scaling up, B3 Organism level systems, with practical skills.

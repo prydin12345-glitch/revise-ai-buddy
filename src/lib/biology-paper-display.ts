@@ -1,5 +1,5 @@
 import { paperPlanForAttempt } from '../../supabase/functions/_shared/course-selection';
-import { OCR_GATEWAY_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID } from '@/lib/assessment-tier';
+import { OCR_GATEWAY_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID } from '@/lib/assessment-tier';
 import { canonicalPartNumber } from '../../supabase/functions/_shared/ocr-plan-validator';
 import { isAqaPaper2 } from '../../supabase/functions/_shared/aqa-biology-paper2';
 
@@ -8,6 +8,8 @@ export function biologyPaperDisplay(context: unknown) {
   if (gateway) return {...gateway, subject: 'Gateway Biology A'};
   try {
     const plan = paperPlanForAttempt(context);
+    if (plan?.courseId === OCR_21C_BIOLOGY_ID) return {plan, subject:'Twenty First Century Biology B',
+      label:`OCR Biology B · ${plan.paperId === 'breadth' ? 'Breadth' : 'Depth'} in biology · ${plan.componentCode} · ${plan.tier === 'foundation' ? 'Foundation' : 'Higher'}`};
     if (plan?.courseId === EDEXCEL_BIOLOGY_ID) return {plan, subject: 'Biology',
       label: `Pearson Edexcel Biology Paper ${plan.paperId === 'paper_1' ? '1' : '2'} · ${plan.componentCode} · ${plan.tier === 'foundation' ? 'Foundation' : 'Higher'}`};
     if (!plan || !isAqaPaper2(plan)) return null;
@@ -21,6 +23,14 @@ export function gatewayPaperDisplay(context: unknown) {
     if (plan?.courseId !== OCR_GATEWAY_BIOLOGY_ID) return null;
     return {plan, label: `Gateway Biology A · ${plan.componentCode} · ${plan.tier === 'foundation' ? 'Foundation' : 'Higher'}`};
   } catch { return null; }
+}
+/** Derived from the saved plan, not a model-supplied label or answer key. */
+export function biologyResponseNotice(context: unknown, number: string): string | null {
+  const display = biologyPaperDisplay(context);
+  if (display?.plan.courseId !== OCR_21C_BIOLOGY_ID || display.plan.paperId !== 'depth') return null;
+  const part = display.plan.parts.find(p => canonicalPartNumber(p.questionNumber) === canonicalPartNumber(number));
+  return part?.marks === 6 && part.responseType === 'long_form'
+    ? '* Extended response: show a clear, logical line of reasoning.' : null;
 }
 export function gatewaySectionHeading(context: unknown, questionNumber: string, previousNumber?: string): string | null {
   const display = gatewayPaperDisplay(context);

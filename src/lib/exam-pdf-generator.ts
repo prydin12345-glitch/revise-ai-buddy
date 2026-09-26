@@ -1,4 +1,4 @@
-import { gatewaySectionHeading } from "@/lib/biology-paper-display";
+import { gatewaySectionHeading, biologyResponseNotice } from "@/lib/biology-paper-display";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import ReactDOM from "react-dom/client";
@@ -1073,6 +1073,7 @@ export async function generateExamPDF(
       const question = group.questions[i];
       const parsed = parseQuestionNumber(question.question_number);
       const isSubQ = parsed.sub !== '';
+      const responseNotice = biologyResponseNotice(examData.generation_context, question.question_number);
 
       const tableExtract = extractEmbeddedTable(question.question_text);
       let cleanedText = cleanLatexForPDF(tableExtract.cleanText);
@@ -1091,11 +1092,17 @@ export async function generateExamPDF(
       // Sub-question label
       if (isSubQ) {
         doc.setFontSize(10); doc.setFont("helvetica", "bold"); setColor(COLORS.primary);
-        doc.text(`(${parsed.sub})`, MARGIN + 5, yPosition);
+        doc.text(`(${parsed.sub})${responseNotice ? '*' : ''}`, MARGIN + 5, yPosition);
         if (showMarks && question.marks) {
           doc.setFont("helvetica", "normal"); setColor(COLORS.secondary);
           doc.text(formatSubMarks(question.marks), A4_WIDTH - MARGIN, yPosition, { align: "right" });
         }
+        yPosition += 6;
+      }
+
+      if (responseNotice) {
+        doc.setFontSize(9); doc.setFont('helvetica', 'italic'); setColor(COLORS.secondary);
+        doc.text(responseNotice, textIndent, yPosition);
         yPosition += 6;
       }
 
