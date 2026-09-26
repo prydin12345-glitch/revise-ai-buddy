@@ -128,6 +128,7 @@ export const toStoredGenerationContext = (
   paper_id: ctx.paperId,
   component_code: ctx.componentCode,
   paper_contract: ctx.paperContract,
+  ...(ctx.specificationVersion ? {specification_version:ctx.specificationVersion} : {}),
   resolved_by: SERVER_RESOLVED_MARKER,
   resolved_at: new Date().toISOString(),
 });

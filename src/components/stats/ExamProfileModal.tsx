@@ -21,10 +21,12 @@ import {
   OCR_GATEWAY_BIOLOGY_ID,
   EDEXCEL_BIOLOGY_ID,
   OCR_21C_BIOLOGY_ID,
+  WJEC_BIOLOGY_ID,
   normaliseAssessmentTier,
 } from "@/lib/assessment-tier";
 import { AssessmentTierSelector } from "@/components/exams/AssessmentTierSelector";
 import { BiologyCourseSelector } from "@/components/exams/BiologyCourseSelector";
+import {WJEC_BIOLOGY_SPECIFICATION} from "../../../supabase/functions/_shared/wjec-biology-specification";
 import { BiologyPaperSelector } from "@/components/exams/BiologyPaperSelector";
 import { profileCourseId, profilePaperId } from "../../../supabase/functions/_shared/course-selection";
 import { PaperModeSelector } from "@/components/exams/PaperModeSelector";
@@ -344,7 +346,7 @@ export const ExamProfileModal = ({
       setIncludeTables(initialData?.include_tables ?? false);
       const storedContract = (initialData as any)?.paper_blueprint?.paperContract;
       setPaperMode((storedContract?.mode as PaperMode) ?? "custom");
-      setPlanApplied(!!storedContract && storedContract.mode !== "custom");
+      setPlanApplied(!!storedContract && storedContract.mode !== "custom" && (storedContract.courseId !== WJEC_BIOLOGY_ID || storedContract.specificationVersion === WJEC_BIOLOGY_SPECIFICATION));
     }
   }, [open, initialData]);
 
@@ -397,7 +399,7 @@ export const ExamProfileModal = ({
   const currentPlan = guidedActive ? buildPaperPlan(paperMode, selectedTier, courseCapability?.id, selectedPaperId) : null;
   const effectiveTopics = currentPlan ? [...new Set(currentPlan.parts.map(p => p.topic))] : selectedTopics;
   const configurationReady = (!explicitCourseNeeded || (!!courseCapability && courseCapability.generationAvailable !== false && !!selectedTier)) &&
-    (![EDEXCEL_BIOLOGY_ID, OCR_21C_BIOLOGY_ID].includes(courseCapability?.id ?? '') || (!!selectedPaperId && !!selectedTier)) &&
+    (![EDEXCEL_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, WJEC_BIOLOGY_ID].includes(courseCapability?.id ?? '') || (!!selectedPaperId && !!selectedTier)) &&
     (!selectedPaperId || !!paperDefinition) && (selectedPaperId !== 'paper_2' || !!selectedTier) && (paperMode === "custom" || !!currentPlan);
 
   // Explicit conversion only — nothing is overwritten until the user accepts.
@@ -405,11 +407,11 @@ export const ExamProfileModal = ({
     setMcqCount(plan.parts.filter((p) => p.responseType === "mcq_single").length);
     setWrittenCount(plan.parts.filter((p) => p.responseType !== "mcq_single").length);
     setParentQuestionCount(plan.parentCount);
-    setQuestionStructure([OCR_GATEWAY_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID, OCR_21C_BIOLOGY_ID].includes(plan.courseId) ? "mixed" : "sub_questions");
+    setQuestionStructure([OCR_GATEWAY_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, WJEC_BIOLOGY_ID].includes(plan.courseId) ? "mixed" : "sub_questions");
     setMcqOptionsCount(4);
     setBlueprintEnabled(false);
     setBlueprintSections([]);
-    setAdvanced(prev => ({...prev, mcqPosition: [EDEXCEL_BIOLOGY_ID, OCR_21C_BIOLOGY_ID].includes(plan.courseId) ? "mixed" : "start", markDistribution: {}, includeExtended: false, extendedMarks: 0, calculatorPolicy: "allowed"}));
+    setAdvanced(prev => ({...prev, mcqPosition: [EDEXCEL_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, WJEC_BIOLOGY_ID].includes(plan.courseId) ? "mixed" : "start", markDistribution: {}, includeExtended: false, extendedMarks: 0, calculatorPolicy: "allowed"}));
     setMaxPartsPerQuestion(Math.max(...plan.parts.map(p => plan.parts.filter(q => q.parentId === p.parentId).length)));
     setTimeLimitMinutes(String(plan.durationMinutes));
     setIncludeTables(plan.parts.some((p) => p.resource === "data_table"));
@@ -429,11 +431,11 @@ export const ExamProfileModal = ({
       studiedTexts: isTextBasedSubject ? studiedTexts : undefined,
       paperBlueprint: (() => {
         const courseSelection = (courseCapability?.id === OCR_GATEWAY_BIOLOGY_ID || selectedPaperId) && paperDefinition
-          ? {courseId: courseCapability.id, paperId: paperDefinition.paperId} : undefined;
+          ? {courseId: courseCapability.id, paperId: paperDefinition.paperId, ...(paperDefinition.specificationVersion?{specificationVersion:paperDefinition.specificationVersion}:{})} : undefined;
         if (!currentPlan) return blueprintActive || courseSelection ? { ...(blueprintActive ? { sections: blueprintSections } : {}), ...(courseSelection ? {courseSelection} : {}) } : null;
-        return {courseSelection: {courseId: currentPlan.courseId, paperId: currentPlan.paperId},
+        return {courseSelection: {courseId: currentPlan.courseId, paperId: currentPlan.paperId, ...(currentPlan.specificationVersion?{specificationVersion:currentPlan.specificationVersion}:{})},
           paperContract: {courseId: currentPlan.courseId, paperId: currentPlan.paperId,
-            mode: currentPlan.mode, contractVersion: currentPlan.contractVersion}};
+            mode: currentPlan.mode, contractVersion: currentPlan.contractVersion, ...(currentPlan.specificationVersion?{specificationVersion:currentPlan.specificationVersion}:{})}};
       })(),
     };
     const resolvedQuestionStructure = isMcqOnlyProfile ? "mcq_only" : questionStructure;

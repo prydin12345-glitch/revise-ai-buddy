@@ -6,7 +6,18 @@ import { resolvePaperSelection } from './course-selection.ts';
 
 import {isOcr21cBiology} from './ocr21c-biology-scope.ts';
 
+import {isWjecBiology} from './wjec-biology-scope.ts';
+
 export function biologyMarkingInstructions(context: any): string {
+  if(context?.resolved_by==='server'&&context.context_version===2&&isWjecBiology({courseId:context.course_id})){
+    const selection=resolvePaperSelection({subject:context.subject_name,examBoard:context.exam_board,educationalTier:context.educational_tier},
+      context.assessment_tier,{courseSelection:{courseId:context.course_id,paperId:context.paper_id},paperContract:context.paper_contract});
+    if(!selection.componentCode||context.component_code!==selection.componentCode||context.specification_version!==selection.specificationVersion)throw new Error('Saved WJEC marking unit/tier/specification version is invalid.');
+    return `COURSE: WJEC Wales GCSE separate Biology 3400QS, ${context.component_code}, ${context.paper_id}, ${context.assessment_tier}, specification ${context.specification_version}.
+Use the saved task, private key and actual resource values. Follow WJEC unit/tier boundaries, not other boards. Do not demand Higher-only knowledge for Foundation full marks or penalise valid alternatives or correct answers that exceed the tier.
+Six-mark QER uses holistic best fit: select Level 1 (1–2), Level 2 (3–4) or Level 3 (5–6), then the mark within it using BOTH science content and communication descriptors. Consider clarity, organisation, specialist terminology and accurate spelling/punctuation/grammar within those descriptors. Never invent separate SPaG deductions or count six facts as a level scheme. Zero for no relevant response.
+Credit valid working and equivalent units. Award nothing for answers already supplied in scaffolds. Return raw question marks, not UMS or official qualification grades; Wales uses A*–G, not 9–1.`;
+  }
   if (context?.resolved_by === 'server' && context.context_version === 2 && isOcr21cBiology({courseId:context.course_id})) {
     const selection = resolvePaperSelection({subject:context.subject_name, examBoard:context.exam_board, educationalTier:context.educational_tier},
       context.assessment_tier,{courseSelection:{courseId:context.course_id,paperId:context.paper_id},paperContract:context.paper_contract});

@@ -1,4 +1,4 @@
-import { OCR_GATEWAY_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID } from "../_shared/assessment-tier.ts";
+import { OCR_GATEWAY_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID, WJEC_BIOLOGY_ID } from "../_shared/assessment-tier.ts";
 import { isAqaPaper2 } from "../_shared/aqa-biology-paper2.ts";
 import { paperPlanForAttempt } from "../_shared/course-selection.ts";
 import { biologyPlanInstructions, biologyBatchInstructions, packForBiologyPlan } from "../_shared/biology-course-packs.ts";
@@ -2665,7 +2665,7 @@ Do NOT include chart_data for concept-only questions like "Explain what the medi
     : /gcse|igcse|ks4|secondary_14_16/.test(lvl)
       ? 'medium'
       : 'medium';
-  const dedicatedBiologyScope = params.scope?.courseId === OCR_21C_BIOLOGY_ID || params.scope?.courseId === OCR_GATEWAY_BIOLOGY_ID || params.scope?.courseId === EDEXCEL_BIOLOGY_ID || isAqaPaper2(params.scope ?? {});
+  const dedicatedBiologyScope = params.scope?.courseId === WJEC_BIOLOGY_ID || params.scope?.courseId === OCR_21C_BIOLOGY_ID || params.scope?.courseId === OCR_GATEWAY_BIOLOGY_ID || params.scope?.courseId === EDEXCEL_BIOLOGY_ID || isAqaPaper2(params.scope ?? {});
   let difficultyBlock = dedicatedBiologyScope ? biologyScopeInstructions(params.scope!) : buildExamDifficultyInstructions(examDifficulty, subject, educationalLevel);
   // A-level calibration: match the register and demand of real board papers,
   // not generic quiz questions.
