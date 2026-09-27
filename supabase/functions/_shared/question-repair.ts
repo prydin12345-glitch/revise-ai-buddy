@@ -1,9 +1,11 @@
 import { validateBiologyPlan } from './biology-plan-validator.ts';
-import { biologyRepairInstructions } from './biology-course-packs.ts';
+import { biologyRepairInstructions, packForBiologyPlan } from './biology-course-packs.ts';
 import { analyseGroupRepair, type RepairDiagnostic, type RepairMode, type RepairResult } from './prepare-group-repair.ts';
 import { biologyScopeInstructions, type BiologyScope } from './gcse-biology-scope.ts';
 import type { PaperPlan } from './biology-paper-contract.ts';
 import { isMcqType } from './model-question-normalization.ts';
+import { assembleQuestionText, referencesResource } from './question-contract-validator.ts';
+import { questionResourceInstructions } from './question-resource-instructions.ts';
 
 export interface RepairRequest {
   group: any[];
@@ -23,6 +25,12 @@ export const describeRepairDiagnostics = (items: RepairDiagnostic[]): string => 
 export function buildQuestionRepairPrompt(input: RepairRequest): string {
   const taskOnly = input.mode === 'task_only';
   const sample = input.group.find(row => Number(row.marks) > 0);
+  const levelScheme = input.plan ? packForBiologyPlan(input.plan).validation.levelSchemeAtMarks : 6;
+  const resourceChecklist = input.group.map(row => {
+    const planned = input.plan?.parts.find(part => part.questionNumber === String(row.question_number));
+    const reference = referencesResource(assembleQuestionText(row));
+    return `Q${row.question_number}: planned resource=${planned?.resource ?? 'not specified'}; current reference=${reference ? 'yes' : 'no'}; saved payload=${row.diagram_config || row.table_data ? 'present (validate it)' : 'absent'}.`;
+  });
   const example = {question_number: sample?.question_number ?? '1(a)',
     ...(taskOnly ? {} : {context: '...'}), task: '...', correct_answer: '...',
     ...(!taskOnly && isMcqType(sample?.question_type) ? {options: ['Choice A', 'Choice B', 'Choice C', 'Choice D']} : {}),
@@ -36,9 +44,13 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     'Targets: ' + [...input.targetNumbers].join(', '),
     input.previousDiagnostics?.length ? 'Previous response was rejected: ' + describeRepairDiagnostics(input.previousDiagnostics) : '',
     'Keep each stored question number, topic, question type and mark allocation. Return an explicit task field for every scored part.',
-    'The task must contain a complete instruction such as Calculate, Describe, Explain, State, Name or Which. Background information alone is not a task.',
-    'Every scored repair needs a freshly checked correct_answer string derived from the supplied context and data. Never invent missing measurements.',
-    'correct_answer must be a plain string. For any 6-mark extended-response part the string must contain "Level 1 (1-2 marks):", "Level 2 (3-4 marks):" and "Level 3 (5-6 marks):" descriptors plus indicative content.',
+    'The task must contain a complete instruction such as Calculate, Describe, Explain, Distinguish, State, Name or Which. Background information alone is not a task.',
+    'Every scored repair needs a freshly checked correct_answer string derived from the supplied context and data.',
+    taskOnly ? 'Never invent missing measurements; preserve all original source data.'
+      : 'Use exact supplied measurements when recoverable. Never patch an unknown cell with a guessed value. If the source is irrecoverable, rewrite the COMPLETE group as a coherent new synthetic question with a complete dataset and new tasks/keys for EVERY sibling; never present invented values as recovered originals.',
+    levelScheme === 6
+      ? 'correct_answer must be a plain string. For any 6-mark extended-response part the string must contain "Level 1 (1-2 marks):", "Level 2 (3-4 marks):" and "Level 3 (5-6 marks):" descriptors plus indicative content.'
+      : 'correct_answer must contain the task-specific marking points, numerical working where relevant, acceptable alternatives and caps for the saved mark allocation. Do not add a GCSE three-level scheme.',
     taskOnly ? 'Return ONLY question_number, task and correct_answer for the targets. Do not emit a new context, table, graph, options or unrelated siblings.'
       : 'Return every sibling. For context-only unmarked parents, retain context and zero marks. For scored parts return context, task and correct_answer.',
     taskOnly ? '' : 'Keep all required resources. Store one coherent results table in diagram_config with type data_table, headers and rows; no Markdown/HTML copy. Rewrite keys to agree with the repaired data.',
@@ -48,6 +60,10 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
       : 'For every MCQ row return an options array of exactly four distinct non-empty choices (plain text, no A./B. prefixes) plus a correct_answer that matches one of them exactly. Never omit or null the options.',
     'Put mathematics inside $...$.',
     biologyRepairInstructions(input.plan, new Set(input.group.map(row => String(row.question_number))), !taskOnly),
+    taskOnly ? 'TASK-ONLY OUTPUT: the plan above is context, not an instruction to replace resources. Return ONLY question_number, task and correct_answer for the targets.'
+      : 'FULL-GROUP OUTPUT: use diagram_config for the repaired canonical resource, even where generation instructions above say chart_data. Return every sibling and every planned resource. A resource=none part may instead be rewritten to remove a dependency, but its task must remain answerable and its key must be rewritten too.',
+    taskOnly ? '' : 'RESOURCE CHECKLIST:\n' + resourceChecklist.join('\n'),
+    taskOnly ? '' : questionResourceInstructions('diagram_config'),
     'Planned parts: ' + JSON.stringify(input.plan?.parts.filter(p => input.group.some(row => String(row.question_number) === p.questionNumber)) ?? []),
     'Current group: ' + JSON.stringify(input.group.map(row => ({ question_number: row.question_number,
       question_type: row.question_type, marks: row.marks, topic_tag: row.topic_tag, question_text: row.question_text,

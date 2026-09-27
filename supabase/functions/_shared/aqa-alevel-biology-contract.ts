@@ -1,6 +1,7 @@
 import { AQA_ALEVEL_BIOLOGY_ID } from './assessment-tier.ts';
 import type { PaperMode, PaperPlan, PlannedPart } from './paper-contract-types.ts';
 import { AQA_ALEVEL_BIOLOGY_SPECIFICATION, AQA_ALEVEL_P1_TOPICS, AQA_ALEVEL_P1_OUTCOMES, AQA_ALEVEL_P1_RULES } from './aqa-alevel-biology-scope.ts';
+import { questionResourceInstructions } from './question-resource-instructions.ts';
 
 export const AQA_ALEVEL_P1 = {
   courseId:AQA_ALEVEL_BIOLOGY_ID,paperId:'paper_1',contractVersion:1,
@@ -73,7 +74,7 @@ export function aqaAlevelPartInstruction(p:PlannedPart):string {
   return `Q${p.questionNumber} | ${p.marks} marks | ${p.responseType} | ${p.demand} | ${p.assessmentRole} | topic_tag="${p.topic}" | `+
     (p.specRefs??[]).map(ref=>`${ref}: ${AQA_ALEVEL_P1_OUTCOMES[ref].text}`).join('; ')+
     ' | question_type="written". Choose a coherent task within these outcomes; do not try to assess every listed outcome in one part. '+
-    (p.resource==='none'?'Use a self-contained task, without a decorative figure.':`REQUIRED ${p.resource} in canonical chart_data with measured values, units, neutral labels and sufficient inputs; all private working must use exactly this data. `)+
+    (p.resource==='none'?'Use a self-contained task with all necessary givens stated, without a decorative figure or a dependency on another part\'s figure/table. ':`REQUIRED ${p.resource} in canonical chart_data with measured values, units, neutral labels and sufficient inputs; all private working must use exactly this data. ${questionResourceInstructions('chart_data')}\n`)+
     (p.mathsMarks?`Target ${p.mathsMarks} mathematical marks in the assessed instruction. `:'')+
     (p.practicalMarks?`Target ${p.practicalMarks} enquiry marks using methods, variables, evidence or evaluation. `:'')+
     (p.assessmentRole==='extended_response'?'Require a developed biological explanation/evaluation, not a GCSE recall list. ':'')+

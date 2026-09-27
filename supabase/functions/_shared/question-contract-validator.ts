@@ -83,7 +83,7 @@ export interface NormalizedRepairPart {
 /** Command verbs that constitute an assessed instruction. */
 const COMMAND_VERBS = [
   "calculate", "work out", "determine", "evaluate", "explain", "describe",
-  "state", "name", "identify", "give", "suggest", "compare", "contrast",
+  "state", "name", "identify", "give", "suggest", "compare", "contrast", "distinguish",
   "discuss", "justify", "outline", "define", "list", "predict", "estimate",
   "measure", "draw", "sketch", "plot", "label", "complete", "compute",
   "show that", "write", "select", "choose", "tick", "circle", "match",
@@ -319,7 +319,7 @@ export function validateQuestionCandidates(
       if (!resolvable) {
         push(
           "missing_required_resource",
-          "Part references a figure/table that has no payload.",
+          "Part references a figure/table that has no question-local payload. Return the referenced resource on this part, or rewrite the complete task and key to be self-contained with sufficient stated inputs; another part's payload is not automatically displayed here.",
         );
       }
     }
@@ -361,5 +361,7 @@ export function validateQuestionCandidates(
   return { defects, failedPartIds, failedGroupIds, ok: defects.length === 0 };
 }
 
-export const describeDefects = (defects: QuestionDefect[]): string =>
-  defects.map((d) => `${d.partId}: ${d.code} — ${d.detail}`).join("; ");
+export const describeDefects = (defects: QuestionDefect[], parts: CandidatePart[] = []): string => {
+  const numbers = new Map(parts.map((part, index) => [partIdOf(part, index), part.question_number]));
+  return defects.map((d) => `${numbers.get(d.partId) ? `Q${numbers.get(d.partId)} [${d.partId}]` : d.partId}: ${d.code} — ${d.detail}`).join("; ");
+};

@@ -39,11 +39,42 @@ function asTable(value: unknown): DataTable | null {
   if (typeof v === 'string') { try { v = JSON.parse(v); } catch { return null; } }
   if (Array.isArray(v) && v.length > 1 && v.every(Array.isArray)) v = { headers: v[0], rows: v.slice(1) };
   const t = object(v);
-  return t && Array.isArray(t.headers) && Array.isArray(t.rows) ? { ...t, type: 'data_table', headers: t.headers.map(String), rows: t.rows } as DataTable : null;
+  return t && Array.isArray(t.headers) && Array.isArray(t.rows)
+    ? coerceTable({ ...t, type: 'data_table' }).chart as DataTable : null;
 }
-function validTable(t: DataTable): boolean {
-  return t.headers.length > 0 && t.rows.length > 0 && t.rows.every(row => Array.isArray(row) && row.length === t.headers.length && row.every(cell => typeof cell === 'string' || (typeof cell === 'number' && Number.isFinite(cell))));
+const tableCell = (cell: unknown): boolean => typeof cell === 'string' || (typeof cell === 'number' && Number.isFinite(cell));
+/** Lossless representation change only. Never add/remove a cell or guess a key. */
+function coerceTable(chart: unknown): {chart: unknown; changed: boolean} {
+  const c = object(chart);
+  if (!c || c.type !== 'data_table' || !Array.isArray(c.headers) || !c.headers.length ||
+    c.headers.some((h: unknown) => typeof h !== 'string' || !h.trim()) || new Set(c.headers).size !== c.headers.length ||
+    !Array.isArray(c.rows) || !c.rows.length) return {chart, changed: false};
+  let changed = false;
+  const rows: unknown[] = [];
+  for (const row of c.rows) {
+    if (Array.isArray(row)) {
+      if (row.length !== c.headers.length || !row.every(tableCell)) return {chart, changed: false};
+      rows.push(row); continue;
+    }
+    const record = object(row);
+    if (!record || Object.keys(record).length !== c.headers.length ||
+      !c.headers.every((h: string) => Object.prototype.hasOwnProperty.call(record, h) && tableCell(record[h]))) return {chart, changed: false};
+    rows.push(c.headers.map((h: string) => record[h])); changed = true;
+  }
+  return changed ? {chart: {...c, rows}, changed: true} : {chart, changed: false};
 }
+function tableIssue(t: DataTable): string | null {
+  if (!t.headers.length || t.headers.some(h => typeof h !== 'string' || !h.trim())) return 'Table headers must be non-empty column names.';
+  if (!t.rows.length) return 'Table needs at least one row of supplied data.';
+  for (const [i, row] of t.rows.entries()) {
+    if (!Array.isArray(row)) return `Table row ${i + 1}: expected ${t.headers.length} cells in header order; received a non-array row. Keyed rows must match every header exactly, with no missing or extra keys.`;
+    if (row.length !== t.headers.length) return `Table row ${i + 1}: expected ${t.headers.length} cells to match headers; received ${row.length}. Include a header for any row-label column. Do not pad, truncate or invent missing measurements.`;
+    const column = row.findIndex(cell => !tableCell(cell));
+    if (column !== -1) return `Table row ${i + 1}, column ${column + 1}: expected text or a finite number; received a missing, nested or non-finite value. Repair the table and private key together.`;
+  }
+  return null;
+}
+const validTable = (t: DataTable): boolean => tableIssue(t) === null;
 const headerKey = (t: DataTable) => t.headers.map((h, i) => comparable(formatHeaderUnit(h, t.units?.[i]))).join('|');
 const rowKey = (t: DataTable) => JSON.stringify(t.rows.map(row => row.map(comparable)));
 const sameTable = (a: DataTable, b: DataTable) => headerKey(a) === headerKey(b) && rowKey(a) === rowKey(b);
@@ -76,6 +107,7 @@ const numeric = (v: unknown): number | null => {
  */
 export function coerceChart(chart: unknown): { chart: unknown; changed: boolean } {
   const c = object(chart);
+  if (c?.type === 'data_table') return coerceTable(chart);
   if (!c || c.type !== 'line_chart' || !Array.isArray(c.datasets)) return { chart, changed: false };
   let changed = false;
   const datasets = c.datasets.map((ds: any) => {
@@ -104,7 +136,8 @@ export function chartIssues(chart: unknown): ResourceIssue[] {
   const invalid = (detail: string): ResourceIssue[] => [{ code: 'invalid_resource', detail }];
   if (c.type === 'data_table') {
     const table = asTable(c);
-    return table && validTable(table) ? [] : invalid('Table row widths and finite values must match the headers.');
+    const detail = table ? tableIssue(table) : 'Table needs headers and rows arrays; every row must have exactly headers.length cells.';
+    return detail ? invalid(detail) : [];
   }
   if (c.type === 'line_chart') {
     if (!Array.isArray(c.datasets) || !c.datasets.length) return invalid('Line graph needs data series.');
@@ -149,7 +182,7 @@ export function resolveQuestionResources(q: ResourceQuestion) {
   const table = tables[0] ?? null;
   if (!chart && table) chart = table;
   for (const t of tables) {
-    if (!validTable(t)) issues.push({ code: 'invalid_resource', detail: 'Table rows do not match the column headers.' });
+    if (!validTable(t)) issues.push({ code: 'invalid_resource', detail: tableIssue(t)! });
     else if (table && validTable(table) && !sameTable(table, t)) issues.push({ code: 'conflicting_resource_data', detail: 'Stored copies of the data table disagree. Regenerate the question and mark scheme together.' });
   }
   const remove: EmbeddedTable[] = [];
@@ -164,7 +197,10 @@ export function resolveQuestionResources(q: ResourceQuestion) {
   let clean = text;
   if (!issues.length) for (const entry of remove.sort((a, b) => b.start - a.start)) clean = clean.slice(0, entry.start) + clean.slice(entry.end);
   clean = stripResourcePlaceholders(clean, !!chart || !!object(q.diagram_config) || !!object(q.diagramConfig));
-  return { text: clean, chart, table, issues };
+  // A table can appear through several schema aliases. Report each distinct
+  // defect once so the bounded repair prompt is not filled with duplicates.
+  const uniqueIssues = issues.filter((issue, i) => issues.findIndex(other => other.code === issue.code && other.detail === issue.detail) === i);
+  return { text: clean, chart, table, issues: uniqueIssues };
 }
 export function requireConsistentResources(q: ResourceQuestion) {
   const result = resolveQuestionResources(q);
