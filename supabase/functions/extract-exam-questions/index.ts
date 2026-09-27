@@ -1405,6 +1405,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     const rawResources = resolveQuestionResources({ ...q, question_text: assembleQuestionText(q) });
     const aliasConflict = rawResources.issues.find(issue => issue.code === 'conflicting_resource_data' && issue.detail.startsWith('Stored copies'));
     if (aliasConflict) throw new Error('Question ' + q.question_number + ': ' + aliasConflict.detail);
+    const canonicalChart = rawResources.chart ?? chartPayload;
     return {
       exam_id: draftId,
       question_number: String(q.question_number || i + 1),
@@ -1433,10 +1434,10 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
         // choices in `options` no longer collide with chart data.
         const baseDiagram = graphWrapper ?? q.diagramConfig ?? q.diagram_config ?? null;
         const correctChart = q.correct_chart_data ?? null;
-        if (chartPayload) {
+        if (canonicalChart) {
           return correctChart
-            ? { ...chartPayload, correct_chart_data: correctChart }
-            : chartPayload;
+            ? { ...canonicalChart, correct_chart_data: correctChart }
+            : canonicalChart;
         }
         if (correctChart) {
           return baseDiagram && typeof baseDiagram === 'object'
@@ -3153,7 +3154,7 @@ async function enforceAnswerability(
     return;
   }
   if (result.defects.some(d => d.code === 'plan_mismatch')) throw new Error('Biology paper structure does not match its saved plan: ' + describeDefects(result.defects.filter(d => d.code === 'plan_mismatch')));
-  console.warn(`Answerability defects: ${describeDefects(result.defects)}`);
+  console.warn(`Answerability defects: ${describeDefects(result.defects, drafts)}`);
 
   const attempts: Record<string, number> = {};
   let callsUsed = 0;
@@ -3163,9 +3164,10 @@ async function enforceAnswerability(
   while (!result.ok && callsUsed < MAX_REPAIR_CALLS_PER_REQUEST) {
     budgetStop = aiBudget.exhausted();
     if (budgetStop) { console.warn(`[repair] stopping: ${budgetStop}`); break; }
-    const groupId = result.failedGroupIds.find(
-      (g) => (attempts[g] ?? 0) < MAX_ATTEMPTS_PER_GROUP,
-    );
+    // Round-robin within the same eight-call ceiling: one stubborn early
+    // group must not use three attempts before later groups get their first.
+    const groupId = result.failedGroupIds.filter(g => (attempts[g] ?? 0) < MAX_ATTEMPTS_PER_GROUP)
+      .sort((a, b) => (attempts[a] ?? 0) - (attempts[b] ?? 0))[0];
     if (!groupId) break;
     attempts[groupId] = (attempts[groupId] ?? 0) + 1;
     callsUsed += 1;
@@ -3190,7 +3192,7 @@ async function enforceAnswerability(
     // instruction in isolation; escalate to a full parent-group rewrite.
     const escalate = attempts[groupId] > 1;
     const outcome = await requestQuestionRepair({
-      group, subject, scope, plan, defects: describeDefects(groupDefects),
+      group, subject, scope, plan, defects: describeDefects(groupDefects, group),
       mode: taskOnly && !escalate ? 'task_only' : 'full_group',
       targetNumbers: escalate ? new Set(group.map((row: any) => String(row.question_number))) : failedNumbers,
       previousDiagnostics: lastRejections[groupId],
@@ -3212,7 +3214,7 @@ async function enforceAnswerability(
 
   if (!result.ok) {
     const rejectionDetails = Object.entries(lastRejections).map(([group, items]) => `Group ${group}: ${describeRepairDiagnostics(items)}`).join(" | ");
-    const message = `Generation failed the answerability gate after ${callsUsed} repair attempt(s) [${aiBudget.summary()}${budgetStop ? '; ' + budgetStop : ''}]: ${describeDefects(result.defects)}${rejectionDetails ? ". Repair rejections: " + rejectionDetails : ""}`;
+    const message = `Generation failed the answerability gate after ${callsUsed} repair attempt(s) [${aiBudget.summary()}${budgetStop ? '; ' + budgetStop : ''}]: ${describeDefects(result.defects, drafts)}${rejectionDetails ? ". Repair rejections: " + rejectionDetails : ""}`;
     console.error(message);
     await supabase.from('exams').update({
       extraction_status: 'failed',

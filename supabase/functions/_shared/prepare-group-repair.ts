@@ -128,7 +128,10 @@ export function analyseGroupRepair(
         continue;
       }
       const needsResource = requiredParts.has(number) || !!row.diagram_config || !!row.table_data;
-      const diagram = part.diagram_config ?? part.chart_data ?? resources.chart ?? null;
+      // Use the validated, losslessly normalised chart, regardless of which
+      // supported model alias carried it. Do not validate one copy then save
+      // a different/raw copy, or drop a table_data/diagramConfig-only repair.
+      const diagram = resources.chart ?? part.diagram_config ?? part.diagramConfig ?? part.chart_data ?? null;
       if (needsResource && (!diagram || typeof diagram !== 'object' || Array.isArray(diagram))) {
         fail('missing_required_resource', 'Complete group repairs must return every required resource.', number); continue;
       }
