@@ -1379,7 +1379,7 @@ export default function CreateExam() {
                     examName={examName}
                     subjectId={subjectId}
                     subjectColor={subjectColor}
-                    boardLabel={[resolvedExamBoard ? getBoardDisplayName(resolvedExamBoard) : "Generic style", generationContext.componentCode, generationContext.assessmentTier].filter(Boolean).join(" · ")}
+                    boardLabel={[resolvedExamBoard ? getBoardDisplayName(resolvedExamBoard) : "Generic style", generationContext.componentCode, generationContext.assessmentTier === "not_tiered" ? "Untiered" : generationContext.assessmentTier].filter(Boolean).join(" · ")}
                     levelLabel={formatLevelLabel(profileEducationalTier || effectiveEducationalTier)}
                     totalQuestions={totalQuestions}
                     timerEnabled={timerEnabled}

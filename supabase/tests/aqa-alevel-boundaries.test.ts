@@ -1,0 +1,85 @@
+// @vitest-environment node
+import {build} from 'esbuild';
+import vm from 'node:vm';
+import {expect,it} from 'vitest';
+import {alevelSnapshot} from './aqa-alevel-fixtures';
+
+const exam='10000000-0000-0000-0000-000000000001',user='00000000-0000-0000-0000-000000000002',question='20000000-0000-0000-0000-000000000001';
+async function handler(name:string,options:{foreign?:boolean;badEdition?:boolean}={}){
+  const calls:any[]=[],writes:any[]=[],filters:any[]=[],requests:any[]=[];
+  const snapshot={...alevelSnapshot(),...(options.badEdition?{specification_version:'unsupported'}:{})};
+  const profile={id:'profile',user_id:user,subject_name:'Biology Higher',exam_board:'AQA',educational_tier:'level3',assessment_tier:null,paper_blueprint:{paperContract:snapshot.paper_contract}};
+  const client={auth:{getUser:async()=>({data:{user:{id:user}},error:null})},
+    rpc:async(name:string,args:any)=>{
+      calls.push({name,args});
+      if(name==='exam_access_info')return {data:{hasAccess:true,isOwner:false,isManager:false,isAssigned:true,gradesReleased:false,deadline:null}};
+      if(name==='claim_exam_marking')return {data:{state:'claimed',token:'token'}};
+      if(name==='reserve_ai_request')return {data:{allowed:true,usedToday:1,usedInBurstWindow:1}};
+      if(name==='finish_exam_marking')return {data:{totalScore:3,totalMarks:5}};
+      return {data:null,error:null};
+    },from(table:string){
+      const q:any={};let op='select',value:any;
+      for(const method of ['select','update','insert','upsert','eq','single','maybeSingle','order'])q[method]=(...args:any[])=>{
+        if(['update','insert','upsert'].includes(method)){op=method;value=args[0];writes.push({table,op,value});}
+        if(method==='eq')filters.push({table,column:args[0],value:args[1]});return q;
+      };
+      q.then=(resolve:any,reject:any)=>{
+        let data:any=null;
+        if(table==='subject_exam_profiles')data=options.foreign?null:profile;
+        if(table==='exams')data=op==='insert'?{...value,id:exam}:{id:exam,user_id:'tutor',assigned_by:'tutor',subject_id:'Biology Higher',title:'Synthetic A-level',generation_context:snapshot};
+        const questionRow={id:question,question_number:'9(a)',question_text:'Explain how the structure of a protein determines its function.',question_type:'written',correct_answer:'PRIVATE POINT-BASED KEY',marks:5};
+        if(table==='exam_questions')data=[questionRow];
+        if(table==='student_answers')data=[{question_id:question,answer_text:'My synthetic answer',score:null}];
+        if(table==='exam_submissions'&&op==='update')data={id:'submission'};
+        if(table==='practice_question_sets')data={id:'set',subject_id:'Biology',generation_context:snapshot};
+        if(table==='practice_questions')data=questionRow;
+        if(table==='practice_question_answers')data=op==='select'?[{score:3,is_correct:false}]:null;
+        if(table==='practice_set_progress')data={id:'progress'};
+        return Promise.resolve({data,error:null}).then(resolve,reject);
+      };return q;
+    }};
+  const result=await build({entryPoints:[`supabase/functions/${name}/index.ts`],bundle:true,write:false,platform:'node',format:'cjs',logLevel:'silent',plugins:[{name:'local-runtime',setup(b){
+    b.onResolve({filter:/^https:\/\//},args=>({path:args.path,namespace:'runtime'}));
+    b.onLoad({filter:/.*/,namespace:'runtime'},args=>({loader:'js',contents:args.path.includes('supabase-js')?'export const createClient=()=>globalThis.client;':args.path.includes('server.ts')?'export const serve=h=>{globalThis.handler=h;};':''}));
+  }}]});
+  const runtime:any={client,console:{log(){},warn(){},error(){}},Request,Response,Headers,File,FormData,AbortSignal,crypto,
+    Deno:{env:{get:()=> 'test-only'}},fetch:async(_url:any,options:any)=>{
+      if(name==='upload-exam')throw new Error('Upload must not make an AI request');
+      const body=JSON.parse(options.body);requests.push(body);
+      return new Response(JSON.stringify({choices:[{message:{tool_calls:[{function:{arguments:JSON.stringify({score:3,feedback:'Three valid points.',isCorrect:false,is_correct:false})}}]}}],usage:{prompt_tokens:20,completion_tokens:10}}));
+    }};
+  vm.runInNewContext(result.outputFiles[0].text,runtime);
+  return {calls,writes,filters,requests,run:(body:any)=>runtime.handler(new Request('https://example.test',{method:'POST',headers:{Authorization:'Bearer synthetic',...(body instanceof FormData?{}:{'Content-Type':'application/json'})},body:body instanceof FormData?body:JSON.stringify(body)}))};
+}
+
+it('upload stores the owned untiered course, overriding conflicting request metadata',async()=>{
+  const h=await handler('upload-exam'),form=new FormData();
+  for(const [k,v] of Object.entries({subjectId:'Biology Higher',fileName:'Test',profileId:'profile',assessmentTier:'higher',examBoard:'OCR',qualificationLevel:'GCSE'}))form.set(k,v);
+  expect((await h.run(form)).status).toBe(200);
+  const saved=h.writes.find(w=>w.table==='exams'&&w.op==='insert').value;
+  expect(saved.qualification_level).toBe('level3');expect(saved.exam_board).toBe('AQA');
+  expect(saved.generation_context.assessment_tier).toBe('not_tiered');expect(saved.generation_context.component_code).toBe('7402/1');
+  expect(saved.generation_context.curriculum.qualification).toBe('A-level');
+  expect(h.filters).toContainEqual({table:'subject_exam_profiles',column:'user_id',value:user});expect(h.requests).toHaveLength(0);
+});
+it('upload refuses a foreign profile before inserting an exam',async()=>{
+  const h=await handler('upload-exam',{foreign:true}),form=new FormData();
+  for(const [k,v] of Object.entries({subjectId:'Biology',fileName:'Test',profileId:'foreign',examBoard:'AQA',qualificationLevel:'level3'}))form.set(k,v);
+  expect((await h.run(form)).status).toBe(404);expect(h.writes).toHaveLength(0);
+});
+it.each(['submit-exam','grade-practice-question'])('%s sends the saved A-level point-marking context to the provider',async name=>{
+  const h=await handler(name),response=await h.run({examId:exam,questionId:question,setId:'set',answerText:'My synthetic answer'});
+  expect(response.status).toBe(200);expect(h.requests).toHaveLength(1);
+  const system=h.requests[0].messages[0].content;expect(system).toContain('7402/1');expect(system).toContain('point-based');
+  expect(system).not.toContain('You are a supportive mathematics tutor');
+  expect(h.requests[0].messages[1].content).toContain('PRIVATE POINT-BASED KEY');
+  if(name==='submit-exam'){
+    expect(h.calls.filter(c=>c.name==='finish_exam_marking')).toHaveLength(1);
+    expect((await response.json()).totalScore).toBeNull();
+  }else expect(h.writes.find(w=>w.table==='practice_question_answers')?.value.score).toBe(3);
+});
+it.each(['submit-exam','grade-practice-question'])('%s blocks a mismatched saved edition before any model call',async name=>{
+  const h=await handler(name,{badEdition:true}),response=await h.run({examId:exam,questionId:question,setId:'set',answerText:'My synthetic answer'});
+  expect(response.status).toBeGreaterThanOrEqual(400);expect(h.requests).toHaveLength(0);
+  expect(h.calls.some(c=>c.name==='finish_exam_marking')).toBe(false);
+});

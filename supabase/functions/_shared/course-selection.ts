@@ -3,6 +3,9 @@ import { canonicalCourseId, getCourseCapability, getCourseOptions, OCR_GATEWAY_B
 import { biologyPaperDefinition, buildPaperPlan, type PaperMode } from './biology-paper-contract.ts';
 
 import {WJEC_BIOLOGY_SPECIFICATION} from './wjec-biology-specification.ts';
+import { AQA_ALEVEL_BIOLOGY_ID } from './assessment-tier.ts';
+import { AQA_ALEVEL_BIOLOGY_SPECIFICATION } from './aqa-alevel-biology-scope.ts';
+import type { CurriculumIdentity } from './curriculum-identity.ts';
 
 export interface SavedPaperContract { courseId: string; paperId: string; mode: PaperMode; contractVersion: number; specificationVersion?: string; }
 export interface ResolvedPaperSelection {
@@ -11,6 +14,7 @@ export interface ResolvedPaperSelection {
   componentCode: string | null;
   paperContract: SavedPaperContract | null;
   specificationVersion?: string;
+  curriculum?: CurriculumIdentity;
 }
 const object = (v: unknown): Record<string, any> => v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, any> : {};
 
@@ -41,7 +45,7 @@ export function resolvePaperSelection(lookup: CourseLookup, tier: AssessmentTier
     throw new Error('The saved course selection and paper preset disagree. Reapply the correct preset.');
   }
   const paperId = choice.paperId ?? contract.paperId ?? null;
-  const definition = biologyPaperDefinition(course?.id ?? null, tier === 'foundation' || tier === 'higher' ? tier : null, paperId);
+  const definition = biologyPaperDefinition(course?.id ?? null, tier, paperId);
   if (paperId && (!definition || paperId !== definition.paperId)) throw new Error('This paper preset is not available for the selected course.');
   if (choice.paperId && contract.paperId && choice.paperId !== contract.paperId) throw new Error('The saved paper selections disagree.');
   if (course?.id === 'aqa_gcse_biology' && paperId === 'paper_2' && tier !== 'foundation' && tier !== 'higher') {
@@ -66,14 +70,20 @@ export function resolvePaperSelection(lookup: CourseLookup, tier: AssessmentTier
       if(saved!=null&&saved!==WJEC_BIOLOGY_SPECIFICATION)throw new Error('Reapply the reviewed WJEC written-unit specification version.');
   }
   let resolvedContract: SavedPaperContract | null = null;
+  if(course?.id === AQA_ALEVEL_BIOLOGY_ID) {
+    if(!paperId)throw new Error('Choose and save AQA A-level Biology Paper 1 in your profile.');
+    if(tier!=='not_tiered')throw new Error('AQA A-level Biology is untiered. Reapply its profile settings.');
+    for(const saved of [choice.specificationVersion,contract.specificationVersion])
+      if(saved!=null && saved!==AQA_ALEVEL_BIOLOGY_SPECIFICATION)throw new Error('Reapply the reviewed AQA A-level specification version.');
+  }
   if (Object.keys(contract).length) {
     if (!definition || !['full_mock', 'short_practice', 'custom'].includes(contract.mode)) throw new Error('The saved paper preset is invalid.');
     if (contract.contractVersion !== definition.contractVersion || contract.paperId !== definition.paperId) throw new Error('Reapply the supported paper preset before generating.');
     if (canonicalCourseId(contract.courseId) !== course?.id) throw new Error('The saved paper preset belongs to a different course.');
-    if (contract.mode !== 'custom' && tier !== 'foundation' && tier !== 'higher') throw new Error('Select Foundation or Higher before generating a guided paper.');
+    if (contract.mode !== 'custom' && (!tier || !course?.tiers.includes(tier))) throw new Error('Select Foundation or Higher before generating a guided paper.');
     resolvedContract = {courseId: definition.courseId, paperId: definition.paperId, mode: contract.mode, contractVersion: definition.contractVersion, ...(definition.specificationVersion?{specificationVersion:definition.specificationVersion}:{})};
   }
-  return {courseId: course?.id ?? null, paperId, componentCode: paperId ? definition?.componentCode ?? null : null, paperContract: resolvedContract, ...(definition?.specificationVersion?{specificationVersion:definition.specificationVersion}:{})};
+  return {courseId: course?.id ?? null, paperId, componentCode: paperId ? definition?.componentCode ?? null : null, paperContract: resolvedContract, ...(definition?.specificationVersion?{specificationVersion:definition.specificationVersion}:{}), ...(course?.curriculum?{curriculum:course.curriculum}:{})};
 }
 
 /** v2 snapshots freeze the profile preset at attempt creation. Legacy AQA
@@ -84,6 +94,9 @@ export function paperPlanForAttempt(context: any, legacyBlueprint?: unknown) {
     return null;
   }
   const legacy = context.context_version === 1;
+  if(canonicalCourseId(context.course_id ?? object(object(legacyBlueprint).paperContract).courseId)===AQA_ALEVEL_BIOLOGY_ID &&
+    (legacy || context.specification_version!==AQA_ALEVEL_BIOLOGY_SPECIFICATION || context.paper_id!=='paper_1' || context.assessment_tier!=='not_tiered'))
+    throw new Error('Create a fresh AQA A-level attempt with its paper and reviewed specification saved by the server.');
   if(canonicalCourseId(context.course_id??object(object(legacyBlueprint).paperContract).courseId)===WJEC_BIOLOGY_ID&&
     (legacy||context.specification_version!==WJEC_BIOLOGY_SPECIFICATION))throw new Error('Create a fresh WJEC attempt with its reviewed specification version saved by the server.');
   if (legacy && String(context.exam_board ?? '').toLowerCase().includes('ocr') && /biology/i.test(context.subject_name ?? '')) {
@@ -107,6 +120,7 @@ export function paperPlanForAttempt(context: any, legacyBlueprint?: unknown) {
 
 export function describeCourseSelection(selection: ResolvedPaperSelection): string {
   return [selection.componentCode, selection.courseId === OCR_GATEWAY_BIOLOGY_ID ? 'Gateway Biology A' :
+    selection.courseId === AQA_ALEVEL_BIOLOGY_ID ? 'AQA A-level Biology' :
     selection.courseId === OCR_21C_BIOLOGY_ID ? 'Twenty First Century Biology B' :
     selection.courseId === WJEC_BIOLOGY_ID ? 'WJEC Biology — Wales' :
     selection.courseId === EDEXCEL_BIOLOGY_ID ? 'Pearson Edexcel Biology' : null].filter(Boolean).join(' · ');

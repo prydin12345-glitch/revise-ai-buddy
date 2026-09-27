@@ -1,3 +1,4 @@
+import type { AssessmentTier } from '@/lib/assessment-tier';
 import { Button } from "@/components/ui/button";
 import {
   buildPaperPlan,
@@ -10,7 +11,7 @@ interface PaperModeSelectorProps {
   courseId?: string | null;
   paperId?: string | null;
   mode: PaperMode;
-  tier: "foundation" | "higher" | null;
+  tier: AssessmentTier | null;
   onModeChange: (mode: PaperMode) => void;
   /** Called only when the user explicitly accepts the conversion. */
   onApplyPlan: (plan: NonNullable<ReturnType<typeof buildPaperPlan>>) => void;

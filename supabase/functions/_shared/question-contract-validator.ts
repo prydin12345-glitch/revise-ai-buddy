@@ -12,7 +12,7 @@
 // never needs a question mark.
 
 import { resolveQuestionResources, type ResourceQuestion } from './question-resources.ts';
-import { gcseBiologyIssue, isGcseBiology, type BiologyScope } from './gcse-biology-scope.ts';
+import { biologyContentIssue, isGcseBiology, type BiologyScope } from './gcse-biology-scope.ts';
 import { assembledModelText, canonicalMcqAnswer, coerceMcqOptions, flattenAnswerKey, isMcqType, readAnswerKey, readQuestionTask } from './model-question-normalization.ts';
 export { coerceMcqOptions, flattenAnswerKey } from './model-question-normalization.ts';
 
@@ -271,7 +271,7 @@ export function validateQuestionCandidates(
     biologyQuestionIssues({ ...part, question_text: displayed }, resources.chart ?? part.diagram_config ?? part.diagramConfig, unambiguousChain,
       scored && !!options.scope && isGcseBiology(options.scope))
       .forEach(issue => push(issue.code, issue.detail));
-    const levelIssue = options.scope ? gcseBiologyIssue({ ...part, question_text: displayed }, options.scope) : null;
+    const levelIssue = options.scope ? biologyContentIssue({ ...part, question_text: displayed }, options.scope) : null;
     if (levelIssue) push('out_of_level', levelIssue);
 
     if (!scored) return; // unmarked context parents are legitimate

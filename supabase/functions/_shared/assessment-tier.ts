@@ -3,6 +3,7 @@
 // An absent tier remains unknown. Subject names never select a tier themselves.
 
 export type AssessmentTier = "foundation" | "higher" | "not_tiered";
+import type { CurriculumIdentity } from './curriculum-identity.ts';
 
 export const ASSESSMENT_TIER_VALUES: AssessmentTier[] = [
   "foundation",
@@ -35,15 +36,23 @@ export interface CourseCapability {
   tiers: AssessmentTier[];
   specificationCode?: string;
   generationAvailable?: boolean;
+  tierMode?: 'tiered' | 'untiered';
+  curriculum?: CurriculumIdentity;
+  requiresPaperSelection?: boolean;
 }
 
 export const OCR_GATEWAY_BIOLOGY_ID = 'ocr_gcse_biology_a_j247';
 export const OCR_21C_BIOLOGY_ID = 'ocr_gcse_biology_b_j257';
 export const EDEXCEL_BIOLOGY_ID = 'edexcel_gcse_biology_1bi0';
 export const WJEC_BIOLOGY_ID = 'wjec_gcse_biology_wales_3400';
+export const AQA_ALEVEL_BIOLOGY_ID = 'aqa_alevel_biology_7402';
 const OCR_BIOLOGY_NAMES = ['biology', 'biology a', 'biology b', 'gateway biology', 'gateway biology a', 'biology (single science)', 'twenty first century biology', 'twenty first century biology b'];
 
 export const COURSE_CAPABILITIES: CourseCapability[] = [
+  {id:AQA_ALEVEL_BIOLOGY_ID,label:'AQA A-level Biology (7402)',subjects:['biology','biology (single science)'],
+    boards:['aqa'],levels:['level3','level3_a_level','a-level','a level','alevel','a_level'],
+    tiers:['not_tiered'],tierMode:'untiered',specificationCode:'7402',generationAvailable:true,requiresPaperSelection:true,
+    curriculum:{country:'GB',jurisdiction:'England',qualification:'A-level',subject:'Biology'}},
   {id:WJEC_BIOLOGY_ID,label:'WJEC GCSE Biology — Wales',subjects:['biology','gcse biology','biology (single science)'],
     boards:['wjec','wjec wales','wjec (wales)'],levels:GCSE_LEVEL_IDS,tiers:['foundation','higher'],specificationCode:'3400QS',generationAvailable:true},
   {
@@ -87,7 +96,7 @@ export const COURSE_CAPABILITIES: CourseCapability[] = [
 
 const norm = (v?: string | null) => (v ?? "").trim().toLowerCase();
 
-const DECORATION = /\b(aqa|pearson|edexcel|cambridge|ocr|wjec|eduqas|wales|gcse|igcse|ks4|j247|j257|1bi0|3400qs|unit\s*\d+|paper\s*\d+|higher|foundation|tier|hl|sl)\b/g;
+const DECORATION = /\b(aqa|pearson|edexcel|cambridge|ocr|wjec|eduqas|wales|gcse|igcse|a[-\s]?level|7402|ks4|j247|j257|1bi0|3400qs|unit\s*\d+|paper\s*\d+|higher|foundation|tier|hl|sl)\b/g;
 
 const subjectForms = (value?: string | null): string[] => {
   const base = norm(value);
@@ -138,11 +147,25 @@ export const getCourseCapability = (lookup: CourseLookup): CourseCapability | nu
 };
 
 export const supportsAssessmentTier = (lookup: CourseLookup): boolean =>
-  (getCourseCapability(lookup)?.tiers.length ?? 0) > 0;
+  getAssessmentTierOptions(lookup).length > 0;
 
 export const getAssessmentTierOptions = (
   lookup: CourseLookup,
-): AssessmentTier[] => getCourseCapability(lookup)?.tiers ?? [];
+): AssessmentTier[] => {
+  const course = getCourseCapability(lookup);
+  return course?.tierMode === 'untiered' ? [] : course?.tiers ?? [];
+};
+
+/** Known untiered courses are explicit, unlike an unknown legacy tier. */
+export function resolveCourseAssessmentTier(value: string|null|undefined, lookup: CourseLookup): AssessmentTier|null {
+  const course = getCourseCapability(lookup);
+  if(course?.tierMode === 'untiered') {
+    if(!isUnknownAssessmentTier(value) && normaliseAssessmentTier(value)!=='not_tiered')
+      throw new Error('This course is untiered; Foundation and Higher do not apply.');
+    return 'not_tiered';
+  }
+  return supportsAssessmentTier(lookup) ? normaliseAssessmentTier(value) : null;
+}
 
 export const normaliseAssessmentTier = (
   value?: string | null,
@@ -168,7 +191,7 @@ export const isValidAssessmentTierFor = (
   if (isUnknownAssessmentTier(value)) return true;
   const tier = normaliseAssessmentTier(value);
   if (tier === null) return false;
-  return getAssessmentTierOptions(lookup).includes(tier);
+  return (getCourseCapability(lookup)?.tiers ?? []).includes(tier);
 };
 
 export const formatAssessmentTier = (value?: string | null): string | null => {

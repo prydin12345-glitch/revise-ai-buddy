@@ -1,4 +1,5 @@
 // Shared paper shapes for frontend previews and backend generation.
+import type { AssessmentTier } from './assessment-tier.ts';
 
 export type PaperMode = "full_mock" | "short_practice" | "custom";
 export type ResponseType = "mcq_single" | "short_answer" | "long_form";
@@ -21,6 +22,8 @@ export interface PlannedPart {
   practicalMarks?: number;
   /** Authored common-tier demand target, not a claim that independent papers share questions. */
   commonTierTarget?: boolean;
+  /** Separate official response-mark allocations from template group choices. */
+  assessmentRole?: 'structured' | 'extended_response';
 }
 
 export interface PaperPlan {
@@ -28,7 +31,7 @@ export interface PaperPlan {
   paperId: string;
   mode: PaperMode;
   contractVersion: number;
-  tier: "foundation" | "higher" | null;
+  tier: AssessmentTier | null;
   parts: PlannedPart[];
   /** Distinct parent groups. */
   parentCount: number;
@@ -46,4 +49,4 @@ export interface PaperPlan {
 export const describePlan = (plan: PaperPlan): string =>
   `${plan.label}${plan.componentCode ? ` (${plan.componentCode})` : ''} — ${plan.partCount} parts across ${plan.parentCount} questions, ` +
   `${plan.totalMarks} marks, ${plan.durationMinutes} minutes` +
-  (plan.tier ? ` (${plan.tier})` : "");
+  (plan.tier && plan.tier !== 'not_tiered' ? ` (${plan.tier})` : "");
