@@ -9,6 +9,7 @@ import {
   isValidAssessmentTierFor,
   normaliseAssessmentTier,
   supportsAssessmentTier,
+  resolveCourseAssessmentTier,
 } from "./assessment-tier.ts";
 import { profileCourseId, resolvePaperSelection, type ResolvedPaperSelection } from './course-selection.ts';
 
@@ -95,8 +96,9 @@ export const resolveProfileContext = async (
     );
   }
 
+  const tier = resolveCourseAssessmentTier(rawTier, lookup);
   let selection: ResolvedPaperSelection;
-  try { selection = resolvePaperSelection(lookup, supported ? normaliseAssessmentTier(rawTier) : null, profile?.paper_blueprint); }
+  try { selection = resolvePaperSelection(lookup, tier, profile?.paper_blueprint); }
   catch (error) { throw new ProfileContextError(error instanceof Error ? error.message : 'Invalid course selection'); }
   return {
     contextVersion: GENERATION_CONTEXT_VERSION,
@@ -105,7 +107,7 @@ export const resolveProfileContext = async (
     profileName: clean(profile?.profile_name),
     examBoard,
     educationalTier,
-    assessmentTier: supported ? normaliseAssessmentTier(rawTier) : null,
+    assessmentTier: tier,
     assessmentTierSupported: supported,
     ...selection,
   };
@@ -129,6 +131,7 @@ export const toStoredGenerationContext = (
   component_code: ctx.componentCode,
   paper_contract: ctx.paperContract,
   ...(ctx.specificationVersion ? {specification_version:ctx.specificationVersion} : {}),
+  ...(ctx.curriculum ? {curriculum:ctx.curriculum} : {}),
   resolved_by: SERVER_RESOLVED_MARKER,
   resolved_at: new Date().toISOString(),
 });
@@ -171,6 +174,7 @@ export const storedAssessmentTier = (value: unknown): AssessmentTier | null => {
 export const assessmentTierPrompt = (
   ctx: Pick<ResolvedGenerationContext, "assessmentTier" | "courseId">,
 ): string => {
+  if (ctx.assessmentTier === "not_tiered") return "ASSESSMENT: untiered qualification. Foundation/Higher grade caps do not apply. Follow the saved course and paper.";
   if (ctx.assessmentTier === "foundation") {
     return "ASSESSMENT TIER: Foundation. Stay within Foundation-tier content and demand; do not use Higher-tier-only material. Grade range 1-5.";
   }

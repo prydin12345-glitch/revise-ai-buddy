@@ -22,11 +22,11 @@ import {
   EDEXCEL_BIOLOGY_ID,
   OCR_21C_BIOLOGY_ID,
   WJEC_BIOLOGY_ID,
+  AQA_ALEVEL_BIOLOGY_ID,
   normaliseAssessmentTier,
 } from "@/lib/assessment-tier";
 import { AssessmentTierSelector } from "@/components/exams/AssessmentTierSelector";
 import { BiologyCourseSelector } from "@/components/exams/BiologyCourseSelector";
-import {WJEC_BIOLOGY_SPECIFICATION} from "../../../supabase/functions/_shared/wjec-biology-specification";
 import { BiologyPaperSelector } from "@/components/exams/BiologyPaperSelector";
 import { profileCourseId, profilePaperId } from "../../../supabase/functions/_shared/course-selection";
 import { PaperModeSelector } from "@/components/exams/PaperModeSelector";
@@ -315,7 +315,10 @@ export const ExamProfileModal = ({
       // are ignored so the field shows "Select level..." rather than an ugly
       // pre-populated "Other qualification" with a raw code in the text box.
       const rawTier = initialData?.educational_tier || preferences?.preferred_educational_level || "";
-      if (rawTier && isKnownLevel(rawTier)) {
+      const knownAlevel = getCourseCapability({subject:subjectName, examBoard:initialData?.exam_board ?? examBoard, educationalTier:rawTier})?.id === AQA_ALEVEL_BIOLOGY_ID;
+      if (knownAlevel) {
+        setEducationalTier("level3"); setCustomTier("");
+      } else if (rawTier && isKnownLevel(rawTier)) {
         setEducationalTier(rawTier);
         setCustomTier("");
       } else {
@@ -346,7 +349,8 @@ export const ExamProfileModal = ({
       setIncludeTables(initialData?.include_tables ?? false);
       const storedContract = (initialData as any)?.paper_blueprint?.paperContract;
       setPaperMode((storedContract?.mode as PaperMode) ?? "custom");
-      setPlanApplied(!!storedContract && storedContract.mode !== "custom" && (storedContract.courseId !== WJEC_BIOLOGY_ID || storedContract.specificationVersion === WJEC_BIOLOGY_SPECIFICATION));
+      const storedDefinition = storedContract ? biologyPaperDefinition(storedContract.courseId, normaliseAssessmentTier(initialData?.assessment_tier), storedContract.paperId) : null;
+      setPlanApplied(!!storedContract && storedContract.mode !== "custom" && (!storedDefinition?.specificationVersion || storedContract.specificationVersion === storedDefinition.specificationVersion));
     }
   }, [open, initialData]);
 
@@ -380,7 +384,7 @@ export const ExamProfileModal = ({
   const assessmentTierOptions = getAssessmentTierOptions(courseLookup);
   const courseCapability = getCourseCapability(courseLookup);
   const effectiveAssessmentTier =
-    assessmentTierOptions.length > 0 ? assessmentTier : null;
+    courseCapability?.tierMode === "untiered" ? "not_tiered" : assessmentTierOptions.length > 0 ? assessmentTier : null;
   const availablePresets = BLUEPRINT_PRESETS.filter((pr) =>
     pr.subjects.test(subjectName || "") &&
     (!finalTier || pr.levels.test(finalTier)) &&
@@ -393,13 +397,13 @@ export const ExamProfileModal = ({
     paperId: selectedPaperId,
   });
   const explicitCourseNeeded = getCourseOptions(courseLookup).length > 1;
-  const selectedTier = effectiveAssessmentTier === "foundation" || effectiveAssessmentTier === "higher" ? effectiveAssessmentTier : null;
+  const selectedTier = effectiveAssessmentTier;
   const guidedActive = paperMode !== "custom" && planApplied && supportsGuidedPaper && !!selectedTier;
   const paperDefinition = biologyPaperDefinition(courseCapability?.id ?? null, selectedTier, selectedPaperId);
   const currentPlan = guidedActive ? buildPaperPlan(paperMode, selectedTier, courseCapability?.id, selectedPaperId) : null;
   const effectiveTopics = currentPlan ? [...new Set(currentPlan.parts.map(p => p.topic))] : selectedTopics;
   const configurationReady = (!explicitCourseNeeded || (!!courseCapability && courseCapability.generationAvailable !== false && !!selectedTier)) &&
-    (![EDEXCEL_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, WJEC_BIOLOGY_ID].includes(courseCapability?.id ?? '') || (!!selectedPaperId && !!selectedTier)) &&
+    (![EDEXCEL_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, WJEC_BIOLOGY_ID, AQA_ALEVEL_BIOLOGY_ID].includes(courseCapability?.id ?? '') || (!!selectedPaperId && !!selectedTier)) &&
     (!selectedPaperId || !!paperDefinition) && (selectedPaperId !== 'paper_2' || !!selectedTier) && (paperMode === "custom" || !!currentPlan);
 
   // Explicit conversion only — nothing is overwritten until the user accepts.
@@ -407,7 +411,7 @@ export const ExamProfileModal = ({
     setMcqCount(plan.parts.filter((p) => p.responseType === "mcq_single").length);
     setWrittenCount(plan.parts.filter((p) => p.responseType !== "mcq_single").length);
     setParentQuestionCount(plan.parentCount);
-    setQuestionStructure([OCR_GATEWAY_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, WJEC_BIOLOGY_ID].includes(plan.courseId) ? "mixed" : "sub_questions");
+    setQuestionStructure([OCR_GATEWAY_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, WJEC_BIOLOGY_ID, AQA_ALEVEL_BIOLOGY_ID].includes(plan.courseId) ? "mixed" : "sub_questions");
     setMcqOptionsCount(4);
     setBlueprintEnabled(false);
     setBlueprintSections([]);
@@ -534,6 +538,7 @@ export const ExamProfileModal = ({
                     <Button
                       variant="outline"
                       role="combobox"
+                      aria-label="Educational level"
                       className={`w-full justify-between h-10 text-sm font-normal ${
                         missingLevel ? "border-amber-500/60" : ""
                       }`}
@@ -562,7 +567,7 @@ export const ExamProfileModal = ({
                               type="button"
                               onClick={() => {
                                 setEducationalTier(level.id);
-                                setSelectedCourseId(null); setAssessmentTier(null); setPaperMode("custom"); setPlanApplied(false);
+                                setSelectedCourseId(null); setSelectedPaperId(null); setAssessmentTier(null); setPaperMode("custom"); setPlanApplied(false);
                                 if (level.id !== "other") setCustomTier("");
                                 setLevelPopoverOpen(false);
                               }}
@@ -610,7 +615,7 @@ export const ExamProfileModal = ({
                 courseId={courseCapability?.id}
                 paperId={selectedPaperId}
                 mode={paperMode}
-                tier={effectiveAssessmentTier === "foundation" || effectiveAssessmentTier === "higher" ? effectiveAssessmentTier : null}
+                tier={effectiveAssessmentTier}
                 onModeChange={(m) => { setPaperMode(m); setPlanApplied(m === "custom"); }}
                 onApplyPlan={applyGuidedPlan}
                 applied={planApplied}
@@ -632,7 +637,7 @@ export const ExamProfileModal = ({
           </SectionCard>
 
           {guidedActive && <p className="text-xs text-muted-foreground">The guided preset controls the topics, counts, timing and resources. Choose Custom to set your own layout.</p>}
-          {!configurationReady && <p role="status" className="text-xs text-amber-600">{courseCapability?.id === OCR_21C_BIOLOGY_ID ? 'Choose Breadth or Depth and Foundation or Higher, then apply the guided settings or choose Custom.' : courseCapability?.id === EDEXCEL_BIOLOGY_ID ? 'Choose Paper 1 or Paper 2 and Foundation or Higher. Then apply the guided settings, or choose Custom with your own topics.' : 'Choose a supported course and tier, then use the guided settings, or select Custom.'}</p>}
+          {!configurationReady && <p role="status" className="text-xs text-amber-600">{courseCapability?.id === AQA_ALEVEL_BIOLOGY_ID ? 'Choose Paper 1, then apply the guided settings or choose Custom. A-level Biology is untiered.' : courseCapability?.id === OCR_21C_BIOLOGY_ID ? 'Choose Breadth or Depth and Foundation or Higher, then apply the guided settings or choose Custom.' : courseCapability?.id === EDEXCEL_BIOLOGY_ID ? 'Choose Paper 1 or Paper 2 and Foundation or Higher. Then apply the guided settings, or choose Custom with your own topics.' : 'Choose a supported course and tier, then use the guided settings, or select Custom.'}</p>}
           {!guidedActive && <fieldset className="space-y-4">
           {/* ── Questions ── */}
           <SectionCard accent={subjectColor} icon={ListChecks} title="Questions" hint={`${totalQuestionCount} total`}>

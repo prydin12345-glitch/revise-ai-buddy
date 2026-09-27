@@ -1,8 +1,9 @@
+import type { AssessmentTier } from '@/lib/assessment-tier';
 import { getCourseOptions, OCR_GATEWAY_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, type CourseLookup } from '@/lib/assessment-tier';
 import { gatewayComponent } from '@/lib/biology-paper-contract';
 
 export function BiologyCourseSelector({lookup, value, tier, onChange}: {
-  lookup: CourseLookup; value: string | null; tier: 'foundation' | 'higher' | null;
+  lookup: CourseLookup; value: string | null; tier: AssessmentTier | null;
   onChange: (courseId: string) => void;
 }) {
   const options = getCourseOptions(lookup);

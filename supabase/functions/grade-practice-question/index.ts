@@ -1,4 +1,5 @@
 import { biologyMarkingInstructions } from '../_shared/biology-marking.ts';
+import { AQA_ALEVEL_BIOLOGY_ID } from '../_shared/assessment-tier.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { markSketch, type GraphPoint, type KeyFeatures, evaluateFormulaAtX } from "../_shared/math-engine.ts";
@@ -58,6 +59,7 @@ serve(async (req) => {
       .select('subject_id, generation_context').eq('id', setId).eq('user_id', user.id).maybeSingle();
     if (gradeSetError || !gradeSet) throw new Error('Practice set not found');
     const gradeSubject = String(gradeSet.subject_id ?? '');
+    const isAlevelBiology = gradeSet.generation_context?.course_id === AQA_ALEVEL_BIOLOGY_ID;
     const isHumanitiesMarking = /english|literature|history|religio|sociolog|politics|philosoph/i.test(gradeSubject);
 
     // Fetch question details
@@ -1473,7 +1475,7 @@ serve(async (req) => {
     const displayAnswer = answerText || '(No answer provided)';
 
     // Prepare grading prompt
-    const systemPrompt = `${isHumanitiesMarking
+    const systemPrompt = `${isAlevelBiology ? 'You are an AQA A-level Biology examiner grading this saved Paper 1 practice task against its private point-based key.' : isHumanitiesMarking
       ? `You are an experienced ${gradeSubject || 'humanities'} examiner grading student work with levels-based mark schemes.`
       : 'You are a supportive mathematics tutor grading student work.'} Your role is to:
 - Award partial credit generously for correct methods, even if the final answer is wrong
@@ -1509,8 +1511,8 @@ ${FEEDBACK_FORMATTING_RULE}${MARKING_QUALITY_RULES}`;
     const markingRules = `
 
 MARK-FIRST DISCIPLINE (MANDATORY):
-1. Decide the mark FIRST against the level descriptors, THEN write feedback that justifies exactly that mark. Never write feedback and then pick a mark to match its tone.
-2. ALIGNMENT: mark and feedback must agree mathematically. If your feedback identifies a fundamental misreading of the text or task, the mark MUST fall in the lower half of the levels — never award a top-level mark alongside a critique of core understanding.
+1. ${isAlevelBiology ? "Decide the mark FIRST against the task's individual marking points and cap, then justify it. Do not invent level descriptors." : 'Decide the mark FIRST against the level descriptors, THEN write feedback that justifies exactly that mark. Never write feedback and then pick a mark to match its tone.'}
+2. ${isAlevelBiology ? 'ALIGNMENT: feedback must explain the points credited and missed. Never apply an invented grade or level cap.' : 'ALIGNMENT: mark and feedback must agree mathematically. If your feedback identifies a fundamental misreading of the text or task, the mark MUST fall in the lower half of the levels — never award a top-level mark alongside a critique of core understanding.'}
 3. RETRIEVAL LENIENCY: for list/identify/retrieval questions, accept any paraphrase that preserves a correct point's meaning. Only demand exact wording when the question explicitly asks for a quotation.${isHumanitiesMarking ? `
 
 ENGLISH/HUMANITIES LEVEL BANDS (levels-based, not point-counting):

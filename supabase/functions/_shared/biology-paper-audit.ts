@@ -32,7 +32,7 @@ export interface BiologyDraftAuditInput {
   courseId: string;
   paperId: string;
   contractVersion: number;
-  tier: 'foundation' | 'higher';
+  tier: NonNullable<PaperPlan['tier']>;
   mode: 'full_mock' | 'short_practice';
   /** Saved canonical draft rows, including private correct_answer and resources. */
   questions: CandidatePart[];

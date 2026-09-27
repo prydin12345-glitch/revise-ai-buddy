@@ -11,8 +11,8 @@
 import {
   type AssessmentTier,
   getCourseCapability,
-  normaliseAssessmentTier,
   supportsAssessmentTier,
+  resolveCourseAssessmentTier,
 } from "./assessment-tier";
 import { profileCourseId, resolvePaperSelection, type ResolvedPaperSelection } from '../../supabase/functions/_shared/course-selection.ts';
 
@@ -94,10 +94,13 @@ export const resolveProfileContext = (
     courseId: profileCourseId(profile?.paper_blueprint),
   };
   const supported = supportsAssessmentTier(lookup);
-  const stored = normaliseAssessmentTier(profile?.assessment_tier);
+  let stored: AssessmentTier | null = null;
   let selection: ResolvedPaperSelection = {courseId: getCourseCapability(lookup)?.id ?? null, paperId: null, componentCode: null, paperContract: null};
   let configurationError: string | null = null;
-  try { selection = resolvePaperSelection(lookup, supported ? stored : null, profile?.paper_blueprint); }
+  try {
+    stored = resolveCourseAssessmentTier(profile?.assessment_tier, lookup);
+    selection = resolvePaperSelection(lookup, stored, profile?.paper_blueprint);
+  }
   catch (error) { configurationError = error instanceof Error ? error.message : 'Check the saved course and paper.'; }
 
   return {
@@ -108,7 +111,7 @@ export const resolveProfileContext = (
     examBoard,
     educationalTier,
     // A stored tier is only honoured while the course still supports tiering.
-    assessmentTier: supported ? stored : null,
+    assessmentTier: stored,
     assessmentTierSupported: supported,
     ...selection,
     configurationError,
@@ -139,6 +142,7 @@ export const toStoredGenerationContext = (
   component_code: ctx.componentCode,
   paper_contract: ctx.paperContract,
   ...(ctx.specificationVersion ? {specification_version:ctx.specificationVersion} : {}),
+  ...(ctx.curriculum ? {curriculum:ctx.curriculum} : {}),
   resolved_by: "client",
   resolved_at: new Date().toISOString(),
 });

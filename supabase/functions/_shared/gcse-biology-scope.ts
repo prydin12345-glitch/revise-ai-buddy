@@ -1,3 +1,4 @@
+import {isAqaAlevelBiology, AQA_ALEVEL_P1_RULES, aqaAlevelPaper1ContentIssue} from './aqa-alevel-biology-scope.ts';
 import { getCourseCapability, OCR_GATEWAY_BIOLOGY_ID, type AssessmentTier } from './assessment-tier.ts';
 
 import { isOcr21cBiology, ocr21cBiologyRules, ocr21cBiologyContentIssue, type Ocr21cPaper } from './ocr21c-biology-scope.ts';
@@ -39,6 +40,7 @@ const isAqaFoundation = (scope: BiologyScope): boolean =>
 // AQA 8461 sections 4.3.2, 4.3.3.1, 4.4.1.2 and 4.4.2.2 mark these
 // requirements as HT only. These rules are deliberately scoped to this course.
 export function biologyScopeInstructions(scope: BiologyScope): string {
+  if(isAqaAlevelBiology(scope)) return `${AQA_ALEVEL_P1_RULES}\n${BIOLOGY_RESOURCE_RULES}`;
   const gateway = scope.courseId === OCR_GATEWAY_BIOLOGY_ID;
   const edexcel = isEdexcelBiology(scope) && (scope.paperId === 'paper_1' || scope.paperId === 'paper_2');
   const twentyFirst = isOcr21cBiology(scope) && (scope.paperId === 'breadth' || scope.paperId === 'depth');
@@ -91,4 +93,10 @@ export function biologyScopeFromContext(context: any, fallback: BiologyScope = {
   return {subject: context.subject_name ?? fallback.subject, educationalLevel: context.educational_tier ?? fallback.educationalLevel,
     examBoard: context.exam_board ?? fallback.examBoard, assessmentTier: context.assessment_tier ?? null,
     courseId: context.course_id ?? null, paperId: context.paper_id ?? null, componentCode: context.component_code ?? null};
+}
+
+/** Dispatch by saved course before applying qualification-specific exclusions. */
+export function biologyContentIssue(part: {question_text?:unknown; task?:unknown; correct_answer?:unknown}, scope:BiologyScope):string|null {
+  if(isAqaAlevelBiology(scope)) return aqaAlevelPaper1ContentIssue([part.question_text,part.task,part.correct_answer].map(v=>typeof v==='string'?v:v?JSON.stringify(v):'').join('\n'));
+  return gcseBiologyIssue(part,scope);
 }

@@ -1,4 +1,8 @@
 import { canonicalCourseId } from './assessment-tier.ts';
+import { AQA_ALEVEL_BIOLOGY_ID, type AssessmentTier } from './assessment-tier.ts';
+import type { CurriculumIdentity } from './curriculum-identity.ts';
+import { AQA_ALEVEL_P1, buildAqaAlevelPaper1Plan, assertAqaAlevelPaper1Plan, aqaAlevelPaper1Instructions, aqaAlevelPartInstruction } from './aqa-alevel-biology-contract.ts';
+import { AQA_ALEVEL_SPEC_URL, AQA_ALEVEL_P1_RULES } from './aqa-alevel-biology-scope.ts';
 import { AQA_BIOLOGY_P1, BIOLOGY_CONTRACT_VERSION, buildAqaPlan, aqaPlanInstructions } from './aqa-biology-contract.ts';
 import { OCR_GATEWAY_PAPER, buildGatewayPlan, gatewayComponent } from './ocr-biology-contract.ts';
 import { gatewayPartInstruction, gatewayPlanInstructions, GATEWAY_RULES } from './ocr-biology-scope.ts';
@@ -34,9 +38,9 @@ export interface BiologyPaperPack {
   courseId: string;
   paperId: string;
   contractVersion: number;
-  curriculum: { country: 'GB'; jurisdiction: 'England' | 'Wales'; qualification: 'GCSE'; subject: 'Biology' };
+  curriculum: CurriculumIdentity;
   examBoard: string;
-  tiers: readonly ['foundation', 'higher'];
+  tiers: readonly AssessmentTier[];
   sources: readonly { url: string; section: string; checkedOn: string }[];
   official: { fullMarks: number; durationMinutes: number; sections?: readonly { id: 'A' | 'B'; marks: number }[] };
   /** Separate each board's official structure from our subpart/topic choices. */
@@ -176,6 +180,27 @@ export const BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [
   ocr21cPack('depth'),
   wjecPack('unit_1'),
   wjecPack('unit_2'),
+  {
+    id:'aqa-7402-paper-1-v1',courseId:AQA_ALEVEL_BIOLOGY_ID,paperId:'paper_1',contractVersion:1,
+    curriculum:{...curriculum,qualification:'A-level'},examBoard:'AQA',tiers:['not_tiered'],
+    sources:[
+      {url:AQA_ALEVEL_SPEC_URL,section:'7402 specification version 1.6 (July 2026), Paper 1 assessment',checkedOn:'2026-09-26'},
+      {url:'https://www.aqa.org.uk/subjects/biology/a-level/biology-7402/specification/scheme-of-assessment',section:'Paper 1 AO ranges and qualification maths/practical weighting',checkedOn:'2026-09-26'},
+      {url:'https://filestore.aqa.org.uk/resources/biology/AQA-74021-SMS.PDF',section:'Specimen Paper 1 marking guidance, including extended responses',checkedOn:'2026-09-26'},
+      ...['biological-molecules','cells','organisms-exchange-substances-with-their-environment','genetic-information-variation-and-relationships-between-organisms'].map(section=>({url:`https://www.aqa.org.uk/subjects/biology/a-level/biology-7402/specification/subject-content/${section}`,section:'Reviewed Paper 1 outcomes',checkedOn:'2026-09-26'})),
+    ],
+    official:{fullMarks:91,durationMinutes:120},
+    layoutChoices:[
+      'Full A-level 7402/1 (untiered), 35% of the qualification: 76 short/long-answer marks plus 15 extended-response marks.',
+      'Nine groups, 34 parts, no MCQs and three five-mark extended responses are Examly choices, not fixed AQA counts.',
+      'AO targets 42/29/20 are within Paper 1 ranges. Mathematical/practical annotations guide drafting; they do not certify generated demand.',
+      'Short practice has 25 marks, 33 minutes and eight parts. It is not a complete official paper or a practical endorsement.',
+    ],
+    validation:{rows:'exact_parts',mcqOptions:4,levelSchemeAtMarks:null},rules:AQA_ALEVEL_P1_RULES,
+    generation:{strategy:'contract_only',systemPrompt:'Write an original AQA A-level Biology 7402/1 paper. Follow the saved untiered course, reviewed Topics 1–4 outcomes and immutable part plan. Use A-level demand, canonical resources, complete assessed tasks and private point-based keys. Do not use GCSE tier rules or later A-level papers. Return complete JSON only.'},
+    definition:()=>({...AQA_ALEVEL_P1}),build:buildAqaAlevelPaper1Plan,instructions:aqaAlevelPaper1Instructions,
+    repairPartInstructions:aqaAlevelPartInstruction,validatePlan:assertAqaAlevelPaper1Plan,
+  },
 ];
 
 export const biologyPaperOptions = (courseId: string | null | undefined) =>
@@ -184,6 +209,7 @@ export const biologyPaperOptions = (courseId: string | null | undefined) =>
 /** Explicit paper/version lookups never fall back to a different registered paper. */
 export function getBiologyPaperPack(courseId: string | null | undefined, paperId?: string | null, contractVersion?: number): BiologyPaperPack | null {
   const course = canonicalCourseId(courseId);
+  if(course === AQA_ALEVEL_BIOLOGY_ID && !paperId) return null;
   // Before Paper 2 shipped, an absent AQA paper meant Paper 1. Preserve old
   // callers/profiles explicitly; never infer Paper 2 from a display name.
   const selectedPaper = paperId ?? (course === 'aqa_gcse_biology' ? 'paper_1' : null);
