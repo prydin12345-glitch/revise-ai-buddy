@@ -1,4 +1,5 @@
 import { PaperSectionHeading } from "@/components/exams/PaperSectionHeading";
+import { comprehensionInsertFigures } from '@/lib/biology-comprehension';
 import { biologyPaperDisplay } from "@/lib/biology-paper-display";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { InsertPanel } from "@/components/insert/InsertPanel";
@@ -615,7 +616,12 @@ const ExamInProgress = () => {
         console.warn(`[Load] removed ${dedupedQuestions.length - uniqueQuestions.length} duplicate question row(s)`);
       }
       setPaperBlueprint((data as any).paperBlueprint ?? null);
+      const readingFigures = comprehensionInsertFigures(uniqueQuestions);
       setQuestions(uniqueQuestions);
+      if (readingFigures.length) setInsertFigures([
+        ...(Array.isArray(examData?.insert_figures) ? examData.insert_figures : []),
+        ...readingFigures,
+      ]);
       setIsTeacher(Boolean(data.isTeacher));
       console.log('[Resume Debug] isTeacher:', data.isTeacher, 'isReadOnly:', Boolean(data.isTeacher) && !treatAsStudent);
       setExistingAnswers(data.existingAnswers || []);

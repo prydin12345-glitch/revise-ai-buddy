@@ -1,6 +1,8 @@
 import { biologyDiagramIssues, isBiologyDiagram, savedBiologyDiagram } from './biology-assessment-resources.ts';
+import { readComprehension } from './biology-comprehension.ts';
 /** Shared resource checks. Contradictory measurements must never be hidden by precedence. */
 export interface ResourceQuestion {
+  question_number?: unknown;
   question_text?: unknown; chart_data?: unknown; diagram_config?: unknown;
   diagramConfig?: unknown; options?: unknown; table_data?: unknown;
 }
@@ -167,6 +169,8 @@ export function stripResourcePlaceholders(text: string, hasPayload: boolean): st
 export function resolveQuestionResources(q: ResourceQuestion) {
   const text = typeof q.question_text === 'string' ? q.question_text : '';
   const issues: ResourceIssue[] = [];
+  const reading = readComprehension(q);
+  issues.push(...reading.issues);
   for (const config of [q.diagram_config, q.diagramConfig, q.chart_data]) {
     issues.push(...biologyDiagramIssues(config, text));
   }
@@ -200,7 +204,7 @@ export function resolveQuestionResources(q: ResourceQuestion) {
   // A table can appear through several schema aliases. Report each distinct
   // defect once so the bounded repair prompt is not filled with duplicates.
   const uniqueIssues = issues.filter((issue, i) => issues.findIndex(other => other.code === issue.code && other.detail === issue.detail) === i);
-  return { text: clean, chart, table, issues: uniqueIssues };
+  return { text: clean, chart, table, passage: reading.passage, issues: uniqueIssues };
 }
 export function requireConsistentResources(q: ResourceQuestion) {
   const result = resolveQuestionResources(q);

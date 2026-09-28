@@ -1,4 +1,5 @@
 import { AQA_ALEVEL_BIOLOGY_ID, OCR_GATEWAY_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID, WJEC_BIOLOGY_ID } from "../_shared/assessment-tier.ts";
+import { expandComprehensionReferences } from '../_shared/biology-comprehension.ts';
 import { isAqaPaper2 } from "../_shared/aqa-biology-paper2.ts";
 import { paperPlanForAttempt } from "../_shared/course-selection.ts";
 import { biologyPlanInstructions, biologyBatchInstructions, packForBiologyPlan } from "../_shared/biology-course-packs.ts";
@@ -1405,7 +1406,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     const rawResources = resolveQuestionResources({ ...q, question_text: assembleQuestionText(q) });
     const aliasConflict = rawResources.issues.find(issue => issue.code === 'conflicting_resource_data' && issue.detail.startsWith('Stored copies'));
     if (aliasConflict) throw new Error('Question ' + q.question_number + ': ' + aliasConflict.detail);
-    const canonicalChart = rawResources.chart ?? chartPayload;
+    const canonicalChart = rawResources.passage ?? rawResources.chart ?? chartPayload;
     return {
       exam_id: draftId,
       question_number: String(q.question_number || i + 1),
@@ -2876,7 +2877,7 @@ async function generateGuidedPaper(
 
   const stillMissing = missingPlannedParts(plan, produced);
   if (stillMissing.length) console.warn(`[plan] still missing after batching: ${stillMissing.map(p => p.questionNumber).join(', ')} (${aiBudget.summary()})`);
-  return [...produced.values()];
+  return expandComprehensionReferences([...produced.values()]);
 }
 
 // ── OPTIMISATION 2: Quality scoring function ──

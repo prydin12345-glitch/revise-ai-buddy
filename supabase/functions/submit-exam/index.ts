@@ -1,4 +1,4 @@
-import { biologyMarkingInstructions } from '../_shared/biology-marking.ts';
+import { biologyMarkingInstructions, biologyQuestionResourceContext } from '../_shared/biology-marking.ts';
 import { requireExamAccess, ExamRequestError } from '../_shared/exam-access.ts';
 import { enforceRateLimit } from '../_shared/rate-limiter.ts';
 import { validatedGrade } from '../_shared/marking-result.ts';
@@ -98,7 +98,7 @@ serve(async (req) => {
     // Fetch all questions with correct answers
     const { data: questions, error: questionsError } = await supabase
       .from('exam_questions')
-      .select('id, question_text, question_type, correct_answer, marks, options, has_math, question_latex')
+      .select('id, question_number, question_text, question_type, correct_answer, marks, options, has_math, question_latex, diagram_config, table_data')
       .eq('exam_id', examId);
 
     if (questionsError || !questions?.length) throw new Error('Questions could not be loaded');
@@ -583,7 +583,7 @@ Provide:
                 },
                 {
                   role: 'user',
-                  content: userPrompt
+                  content: userPrompt + biologyQuestionResourceContext(examData.generation_context, question)
                 }
               ],
               tools: [{

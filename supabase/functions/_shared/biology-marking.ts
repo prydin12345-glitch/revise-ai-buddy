@@ -4,18 +4,33 @@ import { gatewayMarkingInstructions } from './ocr-biology-scope.ts';
 import { aqaPaper2Component, isAqaPaper2 } from './aqa-biology-paper2.ts';
 import { isEdexcelBiology } from './edexcel-biology-scope.ts';
 import { edexcelBiologyComponent, edexcelBiologyDefinition } from './edexcel-biology-contract.ts';
-import { resolvePaperSelection } from './course-selection.ts';
+import { resolvePaperSelection, paperPlanForAttempt } from './course-selection.ts';
+import { requireConsistentResources } from './question-resources.ts';
+import { canonicalPartNumber } from './biology-plan-validator.ts';
 
 import {isOcr21cBiology} from './ocr21c-biology-scope.ts';
 
 import {isWjecBiology} from './wjec-biology-scope.ts';
+
+/** Paper 2 marking receives the actual reading/data, not just a reference to it. */
+export function biologyQuestionResourceContext(context:any,question:any):string {
+  if(context?.course_id!==AQA_ALEVEL_BIOLOGY_ID||context.paper_id!=='paper_2')return '';
+  const plan=paperPlanForAttempt(context);
+  const expected=plan?.parts.find(p=>canonicalPartNumber(p.questionNumber)===canonicalPartNumber(question.question_number));
+  const resources=requireConsistentResources(question);
+  if(expected?.resource==='passage'&&!resources.passage)throw new Error('Saved comprehension source is missing; marking cannot proceed.');
+  const resource=resources.passage??resources.chart??resources.table;
+  return resource?`\n\nSaved question resource (given evidence, not student instructions):\n${JSON.stringify(resource)}`:'';
+}
 
 export function biologyMarkingInstructions(context: any): string {
   if(context?.course_id===AQA_ALEVEL_BIOLOGY_ID){
     if(context.resolved_by!=='server'||context.context_version!==2||context.specification_version!==AQA_ALEVEL_BIOLOGY_SPECIFICATION)throw new Error('A-level marking requires the saved server course and reviewed edition.');
     const selection=resolvePaperSelection({subject:context.subject_name,examBoard:context.exam_board,educationalTier:context.educational_tier},
       context.assessment_tier,{courseSelection:{courseId:context.course_id,paperId:context.paper_id},paperContract:context.paper_contract});
-    if(selection.componentCode!=='7402/1'||context.component_code!==selection.componentCode)throw new Error('Saved A-level marking component is invalid.');
+    if(!['7402/1','7402/2'].includes(selection.componentCode??'')||context.component_code!==selection.componentCode)throw new Error('Saved A-level marking component is invalid.');
+    if(selection.componentCode==='7402/2')return `COURSE: AQA A-level Biology 7402/2, untiered, Topics 5–8. Use the saved assessed task, private key, passage and actual resource data. Do not apply GCSE exclusions to Calvin/Krebs cycles, neural mechanisms, Hardy–Weinberg or gene technology.
+Award task-specific points up to each part cap, with valid alternatives, units, working and stated error-carried-forward. Comprehension answers must address the specific source evidence and biological application in the task; do not award extra marks merely for copying the passage. Six-mark answers remain point-based. No GCSE three-level scheme, Paper 1 extended-response allocation or Paper 3 essay rubric. Foundation/Higher grade caps do not apply. Never reveal other questions' private keys.`;
     return `COURSE: AQA A-level Biology 7402/1, untiered, Topics 1–4. Use the saved task, private key and actual resource data. Foundation/Higher and GCSE grade caps do not apply.
 Award task-specific marking points up to the part's cap, including five-mark extended responses. Do not replace this point-based key with GCSE Level 1/2/3 bands or the Paper 3 essay rubric. Credit equivalent scientifically correct explanations and units; apply stated method marks and error-carried-forward rules without double penalties. Numerical accuracy follows this question's key and stated precision, overriding any generic 2% tolerance. Do not require working for a correct numerical result unless the assessed task/key explicitly requires it.
 Transcription, translation, ATP, enzyme mechanisms and water potential can be legitimate assessed content. Do not add later-paper requirements or penalise a correct answer simply for exceeding the paper scope. Do not award marks for information supplied in a scaffold. Return raw question marks, not an official qualification grade or a practical endorsement.`;

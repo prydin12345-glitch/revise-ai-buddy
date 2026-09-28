@@ -3,6 +3,7 @@ import type { PaperPlan } from './biology-paper-contract.ts';
 import type { CandidatePart, QuestionDefect } from './question-contract-validator.ts';
 import { resolveQuestionResources } from './question-resources.ts';
 import { coerceMcqOptions, hasThreeLevelScheme, isMcqType } from './model-question-normalization.ts';
+import { comprehensionTaskIssues } from './biology-comprehension.ts';
 
 export const canonicalPartNumber = (value: unknown): string => {
   const text = String(value ?? '').trim().replace(/^Q\s*/i, '');
@@ -20,6 +21,7 @@ export function validateBiologyPlan(rows: CandidatePart[], plan?: PaperPlan | nu
   const defects: QuestionDefect[] = [];
   const byNumber = new Map(plan.parts.map(p => [canonicalPartNumber(p.questionNumber), p]));
   const seen = new Set<string>();
+  const passages = new Map<string,string>();
   for (const row of rows) {
     const number = canonicalPartNumber(row.question_number);
     const expected = byNumber.get(number);
@@ -37,6 +39,15 @@ export function validateBiologyPlan(rows: CandidatePart[], plan?: PaperPlan | nu
     }
 
     const resources = resolveQuestionResources(row);
+    if (resources.passage && expected.resource !== 'passage') push(`Q${number} is not a planned comprehension part.`, 'invalid_resource');
+    if (expected.resource === 'passage') {
+      for (const issue of comprehensionTaskIssues(row, plan.mode === 'full_mock')) push(`Q${number}: ${issue.detail}`, issue.code);
+      if (resources.passage) {
+        const saved = JSON.stringify(resources.passage);
+        if (passages.has(expected.parentId) && passages.get(expected.parentId) !== saved) push(`Q${number}: comprehension siblings must use the same passage.`, 'conflicting_resource_data');
+        passages.set(expected.parentId, saved);
+      }
+    }
     if (expected.resource === 'data_table' && !resources.table) push(`Q${number} requires the planned data table.`, "missing_required_resource");
     if (expected.resource === 'graph' && (!resources.chart || resources.chart.type === 'data_table')) push(`Q${number} requires the planned graph.`, "missing_required_resource");
     if (policy.levelSchemeAtMarks !== null && expected.marks === policy.levelSchemeAtMarks) {

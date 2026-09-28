@@ -25,6 +25,7 @@ export const describeRepairDiagnostics = (items: RepairDiagnostic[]): string => 
 export function buildQuestionRepairPrompt(input: RepairRequest): string {
   const taskOnly = input.mode === 'task_only';
   const sample = input.group.find(row => Number(row.marks) > 0);
+  const comprehension = input.plan?.parts.some(p => p.resource === 'passage' && input.group.some(row => String(row.question_number) === p.questionNumber));
   const levelScheme = input.plan ? packForBiologyPlan(input.plan).validation.levelSchemeAtMarks : 6;
   const resourceChecklist = input.group.map(row => {
     const planned = input.plan?.parts.find(part => part.questionNumber === String(row.question_number));
@@ -53,7 +54,9 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
       : 'correct_answer must contain the task-specific marking points, numerical working where relevant, acceptable alternatives and caps for the saved mark allocation. Do not add a GCSE three-level scheme.',
     taskOnly ? 'Return ONLY question_number, task and correct_answer for the targets. Do not emit a new context, table, graph, options or unrelated siblings.'
       : 'Return every sibling. For context-only unmarked parents, retain context and zero marks. For scored parts return context, task and correct_answer.',
-    taskOnly ? '' : 'Keep all required resources. Store one coherent results table in diagram_config with type data_table, headers and rows; no Markdown/HTML copy. Rewrite keys to agree with the repaired data.',
+    taskOnly ? '' : comprehension
+      ? 'Keep ONE coherent original comprehension passage for this group. Return its full biology_comprehension payload on (a) and matching biology_comprehension_ref payloads on siblings, using diagram_config. All tasks and rewritten keys must agree with that source. Do not substitute a table or lose its paragraph numbering.'
+      : 'Keep all required resources. Store one coherent results table in diagram_config with type data_table, headers and rows; no Markdown/HTML copy. Rewrite keys to agree with the repaired data.',
     'Continuous observations need type line_chart with numeric datasets [{label,data:[{x,y}]}]. Never silently discard conflicting observations or invent point timestamps for interval summaries.',
     'Captions must be neutral; no [Graph showing ...] placeholders or answer-revealing descriptions.',
     taskOnly ? 'For an MCQ, use the ORIGINAL choices when checking correct_answer; do not emit or change the choices.'

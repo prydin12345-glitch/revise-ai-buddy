@@ -1,4 +1,5 @@
-import { gatewaySectionHeading, biologyResponseNotice } from "@/lib/biology-paper-display";
+import { gatewaySectionHeading, biologyResponseNotice, biologyPaperDisplay } from "@/lib/biology-paper-display";
+import { comprehensionInsertFigures, isComprehensionResource } from '@/lib/biology-comprehension';
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import ReactDOM from "react-dom/client";
@@ -354,7 +355,8 @@ function normalizeMCQOptions(rawOptions: unknown): NormalizedMCQOption[] {
 
 // ============= Question Sorting & Grouping =============
 function parseQuestionNumber(num: string): { main: number; sub: string; subOrder: number } {
-  const match = num.trim().match(/^(\d+)([a-z]?)(?:\s*[.)]\s*([ivxlcdm]+)?)?$/i);
+  const match = num.trim().match(/^(\d+)\s*\(([a-z])\)$/i)
+    ?? num.trim().match(/^(\d+)([a-z]?)(?:\s*[.)]\s*([ivxlcdm]+)?)?$/i);
   if (!match) { const n = parseInt(num.trim()); return { main: isNaN(n) ? 0 : n, sub: '', subOrder: 0 }; }
   const main = parseInt(match[1]);
   const sub = (match[2] || '').toLowerCase();
@@ -664,7 +666,7 @@ export async function generateExamPDF(
         resources.table.headers.map((h, i) => formatHeaderUnit(h, resources.table!.units?.[i])),
         ...resources.table.rows,
       ]) : question.table_data,
-      diagramConfig: biologyDiagram ?? (resources.chart?.type !== 'data_table' ? resources.chart : null)
+      diagramConfig: resources.passage ?? biologyDiagram ?? (resources.chart?.type !== 'data_table' ? resources.chart : null)
         ?? (rawDiagram?.type === 'data_table' ? undefined : rawDiagram),
     };
   }) };
@@ -675,6 +677,8 @@ export async function generateExamPDF(
   let currentPage = 1;
   let figureCount = 1;
 
+  const display = biologyPaperDisplay(examData.generation_context);
+  const paperLabel = display?.plan.courseId === 'aqa_alevel_biology_7402' && display.plan.paperId === 'paper_2' ? display.label : null;
   const questionGroups = groupQuestionsByMain(examData.questions);
   const totalMarks = examData.questions.reduce((sum, q) => sum + (q.marks || 0), 0);
 
@@ -755,12 +759,12 @@ export async function generateExamPDF(
     yPosition += titleLines.length * 9 + 6;
 
     // Subject line
-    if (examData.subject || examData.qualification_level) {
-      doc.setFontSize(13);
+    if (paperLabel || examData.subject || examData.qualification_level) {
+      doc.setFontSize(paperLabel ? 11 : 13);
       doc.setFont("helvetica", "normal");
       setColor(COLORS.secondary);
       const parts = [examData.subject, examData.qualification_level].filter(Boolean);
-      doc.text(parts.join('  ·  '), A4_WIDTH / 2, yPosition, { align: "center" });
+      doc.text(paperLabel ?? parts.join('  ·  '), A4_WIDTH / 2, yPosition, { align: "center" });
       yPosition += 12;
     }
 
@@ -842,7 +846,7 @@ export async function generateExamPDF(
     ]);
 
     // Generated date
-    yPosition += 5;
+    yPosition = Math.min(yPosition + 5, A4_HEIGHT - 30);
     setColor(COLORS.separator, "draw");
     doc.setLineWidth(0.3);
     doc.line(MARGIN, yPosition, A4_WIDTH - MARGIN, yPosition);
@@ -851,7 +855,7 @@ export async function generateExamPDF(
     doc.setFont("helvetica", "italic");
     setColor(COLORS.muted);
     doc.text(`Generated: ${new Date().toLocaleDateString()}`, MARGIN, yPosition);
-    doc.text("Not affiliated with any exam board", A4_WIDTH - MARGIN, yPosition, { align: "right" });
+    // The common footer already prints the exam-board disclaimer.
   };
 
   // ============= Render Table =============
@@ -923,7 +927,11 @@ export async function generateExamPDF(
   const drawDottedLines = (x: number, y: number, width: number, numLines: number, marks?: number): number => {
     for (let i = 0; i < numLines; i++) {
       const lineY = y + (i * BIOLOGY_LINE_SPACING);
-      if (lineY > A4_HEIGHT - FOOTER_HEIGHT - 5) { addNewPage(); return drawDottedLines(x, yPosition, width, numLines - i, i === numLines - 1 ? marks : undefined); }
+      if (lineY > A4_HEIGHT - FOOTER_HEIGHT - 15) {
+        doc.setLineDashPattern([], 0);
+        addNewPage(); drawPageHeader();
+        return drawDottedLines(x, yPosition, width, numLines - i, marks);
+      }
       doc.setLineDashPattern([1, 2], 0);
       setColor(COLORS.border, "draw");
       doc.setLineWidth(0.3);
@@ -1069,6 +1077,20 @@ export async function generateExamPDF(
     doc.line(MARGIN, yPosition, A4_WIDTH - MARGIN, yPosition);
     yPosition += 8;
 
+    // Text is printed once per group, independent of optional diagram capture.
+    // Checking all siblings also refuses conflicting copies before exporting.
+    for (const reading of comprehensionInsertFigures(group.questions)) {
+      ensureSpace(25);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); setColor(COLORS.primary);
+      yPosition = renderQuestionLines(`Reading passage: ${reading.title}`, MARGIN + 5, yPosition, CONTENT_WIDTH - 10);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+      for (let p = 0; p < reading.paragraphs.length; p++) {
+        yPosition = renderQuestionLines(`${p + 1}. ${cleanLatexForPDF(reading.paragraphs[p])}`, MARGIN + 5, yPosition, CONTENT_WIDTH - 10);
+        yPosition += 2;
+      }
+      yPosition += 5;
+    }
+
     for (let i = 0; i < group.questions.length; i++) {
       const question = group.questions[i];
       const parsed = parseQuestionNumber(question.question_number);
@@ -1128,7 +1150,7 @@ export async function generateExamPDF(
       }
 
       // ============= DIAGRAM RENDERING =============
-      if (includeDiagrams && question.diagramConfig) {
+      if (includeDiagrams && question.diagramConfig && !isComprehensionResource(question.diagramConfig)) {
         ensureSpace(130);
         const diagramWidth = CONTENT_WIDTH * 0.6;
         const diagramX = MARGIN + (CONTENT_WIDTH - diagramWidth) / 2;

@@ -151,7 +151,7 @@ export function InsertPanel({ figures, subjectColor }: InsertPanelProps) {
             <div className="rounded-xl border border-border bg-card p-5">
               <div className="border-l-2 border-primary/40 pl-4 space-y-3">
                 {fig.paragraphs.map((para: string, pi: number) => (
-                  <p key={pi} className="text-sm leading-relaxed font-serif">{para}</p>
+                  <p key={pi} className="text-sm leading-relaxed font-serif">{fig.numberParagraphs && <strong className="mr-2">{pi + 1}</strong>}{para}</p>
                 ))}
               </div>
               <p className="text-[11px] text-muted-foreground mt-3 italic text-right">— {fig.sourceLine}</p>

@@ -5,6 +5,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {z} from 'zod';
 import {alevelFixture,alevelSnapshot,pointScheme} from './aqa-alevel-fixtures';
+import {alevelPaper2Fixture,alevelPaper2Snapshot} from './aqa-alevel-paper2-fixtures';
 
 interface ExtractionScenario {
   snapshotPatch?: Record<string,unknown>;
@@ -12,17 +13,20 @@ interface ExtractionScenario {
   repair?: (request: any, questions: any[]) => any;
   rejectRepairSave?: boolean;
   truncateFirstBatch?: boolean;
+  truncateReadingBatch?: boolean;
   dropSecondBatch?: boolean;
 }
-export async function extract(scenario: boolean | ExtractionScenario = false, mode: 'full_mock'|'short_practice' = 'full_mock') {
-  const {rows}=alevelFixture(mode);
+export async function extract(scenario: boolean | ExtractionScenario = false, mode: 'full_mock'|'short_practice' = 'full_mock', paper: 'paper_1'|'paper_2' = 'paper_1') {
+  const {rows}=(paper==='paper_2'?alevelPaper2Fixture:alevelFixture)(mode);
   const questions=(scenario === true?rows.slice(1):rows).map(({id,diagram_config,...r}) => ({...r, chart_data:diagram_config}));
   const config = typeof scenario === 'object' ? scenario : {};
+  if(paper==='paper_2')for(const q of questions)if(q.chart_data?.type==='biology_comprehension'&&!q.question_number.endsWith('(a)'))q.chart_data={type:'biology_comprehension_ref',resourceId:q.chart_data.resourceId};
   config.mutate?.(questions);
-  const snapshot={...alevelSnapshot(mode),...config.snapshotPatch};
+  const snapshot={...(paper==='paper_2'?alevelPaper2Snapshot:alevelSnapshot)(mode),...config.snapshotPatch};
   const exam:any={id:'exam',user_id:'owner',subject_id:'Biology Higher',exam_board:'AQA',qualification_level:'level3',generation_context:snapshot,
     exam_specifications:[{topic_name:'Infection and response'}],exam_format:[{use_original_structure:false,mcq_count:0,short_answer_count:8,profile_metadata:{paperBlueprint:{paperContract:{courseId:'aqa_gcse_biology_8461',paperId:'paper_1',mode:'full_mock'}}}}]};
   let drafts:any[]=[];
+  let readingTruncated=false;
   const aiCalls:any[]=[];
   const generationCalls:any[]=[];
   const repairCalls:any[]=[];
@@ -66,6 +70,12 @@ export async function extract(scenario: boolean | ExtractionScenario = false, mo
       const content=isGeneration
         ?{questions:batch?questions.filter(q=>batch.includes(String(q.question_number))):questions}
         :config.repair?.(request,questions)??{parts:[]};
+      if(isGeneration&&config.truncateReadingBatch&&!readingTruncated&&content.questions.some((q:any)=>q.chart_data?.type==='biology_comprehension')){
+        readingTruncated=true;
+        const end=content.questions.findIndex((q:any)=>q.chart_data?.type==='biology_comprehension')+2;
+        const body='{"questions":['+content.questions.slice(0,end).map((q:any)=>JSON.stringify(q)).join(',')+',{"question_number":';
+        return new Response(JSON.stringify({choices:[{finish_reason:'length',message:{content:body}}]}));
+      }
       if(isGeneration&&config.dropSecondBatch&&generationCalls.length>=2)
         return new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:'{"questions":[]}'}}]}));
       if(isGeneration&&config.truncateFirstBatch&&generationCalls.length===1){
@@ -80,9 +90,9 @@ export async function extract(scenario: boolean | ExtractionScenario = false, mo
   try {await context.module.exports.processExamExtraction('exam','owner',client,'test-key',false,null);} catch(e){error=e;}
   return {drafts,exam,aiCalls,generationCalls,repairCalls,error};
 }
-export async function boundaryHandler(name: string, rows: any[], mode: 'full_mock'|'short_practice' = 'full_mock') {
+export async function boundaryHandler(name: string, rows: any[], mode: 'full_mock'|'short_practice' = 'full_mock', paper: 'paper_1'|'paper_2' = 'paper_1') {
   const writes: Array<{table:string; value:any}>=[];
-  const contextSnapshot=alevelSnapshot(mode);
+  const contextSnapshot=(paper==='paper_2'?alevelPaper2Snapshot:alevelSnapshot)(mode);
   const client={auth:{getUser:async()=>({data:{user:{id:'owner'}}})},from(table:string){
     const q:any={};
     for(const method of ['select','eq','order','single','maybeSingle','upsert','update','insert','delete'])q[method]=(value:any)=>{
@@ -100,14 +110,15 @@ export async function boundaryHandler(name: string, rows: any[], mode: 'full_moc
   return {writes,run:(body:any)=>runtime.handler(new Request('https://example.test',{method:'POST',headers:{Authorization:'Bearer test','Content-Type':'application/json'},body:JSON.stringify(body)}))};
 }
 
-export async function practice(name:string,cached=false,invalid=false) {
-  const snapshot={...alevelSnapshot('short_practice'),profile_id:'profile'};
+export async function practice(name:string,cached=false,invalid=false,paper:'paper_1'|'paper_2'='paper_1') {
+  const snapshot={...(paper==='paper_2'?alevelPaper2Snapshot:alevelSnapshot)('short_practice'),profile_id:'profile'};
   const set:any={id:'set',profile_id:'profile',subject_id:'Biology',exam_board:'AQA',educational_tier:'level3',
     generation_context:snapshot,question_count:2,question_format:'mixed',difficulty_level:'mixed',subtopics:['Cells'],notes:''};
   const questions=[{question_number:'1',question_text:'Which method makes a sample more representative?',question_type:'mcq',marks:1,
     subtopic:'Cells',difficulty_level:'easy',choices:{A:'Random sampling',B:'Largest only',C:'Nearest only',D:'One sample'},expected_answer:'A'},
     {question_number:'2',question_text:invalid?'The investigator measured reaction times.':'Explain how to investigate osmosis fairly.',question_type:'extended',marks:6,
       subtopic:'Cells',difficulty_level:'medium',expected_answer:'Repeat measurements to reduce random error.',mark_scheme:pointScheme}];
+  if(paper==='paper_2'){set.subtopics=['Photosynthesis'];for(const q of questions)q.subtopic='Photosynthesis';if(!invalid)questions[1].question_text='Explain the role of reduced NADP in the Calvin cycle.';}
   const cachedRows=[{...questions[0],id:'old1',options:['Random sampling','Largest only','Nearest only','One sample'],correct_answer:'A'},
     {...questions[1],id:'old2',correct_answer:pointScheme}];
   const calls:any[]=[],writes:any[]=[],reads:any[]=[],errors:any[]=[];

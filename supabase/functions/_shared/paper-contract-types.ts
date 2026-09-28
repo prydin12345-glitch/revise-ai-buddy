@@ -3,7 +3,7 @@ import type { AssessmentTier } from './assessment-tier.ts';
 
 export type PaperMode = "full_mock" | "short_practice" | "custom";
 export type ResponseType = "mcq_single" | "short_answer" | "long_form";
-export type ResourceKind = "data_table" | "graph" | "diagram" | "none";
+export type ResourceKind = "data_table" | "graph" | "diagram" | "passage" | "none";
 
 export interface PlannedPart {
   partId: string;
@@ -23,7 +23,7 @@ export interface PlannedPart {
   /** Authored common-tier demand target, not a claim that independent papers share questions. */
   commonTierTarget?: boolean;
   /** Separate official response-mark allocations from template group choices. */
-  assessmentRole?: 'structured' | 'extended_response';
+  assessmentRole?: 'structured' | 'extended_response' | 'comprehension';
 }
 
 export interface PaperPlan {

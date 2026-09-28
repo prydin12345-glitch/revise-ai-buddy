@@ -3,6 +3,8 @@ import { AQA_ALEVEL_BIOLOGY_ID, type AssessmentTier } from './assessment-tier.ts
 import type { CurriculumIdentity } from './curriculum-identity.ts';
 import { AQA_ALEVEL_P1, buildAqaAlevelPaper1Plan, assertAqaAlevelPaper1Plan, aqaAlevelPaper1Instructions, aqaAlevelPartInstruction } from './aqa-alevel-biology-contract.ts';
 import { AQA_ALEVEL_SPEC_URL, AQA_ALEVEL_P1_RULES } from './aqa-alevel-biology-scope.ts';
+import { AQA_ALEVEL_P2, buildAqaAlevelPaper2Plan, assertAqaAlevelPaper2Plan, aqaAlevelPaper2Instructions, aqaAlevelPaper2PartInstruction } from './aqa-alevel-biology-paper2-contract.ts';
+import { AQA_ALEVEL_P2_RULES } from './aqa-alevel-biology-paper2-scope.ts';
 import { AQA_BIOLOGY_P1, BIOLOGY_CONTRACT_VERSION, buildAqaPlan, aqaPlanInstructions } from './aqa-biology-contract.ts';
 import { OCR_GATEWAY_PAPER, buildGatewayPlan, gatewayComponent } from './ocr-biology-contract.ts';
 import { gatewayPartInstruction, gatewayPlanInstructions, GATEWAY_RULES } from './ocr-biology-scope.ts';
@@ -201,6 +203,25 @@ export const BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [
     definition:()=>({...AQA_ALEVEL_P1}),build:buildAqaAlevelPaper1Plan,instructions:aqaAlevelPaper1Instructions,
     repairPartInstructions:aqaAlevelPartInstruction,validatePlan:assertAqaAlevelPaper1Plan,
   },
+  {
+    id:'aqa-7402-paper-2-v1',courseId:AQA_ALEVEL_BIOLOGY_ID,paperId:'paper_2',contractVersion:1,
+    curriculum:{...curriculum,qualification:'A-level'},examBoard:'AQA',tiers:['not_tiered'],
+    sources:[
+      {url:AQA_ALEVEL_SPEC_URL,section:'7402 version 1.6 (July 2026), Paper 2: 76 structured + 15 comprehension marks',checkedOn:'2026-09-28'},
+      ...['scheme-of-assessment','subject-content/energy-transfers-in-and-between-organisms-a-level-only','subject-content/organisms-respond-to-changes-in-their-internal-and-external-environments-a-level-only','subject-content/genetics-populations-evolution-and-ecosystems-a-level-only','subject-content/the-control-of-gene-expression-a-level-only'].map(section=>({url:`https://www.aqa.org.uk/subjects/biology/a-level/biology-7402/specification/${section}`,section,checkedOn:'2026-09-28'})),
+    ],
+    official:{fullMarks:91,durationMinutes:120},
+    layoutChoices:[
+      'Untiered 7402/2, 35% of A-level: 76 short/long-answer marks plus one 15-mark comprehension question.',
+      'Nine groups, 35 parts, no MCQs and the passage length are Examly choices, not fixed AQA counts.',
+      'AO targets 24/49/18 fit Paper 2 ranges; maths/practical annotations guide drafting, not certification.',
+      'Short practice: 25 marks, 33 minutes, nine parts including an eight-mark mini-comprehension.',
+    ],
+    validation:{rows:'exact_parts',mcqOptions:4,levelSchemeAtMarks:null},rules:AQA_ALEVEL_P2_RULES,
+    generation:{strategy:'contract_only',systemPrompt:'Write an original AQA A-level Biology 7402/2 paper. Follow the saved untiered course, Topics 5–8 outcomes and immutable plan. Supply complete assessed tasks, canonical resources and private point-based keys, including the shared original comprehension passage. Do not import GCSE or Paper 1 boundaries or the Paper 3 essay. Return complete JSON only.'},
+    definition:()=>({...AQA_ALEVEL_P2}),build:buildAqaAlevelPaper2Plan,instructions:aqaAlevelPaper2Instructions,
+    repairPartInstructions:aqaAlevelPaper2PartInstruction,validatePlan:assertAqaAlevelPaper2Plan,
+  },
 ];
 
 export const biologyPaperOptions = (courseId: string | null | undefined) =>
@@ -290,7 +311,7 @@ export function assertBiologyPlanIntegrity(plan: PaperPlan, pack = packForBiolog
     if (!definition.topics.includes(part.topic)) reject(`out-of-paper topic at ${part.questionNumber}`);
     if (!['mcq_single', 'short_answer', 'long_form'].includes(part.responseType)) reject('unknown response type');
     if (!['AO1', 'AO2', 'AO3'].includes(part.demand)) reject('unknown demand');
-    if (!['none', 'data_table', 'graph', 'diagram'].includes(part.resource)) reject('unknown resource type');
+    if (!['none', 'data_table', 'graph', 'diagram', 'passage'].includes(part.resource)) reject('unknown resource type');
     if (part.resource !== 'none') {
       if (!part.resourceId || resources.has(part.resourceId)) reject('missing or duplicate resource identity');
       resources.add(part.resourceId);
