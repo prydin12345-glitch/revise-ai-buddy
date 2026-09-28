@@ -8,7 +8,7 @@ export function biologyPaperDisplay(context: unknown) {
   if (gateway) return {...gateway, subject: 'Gateway Biology A'};
   try {
     const plan = paperPlanForAttempt(context);
-    if(plan?.courseId===AQA_ALEVEL_BIOLOGY_ID)return {plan,subject:'A-level Biology',label:`AQA A-level Biology Paper 1 · ${plan.componentCode}`};
+    if(plan?.courseId===AQA_ALEVEL_BIOLOGY_ID)return {plan,subject:'A-level Biology',label:`AQA A-level Biology Paper ${plan.paperId==='paper_2'?'2':'1'} · ${plan.componentCode}`};
     if(plan?.courseId===WJEC_BIOLOGY_ID)return {plan,subject:'WJEC Wales Biology',label:`WJEC Wales Biology Unit ${plan.paperId==='unit_1'?'1':'2'} · ${plan.componentCode} · ${plan.tier==='foundation'?'Foundation':'Higher'}`};
     if (plan?.courseId === OCR_21C_BIOLOGY_ID) return {plan, subject:'Twenty First Century Biology B',
       label:`OCR Biology B · ${plan.paperId === 'breadth' ? 'Breadth' : 'Depth'} in biology · ${plan.componentCode} · ${plan.tier === 'foundation' ? 'Foundation' : 'Higher'}`};
@@ -31,7 +31,7 @@ export function biologyResponseNotice(context: unknown, number: string): string 
   const display = biologyPaperDisplay(context);
   if(display?.plan.courseId===AQA_ALEVEL_BIOLOGY_ID){
     const part=display.plan.parts.find(p=>canonicalPartNumber(p.questionNumber)===canonicalPartNumber(number));
-    return part?.assessmentRole==='extended_response'?'Extended response: develop a clear biological explanation or argument.':null;
+    return part?.assessmentRole==='comprehension'?'Comprehension: use the numbered reading passage.':part?.assessmentRole==='extended_response'?'Extended response: develop a clear biological explanation or argument.':null;
   }
   if(display?.plan.courseId===WJEC_BIOLOGY_ID){
     const part=display.plan.parts.find(p=>canonicalPartNumber(p.questionNumber)===canonicalPartNumber(number));

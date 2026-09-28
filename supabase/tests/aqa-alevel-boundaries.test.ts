@@ -3,11 +3,12 @@ import {build} from 'esbuild';
 import vm from 'node:vm';
 import {expect,it} from 'vitest';
 import {alevelSnapshot} from './aqa-alevel-fixtures';
+import {alevelPaper2Snapshot,alevelPaper2Fixture} from './aqa-alevel-paper2-fixtures';
 
 const exam='10000000-0000-0000-0000-000000000001',user='00000000-0000-0000-0000-000000000002',question='20000000-0000-0000-0000-000000000001';
-async function handler(name:string,options:{foreign?:boolean;badEdition?:boolean}={}){
+async function handler(name:string,options:{foreign?:boolean;badEdition?:boolean;paper?:'paper_1'|'paper_2';missingSource?:boolean}={}){
   const calls:any[]=[],writes:any[]=[],filters:any[]=[],requests:any[]=[];
-  const snapshot={...alevelSnapshot(),...(options.badEdition?{specification_version:'unsupported'}:{})};
+  const snapshot={...(options.paper==='paper_2'?alevelPaper2Snapshot:alevelSnapshot)(),...(options.badEdition?{specification_version:'unsupported'}:{})};
   const profile={id:'profile',user_id:user,subject_name:'Biology Higher',exam_board:'AQA',educational_tier:'level3',assessment_tier:null,paper_blueprint:{paperContract:snapshot.paper_contract}};
   const client={auth:{getUser:async()=>({data:{user:{id:user}},error:null})},
     rpc:async(name:string,args:any)=>{
@@ -28,6 +29,7 @@ async function handler(name:string,options:{foreign?:boolean;badEdition?:boolean
         if(table==='subject_exam_profiles')data=options.foreign?null:profile;
         if(table==='exams')data=op==='insert'?{...value,id:exam}:{id:exam,user_id:'tutor',assigned_by:'tutor',subject_id:'Biology Higher',title:'Synthetic A-level',generation_context:snapshot};
         const questionRow={id:question,question_number:'9(a)',question_text:'Explain how the structure of a protein determines its function.',question_type:'written',correct_answer:'PRIVATE POINT-BASED KEY',marks:5};
+        if(options.paper==='paper_2')Object.assign(questionRow,alevelPaper2Fixture().rows.at(-1),{id:question,correct_answer:'PRIVATE POINT-BASED KEY'},options.missingSource?{diagram_config:null}:{});
         if(table==='exam_questions')data=[questionRow];
         if(table==='student_answers')data=[{question_id:question,answer_text:'My synthetic answer',score:null}];
         if(table==='exam_submissions'&&op==='update')data={id:'submission'};
@@ -52,13 +54,13 @@ async function handler(name:string,options:{foreign?:boolean;badEdition?:boolean
   return {calls,writes,filters,requests,run:(body:any)=>runtime.handler(new Request('https://example.test',{method:'POST',headers:{Authorization:'Bearer synthetic',...(body instanceof FormData?{}:{'Content-Type':'application/json'})},body:body instanceof FormData?body:JSON.stringify(body)}))};
 }
 
-it('upload stores the owned untiered course, overriding conflicting request metadata',async()=>{
-  const h=await handler('upload-exam'),form=new FormData();
+it.each(['paper_1','paper_2'] as const)('upload stores the owned untiered %s, overriding conflicting request metadata',async paper=>{
+  const h=await handler('upload-exam',{paper}),form=new FormData();
   for(const [k,v] of Object.entries({subjectId:'Biology Higher',fileName:'Test',profileId:'profile',assessmentTier:'higher',examBoard:'OCR',qualificationLevel:'GCSE'}))form.set(k,v);
   expect((await h.run(form)).status).toBe(200);
   const saved=h.writes.find(w=>w.table==='exams'&&w.op==='insert').value;
   expect(saved.qualification_level).toBe('level3');expect(saved.exam_board).toBe('AQA');
-  expect(saved.generation_context.assessment_tier).toBe('not_tiered');expect(saved.generation_context.component_code).toBe('7402/1');
+  expect(saved.generation_context.assessment_tier).toBe('not_tiered');expect(saved.generation_context.component_code).toBe(paper==='paper_2'?'7402/2':'7402/1');
   expect(saved.generation_context.curriculum.qualification).toBe('A-level');
   expect(h.filters).toContainEqual({table:'subject_exam_profiles',column:'user_id',value:user});expect(h.requests).toHaveLength(0);
 });
@@ -67,12 +69,13 @@ it('upload refuses a foreign profile before inserting an exam',async()=>{
   for(const [k,v] of Object.entries({subjectId:'Biology',fileName:'Test',profileId:'foreign',examBoard:'AQA',qualificationLevel:'level3'}))form.set(k,v);
   expect((await h.run(form)).status).toBe(404);expect(h.writes).toHaveLength(0);
 });
-it.each(['submit-exam','grade-practice-question'])('%s sends the saved A-level point-marking context to the provider',async name=>{
-  const h=await handler(name),response=await h.run({examId:exam,questionId:question,setId:'set',answerText:'My synthetic answer'});
+it.each(['submit-exam','grade-practice-question'].flatMap(name=>(['paper_1','paper_2'] as const).map(paper=>({name,paper}))))('$name sends saved $paper context to the provider',async({name,paper})=>{
+  const h=await handler(name,{paper}),response=await h.run({examId:exam,questionId:question,setId:'set',answerText:'My synthetic answer'});
   expect(response.status).toBe(200);expect(h.requests).toHaveLength(1);
-  const system=h.requests[0].messages[0].content;expect(system).toContain('7402/1');expect(system).toContain('point-based');
+  const system=h.requests[0].messages[0].content;expect(system).toContain(paper==='paper_2'?'7402/2':'7402/1');expect(system).toContain('point-based');
   expect(system).not.toContain('You are a supportive mathematics tutor');
   expect(h.requests[0].messages[1].content).toContain('PRIVATE POINT-BASED KEY');
+  if(paper==='paper_2')expect(h.requests[0].messages[1].content).toContain('Researchers investigated');
   if(name==='submit-exam'){
     expect(h.calls.filter(c=>c.name==='finish_exam_marking')).toHaveLength(1);
     expect((await response.json()).totalScore).toBeNull();
@@ -82,4 +85,9 @@ it.each(['submit-exam','grade-practice-question'])('%s blocks a mismatched saved
   const h=await handler(name,{badEdition:true}),response=await h.run({examId:exam,questionId:question,setId:'set',answerText:'My synthetic answer'});
   expect(response.status).toBeGreaterThanOrEqual(400);expect(h.requests).toHaveLength(0);
   expect(h.calls.some(c=>c.name==='finish_exam_marking')).toBe(false);
+});
+
+it.each(['submit-exam','grade-practice-question'])('%s refuses marking without the saved comprehension source',async name=>{
+  const h=await handler(name,{paper:'paper_2',missingSource:true}),r=await h.run({examId:exam,questionId:question,setId:'set',answerText:'My synthetic answer'});
+  expect(r.status).toBeGreaterThanOrEqual(400);expect(h.requests).toHaveLength(0);expect(h.calls.some(c=>c.name==='finish_exam_marking')).toBe(false);
 });

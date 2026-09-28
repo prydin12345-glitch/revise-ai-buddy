@@ -71,7 +71,7 @@ export function resolvePaperSelection(lookup: CourseLookup, tier: AssessmentTier
   }
   let resolvedContract: SavedPaperContract | null = null;
   if(course?.id === AQA_ALEVEL_BIOLOGY_ID) {
-    if(!paperId)throw new Error('Choose and save AQA A-level Biology Paper 1 in your profile.');
+    if(!paperId)throw new Error('Choose and save AQA A-level Biology Paper 1 or Paper 2 in your profile.');
     if(tier!=='not_tiered')throw new Error('AQA A-level Biology is untiered. Reapply its profile settings.');
     for(const saved of [choice.specificationVersion,contract.specificationVersion])
       if(saved!=null && saved!==AQA_ALEVEL_BIOLOGY_SPECIFICATION)throw new Error('Reapply the reviewed AQA A-level specification version.');
@@ -95,7 +95,7 @@ export function paperPlanForAttempt(context: any, legacyBlueprint?: unknown) {
   }
   const legacy = context.context_version === 1;
   if(canonicalCourseId(context.course_id ?? object(object(legacyBlueprint).paperContract).courseId)===AQA_ALEVEL_BIOLOGY_ID &&
-    (legacy || context.specification_version!==AQA_ALEVEL_BIOLOGY_SPECIFICATION || context.paper_id!=='paper_1' || context.assessment_tier!=='not_tiered'))
+    (legacy || context.specification_version!==AQA_ALEVEL_BIOLOGY_SPECIFICATION || !['paper_1','paper_2'].includes(context.paper_id) || context.assessment_tier!=='not_tiered'))
     throw new Error('Create a fresh AQA A-level attempt with its paper and reviewed specification saved by the server.');
   if(canonicalCourseId(context.course_id??object(object(legacyBlueprint).paperContract).courseId)===WJEC_BIOLOGY_ID&&
     (legacy||context.specification_version!==WJEC_BIOLOGY_SPECIFICATION))throw new Error('Create a fresh WJEC attempt with its reviewed specification version saved by the server.');

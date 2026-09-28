@@ -251,6 +251,23 @@ export function MathRenderer({ content, latex, hasMath, question, className = ""
       This question has inconsistent or invalid source data. Generate a fresh paper before using it for assessment.
     </div>;
   }
+  if (resources?.passage && !inline) {
+    const passage = resources.passage;
+    const firstPart = !question?.question_number || /(?:\(a\)|a)$/i.test(String(question.question_number));
+    return <div className={className}>
+      <details open={firstPart} className="mb-5 rounded-xl border border-border bg-card p-4 text-card-foreground">
+        <summary className="cursor-pointer font-semibold">Reading passage: {passage.title}</summary>
+        <p className="mt-2 text-xs text-muted-foreground">Original Examly comprehension passage. Paragraph numbers are shown below.</p>
+        <div className="mt-4 space-y-4">
+          {passage.paragraphs.map((paragraph, index) => <div key={index} className="flex gap-3 text-sm leading-relaxed">
+            <span className="shrink-0 font-semibold text-muted-foreground" aria-label={`Paragraph ${index + 1}`}>{index + 1}</span>
+            <MathRenderer content={paragraph} className="min-w-0" />
+          </div>)}
+        </div>
+      </details>
+      <MathRenderer content={content} latex={latex} hasMath={hasMath} />
+    </div>;
+  }
   // Ensure content is always a string using robust coercion
   const safeContent = normalizeMathText(question
     ? resolveQuestionResources({ ...question, question_text: ensureString(content) }).text

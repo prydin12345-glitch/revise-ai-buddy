@@ -36,7 +36,10 @@ export function stripSolutionData(value: any): any {
   if (value && typeof value === 'object') {
     // Genetics scaffolds and calculation contracts contain GIVEN inputs only.
     // Projection also removes unknown solution/result aliases emitted by a model.
-    const allowed = value.type === 'punnett_square'
+    const allowed = value.type === 'biology_comprehension'
+      ? new Set(['type','resourceId','title','paragraphs'])
+      : value.type === 'biology_comprehension_ref' ? new Set(['type','resourceId'])
+      : value.type === 'punnett_square'
       ? new Set(['type','crossType','parent1','parent2','dominantTrait','recessiveTrait','showGametes','biology_calculation'])
       : value.kind === 'monohybrid_percentage' ? new Set(['kind','parent1','parent2','target'])
       : value.kind === 'biomass_transfer' ? new Set(['kind','from','to','organismColumn','valueColumn','unit']) : null;

@@ -2,6 +2,7 @@ import { assembleQuestionText, coerceMcqOptions, hasAssessedTask, normalizeRepai
 import { resolveQuestionResources, isResourceChart } from './question-resources.ts';
 import type { BiologyScope } from './gcse-biology-scope.ts';
 import { canonicalMcqAnswer, isMcqType, readQuestionTask } from './model-question-normalization.ts';
+import { expandComprehensionReferences } from './biology-comprehension.ts';
 
 export type RepairMode = 'task_only' | 'full_group';
 export interface RepairDiagnostic { code: string; partNumber?: string; detail: string; }
@@ -63,6 +64,7 @@ export function analyseGroupRepair(
     fail('invalid_response_shape', 'Expected a non-empty parts array.');
     return result();
   }
+  if (mode === 'full_group') parts = expandComprehensionReferences(parts as any[]);
   const byKey = new Map(group.map(row => [repairNumberKey(row.question_number), row]));
   if (byKey.size !== group.length) {
     fail('ambiguous_original_number', 'Original part numbers are not unique.');
@@ -75,7 +77,7 @@ export function analyseGroupRepair(
     return result();
   }
   const received = new Map<string, any>();
-  for (const part of parts) {
+  for (const part of parts as any[]) {
     const key = repairNumberKey(part?.question_number);
     if (!key || !byKey.has(key)) { fail('unknown_part', 'Response contains an unrecognised part number.'); continue; }
     // Healthy siblings are never rewritten by a task-only repair.
@@ -131,7 +133,7 @@ export function analyseGroupRepair(
       // Use the validated, losslessly normalised chart, regardless of which
       // supported model alias carried it. Do not validate one copy then save
       // a different/raw copy, or drop a table_data/diagramConfig-only repair.
-      const diagram = resources.chart ?? part.diagram_config ?? part.diagramConfig ?? part.chart_data ?? null;
+      const diagram = resources.passage ?? resources.chart ?? part.diagram_config ?? part.diagramConfig ?? part.chart_data ?? null;
       if (needsResource && (!diagram || typeof diagram !== 'object' || Array.isArray(diagram))) {
         fail('missing_required_resource', 'Complete group repairs must return every required resource.', number); continue;
       }

@@ -1,4 +1,4 @@
-import { biologyMarkingInstructions } from '../_shared/biology-marking.ts';
+import { biologyMarkingInstructions, biologyQuestionResourceContext } from '../_shared/biology-marking.ts';
 import { AQA_ALEVEL_BIOLOGY_ID } from '../_shared/assessment-tier.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -1475,7 +1475,7 @@ serve(async (req) => {
     const displayAnswer = answerText || '(No answer provided)';
 
     // Prepare grading prompt
-    const systemPrompt = `${isAlevelBiology ? 'You are an AQA A-level Biology examiner grading this saved Paper 1 practice task against its private point-based key.' : isHumanitiesMarking
+    const systemPrompt = `${isAlevelBiology ? `You are an AQA A-level Biology examiner grading this saved Paper ${gradeSet.generation_context?.paper_id==='paper_2'?'2':'1'} practice task against its private point-based key.` : isHumanitiesMarking
       ? `You are an experienced ${gradeSubject || 'humanities'} examiner grading student work with levels-based mark schemes.`
       : 'You are a supportive mathematics tutor grading student work.'} Your role is to:
 - Award partial credit generously for correct methods, even if the final answer is wrong
@@ -1549,7 +1549,7 @@ Return your grading using the grade_practice_answer function.`;
         model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt + markingRules + '\n' + biologyMarkingInstructions(gradeSet.generation_context) },
-          { role: 'user', content: userPrompt }
+          { role: 'user', content: userPrompt + biologyQuestionResourceContext(gradeSet.generation_context, question) }
         ],
         tools: [{
           type: 'function',
