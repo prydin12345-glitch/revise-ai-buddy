@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ChevronRight, Pencil } from "lucide-react";
+import { Pencil, FileText } from "lucide-react";
 import { formatEducationalTier } from "@/lib/level-display";
 import { profileCourseId, profilePaperId } from "../../../supabase/functions/_shared/course-selection";
 import { biologyPaperDefinition } from "@/lib/biology-paper-contract";
@@ -17,59 +17,69 @@ interface ExamProfileCardProps {
     paper_blueprint?: any;
   };
   subjectName: string;
+  /** Subject's own colour, reused as the card's header band so a profile
+   *  visually belongs to its subject at a glance — same colour as the dot
+   *  next to the subject name. */
+  subjectColor?: string | null;
   onEdit: () => void;
 }
 
-export const ExamProfileCard = ({ profile, subjectName, onEdit }: ExamProfileCardProps) => {
+export const ExamProfileCard = ({ profile, subjectName, subjectColor, onEdit }: ExamProfileCardProps) => {
   const navigate = useNavigate();
   const tierLabel = formatEducationalTier(profile.educational_tier);
   const assessmentLabel = formatAssessmentTier(profile.assessment_tier);
   const paper = biologyPaperDefinition(profileCourseId(profile.paper_blueprint), profile.assessment_tier === "foundation" || profile.assessment_tier === "higher" ? profile.assessment_tier : null, profilePaperId(profile.paper_blueprint));
   const hasBlueprint = Array.isArray(profile.paper_blueprint?.sections) && profile.paper_blueprint.sections.length > 0;
+  const mockLabel = profile.paper_blueprint?.paperContract
+    ? profile.paper_blueprint.paperContract.mode === "full_mock" ? "Full mock" : "Short practice"
+    : null;
+
+  // One line of the two most useful facts for deciding "is this the paper I
+  // want" — everything else moves to the small caption below instead of
+  // stacking as its own row of pills.
+  const bandTags = [assessmentLabel || tierLabel, mockLabel].filter(Boolean);
+  const captionParts = [paper?.componentCode, hasBlueprint ? "Custom layout" : null].filter(Boolean);
+  const accent = subjectColor || "hsl(var(--primary))";
 
   return (
-    <div className="group relative rounded-2xl border border-border bg-card/60 hover:border-border-strong hover:bg-surface-hover transition-colors">
+    <div className="group relative rounded-2xl border border-border bg-card overflow-hidden hover:border-border-strong transition-colors h-full flex flex-col">
       <button
         onClick={() => navigate(`/my-subjects/${encodeURIComponent(subjectName)}/${profile.id}`)}
-        className="w-full text-left p-5"
+        className="text-left flex-1"
       >
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="text-15 font-semibold text-foreground leading-tight truncate">
+        <div
+          className="relative px-4 pt-4 pb-3.5"
+          style={{ background: `linear-gradient(135deg, ${accent}, color-mix(in srgb, ${accent} 65%, black))` }}
+        >
+          {profile.topics.length > 0 && (
+            <span className="absolute top-3 right-3 text-11 font-medium px-2 py-0.5 rounded-md bg-white/20 text-white">
+              {profile.topics.length} {profile.topics.length === 1 ? "topic" : "topics"}
+            </span>
+          )}
+          <h3 className="text-15 font-semibold text-white leading-snug pr-16 line-clamp-2">
             {profile.profile_name}
           </h3>
-          <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" />
+          {bandTags.length > 0 && (
+            <span className="inline-block mt-2.5 text-11 px-2.5 py-1 rounded-md bg-white/20 text-white">
+              {bandTags.join(" · ")}
+            </span>
+          )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5 mt-3">
-          <Badge>{profile.question_count} questions</Badge>
-          {profile.topics.length > 0 && <Badge>{profile.topics.length} topics</Badge>}
-          {tierLabel && <Badge>{tierLabel}</Badge>}
-          {assessmentLabel && <Badge accent>{assessmentLabel}</Badge>}
-          {paper?.componentCode && <Badge accent>{paper.componentCode}</Badge>}
-          {profile.paper_blueprint?.paperContract && <Badge accent>{profile.paper_blueprint.paperContract.mode === "full_mock" ? "Full mock" : "Short practice"}</Badge>}
-          {hasBlueprint && <Badge accent>Custom layout</Badge>}
+        <div className="px-4 pt-3 pb-3">
+          {captionParts.length > 0 && (
+            <div className="flex items-center gap-1.5 text-11 text-muted-foreground mb-2.5">
+              <FileText className="w-3 h-3 shrink-0" />
+              <span className="truncate">{captionParts.join(" · ")}</span>
+            </div>
+          )}
+          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-11 font-medium bg-foreground/[0.04] text-muted-foreground border border-foreground/[0.06]">
+            {profile.question_count} questions
+          </span>
         </div>
-
-        {profile.topics.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-4">
-            {profile.topics.slice(0, 4).map((topic) => (
-              <span
-                key={topic}
-                className="px-2.5 py-1 rounded-full bg-foreground/[0.04] text-11 text-foreground/80 border border-foreground/[0.06]"
-              >
-                {topic}
-              </span>
-            ))}
-            {profile.topics.length > 4 && (
-              <span className="px-2.5 py-1 rounded-full text-11 text-muted-foreground">
-                +{profile.topics.length - 4} more
-              </span>
-            )}
-          </div>
-        )}
       </button>
 
-      <div className="flex items-center justify-between px-5 py-2.5 border-t border-border/60">
+      <div className="flex items-center justify-between px-4 py-2.5 border-t border-border/60">
         <span className="text-11 text-muted-foreground">Tap to view exam history</span>
         <button
           onClick={(e) => {
@@ -85,17 +95,3 @@ export const ExamProfileCard = ({ profile, subjectName, onEdit }: ExamProfileCar
     </div>
   );
 };
-
-function Badge({ children, accent = false }: { children: React.ReactNode; accent?: boolean }) {
-  return (
-    <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-md text-11 font-medium border ${
-        accent
-          ? "bg-primary/10 text-primary border-primary/20"
-          : "bg-foreground/[0.03] text-muted-foreground border-foreground/[0.06]"
-      }`}
-    >
-      {children}
-    </span>
-  );
-}
