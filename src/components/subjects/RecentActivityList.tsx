@@ -100,7 +100,7 @@ export const RecentActivityList = ({ subjectName }: RecentActivityListProps) => 
   if (items.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border/60 p-6 text-center">
-        <p className="text-[13px] text-muted-foreground">
+        <p className="text-13 text-muted-foreground">
           No activity yet for this subject. Create an exam or practice quiz to get started.
         </p>
       </div>
@@ -116,7 +116,7 @@ export const RecentActivityList = ({ subjectName }: RecentActivityListProps) => 
             : null;
 
         const scoreColor =
-          pct === null ? "" : pct >= 70 ? "text-green-500" : pct >= 50 ? "text-amber-500" : "text-red-500";
+          pct === null ? "" : pct >= 70 ? "text-success" : pct >= 50 ? "text-warning" : "text-danger";
 
         return (
           <button
@@ -136,8 +136,8 @@ export const RecentActivityList = ({ subjectName }: RecentActivityListProps) => 
             </div>
 
             <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-medium text-foreground truncate">{item.title}</div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">
+              <div className="text-13 font-medium text-foreground truncate">{item.title}</div>
+              <div className="text-11 text-muted-foreground mt-0.5">
                 {new Date(item.date).toLocaleDateString("en-GB", {
                   day: "numeric",
                   month: "short",
@@ -149,7 +149,7 @@ export const RecentActivityList = ({ subjectName }: RecentActivityListProps) => 
             </div>
 
             {pct !== null && (
-              <div className={`text-[13px] font-semibold tabular-nums ${scoreColor}`}>{pct}%</div>
+              <div className={`text-13 font-semibold tabular-nums ${scoreColor}`}>{pct}%</div>
             )}
 
             <ChevronRight className="w-4 h-4 text-muted-foreground/60 group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0" />
