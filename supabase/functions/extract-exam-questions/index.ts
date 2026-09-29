@@ -1,3 +1,4 @@
+import {essayKeyObject} from '../_shared/biology-essay-marking.ts';
 import { AQA_ALEVEL_BIOLOGY_ID, OCR_GATEWAY_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID, WJEC_BIOLOGY_ID } from "../_shared/assessment-tier.ts";
 import { expandComprehensionReferences } from '../_shared/biology-comprehension.ts';
 import { isAqaPaper2 } from "../_shared/aqa-biology-paper2.ts";
@@ -1404,9 +1405,9 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
 
     // Check aliases before collapsing chart_data/diagram_config into one column.
     const rawResources = resolveQuestionResources({ ...q, question_text: assembleQuestionText(q) });
-    const aliasConflict = rawResources.issues.find(issue => issue.code === 'conflicting_resource_data' && issue.detail.startsWith('Stored copies'));
+    const aliasConflict = rawResources.issues.find(issue => issue.code === 'conflicting_resource_data' && (issue.detail.startsWith('Stored copies') || !!rawResources.essay));
     if (aliasConflict) throw new Error('Question ' + q.question_number + ': ' + aliasConflict.detail);
-    const canonicalChart = rawResources.passage ?? rawResources.chart ?? chartPayload;
+    const canonicalChart = rawResources.essay ?? rawResources.passage ?? rawResources.chart ?? chartPayload;
     return {
       exam_id: draftId,
       question_number: String(q.question_number || i + 1),
@@ -1420,7 +1421,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       root_question_number: q.root_question_number || String(q.question_number || i + 1).match(/^\d+/)?.[0],
       marks: q.marks || 1,
       options,
-      correct_answer: typeof correctAnswer === 'object' ? JSON.stringify(correctAnswer) : (typeof correctAnswer === 'string' ? sanitiseFeedback(correctAnswer) : correctAnswer),
+      correct_answer: essayKeyObject(correctAnswer) ? JSON.stringify(essayKeyObject(correctAnswer)) : typeof correctAnswer === 'object' ? JSON.stringify(correctAnswer) : (typeof correctAnswer === 'string' ? sanitiseFeedback(correctAnswer) : correctAnswer),
       has_figures: q.has_figures || false,
       has_tables: q.has_tables || false,
       topic_tag: q.topic_tag || null,

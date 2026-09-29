@@ -26,7 +26,7 @@ it('builds 76 structured marks plus 15 comprehension marks at the published Pape
   expect(['AO1','AO2','AO3'].map(ao=>plan.parts.filter(p=>p.demand===ao).reduce((s,p)=>s+p.marks,0))).toEqual([24,49,18]);
   expect(plan.parts.some(p=>p.marks===25||p.responseType==='mcq_single')).toBe(false);
   expect(()=>assertBiologyPlanIntegrity(plan)).not.toThrow();
-  expect(getBiologyPaperPack(plan.courseId,'paper_3')).toBeNull();
+  expect(getBiologyPaperPack(plan.courseId,'paper_4')).toBeNull();
   expect(()=>buildAqaAlevelPaper2Plan('full_mock','higher')).toThrow(/untiered/);
 });
 it.each(['full_mock','short_practice'] as const)('validates the complete %s and frozen identity',mode=>{

@@ -35,7 +35,7 @@ it('requires an explicit supported paper and does not cross qualification or edi
   expect(getBiologyPaperPack(COURSE)).toBeNull();
   expect(()=>resolvePaperSelection(lookup,'not_tiered',null)).toThrow(/Choose and save/);
   expect(resolvePaperSelection(lookup,'not_tiered',{courseSelection:{courseId:COURSE,paperId:'paper_2'}}).componentCode).toBe('7402/2');
-  for(const paperId of ['paper_3','unit_1'])expect(()=>resolvePaperSelection(lookup,'not_tiered',{courseSelection:{courseId:COURSE,paperId}})).toThrow();
+  for(const paperId of ['paper_4','unit_1'])expect(()=>resolvePaperSelection(lookup,'not_tiered',{courseSelection:{courseId:COURSE,paperId}})).toThrow();
   expect(()=>resolvePaperSelection({...lookup,educationalTier:'GCSE'},'higher',blueprint)).toThrow(/does not match/);
   expect(()=>resolvePaperSelection(lookup,'not_tiered',{...blueprint,paperContract:{...blueprint.paperContract,specificationVersion:'old'}})).toThrow(/version/);
   expect(resolvePaperSelection(lookup,'not_tiered',blueprint).curriculum?.qualification).toBe('A-level');

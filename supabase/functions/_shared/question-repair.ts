@@ -25,6 +25,7 @@ export const describeRepairDiagnostics = (items: RepairDiagnostic[]): string => 
 export function buildQuestionRepairPrompt(input: RepairRequest): string {
   const taskOnly = input.mode === 'task_only';
   const sample = input.group.find(row => Number(row.marks) > 0);
+  const essay = input.plan?.parts.some(p => p.resource === 'essay_choice' && input.group.some(row => String(row.question_number) === p.questionNumber));
   const comprehension = input.plan?.parts.some(p => p.resource === 'passage' && input.group.some(row => String(row.question_number) === p.questionNumber));
   const levelScheme = input.plan ? packForBiologyPlan(input.plan).validation.levelSchemeAtMarks : 6;
   const resourceChecklist = input.group.map(row => {
@@ -46,15 +47,15 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     input.previousDiagnostics?.length ? 'Previous response was rejected: ' + describeRepairDiagnostics(input.previousDiagnostics) : '',
     'Keep each stored question number, topic, question type and mark allocation. Return an explicit task field for every scored part.',
     'The task must contain a complete instruction such as Calculate, Describe, Explain, Distinguish, State, Name or Which. Background information alone is not a task.',
-    'Every scored repair needs a freshly checked correct_answer string derived from the supplied context and data.',
+    essay ? 'The essay correct_answer must be a private biology_essay_key JSON object with both exact titles and 4–10 detailed indicative areas per title.' : 'Every scored repair needs a freshly checked correct_answer string derived from the supplied context and data.',
     taskOnly ? 'Never invent missing measurements; preserve all original source data.'
       : 'Use exact supplied measurements when recoverable. Never patch an unknown cell with a guessed value. If the source is irrecoverable, rewrite the COMPLETE group as a coherent new synthetic question with a complete dataset and new tasks/keys for EVERY sibling; never present invented values as recovered originals.',
-    levelScheme === 6
+    essay ? 'Keep the 25-mark essay holistic; do not replace its private structured scheme with point counts or GCSE bands.' : levelScheme === 6
       ? 'correct_answer must be a plain string. For any 6-mark extended-response part the string must contain "Level 1 (1-2 marks):", "Level 2 (3-4 marks):" and "Level 3 (5-6 marks):" descriptors plus indicative content.'
       : 'correct_answer must contain the task-specific marking points, numerical working where relevant, acceptable alternatives and caps for the saved mark allocation. Do not add a GCSE three-level scheme.',
     taskOnly ? 'Return ONLY question_number, task and correct_answer for the targets. Do not emit a new context, table, graph, options or unrelated siblings.'
       : 'Return every sibling. For context-only unmarked parents, retain context and zero marks. For scored parts return context, task and correct_answer.',
-    taskOnly ? '' : comprehension
+    taskOnly ? '' : essay ? 'Return the two public titles as biology_essay_choice in diagram_config, with no answer content. Rebuild both matching private schemes in correct_answer. Do not substitute a table or create two scored rows.' : comprehension
       ? 'Keep ONE coherent original comprehension passage for this group. Return its full biology_comprehension payload on (a) and matching biology_comprehension_ref payloads on siblings, using diagram_config. All tasks and rewritten keys must agree with that source. Do not substitute a table or lose its paragraph numbering.'
       : 'Keep all required resources. Store one coherent results table in diagram_config with type data_table, headers and rows; no Markdown/HTML copy. Rewrite keys to agree with the repaired data.',
     'Continuous observations need type line_chart with numeric datasets [{label,data:[{x,y}]}]. Never silently discard conflicting observations or invent point timestamps for interval summaries.',

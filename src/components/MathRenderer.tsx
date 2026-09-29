@@ -251,6 +251,14 @@ export function MathRenderer({ content, latex, hasMath, question, className = ""
       This question has inconsistent or invalid source data. Generate a fresh paper before using it for assessment.
     </div>;
   }
+  if (resources?.essay && !inline) {
+    return <div className={className}>
+      <MathRenderer content={content} latex={latex} hasMath={hasMath}/>
+      <div className="my-4 space-y-4 rounded-xl border border-border bg-card p-4 text-card-foreground">
+        {resources.essay.titles.map((title,index)=><div key={title.id}><p className="mb-1 text-sm font-semibold">{index===0?'EITHER':'OR'} — Title {title.id}</p><MathRenderer content={title.title}/></div>)}
+      </div>
+    </div>;
+  }
   if (resources?.passage && !inline) {
     const passage = resources.passage;
     const firstPart = !question?.question_number || /(?:\(a\)|a)$/i.test(String(question.question_number));

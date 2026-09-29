@@ -14,16 +14,16 @@ export function BiologyPaperSelector({courseId,value,tier,onChange}:{
   return <div className="space-y-2">
     <label htmlFor="biology-paper" className="text-sm font-medium">{wjec?'Biology unit':'Biology paper'}</label>
     <select id="biology-paper" className="w-full rounded-md border bg-background p-2 text-sm" value={selectedId} onChange={event=>onChange(event.target.value)}>
-      {!selectedId&&<option value="" disabled>{wjec?'Choose Unit 1 or Unit 2':courseId===OCR_21C_BIOLOGY_ID?'Choose Breadth or Depth':'Choose Paper 1 or Paper 2'}</option>}
+      {!selectedId&&<option value="" disabled>{wjec?'Choose Unit 1 or Unit 2':courseId===OCR_21C_BIOLOGY_ID?'Choose Breadth or Depth':alevel?'Choose Paper 1, Paper 2 or Paper 3':'Choose Paper 1 or Paper 2'}</option>}
       {options.map(pack=><option key={pack.id} value={pack.paperId}>{pack.definition(tier).displayName}</option>)}
-      {alevel&&<option value="paper_3" disabled>Paper 3 — analysis and essay support coming later</option>}
+
       {wjec&&<option value="unit_3" disabled>Unit 3 — practical assessment (not generated)</option>}
     </select>
     {selected&&<p className="text-xs text-muted-foreground">{selected.definition(tier).topics.join(' · ')}.
       {selected.definition(tier).componentCode?` Component ${selected.definition(tier).componentCode}.`:''}</p>}
     {alevel&&<div className="space-y-1 text-xs text-muted-foreground">
       <p>AQA A-level Biology 7402 · Untiered. AS Biology 7401 is a separate qualification.</p>
-      <p>{selectedId==='paper_2'?'Paper 2: Topics 5–8 and relevant practical skills; 91 marks, 2 hours. Includes one 15-mark comprehension question.':'Paper 1: Topics 1–4 and relevant practical skills; 91 marks, 2 hours. Includes 15 extended-response marks.'}</p>
+      <p>{selectedId==='paper_3'?'Paper 3: Topics 1–8; 78 marks, 2 hours. 38 structured + 15 experimental analysis + ONE 25-mark essay chosen from two titles. Short practice: 40 marks, 70 minutes, retaining the full essay.':selectedId==='paper_2'?'Paper 2: Topics 5–8 and relevant practical skills; 91 marks, 2 hours. Includes one 15-mark comprehension question.':'Paper 1: Topics 1–4 and relevant practical skills; 91 marks, 2 hours. Includes 15 extended-response marks.'}</p>
       <p>Specification version 1.6 (July 2026). This written practice does not award the practical endorsement.</p>
     </div>}
     {wjec&&<div className="space-y-1 text-xs text-muted-foreground">

@@ -1,3 +1,5 @@
+import {readBiologyEssay,hasBiologyEssayText} from '@/lib/biology-essay';
+import {BiologyEssayAnswer} from '@/components/exams/BiologyEssayAnswer';
 import { PaperSectionHeading } from "@/components/exams/PaperSectionHeading";
 import { comprehensionInsertFigures } from '@/lib/biology-comprehension';
 import { biologyPaperDisplay } from "@/lib/biology-paper-display";
@@ -147,6 +149,7 @@ interface Question {
   options?: string[];
   figure_urls?: string[];
   correct_answer?: string;
+  diagram_config?: unknown;
   has_math?: boolean;
   question_latex?: string;
 }
@@ -1143,7 +1146,7 @@ const ExamInProgress = () => {
 
   const answeredCount = questions.filter(q => {
     const textAnswer = userAnswers[q.id];
-    const hasTextAnswer = Boolean(textAnswer?.finalAnswer?.trim() || textAnswer?.workingOut?.trim());
+    const hasTextAnswer = readBiologyEssay(q).essay ? hasBiologyEssayText(textAnswer?.finalAnswer) : Boolean(textAnswer?.finalAnswer?.trim() || textAnswer?.workingOut?.trim());
     const tableAnswer = tableAnswers[q.id];
     const hasTableAnswer = tableAnswer && Object.keys(tableAnswer).length > 0;
     return hasTextAnswer || hasTableAnswer;
@@ -1468,11 +1471,11 @@ const ExamInProgress = () => {
                     const totalMarks = subQuestions.reduce((sum, q) => sum + q.marks, 0);
                     const allAnswered = subQuestions.every(q => {
                       const a = userAnswers[q.id];
-                      return Boolean(a?.finalAnswer?.trim() || a?.workingOut?.trim()) || Boolean(tableAnswers[q.id]) || Boolean(graphAnswers[q.id]);
+                      return (readBiologyEssay(q).essay ? hasBiologyEssayText(a?.finalAnswer) : Boolean(a?.finalAnswer?.trim() || a?.workingOut?.trim())) || Boolean(tableAnswers[q.id]) || Boolean(graphAnswers[q.id]);
                     });
                     const someAnswered = subQuestions.some(q => {
                       const a = userAnswers[q.id];
-                      return Boolean(a?.finalAnswer?.trim() || a?.workingOut?.trim()) || Boolean(tableAnswers[q.id]) || Boolean(graphAnswers[q.id]);
+                      return (readBiologyEssay(q).essay ? hasBiologyEssayText(a?.finalAnswer) : Boolean(a?.finalAnswer?.trim() || a?.workingOut?.trim())) || Boolean(tableAnswers[q.id]) || Boolean(graphAnswers[q.id]);
                     });
                     
                     return (
@@ -1493,7 +1496,7 @@ const ExamInProgress = () => {
                             <CollapsibleContent className="pl-4 space-y-0.5 mt-0.5">
                               {subQuestions.map((q, subIdx) => {
                                 const answerData = userAnswers[q.id];
-                                const hasAnswer = Boolean(answerData?.finalAnswer?.trim() || answerData?.workingOut?.trim()) || Boolean(tableAnswers[q.id]) || Boolean(graphAnswers[q.id]);
+                                const hasAnswer = (readBiologyEssay(q).essay ? hasBiologyEssayText(answerData?.finalAnswer) : Boolean(answerData?.finalAnswer?.trim() || answerData?.workingOut?.trim())) || Boolean(tableAnswers[q.id]) || Boolean(graphAnswers[q.id]);
                                 const isFlagged = flaggedQuestions.has(q.id);
                                 // Extract sub-label robustly: prefer any letter inside parens,
                                 // fall back to alphabetical position when the tail is empty or "(".
@@ -1532,7 +1535,7 @@ const ExamInProgress = () => {
                           (() => {
                             const q = subQuestions[0];
                             const answerData = userAnswers[q.id];
-                            const hasAnswer = Boolean(answerData?.finalAnswer?.trim() || answerData?.workingOut?.trim()) || Boolean(tableAnswers[q.id]) || Boolean(graphAnswers[q.id]);
+                            const hasAnswer = (readBiologyEssay(q).essay ? hasBiologyEssayText(answerData?.finalAnswer) : Boolean(answerData?.finalAnswer?.trim() || answerData?.workingOut?.trim())) || Boolean(tableAnswers[q.id]) || Boolean(graphAnswers[q.id]);
                             const isFlagged = flaggedQuestions.has(q.id);
                             
                             return (
@@ -2273,6 +2276,7 @@ const ExamInProgress = () => {
                             </div>
                           );
                         })() : (() => {
+                    if(readBiologyEssay(question).essay)return <BiologyEssayAnswer value={userAnswers[question.id]?.finalAnswer||''} onChange={value=>handleAnswerChange(question.id,value)} disabled={isReadOnly}/>;
                     // ─── Unified default answer surface (text + math text-based subjects) ───
                     // MCQ / nuclear / graph / drawing / table / physics-override branches are
                     // handled elsewhere and stay in their current shells until a focused audit.

@@ -133,7 +133,7 @@ export function analyseGroupRepair(
       // Use the validated, losslessly normalised chart, regardless of which
       // supported model alias carried it. Do not validate one copy then save
       // a different/raw copy, or drop a table_data/diagramConfig-only repair.
-      const diagram = resources.passage ?? resources.chart ?? part.diagram_config ?? part.diagramConfig ?? part.chart_data ?? null;
+      const diagram = resources.essay ?? resources.passage ?? resources.chart ?? part.diagram_config ?? part.diagramConfig ?? part.chart_data ?? null;
       if (needsResource && (!diagram || typeof diagram !== 'object' || Array.isArray(diagram))) {
         fail('missing_required_resource', 'Complete group repairs must return every required resource.', number); continue;
       }
