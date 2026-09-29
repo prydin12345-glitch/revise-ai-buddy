@@ -11,7 +11,7 @@ import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 import { useSubjectAverage } from "@/hooks/useSubjectAverage";
 import { useTopicPerformance } from "@/hooks/useTopicPerformance";
 import { ExamProfileModal } from "@/components/stats/ExamProfileModal";
-import { ExamProfileCard } from "@/components/subjects/ExamProfileCard";
+import { ExamProfileCarousel } from "@/components/subjects/ExamProfileCarousel";
 import { TopicMasteryGrid } from "@/components/subjects/TopicMasteryGrid";
 import { RecentActivityList } from "@/components/subjects/RecentActivityList";
 import { getBoardDisplayName } from "@/lib/board-scrubber";
@@ -145,44 +145,56 @@ const SubjectDetail = () => {
   return (
     <DashboardLayout>
       <div className="py-6 px-6 md:px-12 lg:px-16 space-y-8 w-full max-w-[1300px] mx-auto">
-        {/* Back */}
-        <Link
-          to="/my-subjects"
-          className="inline-flex items-center gap-1.5 text-13 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          All subjects
-        </Link>
-
-        {/* Header */}
-        <div className="flex items-start gap-4">
-          <span
-            className="w-3 h-3 rounded-full mt-2.5 shrink-0"
-            style={{ backgroundColor: subject.subject_color }}
-            aria-hidden
-          />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-                {displayName}
-              </h1>
-              <button
-                onClick={() => setEditSubjectOpen(true)}
-                aria-label="Edit subject"
-                className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-foreground/[0.05] transition-colors"
-              >
-                <Pencil className="w-4 h-4" />
-              </button>
-            </div>
-            <p className="text-13 text-muted-foreground mt-1">
-              {percentage !== null ? `Average ${percentage}%` : "Not yet tested"}
-              {" · "}
-              {topics.length} {topics.length === 1 ? "topic" : "topics"}
-              {" · "}
-              {profiles.length} {profiles.length === 1 ? "profile" : "profiles"}
-              {boardLabel ? ` · ${boardLabel}` : ""}
-            </p>
+        {/* Header — back arrow, subject dot, name and board on one row, with the
+            subject's vitals as a compact stat cluster on the right instead of
+            a middot-joined sentence. */}
+        <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 pb-5 border-b border-border">
+          <div className="flex items-center gap-3 min-w-0">
+            <Link
+              to="/my-subjects"
+              aria-label="Back to all subjects"
+              className="flex items-center justify-center w-8 h-8 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-border-strong transition-colors shrink-0"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+            <span
+              className="w-3 h-3 rounded-full shrink-0"
+              style={{ backgroundColor: subject.subject_color }}
+              aria-hidden
+            />
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight truncate">
+              {displayName}
+            </h1>
+            <button
+              onClick={() => setEditSubjectOpen(true)}
+              aria-label="Edit subject"
+              className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-foreground/[0.05] transition-colors shrink-0"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+            {boardLabel && (
+              <span className="text-11 font-medium px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20 shrink-0">
+                {boardLabel}
+              </span>
+            )}
           </div>
+
+          <dl className="flex items-center gap-7">
+            <div>
+              <dt className="text-11 text-muted-foreground">Score</dt>
+              <dd className="text-17 font-semibold text-foreground tabular-nums">
+                {percentage !== null ? `${percentage}%` : "—"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-11 text-muted-foreground">Topics</dt>
+              <dd className="text-17 font-semibold text-foreground tabular-nums">{topics.length}</dd>
+            </div>
+            <div>
+              <dt className="text-11 text-muted-foreground">Profiles</dt>
+              <dd className="text-17 font-semibold text-foreground tabular-nums">{profiles.length}</dd>
+            </div>
+          </dl>
         </div>
 
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6 lg:items-start space-y-8 lg:space-y-0">
@@ -217,19 +229,15 @@ const SubjectDetail = () => {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-              {profiles.map((profile) => (
-                <ExamProfileCard
-                  key={profile.id}
-                  profile={profile as any}
-                  subjectName={subject.subject_name}
-                  onEdit={() => {
-                    setEditingProfile(profile);
-                    setProfileModalOpen(true);
-                  }}
-                />
-              ))}
-            </div>
+            <ExamProfileCarousel
+              profiles={profiles as any[]}
+              subjectName={subject.subject_name}
+              subjectColor={subject.subject_color}
+              onEdit={(profile) => {
+                setEditingProfile(profile);
+                setProfileModalOpen(true);
+              }}
+            />
           )}
         </section>
         </div>
