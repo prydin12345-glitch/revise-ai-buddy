@@ -1,3 +1,4 @@
+import {essayKeyObject} from './biology-essay-marking.ts';
 // Model-output adapters only. No AI calls, invented answers or relaxed gates.
 // Generation and repair must preserve the same content before validating it.
 const text = (value: unknown): string => typeof value === 'string' ? value.trim() : '';
@@ -84,6 +85,7 @@ export function coerceMcqOptions(raw: unknown): string[] | null {
 /** Retain descriptors, mark ranges AND indicative content from each level. */
 export function flattenAnswerKey(value: unknown): string {
   if (value == null) return '';
+  const essay=essayKeyObject(value);if(essay)return JSON.stringify(essay);
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   if (typeof value === 'string') {
     const trimmed = value.trim();
@@ -110,6 +112,13 @@ export function flattenAnswerKey(value: unknown): string {
 /** An answer and its rubric are complementary, not competing aliases. */
 export function readAnswerKey(raw: unknown): string {
   const part = record(raw);
+  const essayKeys=['correct_answer','expected_answer','answer','model_answer','mark_scheme','marking_scheme','rubric'].map(f=>essayKeyObject(part[f])).filter(Boolean);
+  if(essayKeys.length){
+    const key=JSON.stringify(essayKeys[0]);
+    const stable=(value:unknown)=>JSON.stringify(value,(_key,item)=>item&&typeof item==='object'&&!Array.isArray(item)?Object.fromEntries(Object.entries(item).sort(([a],[b])=>a.localeCompare(b))):item);
+    if(essayKeys.some(k=>stable(k)!==stable(essayKeys[0])))throw new Error('Conflicting private essay schemes; regenerate the essay and both schemes.');
+    return key;
+  }
   const answer = ['correct_answer', 'expected_answer', 'answer', 'model_answer']
     .map(field => flattenAnswerKey(part[field])).find(Boolean) ?? '';
   const schemes = ['mark_scheme', 'marking_scheme', 'rubric'].map(field => flattenAnswerKey(part[field])).filter(Boolean);

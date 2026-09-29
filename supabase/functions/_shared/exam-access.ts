@@ -34,6 +34,8 @@ const PRIVATE_KEYS = new Set([
 export function stripSolutionData(value: any): any {
   if (Array.isArray(value)) return value.map(stripSolutionData);
   if (value && typeof value === 'object') {
+    // Explicit nested whitelist: public titles must never carry private guidance.
+    if(value.type==='biology_essay_choice')return {type:value.type,version:value.version,titles:Array.isArray(value.titles)?value.titles.map((t:any)=>({id:t?.id,title:t?.title})):[]};
     // Genetics scaffolds and calculation contracts contain GIVEN inputs only.
     // Projection also removes unknown solution/result aliases emitted by a model.
     const allowed = value.type === 'biology_comprehension'

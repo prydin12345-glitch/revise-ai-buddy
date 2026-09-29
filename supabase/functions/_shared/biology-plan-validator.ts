@@ -1,3 +1,4 @@
+import {requireBiologyEssayKey} from './biology-essay-marking.ts';
 import { packForBiologyPlan } from './biology-course-packs.ts';
 import type { PaperPlan } from './biology-paper-contract.ts';
 import type { CandidatePart, QuestionDefect } from './question-contract-validator.ts';
@@ -22,6 +23,7 @@ export function validateBiologyPlan(rows: CandidatePart[], plan?: PaperPlan | nu
   const byNumber = new Map(plan.parts.map(p => [canonicalPartNumber(p.questionNumber), p]));
   const seen = new Set<string>();
   const passages = new Map<string,string>();
+  const experiments = new Map<string,string>();
   for (const row of rows) {
     const number = canonicalPartNumber(row.question_number);
     const expected = byNumber.get(number);
@@ -39,6 +41,17 @@ export function validateBiologyPlan(rows: CandidatePart[], plan?: PaperPlan | nu
     }
 
     const resources = resolveQuestionResources(row);
+    if(resources.essay && expected.resource!=='essay_choice')push(`Q${number} is not the planned essay.`, 'invalid_resource');
+    if(expected.resource==='essay_choice'){
+      if(!resources.essay)push(`Q${number} needs both saved essay titles.`, 'missing_required_resource');
+      else try{requireBiologyEssayKey(row.correct_answer,resources.essay);}catch(error){push(String((error as Error).message),'missing_answer');}
+    }
+    if(expected.assessmentRole==='critical_analysis' && resources.table){
+      const t=resources.table;
+      const saved=JSON.stringify({headers:t.headers,rows:t.rows,units:t.units??[],caption:t.caption??''});
+      if(experiments.has(expected.parentId)&&experiments.get(expected.parentId)!==saved)push(`Q${number}: experimental-analysis siblings must carry the same saved dataset, units and caption.`, 'conflicting_resource_data');
+      experiments.set(expected.parentId,saved);
+    }
     if (resources.passage && expected.resource !== 'passage') push(`Q${number} is not a planned comprehension part.`, 'invalid_resource');
     if (expected.resource === 'passage') {
       for (const issue of comprehensionTaskIssues(row, plan.mode === 'full_mock')) push(`Q${number}: ${issue.detail}`, issue.code);

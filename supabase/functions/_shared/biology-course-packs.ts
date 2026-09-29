@@ -1,3 +1,5 @@
+import {AQA_ALEVEL_P3,buildAqaAlevelPaper3Plan,assertAqaAlevelPaper3Plan,aqaAlevelPaper3Instructions,aqaAlevelPaper3PartInstruction} from './aqa-alevel-biology-paper3-contract.ts';
+import {AQA_ALEVEL_P3_RULES} from './aqa-alevel-biology-paper3-scope.ts';
 import { canonicalCourseId } from './assessment-tier.ts';
 import { AQA_ALEVEL_BIOLOGY_ID, type AssessmentTier } from './assessment-tier.ts';
 import type { CurriculumIdentity } from './curriculum-identity.ts';
@@ -222,6 +224,25 @@ export const BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [
     definition:()=>({...AQA_ALEVEL_P2}),build:buildAqaAlevelPaper2Plan,instructions:aqaAlevelPaper2Instructions,
     repairPartInstructions:aqaAlevelPaper2PartInstruction,validatePlan:assertAqaAlevelPaper2Plan,
   },
+  {
+    id:'aqa-7402-paper-3-v1',courseId:AQA_ALEVEL_BIOLOGY_ID,paperId:'paper_3',contractVersion:1,
+    curriculum:{...curriculum,qualification:'A-level'},examBoard:'AQA',tiers:['not_tiered'],
+    sources:[
+      {url:AQA_ALEVEL_SPEC_URL,section:'7402 version 1.6: Paper 3, Topics 1–8, 38+15+25 marks',checkedOn:'2026-09-29'},
+      {url:'https://www.aqa.org.uk/subjects/biology/a-level/biology-7402/specification/scheme-of-assessment',section:'Paper 3 AO ranges',checkedOn:'2026-09-29'},
+      {url:'https://store.aqa.org.uk/resources/biology/AQA-74023-SMS.PDF',section:'Specimen Paper 3 holistic essay marking',checkedOn:'2026-09-29'},
+      {url:'https://filestore.aqa.org.uk/content/ase-2018/AQA-ASE-2018-A-BIOL-ESSAY-BKLT.PDF',section:'Four topic areas and top-band clarification',checkedOn:'2026-09-29'},
+    ],
+    official:{fullMarks:78,durationMinutes:120},
+    layoutChoices:['Six groups, 18 parts and no MCQs are Examly choices, not fixed AQA counts.',
+      '38 structured + 15 experimental-analysis + ONE 25-mark essay chosen from two titles. Untiered, 30% of A-level.',
+      'AO targets 24/29/25 include 13 AO1 + 12 AO2 essay marks. Skill annotations guide drafting, not certification.',
+      'Short practice is 40 marks / 70 minutes / five parts, retaining a complete 25-mark essay.'],
+    validation:{rows:'exact_parts',mcqOptions:4,levelSchemeAtMarks:null},rules:AQA_ALEVEL_P3_RULES,
+    generation:{strategy:'contract_only',systemPrompt:'Write an original AQA A-level Biology 7402/3 paper from the immutable saved plan. Whole-course synoptic scope; complete tasks and experimental data; one 25-mark essay row with two public titles and separate private title-specific schemes. Return complete JSON only.'},
+    definition:()=>({...AQA_ALEVEL_P3}),build:buildAqaAlevelPaper3Plan,instructions:aqaAlevelPaper3Instructions,
+    repairPartInstructions:aqaAlevelPaper3PartInstruction,validatePlan:assertAqaAlevelPaper3Plan,
+  },
 ];
 
 export const biologyPaperOptions = (courseId: string | null | undefined) =>
@@ -311,7 +332,7 @@ export function assertBiologyPlanIntegrity(plan: PaperPlan, pack = packForBiolog
     if (!definition.topics.includes(part.topic)) reject(`out-of-paper topic at ${part.questionNumber}`);
     if (!['mcq_single', 'short_answer', 'long_form'].includes(part.responseType)) reject('unknown response type');
     if (!['AO1', 'AO2', 'AO3'].includes(part.demand)) reject('unknown demand');
-    if (!['none', 'data_table', 'graph', 'diagram', 'passage'].includes(part.resource)) reject('unknown resource type');
+    if (!['none', 'data_table', 'graph', 'diagram', 'passage', 'essay_choice'].includes(part.resource)) reject('unknown resource type');
     if (part.resource !== 'none') {
       if (!part.resourceId || resources.has(part.resourceId)) reject('missing or duplicate resource identity');
       resources.add(part.resourceId);

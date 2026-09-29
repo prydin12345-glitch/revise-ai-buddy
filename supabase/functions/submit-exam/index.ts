@@ -1,4 +1,5 @@
-import { biologyMarkingInstructions, biologyQuestionResourceContext } from '../_shared/biology-marking.ts';
+import {validateBiologyEssayGrade} from '../_shared/biology-essay-marking.ts';
+import { biologyMarkingInstructions, biologyQuestionResourceContext, biologyEssayForMarking } from '../_shared/biology-marking.ts';
 import { requireExamAccess, ExamRequestError } from '../_shared/exam-access.ts';
 import { enforceRateLimit } from '../_shared/rate-limiter.ts';
 import { validatedGrade } from '../_shared/marking-result.ts';
@@ -120,6 +121,11 @@ serve(async (req) => {
     const answerFormatMap = new Map(studentAnswers?.map(a => [a.question_id, a.answer_format]) || []);
     const tableAnswerMap = new Map(studentAnswers?.map(a => [a.question_id, a.table_answers]) || []);
     
+    // Preflight every essay choice/key and source before ANY paid marking call.
+    const essayMarking = new Map((questions || []).map(question => {
+      biologyQuestionResourceContext(examData.generation_context, question);
+      return [question.id, biologyEssayForMarking(examData.generation_context, question, answerMap.get(question.id))] as const;
+    }));
     // Helper function to format table answers for AI grading
     const formatTableAnswersForGrading = (tableAnswers: any): string => {
       if (!tableAnswers || typeof tableAnswers !== 'object') return '';
@@ -144,12 +150,14 @@ serve(async (req) => {
     for (const question of questions || []) {
       totalMarks += question.marks;
       const studentAnswer = answerMap.get(question.id) || '';
+      const essay = essayMarking.get(question.id);
+      if(essay?.blank){totalScore += 0;results.push({question_id:question.id,score:0,feedback:'No essay answer provided.',is_correct:false});continue;}
 
       // Drawing self-mark short-circuit: trust the student's self-mark score and skip AI grading.
       // Triggered either by a self-mark score in the request, or by a stored answer prefixed "drawing:".
       const hasSelfMarkScore = Object.prototype.hasOwnProperty.call(selfMarkScores, question.id);
       const isDrawingAnswer = typeof studentAnswer === 'string' && studentAnswer.startsWith('drawing:');
-      const eligibleDrawing = question.question_type !== 'mcq' &&
+      const eligibleDrawing = !essay && question.question_type !== 'mcq' &&
         detectDrawQuestion(question.question_text, examData.subject_id, question.question_type).needsDrawingCanvas;
       if ((hasSelfMarkScore || isDrawingAnswer) && !eligibleDrawing) {
         throw new ExamRequestError(400, 'Self-marking is only available for drawing questions.');
@@ -567,6 +575,8 @@ Provide:
             userPrompt = `Question: ${question.question_text}\n\nCorrect Answer: ${question.correct_answer}\n\nStudent Answer: ${studentAnswer}\n\nTotal Marks: ${question.marks}\n\nScore this answer and provide brief feedback.`;
           }
 
+          if(essay){systemPrompt=essay.system+FEEDBACK_FORMATTING_RULE;userPrompt=essay.user;}
+
           const aiResponse = await markingFetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -597,10 +607,11 @@ Provide:
                       score: { type: "number", description: "Total score out of total marks" },
                       feedback: { type: "string", description: "Brief feedback explaining the score" },
                       isCorrect: { type: "boolean", description: "Whether answer is fully correct" },
+                      ...(essay ? {essay_band:{type:'integer',minimum:0,maximum:5},essay_choice:{type:'string',enum:['A','B']}} : {}),
                       methodMarks: { type: "number", description: "Marks awarded for method/working (optional, for math questions)" },
                       accuracyMarks: { type: "number", description: "Marks awarded for final answer accuracy (optional, for math questions)" }
                     },
-                    required: ["score", "feedback", "isCorrect"],
+                    required: ["score", "feedback", "isCorrect", ...(essay ? ["essay_band", "essay_choice"] : [])],
                     additionalProperties: false
                   }
                 }
@@ -624,11 +635,12 @@ Provide:
             
             if (toolCall) {
               const grading = validatedGrade(JSON.parse(toolCall.function.arguments), question.marks);
+              if(essay)validateBiologyEssayGrade(grading,essay.choice);
               score = Math.min(Math.max(0, grading.score), question.marks);
               grading.feedback = sanitiseFeedback(grading.feedback);
 
               // Build feedback with breakdown if available
-              if (grading.methodMarks !== undefined && grading.accuracyMarks !== undefined) {
+              if (!essay && grading.methodMarks !== undefined && grading.accuracyMarks !== undefined) {
                 feedback = `${grading.feedback}\n\n📊 Mark Breakdown:\n• Method: ${grading.methodMarks}/${question.marks - (grading.accuracyMarks || 0)}\n• Accuracy: ${grading.accuracyMarks}/${grading.accuracyMarks || 0}`;
               } else {
                 feedback = grading.feedback;

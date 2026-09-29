@@ -1,3 +1,4 @@
+import {formatBiologyEssayKey} from '@/lib/biology-essay';
 import { PaperSectionHeading } from "@/components/exams/PaperSectionHeading";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -950,7 +951,7 @@ const ExamReview = () => {
                             } catch {}
                           }
                           return question.correct_answer ? (
-                            <MathRenderer content={question.correct_answer} hasMath={!!question.has_math} />
+                            <MathRenderer content={formatBiologyEssayKey(question.correct_answer)} hasMath={!!question.has_math} />
                           ) : (
                             <span className="text-muted-foreground italic">Not provided</span>
                           );

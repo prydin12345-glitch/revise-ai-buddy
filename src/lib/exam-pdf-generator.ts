@@ -1,3 +1,4 @@
+import {readBiologyEssay,isBiologyEssayResource,formatBiologyEssayKey} from '@/lib/biology-essay';
 import { gatewaySectionHeading, biologyResponseNotice, biologyPaperDisplay } from "@/lib/biology-paper-display";
 import { comprehensionInsertFigures, isComprehensionResource } from '@/lib/biology-comprehension';
 import jsPDF from "jspdf";
@@ -23,6 +24,7 @@ interface ExamQuestion {
   requires_diagram?: boolean;
   graph_range?: { xMin: number; xMax: number; yMin: number; yMax: number };
   table_data?: string | null;
+  table_caption?: string;
   diagram_type?: string | null;
   circuit_type?: string | null;
   circuit_description?: string | null;
@@ -533,7 +535,7 @@ function hasFillInBlanks(text: string): boolean {
 
 // ============= Text Sanitization =============
 function sanitizeForPDF(text: string): string {
-  let safe = text;
+  let safe = text.replace(/[\u2010-\u2015\u2212]/g, '-').replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"');
   safe = safe.replace(/&[A-Za-z0-9#]+;/g, entity => {
     const map: Record<string, string> = { '&nbsp;': ' ', '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': "'", '&#39;': "'", '&mdash;': '-', '&ndash;': '-', '&hellip;': '...', '&deg;': ' degrees', '&times;': 'x', '&divide;': '/', '&plusmn;': '+/-' };
     return map[entity] || '';
@@ -666,7 +668,8 @@ export async function generateExamPDF(
         resources.table.headers.map((h, i) => formatHeaderUnit(h, resources.table!.units?.[i])),
         ...resources.table.rows,
       ]) : question.table_data,
-      diagramConfig: resources.passage ?? biologyDiagram ?? (resources.chart?.type !== 'data_table' ? resources.chart : null)
+      table_caption: resources.table?.caption,
+      diagramConfig: resources.essay ?? resources.passage ?? biologyDiagram ?? (resources.chart?.type !== 'data_table' ? resources.chart : null)
         ?? (rawDiagram?.type === 'data_table' ? undefined : rawDiagram),
     };
   }) };
@@ -678,7 +681,7 @@ export async function generateExamPDF(
   let figureCount = 1;
 
   const display = biologyPaperDisplay(examData.generation_context);
-  const paperLabel = display?.plan.courseId === 'aqa_alevel_biology_7402' && display.plan.paperId === 'paper_2' ? display.label : null;
+  const paperLabel = display?.plan.courseId === 'aqa_alevel_biology_7402' && ['paper_2','paper_3'].includes(display.plan.paperId) ? display.label : null;
   const questionGroups = groupQuestionsByMain(examData.questions);
   const totalMarks = examData.questions.reduce((sum, q) => sum + (q.marks || 0), 0);
 
@@ -827,7 +830,7 @@ export async function generateExamPDF(
 
     drawSection("Instructions", [
       "Use black ink or ball-point pen.",
-      "Answer all questions.",
+      examData.questions.some(q => readBiologyEssay(q).essay) ? "Answer all structured questions and ONE essay title (A or B)." : "Answer all questions.",
       "Answer the questions in the spaces provided — there may be more space than you need.",
       "Show all stages of your working clearly.",
       "Diagrams are NOT accurately drawn, unless otherwise indicated.",
@@ -866,7 +869,7 @@ export async function generateExamPDF(
     let rows: string[][] = [];
     try {
       const parsed = JSON.parse(tableData);
-      if (Array.isArray(parsed)) rows = parsed.map(r => Array.isArray(r) ? r.map(c => String(c || '')) : [String(r || '')]);
+      if (Array.isArray(parsed)) rows = parsed.map(r => Array.isArray(r) ? r.map(c => String(c ?? '')) : [String(r ?? '')]);
     } catch {
       let lines = tableData.split('\n').filter(l => l.trim());
       rows = lines.map(line => {
@@ -876,35 +879,41 @@ export async function generateExamPDF(
     }
     if (rows.length === 0) return y;
 
-    rows = rows.map((row, ri) => row.map(cell => {
-      let c = cleanLatexForPDF(cell);
-      if (ri === 0 && c.length > 16) { const w = c.split(/\s+/); c = w.length > 2 ? w.slice(0, 2).join(' ') : c.substring(0, 14) + '...'; }
-      return c;
-    }));
+    rows = rows.map(row => row.map(cleanLatexForPDF));
 
     const maxCols = Math.max(...rows.map(r => r.length));
-    const cellPadding = 4, rowHeight = 12;
+    const cellPadding = 4, minimumRowHeight = 12;
     const colWidths: number[] = [];
     for (let j = 0; j < maxCols; j++) {
       let maxW = 25;
-      for (const row of rows) { doc.setFontSize(9); maxW = Math.max(maxW, measureMathText(doc, row[j] || '', 9) + cellPadding * 2); }
+      for (const [index, row] of rows.entries()) { doc.setFont('helvetica', index === 0 ? 'bold' : 'normal'); doc.setFontSize(9); maxW = Math.max(maxW, measureMathText(doc, row[j] || '', 9) + cellPadding * 2); }
       colWidths.push(maxW);
     }
     const total = colWidths.reduce((a, b) => a + b, 0);
     const maxTW = CONTENT_WIDTH - 20;
     if (total > maxTW) { const s = maxTW / total; for (let j = 0; j < colWidths.length; j++) colWidths[j] *= s; }
 
-    const tableWidth = colWidths.reduce((a, b) => a + b, 0);
-    const totalH = (rows.length * rowHeight) + (caption ? 18 : 0) + 24;
-    if (currentY + totalH > A4_HEIGHT - FOOTER_HEIGHT - 20) { addNewPage(); currentY = yPosition + 10; }
+    const totalH = (rows.length * minimumRowHeight) + (caption ? 18 : 0) + 24;
+    if (currentY + totalH > A4_HEIGHT - FOOTER_HEIGHT - 20) { addNewPage(); drawPageHeader(); currentY = yPosition + 10; }
 
-    if (caption) { doc.setFont("helvetica", "bold"); doc.setFontSize(10); setColor(COLORS.primary); doc.text(caption, x, currentY); currentY += LINE_HEIGHT + 4; }
+    if (caption) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); setColor(COLORS.primary);
+      for (const line of wrapMathText(doc, cleanLatexForPDF(caption), maxTW, 10)) {
+        renderMathText(doc, line, x, currentY, 10, COLORS.primary); currentY += LINE_HEIGHT;
+      }
+      currentY += 4;
+    }
 
     for (let i = 0; i < rows.length; i++) {
-      const isH = i === 0, rowY = currentY;
+      const isH = i === 0;
+      doc.setFont('helvetica', isH ? 'bold' : 'normal'); doc.setFontSize(9);
+      const cellLines = colWidths.map((width, j) => wrapMathText(doc, rows[i][j] || '', width - cellPadding * 2, 9));
+      const rowHeight = Math.max(minimumRowHeight, Math.max(...cellLines.map(lines => lines.length)) * 5 + 8);
+      if (currentY + rowHeight > A4_HEIGHT - FOOTER_HEIGHT - 20) { addNewPage(); drawPageHeader(); currentY = yPosition + 10; }
+      const rowY = currentY;
       let cellX = x;
       for (let j = 0; j < maxCols; j++) {
-        const cw = colWidths[j], ct = rows[i][j] || '';
+        const cw = colWidths[j];
         setColor(isH ? [230, 235, 245] : [255, 255, 255], "fill");
         doc.rect(cellX, rowY, cw, rowHeight, "F");
         setColor(COLORS.border, "draw");
@@ -912,14 +921,12 @@ export async function generateExamPDF(
         doc.rect(cellX, rowY, cw, rowHeight, "D");
         doc.setFont("helvetica", isH ? "bold" : "normal");
         doc.setFontSize(9);
-        renderMathText(doc, ct, cellX + cellPadding, rowY + rowHeight / 2 + 3, 9, COLORS.primary);
+        cellLines[j].forEach((line, index) => renderMathText(doc, line, cellX + cellPadding, rowY + cellPadding + 3 + index * 5, 9, COLORS.primary));
         cellX += cw;
       }
       currentY += rowHeight;
     }
 
-    doc.setLineWidth(0.6); setColor(COLORS.border, "draw");
-    doc.rect(x, currentY - rows.length * rowHeight, tableWidth, rows.length * rowHeight, "D");
     return currentY + 12;
   };
 
@@ -1050,6 +1057,8 @@ export async function generateExamPDF(
   // ============= Draw a single question group =============
   let previousPaperQuestion: string | undefined;
   const drawQuestionGroup = async (group: QuestionGroup) => {
+    // Keep the group label with the first table rather than stranding it on the previous page.
+    if (group.questions[0]?.table_data || extractEmbeddedTable(group.questions[0]?.question_text ?? '').tableData) ensureSpace(140);
     const firstNumber = group.questions[0]?.question_number ?? '';
     const heading = gatewaySectionHeading(examData.generation_context, firstNumber, previousPaperQuestion);
     if (heading) {
@@ -1100,7 +1109,7 @@ export async function generateExamPDF(
       const tableExtract = extractEmbeddedTable(question.question_text);
       let cleanedText = cleanLatexForPDF(tableExtract.cleanText);
 
-      if (i > 0) ensureSpace(40);
+      if (i > 0) ensureSpace(question.table_data || tableExtract.tableData ? 140 : 40);
       if (getRemainingSpace() < 40) {
         addNewPage(); drawPageHeader();
         doc.setFontSize(10); doc.setFont("helvetica", "italic"); setColor(COLORS.muted);
@@ -1136,7 +1145,7 @@ export async function generateExamPDF(
 
       // Table data
       if (tableExtract.tableData) yPosition = renderTable(tableExtract.tableData, textIndent, yPosition, tableExtract.tableCaption);
-      if (question.table_data) yPosition = renderTable(question.table_data, textIndent, yPosition);
+      if (question.table_data) yPosition = renderTable(question.table_data, textIndent, yPosition, question.table_caption);
 
       // Question text
       const isFillInBlank = hasFillInBlanks(cleanedText);
@@ -1149,8 +1158,16 @@ export async function generateExamPDF(
         yPosition += 3;
       }
 
+      const essay = readBiologyEssay(question).essay;
+      if (essay) {
+        for (const [index, title] of essay.titles.entries()) {
+          yPosition = renderQuestionLines(`${index === 0 ? 'EITHER' : 'OR'} - Title ${title.id}: ${cleanLatexForPDF(title.title)}`, textIndent, yPosition, textWidth) + 3;
+        }
+        yPosition = renderQuestionLines('Write ONE essay. Indicate your chosen title: A / B', textIndent, yPosition, textWidth) + 3;
+      }
+
       // ============= DIAGRAM RENDERING =============
-      if (includeDiagrams && question.diagramConfig && !isComprehensionResource(question.diagramConfig)) {
+      if (includeDiagrams && question.diagramConfig && !isComprehensionResource(question.diagramConfig) && !isBiologyEssayResource(question.diagramConfig)) {
         ensureSpace(130);
         const diagramWidth = CONTENT_WIDTH * 0.6;
         const diagramX = MARGIN + (CONTENT_WIDTH - diagramWidth) / 2;
@@ -1218,6 +1235,10 @@ export async function generateExamPDF(
           }
         }
       }
+      else if (includeWorkingSpace && essay) {
+        yPosition = drawDottedLines(textIndent, yPosition, CONTENT_WIDTH - 15, 80, question.marks);
+        yPosition += BIOLOGY_QUESTION_GAP;
+      }
       // Standard answer space
       else if (includeWorkingSpace && !isMCQ && !isFillInBlank) {
         const aType = answerStyle || getAnswerAreaType(examData.subject, question.marks, question.question_type);
@@ -1268,13 +1289,13 @@ export async function generateExamPDF(
 
       doc.setFont("helvetica", "normal");
       // In answer key, preserve mark codes
-      const answerText = cleanLatexForPDF(question.correct_answer);
-      const answerLines = wrapMathText(doc, answerText, CONTENT_WIDTH - 20, 10);
-      answerLines.forEach((line: string, idx: number) => {
-        renderMathText(doc, line || '', MARGIN + 15, yPosition + idx * LINE_HEIGHT, 10, COLORS.primary);
-      });
-
-      yPosition += Math.max(answerLines.length, 1) * LINE_HEIGHT + 4;
+      const answerText = formatBiologyEssayKey(question.correct_answer);
+      const paragraphs = readBiologyEssay(question).essay ? answerText.split(/\n+/) : [answerText];
+      for (const paragraph of paragraphs) {
+        if (!paragraph.trim()) continue;
+        yPosition = renderQuestionLines(cleanLatexForPDF(paragraph), MARGIN + 15, yPosition, CONTENT_WIDTH - 20) + 2;
+      }
+      yPosition += 2;
     }
   };
 
