@@ -12,6 +12,7 @@ import { useSubjectAverage } from "@/hooks/useSubjectAverage";
 import { useTopicPerformance } from "@/hooks/useTopicPerformance";
 import { ExamProfileModal } from "@/components/stats/ExamProfileModal";
 import { ExamProfileCarousel } from "@/components/subjects/ExamProfileCarousel";
+import { ExamProfileList } from "@/components/subjects/ExamProfileList";
 import { TopicMasteryGrid } from "@/components/subjects/TopicMasteryGrid";
 import { RecentActivityList } from "@/components/subjects/RecentActivityList";
 import { getBoardDisplayName } from "@/lib/board-scrubber";
@@ -144,16 +145,16 @@ const SubjectDetail = () => {
 
   return (
     <DashboardLayout>
-      <div className="py-6 px-6 md:px-12 lg:px-16 space-y-8 w-full max-w-[1300px] mx-auto">
+      <div className="py-6 px-0 md:px-12 lg:px-16 space-y-8 w-full max-w-[1300px] mx-auto">
         {/* Header — back arrow, subject dot, name and board on one row, with the
             subject's vitals as a compact stat cluster on the right instead of
             a middot-joined sentence. */}
-        <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 pb-5 border-b border-border">
+        <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-2 md:gap-y-4 md:pb-5 md:border-b md:border-border">
           <div className="flex items-center gap-3 min-w-0">
             <Link
               to="/my-subjects"
               aria-label="Back to all subjects"
-              className="flex items-center justify-center w-8 h-8 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-border-strong transition-colors shrink-0"
+              className="relative flex items-center justify-center w-8 h-8 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-border-strong transition-colors shrink-0 before:absolute before:-inset-1.5 before:content-['']"
             >
               <ArrowLeft className="w-4 h-4" />
             </Link>
@@ -168,7 +169,7 @@ const SubjectDetail = () => {
             <button
               onClick={() => setEditSubjectOpen(true)}
               aria-label="Edit subject"
-              className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-foreground/[0.05] transition-colors shrink-0"
+              className="relative p-1.5 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-foreground/[0.05] transition-colors shrink-0 before:absolute before:-inset-2 before:content-['']"
             >
               <Pencil className="w-4 h-4" />
             </button>
@@ -179,7 +180,7 @@ const SubjectDetail = () => {
             )}
           </div>
 
-          <dl className="flex items-center gap-7">
+          <dl className="w-full md:w-auto flex items-center justify-between md:justify-start md:gap-7 rounded-xl border border-border bg-card px-[18px] py-3 md:rounded-none md:border-0 md:bg-transparent md:p-0">
             <div>
               <dt className="text-11 text-muted-foreground">Score</dt>
               <dd className="text-17 font-semibold text-foreground tabular-nums">
@@ -205,13 +206,15 @@ const SubjectDetail = () => {
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-muted-foreground" />
               <h2 className="text-15 font-semibold text-foreground">Exam Profiles</h2>
+              <span className="md:hidden text-xs text-muted-foreground tabular-nums">{profiles.length}</span>
             </div>
             <button
               onClick={handleOpenCreateProfile}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-2 min-h-[40px] md:min-h-0 rounded-xl bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
-              New profile
+              <span className="md:hidden">New</span>
+              <span className="hidden md:inline">New profile</span>
             </button>
           </div>
 
@@ -229,15 +232,32 @@ const SubjectDetail = () => {
               </button>
             </div>
           ) : (
-            <ExamProfileCarousel
-              profiles={profiles as any[]}
-              subjectName={subject.subject_name}
-              subjectColor={subject.subject_color}
-              onEdit={(profile) => {
-                setEditingProfile(profile);
-                setProfileModalOpen(true);
-              }}
-            />
+            <>
+              {/* Phones: compact rows, no sideways scroll. */}
+              <div className="md:hidden">
+                <ExamProfileList
+                  profiles={profiles as any[]}
+                  subjectName={subject.subject_name}
+                  subjectColor={subject.subject_color}
+                  onEdit={(profile) => {
+                    setEditingProfile(profile);
+                    setProfileModalOpen(true);
+                  }}
+                />
+              </div>
+              {/* Tablet and up: the card carousel. */}
+              <div className="hidden md:block">
+                <ExamProfileCarousel
+                  profiles={profiles as any[]}
+                  subjectName={subject.subject_name}
+                  subjectColor={subject.subject_color}
+                  onEdit={(profile) => {
+                    setEditingProfile(profile);
+                    setProfileModalOpen(true);
+                  }}
+                />
+              </div>
+            </>
           )}
         </section>
         </div>
