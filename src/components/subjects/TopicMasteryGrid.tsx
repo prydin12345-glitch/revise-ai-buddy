@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ChevronRight } from "lucide-react";
 import { useTopicPerformance } from "@/hooks/useTopicPerformance";
 
 interface TopicMasteryGridProps {
@@ -31,6 +33,12 @@ const bandOf = (score: number, attempts: number): Band => {
 export const TopicMasteryGrid = ({ subjectName, topics }: TopicMasteryGridProps) => {
   const navigate = useNavigate();
   const { getPerformance, loading } = useTopicPerformance(subjectName);
+  // Phones only: Mastered and Not yet tested start collapsed, since they're the
+  // least actionable. From md up the CSS below keeps every band open, so this
+  // state has no visible effect there.
+  const [open, setOpen] = useState<Record<Band, boolean>>({
+    review: true, developing: true, mastered: false, untested: false,
+  });
 
   if (loading) {
     return (
@@ -67,20 +75,48 @@ export const TopicMasteryGrid = ({ subjectName, topics }: TopicMasteryGridProps)
   sorted.forEach((row) => grouped[bandOf(row.score, row.attempts)].push(row));
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 md:space-y-5">
       {ORDER.filter((band) => grouped[band].length > 0).map((band) => {
         const cfg = BANDS[band];
+        const rows = grouped[band];
+        const collapsible = band === "mastered" || band === "untested";
+        const isOpen = !collapsible || open[band];
+        const heading = (
+          <>
+            {cfg.label}
+            <span className="ml-1.5 font-normal text-muted-foreground tabular-nums">{rows.length}</span>
+          </>
+        );
+
         return (
           <div key={band}>
-            <div className={`text-11 font-semibold mb-1 ${cfg.text}`}>
-              {cfg.label}
-              <span className="ml-1.5 font-normal text-muted-foreground tabular-nums">
-                {grouped[band].length}
-              </span>
-            </div>
+            {collapsible ? (
+              <>
+                {/* Phone: a tappable row that opens the band. */}
+                <button
+                  type="button"
+                  onClick={() => setOpen((o) => ({ ...o, [band]: !o[band] }))}
+                  aria-expanded={isOpen}
+                  className={`md:hidden w-full flex items-center justify-between min-h-[48px] px-3.5 rounded-xl border border-border bg-card text-13 font-medium ${cfg.text}`}
+                >
+                  <span>{heading}</span>
+                  <ChevronRight
+                    className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? "rotate-90" : ""}`}
+                  />
+                </button>
+                {/* Tablet and up: the plain label, always open. */}
+                <div className={`hidden md:block text-11 font-semibold mb-1 ${cfg.text}`}>{heading}</div>
+              </>
+            ) : (
+              <div className={`text-11 font-semibold mb-1.5 md:mb-1 ${cfg.text}`}>{heading}</div>
+            )}
 
-            <ul className="divide-y divide-border/70 border-t border-border/70">
-              {grouped[band].map(({ topic, score, attempts }) => {
+            <ul
+              className={`divide-y divide-border/70 rounded-xl border border-border bg-card px-3 mt-2 md:mt-0 md:px-0 md:rounded-none md:border-0 md:border-t md:border-border/70 md:bg-transparent ${
+                collapsible && !isOpen ? "hidden md:block" : ""
+              }`}
+            >
+              {rows.map(({ topic, score, attempts }) => {
                 const untested = band === "untested";
                 const displayScore = Math.max(0, Math.round(score));
 
@@ -94,7 +130,7 @@ export const TopicMasteryGrid = ({ subjectName, topics }: TopicMasteryGridProps)
                           )}&subtopic=${encodeURIComponent(topic)}`
                         )
                       }
-                      className="group w-full flex items-center gap-3 py-2.5 px-1 text-left hover:bg-foreground/[0.02] rounded-md transition-colors"
+                      className="group w-full flex items-center gap-3 py-3 md:py-2.5 px-1 text-left hover:bg-foreground/[0.02] rounded-md transition-colors"
                     >
                       <span aria-hidden className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
                       <span
@@ -108,7 +144,7 @@ export const TopicMasteryGrid = ({ subjectName, topics }: TopicMasteryGridProps)
                       {/* An untested topic gets a visible dashed track, not a
                           zero-width fill — that read as a broken bar. */}
                       <div
-                        className={`hidden sm:block w-16 h-1 rounded-full overflow-hidden shrink-0 ${
+                        className={`w-11 md:w-16 h-1 rounded-full overflow-hidden shrink-0 ${
                           untested ? "border border-dashed border-border-strong" : "bg-track"
                         }`}
                       >
@@ -120,10 +156,6 @@ export const TopicMasteryGrid = ({ subjectName, topics }: TopicMasteryGridProps)
                         )}
                       </div>
 
-                      {/* "—" for untested: the band header above already says
-                          "Not yet tested", so repeating "No attempts yet" on every
-                          row was noise. Tested rows keep the question count, since
-                          a score is only as meaningful as what backs it. */}
                       <span
                         className={`w-20 text-right shrink-0 text-xs tabular-nums ${
                           untested ? "text-muted-foreground/70 font-normal" : `${cfg.text} font-semibold`
