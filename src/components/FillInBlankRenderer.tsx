@@ -46,16 +46,16 @@ const normalizeBlankFormat = (content: string): string => {
 // Check if content has fill-in-the-blank placeholders
 export const hasFillInBlanks = (content: string): boolean => {
   // Check for existing [ BLANK ] placeholders
-  if (BLANK_PATTERN.test(content)) return true;
+  if (new RegExp(BLANK_PATTERN.source, BLANK_PATTERN.flags).test(content)) return true;
   
   // Check for underscore patterns
-  if (UNDERSCORE_BLANK_PATTERN.test(content)) return true;
+  if (new RegExp(UNDERSCORE_BLANK_PATTERN.source, UNDERSCORE_BLANK_PATTERN.flags).test(content)) return true;
   
   // Check for backslash patterns
-  if (BACKSLASH_BLANK_PATTERN.test(content)) return true;
+  if (new RegExp(BACKSLASH_BLANK_PATTERN.source, BACKSLASH_BLANK_PATTERN.flags).test(content)) return true;
   
   // Check for LaTeX underline
-  if (LATEX_UNDERLINE_PATTERN.test(content)) return true;
+  if (new RegExp(LATEX_UNDERLINE_PATTERN.source, LATEX_UNDERLINE_PATTERN.flags).test(content)) return true;
   
   return false;
 };

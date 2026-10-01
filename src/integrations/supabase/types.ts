@@ -1657,6 +1657,90 @@ export type Database = {
         }
         Relationships: []
       }
+      question_response_contracts: {
+        Row: {
+          created_at: string
+          definition: Json
+          exam_question_id: string | null
+          id: string
+          marking_key: Json
+          practice_question_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          definition: Json
+          exam_question_id?: string | null
+          id?: string
+          marking_key: Json
+          practice_question_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          definition?: Json
+          exam_question_id?: string | null
+          id?: string
+          marking_key?: Json
+          practice_question_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_response_contracts_exam_question_id_fkey"
+            columns: ["exam_question_id"]
+            isOneToOne: true
+            referencedRelation: "exam_question_metadata"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_response_contracts_exam_question_id_fkey"
+            columns: ["exam_question_id"]
+            isOneToOne: true
+            referencedRelation: "exam_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_response_contracts_practice_question_id_fkey"
+            columns: ["practice_question_id"]
+            isOneToOne: true
+            referencedRelation: "practice_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      question_response_drafts: {
+        Row: {
+          contract_id: string
+          last_request_id: string
+          response: Json
+          revision: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          contract_id: string
+          last_request_id: string
+          response: Json
+          revision: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          contract_id?: string
+          last_request_id?: string
+          response?: Json
+          revision?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_response_drafts_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "question_response_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       resource_items: {
         Row: {
           attribution: string | null
@@ -3262,6 +3346,16 @@ export type Database = {
       save_exam_progress_secure: {
         Args: { p_exam_id: string; p_remaining?: number; p_user_id: string }
         Returns: undefined
+      }
+      save_question_response_draft: {
+        Args: {
+          p_contract_id: string
+          p_expected_revision: number
+          p_request_id: string
+          p_response: Json
+          p_user_id: string
+        }
+        Returns: Json
       }
       user_owns_exam: {
         Args: { _exam_id: string; _user_id: string }

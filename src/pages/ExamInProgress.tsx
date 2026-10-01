@@ -1,9 +1,12 @@
+import {useLegacyResponseState} from '@/hooks/useLegacyResponseState';
+import {legacyDraftHasAnswer,readLegacyBlanks,readLegacyDraft,type LegacyAnswerDraft} from '@/lib/legacy-response-state';
+import {ResponseSaveQueue} from '@/lib/response-save-queue';
 import {readBiologyEssay,hasBiologyEssayText} from '@/lib/biology-essay';
 import {BiologyEssayAnswer} from '@/components/exams/BiologyEssayAnswer';
 import { PaperSectionHeading } from "@/components/exams/PaperSectionHeading";
 import { comprehensionInsertFigures } from '@/lib/biology-comprehension';
 import { biologyPaperDisplay } from "@/lib/biology-paper-display";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { InsertPanel } from "@/components/insert/InsertPanel";
 import { QuestionCardShell } from "@/components/quiz/QuestionCardShell";
 import { AnswerSlate } from "@/components/quiz/AnswerSlate";
@@ -34,7 +37,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { QuestionOptionsMenu } from "@/components/quiz/QuestionOptionsMenu";
 import { MathRenderer, ensureString } from "@/components/MathRenderer";
 import { QuizQuestionErrorBoundary } from "@/components/quiz/QuizQuestionErrorBoundary";
-import { MathInsertKeypad, normalizeUnicodeForGrading } from "@/components/quiz/MathInsertKeypad";
+import { MathInsertKeypad } from "@/components/quiz/MathInsertKeypad";
 import { SubmissionLoadingScreen } from "@/components/exam/SubmissionLoadingScreen";
 import { InteractiveExamTable, hasInteractiveTable, extractTableHtml, removeTableFromContent } from "@/components/InteractiveExamTable";
 import { FillInBlankRenderer, hasFillInBlanks } from "@/components/FillInBlankRenderer";
@@ -162,23 +165,17 @@ const ExamInProgress = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [paperBlueprint, setPaperBlueprint] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [userAnswers, setUserAnswers] = useState<Record<string, { workingOut: string; finalAnswer: string }>>({});
-  const [tableAnswers, setTableAnswers] = useState<Record<string, Record<string, string | boolean>>>({});
-  const [blankAnswers, setBlankAnswers] = useState<Record<string, Record<string, string>>>({});
-  const [tableGridAnswers, setTableGridAnswers] = useState<Record<string, Record<string, number[]>>>({});
-  
-  // Graph question state - shared with practice mode for feature parity
-  const [graphAnswers, setGraphAnswers] = useState<Record<string, {
-    graphInterpretationAnswers?: Record<string, string | number | boolean>;
-    graphPlottedPoints?: GraphPoint[];
-    graphJoinMode?: 'straight' | 'curved' | 'freeform' | 'angle' | 'best_fit' | null;
-    graphSegments?: LineSegment[];
-    graphDrawnPaths?: DrawingPath[];
-    graphBestFitLine?: { x1: number; y1: number; x2: number; y2: number } | null;
-    bearingsAnswer?: string;
-    angleMeasurements?: AngleMeasurement[];
-    transformationAnswers?: Record<string, any>;
-  }>>({});
+  const responseOwner = useRef<string|null>(null);
+  const responseHydrating = useRef(true);
+  const dirtyResponseIds=useRef(new Set<string>());
+  const responseState = useLegacyResponseState((id,draft)=>{
+    if(responseHydrating.current || !responseOwner.current)return;
+    dirtyResponseIds.current.add(id);
+    setAutoSaveStatus('saving');
+    setSavedAnswers(prev=>{const next=new Set(prev);next.delete(id);return next;});
+    try{sessionStorage.setItem(`exam:${examId}:user:${responseOwner.current}:draft:${id}`,JSON.stringify({version:1,examId,ownerId:responseOwner.current,draft}));}catch{/* saving still reports network failures */}
+  });
+  const {userAnswers,setUserAnswers,tableAnswers,setTableAnswers,blankAnswers,setBlankAnswers,tableGridAnswers,setTableGridAnswers,graphAnswers,setGraphAnswers}=responseState;
   const [showProtractor, setShowProtractor] = useState(false);
   const [selectedSegmentIds, setSelectedSegmentIds] = useState<string[]>([]);
   
@@ -188,12 +185,13 @@ const ExamInProgress = () => {
   const answerTextareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const [isTeacher, setIsTeacher] = useState(false); // Explicitly initialize to false
   const treatAsStudent = modeParam === 'student';
-  const isReadOnly = isTeacher && !treatAsStudent;
+
   const [timerEnabled, setTimerEnabled] = useState(false);
   const [timerNeedsReinit, setTimerNeedsReinit] = useState(false); // Flag to trigger timer reinit
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isReadOnly = (isTeacher && !treatAsStudent) || isSubmitting;
   const [isAutoSubmit, setIsAutoSubmit] = useState(false);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [showQuitDialog, setShowQuitDialog] = useState(false);
@@ -222,9 +220,20 @@ const ExamInProgress = () => {
   const [selectedResource, setSelectedResource] = useState<ResourceItem | null>(null);
   const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const saveTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
+  const answerSaveQueue = useMemo(()=>new ResponseSaveQueue<{answerText:string;tableAnswers?:Record<string,string|boolean>;draft:LegacyAnswerDraft;ownerId:string|null}>(
+    async (questionId,payload)=>{
+      const {data,error}=await supabase.functions.invoke('submit-student-answer',{body:{examId,questionId,answerText:payload.answerText,tableAnswers:payload.tableAnswers}});
+      if(error || !data?.success)throw new Error('Answer could not be saved. Please retry.');
+    },
+    (questionId,payload)=>{
+      if(JSON.stringify(responseState.current.current[questionId])!==JSON.stringify(payload.draft))return;
+      dirtyResponseIds.current.delete(questionId);
+      try{if(payload.ownerId)sessionStorage.removeItem(`exam:${examId}:user:${payload.ownerId}:draft:${questionId}`);}catch{/* optional local cache */}
+      setSavedAnswers(prev=>new Set(prev).add(questionId));
+    }
+  ),[examId]);
   const startTime = useRef<number>(Date.now());
   const timerInterval = useRef<NodeJS.Timeout | null>(null);
-  const answersRef = useRef(userAnswers);
   const [showSelfMarkReview, setShowSelfMarkReview] = useState(false);
   const [selfMarkScores, setSelfMarkScores] = useState<Record<string, number>>({});
 
@@ -258,11 +267,6 @@ const ExamInProgress = () => {
     return false;
   }, []);
   
-  // Keep answersRef in sync with userAnswers
-  useEffect(() => {
-    answersRef.current = userAnswers;
-  }, [userAnswers]);
-
   // Keep examSubjectRef in sync with examSubject
   useEffect(() => {
     examSubjectRef.current = examSubject;
@@ -273,8 +277,6 @@ const ExamInProgress = () => {
     setUserAnswers(prev => {
       const existing = prev[questionId] || { workingOut: '', finalAnswer: '' };
       const next = { ...existing, ...patch };
-      // Keep the ref in sync immediately to avoid stale saves
-      answersRef.current = { ...answersRef.current, [questionId]: next };
       return { ...prev, [questionId]: next };
     });
   };
@@ -408,6 +410,7 @@ const ExamInProgress = () => {
   useEffect(() => {
     setCurrentPage(0);
     loadQuestions();
+    return ()=>{Object.values(saveTimeouts.current).forEach(clearTimeout);saveTimeouts.current={};};
   }, [examId]);
 
   useEffect(() => {
@@ -474,7 +477,14 @@ const ExamInProgress = () => {
   }, [isReadOnly, loading, timerEnabled, isSubmitting, timerNeedsReinit]);
 
   const loadQuestions = async () => {
+    setLoading(true);
+    responseHydrating.current=true;
+    responseState.reset();
+    dirtyResponseIds.current.clear();
     try {
+      const {data:{user:responseUser},error:responseAuthError}=await supabase.auth.getUser();
+      if(responseAuthError||!responseUser)throw new Error("Please sign in again before loading answers.");
+      responseOwner.current=responseUser.id;
       // Fetch exam metadata to get subject, name, and resource pack
       const { data: examData } = await supabase
         .from('exams')
@@ -678,6 +688,7 @@ const ExamInProgress = () => {
       
       const answersMap: Record<string, { workingOut: string; finalAnswer: string; answerLatex?: string }> = {};
       const tableAnswersMap: Record<string, Record<string, string | boolean>> = {};
+      const blankAnswersMap: Record<string,Record<string,string>> = {};
       const tableGridAnswersMap: Record<string, Record<string, number[]>> = {};
       const graphAnswersMap: Record<string, {
         graphInterpretationAnswers?: Record<string, string | number | boolean>;
@@ -696,6 +707,8 @@ const ExamInProgress = () => {
       const flaggedSet = new Set<string>();
       (data.existingAnswers || []).forEach((ans: any) => {
         const answerText = ans.answer_text || '';
+        const blanks=readLegacyBlanks(answerText);
+        if(blanks){blankAnswersMap[ans.question_id]=blanks;savedSet.add(ans.question_id);if(ans.is_flagged)flaggedSet.add(ans.question_id);return;}
         
         // Check if this is a table_grid answer
         try {
@@ -778,37 +791,27 @@ const ExamInProgress = () => {
       setTableGridAnswers(tableGridAnswersMap);
       setGraphAnswers(graphAnswersMap);
       
-      // Then, check sessionStorage for any unsaved drafts (fallback for network failures)
-      try {
-        for (const question of sortedQuestions) {
-          const draftKey = `exam:${examId}:draft:${question.id}`;
-          const draftStr = sessionStorage.getItem(draftKey);
-          if (draftStr) {
-            const draft = JSON.parse(draftStr);
-            // Only use draft if it's newer than what we have from DB or DB has no answer
-            if (!savedSet.has(question.id) || !answersMap[question.id]) {
-              console.log(`[Draft] Restoring unsaved answer for ${question.id} from sessionStorage`);
-              if (isMathExam) {
-                answersMap[question.id] = {
-                  workingOut: draft.answerText || '',
-                  finalAnswer: ''
-                };
-              } else {
-                answersMap[question.id] = {
-                  workingOut: '',
-                  finalAnswer: draft.answerText || ''
-                };
-              }
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('[Draft] Failed to restore from sessionStorage:', e);
-      }
-      
       setUserAnswers(answersMap);
       setTableAnswers(tableAnswersMap);
+      setBlankAnswers(blankAnswersMap);
+      // Scoped full snapshots also preserve intentionally cleared selections.
+      // Do not restore edits into a marked/locked paper.
+      if(!['graded','marking','submitted','completed'].includes(data.submission?.status)){
+        for(const question of sortedQuestions){
+          try{
+            const value=sessionStorage.getItem(`exam:${examId}:user:${responseUser.id}:draft:${question.id}`);
+            if(!value)continue;
+            const local=JSON.parse(value);
+            const draft=readLegacyDraft(local.draft);
+            if(local.version===1&&local.examId===examId&&local.ownerId===responseUser.id&&draft){
+              responseState.restore(question.id,draft);savedSet.delete(question.id);
+              dirtyResponseIds.current.add(question.id);
+            }
+          }catch{/* ignore corrupt local cache, retain the server answer */}
+        }
+      }
       setSavedAnswers(savedSet);
+      responseHydrating.current=false;
 
       // Create initial session if none exists (for non-timed exams too)
       const shouldCreateSession = !data.submission && !(Boolean(data.isTeacher) && !treatAsStudent);
@@ -835,7 +838,7 @@ const ExamInProgress = () => {
     }
   };
 
-  const handleAnswerChange = useCallback((questionId: string, answer: string) => {
+  const handleAnswerChange = (questionId: string, answer: string) => {
     // Legacy handler for non-math questions (plain text answer)
     updateAnswer(questionId, { finalAnswer: answer });
     setSavedAnswers(prev => {
@@ -851,10 +854,10 @@ const ExamInProgress = () => {
     saveTimeouts.current[questionId] = setTimeout(() => {
       handleSaveAnswer(questionId);
     }, 1000);
-  }, []);
+  };
 
   const handleSaveAnswer = async (questionId: string) => {
-    const answerData = answersRef.current[questionId] || { workingOut: '', finalAnswer: '', answerLatex: '' };
+    const answerData = responseState.current.current[questionId]?.text || { workingOut: '', finalAnswer: '', answerLatex: '' };
     
     // Use ref to get current subject (avoids stale closure)
     const currentSubject = examSubjectRef.current;
@@ -876,35 +879,19 @@ const ExamInProgress = () => {
         : (finalText || workingText);
     }
     
-    // Normalize the answer for grading (convert Unicode math to plain text)
-    const normalizedAnswer = normalizeUnicodeForGrading(answerText);
-    
-    // Always save to sessionStorage as fallback (before network call)
-    try {
-      const draftKey = `exam:${examId}:draft:${questionId}`;
-      sessionStorage.setItem(draftKey, JSON.stringify({
-        answerText,
-        normalizedAnswer,
-        timestamp: Date.now()
-      }));
-    } catch (e) {
-      console.warn('[Draft] Failed to save to sessionStorage:', e);
-    }
-    
-    console.log(`[Save] Question ${questionId}, subject: ${currentSubject}, isMath: ${isMathExam}, answer: ${answerText.substring(0, 50)}...`);
     setAutoSaveStatus('saving');
     try {
-      console.log(`[Save] Question ${questionId}: ${answerText.substring(0, 50)}...`);
+
       
       // Include table answers if present for this question
-      const questionTableAnswers = tableAnswers[questionId];
+      const questionTableAnswers = responseState.current.current[questionId]?.table;
       
       // Include table grid answers if present for this question (tick/X tables)
-      const questionTableGridAnswers = tableGridAnswers[questionId];
+      const questionTableGridAnswers = responseState.current.current[questionId]?.grid;
       
       // Include blank answers if present for this question
       // Serialize blank answers into answerText if they exist
-      const questionBlankAnswers = blankAnswers[questionId];
+      const questionBlankAnswers = responseState.current.current[questionId]?.blanks;
       let finalAnswerText = answerText;
       if (questionBlankAnswers && Object.keys(questionBlankAnswers).length > 0) {
         // For fill-in-blank, serialize the blanks as JSON in the answer
@@ -915,7 +902,7 @@ const ExamInProgress = () => {
       }
       
       // Check for graph answers
-      const questionGraphAnswers = graphAnswers[questionId];
+      const questionGraphAnswers = responseState.current.current[questionId]?.graph;
       if (questionGraphAnswers) {
         if (questionGraphAnswers.transformationAnswers) {
           finalAnswerText = serializeGraphTransformationResponse(questionGraphAnswers.transformationAnswers as any);
@@ -934,34 +921,15 @@ const ExamInProgress = () => {
         }
       }
       
-      const { error } = await supabase.functions.invoke('submit-student-answer', {
-        body: { 
-          examId, 
-          questionId, 
-          answerText: finalAnswerText,
-          normalizedAnswer: normalizedAnswer,
-          tableAnswers: questionTableAnswers || undefined
-        }
-      });
-
-      if (error) throw error;
-
-      // Save timer state after answer saved
+      const draft:LegacyAnswerDraft=structuredClone(responseState.current.current[questionId]??{version:1 as const});
+      answerSaveQueue.update(questionId,{answerText:finalAnswerText,tableAnswers:questionTableAnswers,draft,ownerId:responseOwner.current});
+      await answerSaveQueue.flush(questionId);
       await saveTimerState();
-      
-      // Clear sessionStorage draft on successful save
-      try {
-        sessionStorage.removeItem(`exam:${examId}:draft:${questionId}`);
-      } catch (e) {
-        // Ignore
-      }
-
-      setSavedAnswers(prev => new Set(prev).add(questionId));
-      setAutoSaveStatus('saved');
+      setAutoSaveStatus(dirtyResponseIds.current.size?'saving':'saved');
       setLastSavedTime(new Date());
       
       // Reset to idle after 3 seconds
-      setTimeout(() => setAutoSaveStatus('idle'), 3000);
+      setTimeout(() => {if(!dirtyResponseIds.current.size)setAutoSaveStatus('idle');}, 3000);
       return true;
     } catch (error: any) {
       setAutoSaveStatus('error');
@@ -975,14 +943,15 @@ const ExamInProgress = () => {
   const flushCurrentPageSaves = async () => {
     const currentQuestions = questionGroups[currentPage]?.questions || [];
     for (const question of currentQuestions) {
-      if (saveTimeouts.current[question.id]) {
+      if (saveTimeouts.current[question.id] || dirtyResponseIds.current.has(question.id)) {
         clearTimeout(saveTimeouts.current[question.id]);
-        const answerData = answersRef.current[question.id];
+        const answerData = responseState.current.current[question.id];
         if (answerData) {
-          await handleSaveAnswer(question.id);
+          if (!await handleSaveAnswer(question.id)) return false;
         }
       }
     }
+    return true;
   };
 
   const scrollToQuestion = (questionId: string) => {
@@ -1037,8 +1006,7 @@ const ExamInProgress = () => {
       });
 
       // 2. Save ALL answers synchronously before submission
-      const answersToSave = Object.entries(answersRef.current)
-        .filter(([_, answer]) => answer?.workingOut?.trim() || answer?.finalAnswer?.trim());
+      const answersToSave = Object.entries(responseState.current.current);
       
       console.log(`[Submit] Saving ${answersToSave.length} answers before submission...`);
       const saved = retrySavedAttempt ? [] : await Promise.all(answersToSave.map(([qId]) => handleSaveAnswer(qId)));
@@ -1095,13 +1063,13 @@ const ExamInProgress = () => {
       });
 
       // 2. Save ALL current answers (not just pending ones)
-      const answersToSave = Object.entries(userAnswers)
-        .filter(([_, answer]) => answer.workingOut?.trim() || answer.finalAnswer?.trim());
+      const answersToSave = Object.entries(responseState.current.current);
       
       console.log(`[Quit] Saving ${answersToSave.length} answers...`);
       
       const savePromises = answersToSave.map(([questionId]) => handleSaveAnswer(questionId));
-      await Promise.all(savePromises);
+      const saved=await Promise.all(savePromises);
+      if(saved.some(result=>result===false))throw new Error("Some answers could not be saved. Please retry before leaving.");
 
       // 3. Save session progress (works for ALL exams - timed and non-timed)
       await saveExamProgress();
@@ -1144,13 +1112,10 @@ const ExamInProgress = () => {
       : `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const answeredCount = questions.filter(q => {
-    const textAnswer = userAnswers[q.id];
-    const hasTextAnswer = readBiologyEssay(q).essay ? hasBiologyEssayText(textAnswer?.finalAnswer) : Boolean(textAnswer?.finalAnswer?.trim() || textAnswer?.workingOut?.trim());
-    const tableAnswer = tableAnswers[q.id];
-    const hasTableAnswer = tableAnswer && Object.keys(tableAnswer).length > 0;
-    return hasTextAnswer || hasTableAnswer;
-  }).length;
+  const hasQuestionResponse=(q:Question)=>readBiologyEssay(q).essay
+    ? hasBiologyEssayText(responseState.current.current[q.id]?.text?.finalAnswer)
+    : legacyDraftHasAnswer(responseState.current.current[q.id]);
+  const answeredCount = questions.filter(hasQuestionResponse).length;
   // Choice sections ("answer TWO of the three") lower the number of answers
   // actually required — a student exercising their choice must not be warned.
   const requiredAnswerCount = (() => {
@@ -1470,12 +1435,10 @@ const ExamInProgress = () => {
                     const isMultiPart = subQuestions.length > 1 || subQuestions[0].question_number !== rootNum;
                     const totalMarks = subQuestions.reduce((sum, q) => sum + q.marks, 0);
                     const allAnswered = subQuestions.every(q => {
-                      const a = userAnswers[q.id];
-                      return (readBiologyEssay(q).essay ? hasBiologyEssayText(a?.finalAnswer) : Boolean(a?.finalAnswer?.trim() || a?.workingOut?.trim())) || Boolean(tableAnswers[q.id]) || Boolean(graphAnswers[q.id]);
+                      return hasQuestionResponse(q);
                     });
                     const someAnswered = subQuestions.some(q => {
-                      const a = userAnswers[q.id];
-                      return (readBiologyEssay(q).essay ? hasBiologyEssayText(a?.finalAnswer) : Boolean(a?.finalAnswer?.trim() || a?.workingOut?.trim())) || Boolean(tableAnswers[q.id]) || Boolean(graphAnswers[q.id]);
+                      return hasQuestionResponse(q);
                     });
                     
                     return (
@@ -1495,8 +1458,7 @@ const ExamInProgress = () => {
                             </CollapsibleTrigger>
                             <CollapsibleContent className="pl-4 space-y-0.5 mt-0.5">
                               {subQuestions.map((q, subIdx) => {
-                                const answerData = userAnswers[q.id];
-                                const hasAnswer = (readBiologyEssay(q).essay ? hasBiologyEssayText(answerData?.finalAnswer) : Boolean(answerData?.finalAnswer?.trim() || answerData?.workingOut?.trim())) || Boolean(tableAnswers[q.id]) || Boolean(graphAnswers[q.id]);
+                                const hasAnswer = hasQuestionResponse(q);
                                 const isFlagged = flaggedQuestions.has(q.id);
                                 // Extract sub-label robustly: prefer any letter inside parens,
                                 // fall back to alphabetical position when the tail is empty or "(".
@@ -1509,7 +1471,7 @@ const ExamInProgress = () => {
                                   <button
                                     key={q.id}
                                     onClick={() => guardNavigation(async () => {
-                                      await flushCurrentPageSaves();
+                                      if (!await flushCurrentPageSaves()) return;
                                       const groupIndex = questionGroups.findIndex(g => g.questions.some(question => question.id === q.id));
                                       if (groupIndex !== -1) {
                                         setCurrentPage(groupIndex);
@@ -1534,14 +1496,13 @@ const ExamInProgress = () => {
                         ) : (
                           (() => {
                             const q = subQuestions[0];
-                            const answerData = userAnswers[q.id];
-                            const hasAnswer = (readBiologyEssay(q).essay ? hasBiologyEssayText(answerData?.finalAnswer) : Boolean(answerData?.finalAnswer?.trim() || answerData?.workingOut?.trim())) || Boolean(tableAnswers[q.id]) || Boolean(graphAnswers[q.id]);
+                            const hasAnswer = hasQuestionResponse(q);
                             const isFlagged = flaggedQuestions.has(q.id);
                             
                             return (
                               <button
                                 onClick={() => guardNavigation(async () => {
-                                  await flushCurrentPageSaves();
+                                  if (!await flushCurrentPageSaves()) return;
                                   const groupIndex = questionGroups.findIndex(g => g.questions.some(question => question.id === q.id));
                                   if (groupIndex !== -1) {
                                     setCurrentPage(groupIndex);
@@ -2441,7 +2402,7 @@ const ExamInProgress = () => {
               variant="ghost"
               className="rounded-token-sm px-3 sm:px-5 min-h-[44px] text-foreground hover:bg-muted"
               onClick={() => guardNavigation(async () => {
-                await flushCurrentPageSaves();
+                if (!await flushCurrentPageSaves()) return;
                 setCurrentPage(prev => prev - 1);
               })}
               disabled={!hasPrevPage}
@@ -2458,7 +2419,7 @@ const ExamInProgress = () => {
               <Button
                 className="rounded-token-sm px-4 sm:px-5 min-h-[44px] font-semibold bg-foreground text-background hover:bg-foreground/90"
                 onClick={() => guardNavigation(async () => {
-                  await flushCurrentPageSaves();
+                  if (!await flushCurrentPageSaves()) return;
                   setCurrentPage(prev => prev + 1);
                 })}
               >
