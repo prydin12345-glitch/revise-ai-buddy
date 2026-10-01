@@ -1,3 +1,4 @@
+import {OCR_ALEVEL_BIOLOGY_ID} from '@/lib/assessment-tier';
 import {readBiologyEssay,isBiologyEssayResource,formatBiologyEssayKey} from '@/lib/biology-essay';
 import { gatewaySectionHeading, biologyResponseNotice, biologyPaperDisplay } from "@/lib/biology-paper-display";
 import { comprehensionInsertFigures, isComprehensionResource } from '@/lib/biology-comprehension';
@@ -681,7 +682,7 @@ export async function generateExamPDF(
   let figureCount = 1;
 
   const display = biologyPaperDisplay(examData.generation_context);
-  const paperLabel = display?.plan.courseId === 'aqa_alevel_biology_7402' && ['paper_2','paper_3'].includes(display.plan.paperId) ? display.label : null;
+  const paperLabel = display && (display.plan.courseId === OCR_ALEVEL_BIOLOGY_ID || (display.plan.courseId === 'aqa_alevel_biology_7402' && ['paper_2','paper_3'].includes(display.plan.paperId))) ? display.label : null;
   const questionGroups = groupQuestionsByMain(examData.questions);
   const totalMarks = examData.questions.reduce((sum, q) => sum + (q.marks || 0), 0);
 
@@ -1057,8 +1058,18 @@ export async function generateExamPDF(
   // ============= Draw a single question group =============
   let previousPaperQuestion: string | undefined;
   const drawQuestionGroup = async (group: QuestionGroup) => {
-    // Keep the group label with the first table rather than stranding it on the previous page.
-    if (group.questions[0]?.table_data || extractEmbeddedTable(group.questions[0]?.question_text ?? '').tableData) ensureSpace(140);
+    // Keep OCR single-select stems, resources and choices together when the
+    // complete item fits a page. Reserve the answer box as well as the choices.
+    const first = group.questions[0];
+    if(display?.plan.courseId===OCR_ALEVEL_BIOLOGY_ID && first?.question_type==='mcq'){
+      const stemHeight=wrapMathText(doc,cleanLatexForPDF(first.question_text),CONTENT_WIDTH-15,10).length*LINE_HEIGHT;
+      const optionHeight=normalizeMCQOptions(first.options).reduce((sum,o)=>sum+Math.max(1,wrapMathText(doc,cleanLatexForPDF(o.text),CONTENT_WIDTH-28,10).length)*LINE_HEIGHT+4,0);
+      let tableHeight=0;
+      if(first.table_data){try{const rows=JSON.parse(first.table_data);tableHeight=Array.isArray(rows)?rows.length*18+35:140;}catch{tableHeight=140;}}
+      const resourceHeight=tableHeight+(includeDiagrams&&first.diagramConfig?130:0);
+      const needed=25+stemHeight+optionHeight+resourceHeight+24;
+      if(getRemainingSpace()<Math.min(needed,A4_HEIGHT-FOOTER_HEIGHT-HEADER_Y-8)) {addNewPage();drawPageHeader();}
+    }else if(first?.table_data || extractEmbeddedTable(first?.question_text ?? '').tableData)ensureSpace(140);
     const firstNumber = group.questions[0]?.question_number ?? '';
     const heading = gatewaySectionHeading(examData.generation_context, firstNumber, previousPaperQuestion);
     if (heading) {
@@ -1140,7 +1151,15 @@ export async function generateExamPDF(
       // MCQ options
       let mcqOptions = normalizeMCQOptions(question.options);
       const parsedMCQ = parseEmbeddedMCQOptions(cleanedText);
-      if (parsedMCQ.options.length >= 3) { cleanedText = parsedMCQ.cleanText; mcqOptions = parsedMCQ.options; }
+      const isOcrAlevelMcq = display?.plan.courseId === OCR_ALEVEL_BIOLOGY_ID && question.question_type === 'mcq';
+      if(isOcrAlevelMcq && (mcqOptions.length!==4 || new Set(mcqOptions.map(o=>o.text.trim().toLowerCase())).size!==4))throw new Error(`Q${question.question_number}: four distinct saved choices are required for OCR export.`);
+      if (parsedMCQ.options.length >= 3) {
+        // The saved A-D order is also used for on-screen selection and marking.
+        // A second inline list must never replace it with different answers.
+        if(isOcrAlevelMcq && JSON.stringify(parsedMCQ.options.map(o=>o.text.trim().toLowerCase()))!==JSON.stringify(mcqOptions.map(o=>o.text.trim().toLowerCase())))throw new Error(`Q${question.question_number}: inline and saved choices disagree; export stopped.`);
+        cleanedText = parsedMCQ.cleanText;
+        if(!isOcrAlevelMcq)mcqOptions = parsedMCQ.options;
+      }
       const isMCQ = mcqOptions.length >= 3;
 
       // Table data
@@ -1194,6 +1213,14 @@ export async function generateExamPDF(
 
       // MCQ answer box
       if (isMCQ) {
+        if(isOcrAlevelMcq){
+          const choicesHeight=mcqOptions.reduce((sum,opt)=>sum+Math.max(1,wrapMathText(doc,cleanLatexForPDF(opt.text),baseTextWidth-18,10).length)*LINE_HEIGHT+4,0)+24;
+          if(getRemainingSpace()<choicesHeight&&choicesHeight<A4_HEIGHT-FOOTER_HEIGHT-HEADER_Y-8){
+            addNewPage();drawPageHeader();
+            doc.setFont('helvetica','bold');doc.setFontSize(10);
+            doc.text(`Question ${question.question_number} - choices (continued)`,textIndent,yPosition);yPosition+=8;
+          }
+        }
         yPosition += 2;
         for (const opt of mcqOptions) {
           if (!opt) continue;
@@ -1211,8 +1238,9 @@ export async function generateExamPDF(
           yPosition += Math.max(optLines.length, 1) * LINE_HEIGHT + 4;
         }
         yPosition += 2;
-        drawAnswerBox(textIndent, yPosition, CONTENT_WIDTH - 10, 0, 'mcq_box', question.marks);
-        yPosition += 8;
+        if(isOcrAlevelMcq && getRemainingSpace()<20){addNewPage();drawPageHeader();}
+        const answerEnd=drawAnswerBox(textIndent, yPosition, CONTENT_WIDTH - 10, 0, 'mcq_box', question.marks);
+        yPosition = isOcrAlevelMcq ? answerEnd : yPosition + 8;
       }
       // Sub questions
       else if (question.sub_questions && question.sub_questions.length > 0) {

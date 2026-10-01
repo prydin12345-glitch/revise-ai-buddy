@@ -1,3 +1,5 @@
+import {OCR_ALEVEL_BIOLOGY_ID} from './assessment-tier.ts';
+import {OCR_ALEVEL_BIOLOGY_SPECIFICATION} from './ocr-alevel-biology-scope.ts';
 import { canonicalCourseId, getCourseCapability, getCourseOptions, OCR_GATEWAY_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID, WJEC_BIOLOGY_ID,
   type AssessmentTier, type CourseLookup } from './assessment-tier.ts';
 import { biologyPaperDefinition, buildPaperPlan, type PaperMode } from './biology-paper-contract.ts';
@@ -69,6 +71,12 @@ export function resolvePaperSelection(lookup: CourseLookup, tier: AssessmentTier
     for(const saved of [choice.specificationVersion,contract.specificationVersion])
       if(saved!=null&&saved!==WJEC_BIOLOGY_SPECIFICATION)throw new Error('Reapply the reviewed WJEC written-unit specification version.');
   }
+  if(course?.id===OCR_ALEVEL_BIOLOGY_ID){
+    if(!paperId)throw new Error('Choose and save OCR A-level Biology A Paper 1 in your profile.');
+    if(tier!=='not_tiered')throw new Error('OCR A-level Biology A is untiered. Reapply its profile settings.');
+    for(const saved of [choice.specificationVersion,contract.specificationVersion])
+      if(saved!=null&&saved!==OCR_ALEVEL_BIOLOGY_SPECIFICATION)throw new Error('Reapply the reviewed OCR A-level specification version.');
+  }
   let resolvedContract: SavedPaperContract | null = null;
   if(course?.id === AQA_ALEVEL_BIOLOGY_ID) {
     if(!paperId)throw new Error('Choose and save AQA A-level Biology Paper 1, Paper 2 or Paper 3 in your profile.');
@@ -94,6 +102,9 @@ export function paperPlanForAttempt(context: any, legacyBlueprint?: unknown) {
     return null;
   }
   const legacy = context.context_version === 1;
+  if(canonicalCourseId(context.course_id??object(object(legacyBlueprint).paperContract).courseId)===OCR_ALEVEL_BIOLOGY_ID &&
+    (legacy||context.specification_version!==OCR_ALEVEL_BIOLOGY_SPECIFICATION||context.paper_id!=='paper_1'||context.component_code!=='H420/01'||context.assessment_tier!=='not_tiered'))
+    throw new Error('Create a fresh OCR A-level Biology A attempt with its supported paper, component and reviewed edition saved by the server.');
   if(canonicalCourseId(context.course_id ?? object(object(legacyBlueprint).paperContract).courseId)===AQA_ALEVEL_BIOLOGY_ID &&
     (legacy || context.specification_version!==AQA_ALEVEL_BIOLOGY_SPECIFICATION || !['paper_1','paper_2','paper_3'].includes(context.paper_id) || context.assessment_tier!=='not_tiered'))
     throw new Error('Create a fresh AQA A-level attempt with its paper and reviewed specification saved by the server.');
@@ -121,6 +132,7 @@ export function paperPlanForAttempt(context: any, legacyBlueprint?: unknown) {
 export function describeCourseSelection(selection: ResolvedPaperSelection): string {
   return [selection.componentCode, selection.courseId === OCR_GATEWAY_BIOLOGY_ID ? 'Gateway Biology A' :
     selection.courseId === AQA_ALEVEL_BIOLOGY_ID ? 'AQA A-level Biology' :
+    selection.courseId === OCR_ALEVEL_BIOLOGY_ID ? 'OCR A-level Biology A' :
     selection.courseId === OCR_21C_BIOLOGY_ID ? 'Twenty First Century Biology B' :
     selection.courseId === WJEC_BIOLOGY_ID ? 'WJEC Biology — Wales' :
     selection.courseId === EDEXCEL_BIOLOGY_ID ? 'Pearson Edexcel Biology' : null].filter(Boolean).join(' · ');

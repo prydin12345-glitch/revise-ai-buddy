@@ -17,6 +17,8 @@ export interface PlannedPart {
   resource: ResourceKind;
   resourceId?: string;
   section?: 'A' | 'B';
+  /** Authored single-select style, independent of AO and mathematical demand. */
+  mcqStyle?: 'recall' | 'calculation' | 'data' | 'graph' | 'statements' | 'practical';
   specRefs?: string[];
   mathsMarks?: number;
   practicalMarks?: number;

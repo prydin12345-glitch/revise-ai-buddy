@@ -1,3 +1,5 @@
+import {OCR_ALEVEL_BIOLOGY_ID} from '../_shared/assessment-tier.ts';
+import {markSingleChoice} from '../_shared/single-choice-marking.ts';
 import { biologyMarkingInstructions, biologyQuestionResourceContext } from '../_shared/biology-marking.ts';
 import { AQA_ALEVEL_BIOLOGY_ID } from '../_shared/assessment-tier.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -60,6 +62,7 @@ serve(async (req) => {
     if (gradeSetError || !gradeSet) throw new Error('Practice set not found');
     const gradeSubject = String(gradeSet.subject_id ?? '');
     const isAlevelBiology = gradeSet.generation_context?.course_id === AQA_ALEVEL_BIOLOGY_ID;
+    const isOcrAlevelBiology = gradeSet.generation_context?.course_id === OCR_ALEVEL_BIOLOGY_ID;
     const isHumanitiesMarking = /english|literature|history|religio|sociolog|politics|philosoph/i.test(gradeSubject);
 
     // Fetch question details
@@ -72,6 +75,28 @@ serve(async (req) => {
 
     if (questionError || !question) {
       throw new Error('Question not found');
+    }
+
+    // Owned OCR practice questions use their saved choices/key; never spend a
+    // model call deciding whether a selected letter is correct.
+    if(gradeSet.generation_context?.course_id===OCR_ALEVEL_BIOLOGY_ID&&question.question_type==='mcq'){
+      biologyMarkingInstructions(gradeSet.generation_context);
+      if(Number(question.marks)!==1)throw new Error('OCR A-level MCQ mark allocation is invalid.');
+      const result=markSingleChoice(question,answerText);
+      const {error:saveError}=await supabase.from('practice_question_answers').upsert({
+        user_id:user.id,set_id:setId,question_id:questionId,answer_text:answerText||'',working_out:workingOut,
+        score:result.score,is_correct:result.isCorrect,feedback:result.feedback,
+        submitted_at:new Date().toISOString(),updated_at:new Date().toISOString(),
+      },{onConflict:'user_id,question_id'});
+      if(saveError)throw new Error('The multiple-choice result could not be saved. Please retry.');
+      const {data:allAnswers,error:answersError}=await supabase.from('practice_question_answers').select('is_correct').eq('user_id',user.id).eq('set_id',setId);
+      if(answersError)throw new Error('The result was saved but practice progress could not be read. Please retry.');
+      const {error:progressError}=await supabase.from('practice_set_progress').upsert({user_id:user.id,set_id:setId,
+        questions_attempted:allAnswers?.length||0,questions_correct:allAnswers?.filter(a=>a.is_correct).length||0,
+        last_accessed_at:new Date().toISOString(),updated_at:new Date().toISOString(),
+      },{onConflict:'user_id,set_id'});
+      if(progressError)throw new Error('The result was saved but practice progress could not be updated. Please retry.');
+      return new Response(JSON.stringify(result),{headers:{...corsHeaders,'Content-Type':'application/json'}});
     }
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -1475,7 +1500,7 @@ serve(async (req) => {
     const displayAnswer = answerText || '(No answer provided)';
 
     // Prepare grading prompt
-    const systemPrompt = `${isAlevelBiology ? `You are an AQA A-level Biology examiner grading this saved Paper ${gradeSet.generation_context?.paper_id==='paper_2'?'2':'1'} practice task against its private point-based key.` : isHumanitiesMarking
+    const systemPrompt = `${isOcrAlevelBiology ? `You are an OCR A-level Biology A H420/01 examiner. Use the saved task-specific key: OCR best-fit science/communication levels for six-mark extended responses, capped points for other written parts.` : isAlevelBiology ? `You are an AQA A-level Biology examiner grading this saved Paper ${gradeSet.generation_context?.paper_id==='paper_2'?'2':'1'} practice task against its private point-based key.` : isHumanitiesMarking
       ? `You are an experienced ${gradeSubject || 'humanities'} examiner grading student work with levels-based mark schemes.`
       : 'You are a supportive mathematics tutor grading student work.'} Your role is to:
 - Award partial credit generously for correct methods, even if the final answer is wrong
@@ -1511,8 +1536,8 @@ ${FEEDBACK_FORMATTING_RULE}${MARKING_QUALITY_RULES}`;
     const markingRules = `
 
 MARK-FIRST DISCIPLINE (MANDATORY):
-1. ${isAlevelBiology ? "Decide the mark FIRST against the task's individual marking points and cap, then justify it. Do not invent level descriptors." : 'Decide the mark FIRST against the level descriptors, THEN write feedback that justifies exactly that mark. Never write feedback and then pick a mark to match its tone.'}
-2. ${isAlevelBiology ? 'ALIGNMENT: feedback must explain the points credited and missed. Never apply an invented grade or level cap.' : 'ALIGNMENT: mark and feedback must agree mathematically. If your feedback identifies a fundamental misreading of the text or task, the mark MUST fall in the lower half of the levels — never award a top-level mark alongside a critique of core understanding.'}
+1. ${isOcrAlevelBiology ? "Decide the mark FIRST using the saved key. For a six-mark extended response, scientific content selects the best-fit level and communication selects the mark within it. Other parts use marking points and caps." : isAlevelBiology ? "Decide the mark FIRST against the task's individual marking points and cap, then justify it. Do not invent level descriptors." : 'Decide the mark FIRST against the level descriptors, THEN write feedback that justifies exactly that mark. Never write feedback and then pick a mark to match its tone.'}
+2. ${isOcrAlevelBiology ? "ALIGNMENT: feedback explains the credited science and reasoning. Do not invent level caps, automatic fact counts or separate writing penalties." : isAlevelBiology ? 'ALIGNMENT: feedback must explain the points credited and missed. Never apply an invented grade or level cap.' : 'ALIGNMENT: mark and feedback must agree mathematically. If your feedback identifies a fundamental misreading of the text or task, the mark MUST fall in the lower half of the levels — never award a top-level mark alongside a critique of core understanding.'}
 3. RETRIEVAL LENIENCY: for list/identify/retrieval questions, accept any paraphrase that preserves a correct point's meaning. Only demand exact wording when the question explicitly asks for a quotation.${isHumanitiesMarking ? `
 
 ENGLISH/HUMANITIES LEVEL BANDS (levels-based, not point-counting):
@@ -1549,7 +1574,7 @@ Return your grading using the grade_practice_answer function.`;
         model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt + markingRules + '\n' + biologyMarkingInstructions(gradeSet.generation_context) },
-          { role: 'user', content: userPrompt + biologyQuestionResourceContext(gradeSet.generation_context, question) }
+          { role: 'user', content: userPrompt + biologyQuestionResourceContext(gradeSet.generation_context, question, {guided:!isOcrAlevelBiology}) }
         ],
         tools: [{
           type: 'function',
