@@ -1,3 +1,5 @@
+import {OCR_ALEVEL_BIOLOGY_ID} from '../_shared/assessment-tier.ts';
+import {singleChoiceKey,markSingleChoice} from '../_shared/single-choice-marking.ts';
 import {validateBiologyEssayGrade} from '../_shared/biology-essay-marking.ts';
 import { biologyMarkingInstructions, biologyQuestionResourceContext, biologyEssayForMarking } from '../_shared/biology-marking.ts';
 import { requireExamAccess, ExamRequestError } from '../_shared/exam-access.ts';
@@ -124,6 +126,10 @@ serve(async (req) => {
     // Preflight every essay choice/key and source before ANY paid marking call.
     const essayMarking = new Map((questions || []).map(question => {
       biologyQuestionResourceContext(examData.generation_context, question);
+      if(examData.generation_context?.course_id===OCR_ALEVEL_BIOLOGY_ID&&question.question_type==='mcq'){
+        singleChoiceKey(question);
+        if(Number(question.marks)!==1)throw new Error('OCR A-level MCQ mark allocation is invalid.');
+      }
       return [question.id, biologyEssayForMarking(examData.generation_context, question, answerMap.get(question.id))] as const;
     }));
     // Helper function to format table answers for AI grading
@@ -430,6 +436,9 @@ serve(async (req) => {
             throw new Error('Marking could not finish. Your answers are saved. Please retry.');
           }
         }
+      } else if (question.question_type === 'mcq' && !hasTableAnswers && examData.generation_context?.course_id===OCR_ALEVEL_BIOLOGY_ID) {
+        const marked=markSingleChoice(question,studentAnswer);
+        isCorrect=marked.isCorrect;score=marked.score;feedback=marked.feedback;
       } else if (question.question_type === 'mcq' && !hasTableAnswers) {
         // MCQ grading: student submits a letter (A/B/C/D), correct_answer may be letter OR full text
         const correctAnswer = (question.correct_answer || '').trim();

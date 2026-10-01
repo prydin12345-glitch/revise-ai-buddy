@@ -1,3 +1,5 @@
+import {OCR_ALEVEL_BIOLOGY_ID} from './assessment-tier.ts';
+import {singleChoiceKey} from './single-choice-marking.ts';
 import {requireBiologyEssayKey} from './biology-essay-marking.ts';
 import { packForBiologyPlan } from './biology-course-packs.ts';
 import type { PaperPlan } from './biology-paper-contract.ts';
@@ -40,6 +42,9 @@ export function validateBiologyPlan(rows: CandidatePart[], plan?: PaperPlan | nu
       if (options.length !== policy.mcqOptions || new Set(values).size !== policy.mcqOptions || values.some(v => !v)) push(`Q${number} requires ${policy.mcqOptions} distinct non-empty choices.`, 'invalid_options');
     }
 
+    if(plan.courseId===OCR_ALEVEL_BIOLOGY_ID&&expected.responseType==='mcq_single'){
+      try{singleChoiceKey(row);}catch(error){push(`Q${number}: ${(error as Error).message}`, 'invalid_options');}
+    }
     const resources = resolveQuestionResources(row);
     if(resources.essay && expected.resource!=='essay_choice')push(`Q${number} is not the planned essay.`, 'invalid_resource');
     if(expected.resource==='essay_choice'){

@@ -46,9 +46,19 @@ export const OCR_21C_BIOLOGY_ID = 'ocr_gcse_biology_b_j257';
 export const EDEXCEL_BIOLOGY_ID = 'edexcel_gcse_biology_1bi0';
 export const WJEC_BIOLOGY_ID = 'wjec_gcse_biology_wales_3400';
 export const AQA_ALEVEL_BIOLOGY_ID = 'aqa_alevel_biology_7402';
+export const OCR_ALEVEL_BIOLOGY_ID = 'ocr_alevel_biology_a_h420';
+export const OCR_ALEVEL_BIOLOGY_B_ID = 'ocr_alevel_biology_b_h422';
+const OCR_ALEVEL_NAMES = ['biology', 'biology a', 'biology b', 'advancing biology', 'advancing biology b', 'biology (single science)'];
 const OCR_BIOLOGY_NAMES = ['biology', 'biology a', 'biology b', 'gateway biology', 'gateway biology a', 'biology (single science)', 'twenty first century biology', 'twenty first century biology b'];
 
 export const COURSE_CAPABILITIES: CourseCapability[] = [
+  ...[
+    {id:OCR_ALEVEL_BIOLOGY_ID,label:'Biology A',specificationCode:'H420',generationAvailable:true},
+    {id:OCR_ALEVEL_BIOLOGY_B_ID,label:'Advancing Biology B',specificationCode:'H422',generationAvailable:false},
+  ].map(course=>({...course,subjects:OCR_ALEVEL_NAMES,boards:['ocr','cambridge ocr'],
+    levels:['level3','level3_a_level','a-level','a level','alevel','a_level'],
+    tiers:['not_tiered'] as AssessmentTier[],tierMode:'untiered' as const,requiresPaperSelection:true,
+    curriculum:{country:'GB',jurisdiction:'England',qualification:'A-level',subject:'Biology'}})),
   {id:AQA_ALEVEL_BIOLOGY_ID,label:'AQA A-level Biology (7402)',subjects:['biology','biology (single science)'],
     boards:['aqa'],levels:['level3','level3_a_level','a-level','a level','alevel','a_level'],
     tiers:['not_tiered'],tierMode:'untiered',specificationCode:'7402',generationAvailable:true,requiresPaperSelection:true,
@@ -96,7 +106,7 @@ export const COURSE_CAPABILITIES: CourseCapability[] = [
 
 const norm = (v?: string | null) => (v ?? "").trim().toLowerCase();
 
-const DECORATION = /\b(aqa|pearson|edexcel|cambridge|ocr|wjec|eduqas|wales|gcse|igcse|a[-\s]?level|7402|ks4|j247|j257|1bi0|3400qs|unit\s*\d+|paper\s*\d+|higher|foundation|tier|hl|sl)\b/g;
+const DECORATION = /\b(aqa|pearson|edexcel|cambridge|ocr|wjec|eduqas|wales|gcse|igcse|a[-\s]?level|7402|h420|h422|ks4|j247|j257|1bi0|3400qs|unit\s*\d+|paper\s*\d+|higher|foundation|tier|hl|sl)\b/g;
 
 const subjectForms = (value?: string | null): string[] => {
   const base = norm(value);

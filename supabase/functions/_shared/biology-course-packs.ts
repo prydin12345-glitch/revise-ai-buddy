@@ -1,3 +1,6 @@
+import {OCR_ALEVEL_BIOLOGY_ID} from './assessment-tier.ts';
+import {OCR_ALEVEL_P1,buildOcrAlevelPaper1Plan,assertOcrAlevelPaper1Plan,ocrAlevelPaper1Instructions,ocrAlevelPartInstruction} from './ocr-alevel-biology-contract.ts';
+import {OCR_ALEVEL_SPEC_URL,OCR_ALEVEL_SAM_URL,OCR_ALEVEL_P1_RULES} from './ocr-alevel-biology-scope.ts';
 import {AQA_ALEVEL_P3,buildAqaAlevelPaper3Plan,assertAqaAlevelPaper3Plan,aqaAlevelPaper3Instructions,aqaAlevelPaper3PartInstruction} from './aqa-alevel-biology-paper3-contract.ts';
 import {AQA_ALEVEL_P3_RULES} from './aqa-alevel-biology-paper3-scope.ts';
 import { canonicalCourseId } from './assessment-tier.ts';
@@ -243,6 +246,28 @@ export const BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [
     definition:()=>({...AQA_ALEVEL_P3}),build:buildAqaAlevelPaper3Plan,instructions:aqaAlevelPaper3Instructions,
     repairPartInstructions:aqaAlevelPaper3PartInstruction,validatePlan:assertAqaAlevelPaper3Plan,
   },
+  {
+    id:'ocr-h420-paper-1-v1',courseId:OCR_ALEVEL_BIOLOGY_ID,paperId:'paper_1',contractVersion:1,
+    curriculum:{...curriculum,qualification:'A-level'},examBoard:'OCR',tiers:['not_tiered'],
+    sources:[
+      {url:OCR_ALEVEL_SPEC_URL,section:'Version 4.1 (April 2026): Modules 1/2/3/5; sections 3a, 3b and 5d',checkedOn:'2026-09-30'},
+      {url:OCR_ALEVEL_SAM_URL,section:'Version 3.0 (February 2026): Section A A-D choices, Section B and levels of response',checkedOn:'2026-09-30'},
+      {url:'https://www.ocr.org.uk/Images/726427-examiners-report-biological-processes.pdf',section:'2024 Section A: fifteen MCQs assess AO1/AO2, including quantitative/practical application',checkedOn:'2026-09-30'},
+    ],
+    official:{fullMarks:100,durationMinutes:135,sections:[{id:'A',marks:15},{id:'B',marks:85}]},
+    layoutChoices:[
+      'OCR specifies fifteen one-mark MCQs in Section A and 85 structured marks in Section B; all questions are compulsory.',
+      'Seven Section B groups, 43 total parts, two six-mark level responses and the chosen MCQ styles are Examly template decisions, not fixed OCR counts.',
+      'AO targets 36/42/22 fit the H420/01 weighting ranges. Maths and practical annotations are drafting targets, not proof of generated cognitive demand.',
+      'Short practice has five MCQs plus six written parts: 25 marks / 34 minutes. It is not the complete 100-mark paper.',
+      'This is untiered H420/01; neither AS H020, Biology B H422 nor the separate practical endorsement is generated.',
+    ],
+    validation:{rows:'exact_parts',mcqOptions:4,levelSchemeAtMarks:6},rules:OCR_ALEVEL_P1_RULES,
+    generation:{strategy:'contract_only',systemPrompt:'Write an original OCR A-level Biology A H420/01 Biological processes paper. Use the saved untiered course, Modules 1/2/3/5, immutable Section A/B plan, complete assessed tasks and consistent canonical resources. Section A has four distinct A-D choices and exactly one private answer per one-mark row. Use OCR levels for planned six-mark extended responses. Return complete JSON only.'},
+    definition:()=>({...OCR_ALEVEL_P1}),build:buildOcrAlevelPaper1Plan,instructions:ocrAlevelPaper1Instructions,
+    repairPartInstructions:ocrAlevelPartInstruction,validatePlan:assertOcrAlevelPaper1Plan,
+  },
+
 ];
 
 export const biologyPaperOptions = (courseId: string | null | undefined) =>
@@ -251,7 +276,7 @@ export const biologyPaperOptions = (courseId: string | null | undefined) =>
 /** Explicit paper/version lookups never fall back to a different registered paper. */
 export function getBiologyPaperPack(courseId: string | null | undefined, paperId?: string | null, contractVersion?: number): BiologyPaperPack | null {
   const course = canonicalCourseId(courseId);
-  if(course === AQA_ALEVEL_BIOLOGY_ID && !paperId) return null;
+  if((course === AQA_ALEVEL_BIOLOGY_ID || course === OCR_ALEVEL_BIOLOGY_ID) && !paperId) return null;
   // Before Paper 2 shipped, an absent AQA paper meant Paper 1. Preserve old
   // callers/profiles explicitly; never infer Paper 2 from a display name.
   const selectedPaper = paperId ?? (course === 'aqa_gcse_biology' ? 'paper_1' : null);

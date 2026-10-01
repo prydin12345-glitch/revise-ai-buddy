@@ -1,5 +1,5 @@
 import { paperPlanForAttempt } from '../../supabase/functions/_shared/course-selection';
-import { AQA_ALEVEL_BIOLOGY_ID, OCR_GATEWAY_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID, WJEC_BIOLOGY_ID } from '@/lib/assessment-tier';
+import { AQA_ALEVEL_BIOLOGY_ID, OCR_ALEVEL_BIOLOGY_ID, OCR_GATEWAY_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID, WJEC_BIOLOGY_ID } from '@/lib/assessment-tier';
 import { canonicalPartNumber } from '../../supabase/functions/_shared/ocr-plan-validator';
 import { isAqaPaper2 } from '../../supabase/functions/_shared/aqa-biology-paper2';
 
@@ -8,6 +8,7 @@ export function biologyPaperDisplay(context: unknown) {
   if (gateway) return {...gateway, subject: 'Gateway Biology A'};
   try {
     const plan = paperPlanForAttempt(context);
+    if(plan?.courseId===OCR_ALEVEL_BIOLOGY_ID)return {plan,subject:'A-level Biology A',label:'OCR A-level Biology A · H420/01 · Biological processes'};
     if(plan?.courseId===AQA_ALEVEL_BIOLOGY_ID)return {plan,subject:'A-level Biology',label:`AQA A-level Biology Paper ${plan.paperId==='paper_3'?'3':plan.paperId==='paper_2'?'2':'1'} · ${plan.componentCode}`};
     if(plan?.courseId===WJEC_BIOLOGY_ID)return {plan,subject:'WJEC Wales Biology',label:`WJEC Wales Biology Unit ${plan.paperId==='unit_1'?'1':'2'} · ${plan.componentCode} · ${plan.tier==='foundation'?'Foundation':'Higher'}`};
     if (plan?.courseId === OCR_21C_BIOLOGY_ID) return {plan, subject:'Twenty First Century Biology B',
@@ -33,6 +34,10 @@ export function biologyResponseNotice(context: unknown, number: string): string 
     const part=display.plan.parts.find(p=>canonicalPartNumber(p.questionNumber)===canonicalPartNumber(number));
     return part?.assessmentRole==='synoptic_essay'?'Answer ONE essay title (A or B), 25 marks.':part?.assessmentRole==='critical_analysis'?'Critical analysis: use the given experimental evidence.':part?.assessmentRole==='comprehension'?'Comprehension: use the numbered reading passage.':part?.assessmentRole==='extended_response'?'Extended response: develop a clear biological explanation or argument.':null;
   }
+  if(display?.plan.courseId===OCR_ALEVEL_BIOLOGY_ID){
+    const part=display.plan.parts.find(p=>canonicalPartNumber(p.questionNumber)===canonicalPartNumber(number));
+    return part?.marks===6&&part.responseType==='long_form'?'* Extended response: show a clear, logical line of reasoning.':null;
+  }
   if(display?.plan.courseId===WJEC_BIOLOGY_ID){
     const part=display.plan.parts.find(p=>canonicalPartNumber(p.questionNumber)===canonicalPartNumber(number));
     return part?.marks===6&&part.responseType==='long_form'?'* QER: use clear reasoning, scientific terms and accurate writing.':null;
@@ -43,8 +48,8 @@ export function biologyResponseNotice(context: unknown, number: string): string 
     ? '* Extended response: show a clear, logical line of reasoning.' : null;
 }
 export function gatewaySectionHeading(context: unknown, questionNumber: string, previousNumber?: string): string | null {
-  const display = gatewayPaperDisplay(context);
-  if (!display) return null;
+  const display = biologyPaperDisplay(context);
+  if (!display || ![OCR_GATEWAY_BIOLOGY_ID,OCR_ALEVEL_BIOLOGY_ID].includes(display.plan.courseId)) return null;
   const sectionFor = (number?: string) => display.plan.parts.find(p => canonicalPartNumber(p.questionNumber) === canonicalPartNumber(number))?.section;
   const section = sectionFor(questionNumber);
   if (!section || section === sectionFor(previousNumber)) return null;

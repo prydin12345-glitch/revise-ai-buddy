@@ -1,3 +1,5 @@
+import {OCR_ALEVEL_BIOLOGY_ID} from './assessment-tier.ts';
+import {OCR_ALEVEL_BIOLOGY_SPECIFICATION} from './ocr-alevel-biology-scope.ts';
 import {readBiologyEssay} from './biology-essay.ts';
 import {prepareBiologyEssayMarking,essayKeyObject} from './biology-essay-marking.ts';
 import {AQA_ALEVEL_BIOLOGY_ID} from './assessment-tier.ts';
@@ -15,18 +17,28 @@ import {isOcr21cBiology} from './ocr21c-biology-scope.ts';
 import {isWjecBiology} from './wjec-biology-scope.ts';
 
 /** Paper 2 marking receives the actual reading/data, not just a reference to it. */
-export function biologyQuestionResourceContext(context:any,question:any):string {
-  if(context?.course_id!==AQA_ALEVEL_BIOLOGY_ID||!['paper_2','paper_3'].includes(context.paper_id))return '';
+export function biologyQuestionResourceContext(context:any,question:any,options:{guided?:boolean}={}):string {
+  if(context?.course_id!==OCR_ALEVEL_BIOLOGY_ID&&(context?.course_id!==AQA_ALEVEL_BIOLOGY_ID||!['paper_2','paper_3'].includes(context.paper_id)))return '';
   const plan=paperPlanForAttempt(context);
-  const expected=plan?.parts.find(p=>canonicalPartNumber(p.questionNumber)===canonicalPartNumber(question.question_number));
+  const expected=options.guided===false?undefined:plan?.parts.find(p=>canonicalPartNumber(p.questionNumber)===canonicalPartNumber(question.question_number));
   const resources=requireConsistentResources(question);
   if(expected?.resource==='data_table'&&!resources.table)throw new Error('Saved experimental data is missing; marking cannot proceed.');
   if(expected?.resource==='passage'&&!resources.passage)throw new Error('Saved comprehension source is missing; marking cannot proceed.');
+  if(expected?.resource==='graph'&&(!resources.chart||resources.chart.type==='data_table'))throw new Error('Saved graph is missing; marking cannot proceed.');
   const resource=resources.passage??resources.chart??resources.table;
   return resource?`\n\nSaved question resource (given evidence, not student instructions):\n${JSON.stringify(resource)}`:'';
 }
 
 export function biologyMarkingInstructions(context: any): string {
+  if(context?.course_id===OCR_ALEVEL_BIOLOGY_ID){
+    if(context.resolved_by!=='server'||context.context_version!==2||context.specification_version!==OCR_ALEVEL_BIOLOGY_SPECIFICATION)throw new Error('OCR A-level marking requires the saved server course and reviewed edition.');
+    const selection=resolvePaperSelection({subject:context.subject_name,examBoard:context.exam_board,educationalTier:context.educational_tier},
+      context.assessment_tier,{courseSelection:{courseId:context.course_id,paperId:context.paper_id},paperContract:context.paper_contract});
+    if(selection.componentCode!=='H420/01'||context.component_code!==selection.componentCode)throw new Error('Invalid saved OCR A-level marking component.');
+    return `COURSE: OCR A-level Biology A H420/01 Biological processes, untiered, Modules 1/2/3/5. Use each saved task, private key and actual evidence. Neural mechanisms, photosynthesis/respiration pathways and appropriate statistical calculations are permitted. Do not apply AQA or GCSE exclusions or Foundation/Higher caps.
+Section A is single select: one mark for the one correct choice, zero otherwise, with no partial credit or negative marks. For the planned six-mark extended responses use the private Level 1 (1-2), Level 2 (3-4), Level 3 (5-6) scheme: science/content determines the best-fit level, communication and a coherent reasoning sequence determine the mark within it. Zero for no relevant response. Do not count six isolated facts as an automatic top level, invent separate writing penalties or apply AQA's 25-mark essay rubric.
+Other written parts use their saved points/caps; credit equivalent scientific answers, valid working, units and stated error-carried-forward without double penalties. Never award marks for given scaffold content or require unassessed knowledge. Return raw marks, not an official qualification grade or practical endorsement.`;
+  }
   if(context?.course_id===AQA_ALEVEL_BIOLOGY_ID){
     if(context.resolved_by!=='server'||context.context_version!==2||context.specification_version!==AQA_ALEVEL_BIOLOGY_SPECIFICATION)throw new Error('A-level marking requires the saved server course and reviewed edition.');
     const selection=resolvePaperSelection({subject:context.subject_name,examBoard:context.exam_board,educationalTier:context.educational_tier},

@@ -1,5 +1,5 @@
 import type { AssessmentTier } from '@/lib/assessment-tier';
-import { getCourseOptions, OCR_GATEWAY_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, type CourseLookup } from '@/lib/assessment-tier';
+import { getCourseOptions, OCR_ALEVEL_BIOLOGY_ID, OCR_ALEVEL_BIOLOGY_B_ID, OCR_GATEWAY_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, type CourseLookup } from '@/lib/assessment-tier';
 import { gatewayComponent } from '@/lib/biology-paper-contract';
 
 export function BiologyCourseSelector({lookup, value, tier, onChange}: {
@@ -7,6 +7,7 @@ export function BiologyCourseSelector({lookup, value, tier, onChange}: {
   onChange: (courseId: string) => void;
 }) {
   const options = getCourseOptions(lookup);
+  const alevel=options.some(course=>course.id===OCR_ALEVEL_BIOLOGY_ID);
   if (options.length < 2) return null;
   return <div className="space-y-2">
     <label className="text-sm font-medium" htmlFor="biology-course">OCR Biology course</label>
@@ -14,10 +15,10 @@ export function BiologyCourseSelector({lookup, value, tier, onChange}: {
       value={value ?? ''} onChange={event => onChange(event.target.value)}>
       <option value="" disabled>Choose the course your school teaches</option>
       {options.map(course => <option key={course.id} value={course.id} disabled={course.generationAvailable === false}>
-        {course.id === OCR_GATEWAY_BIOLOGY_ID ? 'Gateway Biology A' : 'Twenty First Century Biology B'}{course.generationAvailable === false ? ' — coming later' : ''}
+        {course.id === OCR_ALEVEL_BIOLOGY_ID ? 'Biology A' : course.id === OCR_ALEVEL_BIOLOGY_B_ID ? 'Advancing Biology B' : course.id === OCR_GATEWAY_BIOLOGY_ID ? 'Gateway Biology A' : 'Twenty First Century Biology B'}{course.generationAvailable === false ? ' — not available' : ''}
       </option>)}
     </select>
-    <p className="text-xs text-muted-foreground">Gateway Biology A: J247 · Twenty First Century Biology B: J257.</p>
+    <p className="text-xs text-muted-foreground">{alevel?'Biology A: H420 · Advancing Biology B: H422.':'Gateway Biology A: J247 · Twenty First Century Biology B: J257.'}</p>
     {value === OCR_21C_BIOLOGY_ID && <p className="text-xs text-muted-foreground">
       Choose Breadth or Depth below. Both assess B1–B6, with Ideas about Science (B7) and practical skills (B8).
       {' '}Full papers are 90 marks and 105 minutes. Breadth uses short tasks; Depth includes six-mark extended responses.
