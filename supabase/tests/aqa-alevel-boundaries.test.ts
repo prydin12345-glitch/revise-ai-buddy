@@ -21,7 +21,7 @@ async function handler(name:string,options:{foreign?:boolean;badEdition?:boolean
       return {data:null,error:null};
     },from(table:string){
       const q:any={};let op='select',value:any;
-      for(const method of ['select','update','insert','upsert','eq','single','maybeSingle','order'])q[method]=(...args:any[])=>{
+      for(const method of ['select','update','insert','upsert','eq','single','maybeSingle','order','in'])q[method]=(...args:any[])=>{
         if(['update','insert','upsert'].includes(method)){op=method;value=args[0];writes.push({table,op,value});}
         if(method==='eq')filters.push({table,column:args[0],value:args[1]});return q;
       };

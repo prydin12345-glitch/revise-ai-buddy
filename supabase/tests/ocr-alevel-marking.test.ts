@@ -19,7 +19,7 @@ async function handler(name:string,options:{answers?:string[];badKey?:boolean;ba
       if(name==='reserve_ai_request')return {data:{allowed:true,usedToday:1,usedInBurstWindow:1}};
       if(name==='finish_exam_marking')return {data:{totalScore:15,totalMarks:15}};return {data:null,error:null};},
     from(table:string){let op='select',value:any;const q:any={};
-      for(const method of ['select','update','insert','upsert','eq','single','maybeSingle','order'])q[method]=(...args:any[])=>{if(['update','insert','upsert'].includes(method)){op=method;value=args[0];writes.push({table,op,value});}if(method==='eq')filters.push({table,column:args[0],value:args[1]});return q;};
+      for(const method of ['select','update','insert','upsert','eq','single','maybeSingle','order','in'])q[method]=(...args:any[])=>{if(['update','insert','upsert'].includes(method)){op=method;value=args[0];writes.push({table,op,value});}if(method==='eq')filters.push({table,column:args[0],value:args[1]});return q;};
       q.then=(resolve:any,reject:any)=>{let data:any=null;
         if(table==='subject_exam_profiles')data=options.foreign?null:profile;
         if(table==='exams')data=op==='insert'?{...value,id:exam}:{id:exam,user_id:'tutor',assigned_by:'tutor',subject_id:'Biology',title:'Synthetic OCR',generation_context:snapshot};

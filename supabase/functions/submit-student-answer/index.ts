@@ -1,4 +1,5 @@
 import { requireExamAccess, ExamRequestError } from '../_shared/exam-access.ts';
+import {requireLegacyResponsePath} from '../_shared/response-foundation.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -38,6 +39,7 @@ serve(async (req) => {
     }
 
     await requireExamAccess(supabase, examId, user.id);
+    await requireLegacyResponsePath(supabase,'exam',[questionId]);
 
     // Build upsert data, only include optional fields if provided
     const upsertData: Record<string, any> = {

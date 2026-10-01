@@ -1,3 +1,4 @@
+import {requireLegacyResponsePath} from '../_shared/response-foundation.ts';
 import { requireExamAccess, mayReadSolutions, studentQuestion, stripSolutionData, ExamRequestError } from '../_shared/exam-access.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -53,6 +54,8 @@ serve(async (req) => {
       .from('exam_questions')
       .select('*')
       .eq('exam_id', examId);
+
+    if(!questionsError)await requireLegacyResponsePath(supabase,'exam',(questions??[]).map(q=>q.id));
 
     if (questionsError) {
       console.error('Fetch questions error:', questionsError);

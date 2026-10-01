@@ -21,7 +21,7 @@ async function harness(name:string, options:{ai?:Response; access?:boolean; stat
     from:(table:string)=>{
       let operation='select';
       const query:any={};
-      for(const key of ['select','update','insert','upsert','eq','maybeSingle','single','order']) {
+      for(const key of ['select','update','insert','upsert','eq','maybeSingle','single','order','in']) {
         query[key]=(value:any)=>{
           if(['update','insert','upsert'].includes(key)){operation=key;mutations.push({table,operation,value});}
           return query;

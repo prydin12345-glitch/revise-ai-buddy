@@ -1,3 +1,4 @@
+import {requireLegacyResponsePath} from '../_shared/response-foundation.ts';
 import {OCR_ALEVEL_BIOLOGY_ID} from '../_shared/assessment-tier.ts';
 import {markSingleChoice} from '../_shared/single-choice-marking.ts';
 import { biologyMarkingInstructions, biologyQuestionResourceContext } from '../_shared/biology-marking.ts';
@@ -76,6 +77,8 @@ serve(async (req) => {
     if (questionError || !question) {
       throw new Error('Question not found');
     }
+
+    await requireLegacyResponsePath(rateLimitClient,'practice',[questionId]);
 
     // Owned OCR practice questions use their saved choices/key; never spend a
     // model call deciding whether a selected letter is correct.

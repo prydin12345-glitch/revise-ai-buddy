@@ -1,3 +1,4 @@
+import {requireLegacyResponsePath} from '../_shared/response-foundation.ts';
 import {OCR_ALEVEL_BIOLOGY_ID} from '../_shared/assessment-tier.ts';
 import {singleChoiceKey,markSingleChoice} from '../_shared/single-choice-marking.ts';
 import {validateBiologyEssayGrade} from '../_shared/biology-essay-marking.ts';
@@ -105,6 +106,7 @@ serve(async (req) => {
       .eq('exam_id', examId);
 
     if (questionsError || !questions?.length) throw new Error('Questions could not be loaded');
+    await requireLegacyResponsePath(supabase,'exam',questions.map(q=>q.id));
 
     // Fetch student answers including table_answers and answer_latex for math input
     const { data: studentAnswers, error: answersError } = await supabase
