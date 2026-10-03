@@ -1234,12 +1234,16 @@ const CreatePracticeQuestions = () => {
       </div>
 
       {/* Modals */}
-      {generating && (
         <GenerationLoadingScreen
           message="Creating your practice questions..."
           subjectColor={subjectColor}
           estimatedTime={30}
+          variant="practice"
+          title={subjectId}
+          questionCount={questionCount}
+          topicCount={selectedSubtopics.length}
         />
+ 
       )}
 
 
