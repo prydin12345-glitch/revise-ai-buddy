@@ -1,3 +1,5 @@
+import {ResponseReview} from '@/components/responses/ResponseReview';
+import type {ResponseQuestionView} from '@/lib/response-view';
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +17,7 @@ import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { AssessmentBiologyFigure } from '@/components/biology/AssessmentBiologyFigure';
 import { QuestionChart } from '@/components/shared/FigureChartTabs';
 
-interface Question {
+interface Question extends ResponseQuestionView {
   id: string;
   questionNumber: string;
   questionText: string;
@@ -90,21 +92,19 @@ const StudentExamReview = () => {
             code: profile.student_code || "-",
             submittedAt: submission.submitted_at,
             timeTaken: submission.time_taken_seconds,
-            totalScore: submission.total_score ? Number(submission.total_score) : null,
+            totalScore: submission.total_score == null ? null : Number(submission.total_score),
             totalMarks: submission.total_marks,
             isLate: submission.is_late || false,
           });
         }
 
-        // Load questions
-        const { data: questionsData } = await supabase
-          .from("exam_questions")
-          .select("id, question_number, question_text, question_type, marks, correct_answer, diagram_config, table_data, options")
-          .eq("exam_id", examId)
-          .order("question_number");
-
+        // The service enforces manager/target access and projects private keys.
+        const {data: review, error: reviewError} = await supabase.functions.invoke('get-exam-questions', {body:{examId,studentId}});
+        if (reviewError || review?.error) throw reviewError ?? new Error(review.error);
+        const questionsData = review?.questions;
         if (questionsData) {
           setQuestions(questionsData.map(q => ({
+            ...q,
             id: q.id,
             questionNumber: q.question_number,
             questionText: q.question_text,
@@ -117,18 +117,12 @@ const StudentExamReview = () => {
           })));
         }
 
-        // Load answers
-        const { data: answersData } = await supabase
-          .from("student_answers")
-          .select("*")
-          .eq("exam_id", examId)
-          .eq("student_id", studentId);
-
+        const answersData = review?.existingAnswers;
         if (answersData) {
           setAnswers(answersData.map(a => ({
             questionId: a.question_id,
             answerText: a.answer_text,
-            score: a.score ? Number(a.score) : null,
+            score: a.score == null ? null : Number(a.score),
             isCorrect: a.is_correct,
             feedback: a.feedback,
             isFlagged: a.is_flagged || false,
@@ -258,7 +252,7 @@ const StudentExamReview = () => {
                           Flagged
                         </Badge>
                       )}
-                      {answer?.isCorrect !== null && (
+                      {answer?.isCorrect != null && (
                         answer.isCorrect ? (
                           <CheckCircle className="h-5 w-5 text-green-600" />
                         ) : (
@@ -266,7 +260,7 @@ const StudentExamReview = () => {
                         )
                       )}
                       <Badge variant="secondary">
-                        {answer?.score ?? 0}/{question.marks} marks
+                        {answer?.score ?? "—"}/{question.marks} marks
                       </Badge>
                     </div>
                   </div>
@@ -278,6 +272,7 @@ const StudentExamReview = () => {
                     <div className="text-sm"><MathRenderer content={question.questionText} /></div>
                   </div>
 
+                  {question.response_definition ? <ResponseReview question={question} answerText={answer?.answerText} solutionsReleased={!!question.response_key} /> : <>
                   {/* Mechanics figure panel */}
                   {(() => {
                     const diagConfig = detectDiagramConfig(question.questionText);
@@ -317,6 +312,7 @@ const StudentExamReview = () => {
                     </div>
                   )}
 
+                  </>}
                   {/* AI Feedback */}
                   {answer?.feedback && (
                     <div>

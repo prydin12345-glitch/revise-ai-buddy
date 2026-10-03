@@ -1,3 +1,4 @@
+import type {ResponseQuestionView} from '@/lib/response-view';
 import { biologyPaperDisplay } from "@/lib/biology-paper-display";
 import { useState } from "react";
 import { Printer, Loader2 } from "lucide-react";
@@ -15,7 +16,7 @@ interface PrintExamButtonProps {
   showLabel?: boolean;
 }
 
-interface ExamQuestion {
+interface ExamQuestion extends ResponseQuestionView {
   id: string;
   question_number: string;
   question_text: string;
@@ -89,6 +90,9 @@ export function PrintExamButton({
       const formattedQuestions: ExamQuestion[] = questions.map(q => {
         const diagramConfig = buildDiagramConfig(q);
         return {
+          response_definition: q.response_definition,
+          response_resources: q.response_resources,
+          response_key: q.response_key,
           id: q.id,
           question_number: q.question_number,
           question_text: q.question_text,

@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { ResponseDraftSession, type DraftScope } from './response-draft-session';
 /** Browser adapter; all authorization and revision checks remain server-side. */
-export function createResponseDraftSession(scope: DraftScope, onChange?: () => void) {
+export function createResponseDraftSession(scope: DraftScope, onChange?: () => void, ownerId?: string) {
     return new ResponseDraftSession(scope, async (body) => {
         const { data, error } = await supabase.functions.invoke('question-response', { body });
         if (error) {

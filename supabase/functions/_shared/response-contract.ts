@@ -101,6 +101,8 @@ export type PrivateResponseKey = {
         };
     }[];
 };
+export const isCompleteResponseNumber = (value: string): boolean => /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value.trim()) && Number.isFinite(Number(value));
+export const isResponseNumberDraft = (value: string): boolean => /^[+-]?(?:(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d*)?|\.?)$/i.test(value.trim());
 const ID = /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/;
 const reserved = new Set(['__proto__', 'prototype', 'constructor']);
 function fail(message: string): never { throw new Error(`Response contract: ${message}`); }
@@ -211,9 +213,9 @@ export function parseResponseEnvelope(value: unknown, definition: ResponseDefini
                 if (!f)
                     fail('unknown field');
                 const s = str(val, 5000);
-                if (s.trim() && f.input === 'number' && !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(s.trim()))
+                if (s.trim() && f.input === 'number' && !isResponseNumberDraft(s))
                     fail('invalid numeric input');
-                if (s.trim() && f.input === 'number' && !Number.isFinite(Number(s)))
+                if (s.trim() && f.input === 'number' && /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(s.trim()) && !Number.isFinite(Number(s)))
                     fail('non-finite number');
                 if (s && f.input === 'select' && !f.options!.some(o => o.id === s))
                     fail('unknown dropdown option');
@@ -239,7 +241,7 @@ export function responseCompleteness(d: ResponseDefinition, response: ResponseEn
         const values = r.value.fields;
         if (!Object.values(values).some(x => x.trim()))
             return 'empty';
-        return d.fields.every(f => !f.required || Boolean(values[f.id]?.trim())) ? 'complete' : 'partial';
+        return d.fields.every(f => !f.required || (f.input === 'number' ? isCompleteResponseNumber(values[f.id] ?? '') : Boolean(values[f.id]?.trim()))) ? 'complete' : 'partial';
     }
     return fail('response kind mismatch');
 }

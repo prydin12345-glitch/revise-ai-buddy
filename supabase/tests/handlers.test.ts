@@ -13,9 +13,9 @@ async function harness(name:string, options:{ai?:Response; access?:boolean; stat
     rpc:async(name:string,args:any)=>{
       calls.push({name,args});
       if(name==='exam_access_info')return {data:access};
-      if(name==='claim_exam_marking')return {data:{state:'claimed',token:'token'}};
+      if(name==='claim_exam_responses')return {data:{state:'claimed',token:'token'}};
       if(name==='reserve_ai_request')return {data:{allowed:true,usedToday:1,usedInBurstWindow:1}};
-      if(name==='finish_exam_marking')return {data:{totalScore:2,totalMarks:2}};
+      if(name==='finish_exam_responses')return {data:{totalScore:2,totalMarks:2}};
       return {data:null,error:null};
     },
     from:(table:string)=>{
@@ -73,7 +73,7 @@ describe('real Edge handler regressions with a mocked runtime',()=>{
     for(const ai of [new Response('unavailable',{status:429}),new Response('{}',{status:200}),new Response('bad json',{status:200})]) {
       const h=await harness('submit-exam',{ai});
       expect((await h.run({examId:exam})).status).toBe(503);
-      expect(h.calls.some(c=>c.name==='finish_exam_marking')).toBe(false);
+      expect(h.calls.some(c=>c.name==='finish_exam_responses')).toBe(false);
       expect(h.calls.some(c=>c.name==='fail_exam_marking')).toBe(true);
       expect(h.mutations.filter(m=>m.table==='student_answers')).toHaveLength(0);
     }
@@ -81,20 +81,20 @@ describe('real Edge handler regressions with a mocked runtime',()=>{
   it('never turns a failed answer read into an unanswered zero',async()=>{
     const h=await harness('submit-exam',{answersError:true});
     expect((await h.run({examId:exam})).status).toBe(503);
-    expect(h.calls.some(c=>c.name==='finish_exam_marking')).toBe(false);
+    expect(h.calls.some(c=>c.name==='finish_exam_responses')).toBe(false);
   });
   it('commits successful marking through one transactional RPC',async()=>{
     const h=await harness('submit-exam');
     const response=await h.run({examId:exam});
     expect(response.status).toBe(200);
     expect((await response.json()).totalScore).toBeNull(); // tutor has not released results
-    const finish=h.calls.filter(c=>c.name==='finish_exam_marking');
+    const finish=h.calls.filter(c=>c.name==='finish_exam_responses');
     expect(finish).toHaveLength(1);
     expect(finish[0].args.p_results).toEqual([{question_id:question,score:2,feedback:'Correct explanation',is_correct:true}]);
   });
   it('rejects self-awarded marks on a non-drawing question',async()=>{
     const h=await harness('submit-exam');
     expect((await h.run({examId:exam,selfMarkScores:{[question]:2}})).status).toBe(400);
-    expect(h.calls.some(c=>c.name==='finish_exam_marking')).toBe(false);
+    expect(h.calls.some(c=>c.name==='finish_exam_responses')).toBe(false);
   });
 });

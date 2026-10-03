@@ -1,3 +1,5 @@
+import {drawResponsePDF} from './response-pdf';
+import {responseKeyLines, type ResponseQuestionView} from './response-view';
 import {OCR_ALEVEL_BIOLOGY_ID} from '@/lib/assessment-tier';
 import {readBiologyEssay,isBiologyEssayResource,formatBiologyEssayKey} from '@/lib/biology-essay';
 import { gatewaySectionHeading, biologyResponseNotice, biologyPaperDisplay } from "@/lib/biology-paper-display";
@@ -10,7 +12,7 @@ import { requireConsistentResources, formatHeaderUnit } from '@/lib/question-res
 import { isBiologyDiagram, savedBiologyDiagram } from '@/lib/biology-assessment-resources';
 
 // ============= Type Definitions =============
-interface ExamQuestion {
+interface ExamQuestion extends ResponseQuestionView {
   id: string;
   question_number: string;
   question_text: string;
@@ -658,6 +660,7 @@ export async function generateExamPDF(
 
   // The screen and PDF share a validated source. Never export conflicting data.
   examData = { ...examData, questions: examData.questions.map(question => {
+    if (question.response_definition) return question;
     const resources = requireConsistentResources(question);
     const rawDiagram = question.diagramConfig ?? question.diagram_config;
     const biologyDiagram = savedBiologyDiagram(question);
@@ -1148,6 +1151,15 @@ export async function generateExamPDF(
         yPosition += 6;
       }
 
+      if (question.response_definition) {
+        yPosition = renderQuestionLines(cleanLatexForPDF(question.question_text),textIndent,yPosition,baseTextWidth-5)+4;
+        yPosition = drawResponsePDF(doc,question,{
+          x:textIndent,y:yPosition,width:baseTextWidth-5,bottom:A4_HEIGHT-FOOTER_HEIGHT-5,
+          nextPage:()=>{addNewPage();drawPageHeader();return yPosition;},text:cleanLatexForPDF,
+        });
+        continue;
+      }
+
       // MCQ options
       let mcqOptions = normalizeMCQOptions(question.options);
       const parsedMCQ = parseEmbeddedMCQOptions(cleanedText);
@@ -1308,6 +1320,18 @@ export async function generateExamPDF(
     doc.setFontSize(10); doc.setFont("helvetica", "normal");
 
     for (const question of sortQuestions(examData.questions)) {
+      if (question.response_definition) {
+        if (!question.response_key) continue; // Server release permission still applies.
+        ensureSpace(20);
+        doc.setFont('helvetica','bold'); doc.setFontSize(10); setColor(COLORS.primary);
+        doc.text(`${question.question_number}.`,MARGIN,yPosition);
+        doc.setFont('helvetica','normal');
+        for (const line of responseKeyLines(question.response_definition,question.response_key)) {
+          yPosition=renderQuestionLines(cleanLatexForPDF(line),MARGIN+15,yPosition,CONTENT_WIDTH-20)+3;
+        }
+        yPosition+=5;
+        continue;
+      }
       if (!question.correct_answer) continue;
       if (yPosition > A4_HEIGHT - FOOTER_HEIGHT - 15) { addNewPage(); drawPageHeader(); }
 

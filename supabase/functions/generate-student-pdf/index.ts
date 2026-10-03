@@ -1,3 +1,5 @@
+import {projectResponseQuestions} from '../_shared/response-service.ts';
+import {studentQuestion} from '../_shared/exam-access.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -90,29 +92,14 @@ serve(async (req) => {
       title = exam.title;
       subject = exam.subject_id;
 
-      // Fetch questions
-      const { data: questions, error: questionsError } = await supabase
-        .from("exam_questions")
-        .select("*")
-        .eq("exam_id", contentId)
-        .order("question_number");
-
-      if (questionsError) {
-        console.error("Questions fetch error:", questionsError);
-        return new Response(
-          JSON.stringify({ error: "Failed to fetch questions" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
       pdfData = {
         type: "student_exam",
         title: exam.title,
         subject: exam.subject_id,
         difficulty: exam.qualification_level || "Standard",
-        totalQuestions: questions?.length || 0,
+        totalQuestions: 0,
         dateGenerated: new Date().toISOString(),
-        questions: questions || [],
+        questions: [],
       };
 
     } else if (contentType === "practice") {
@@ -143,30 +130,15 @@ serve(async (req) => {
       title = practiceSet.set_name;
       subject = practiceSet.subject_id;
 
-      // Fetch questions
-      const { data: questions, error: questionsError } = await supabase
-        .from("practice_questions")
-        .select("*")
-        .eq("set_id", contentId)
-        .order("question_number_int", { ascending: true });
-
-      if (questionsError) {
-        console.error("Practice questions fetch error:", questionsError);
-        return new Response(
-          JSON.stringify({ error: "Failed to fetch practice questions" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
       pdfData = {
         type: "student_practice",
         title: practiceSet.set_name,
         subject: practiceSet.subject_id,
         difficulty: practiceSet.difficulty_level || practiceSet.difficulty_mode,
         subtopics: practiceSet.subtopics,
-        totalQuestions: questions?.length || 0,
+        totalQuestions: 0,
         dateGenerated: new Date().toISOString(),
-        questions: questions || [],
+        questions: [],
       };
     } else {
       return new Response(
@@ -174,6 +146,19 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Ownership was checked above. Private storage is read only by this service,
+    // and the PDF response always contains question data, never a solution key.
+    const admin = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const source = contentType === 'exam' ? 'exam' : 'practice';
+    const {data: saved, error: savedError} = await admin.from(source === 'exam' ? 'exam_questions' : 'practice_questions')
+      .select('*').eq(source === 'exam' ? 'exam_id' : 'set_id', contentId);
+    if (savedError) throw savedError;
+    const decorated = await projectResponseQuestions(admin, source, saved ?? [], user.id, () => false);
+    pdfData.questions = decorated.map(q => ({...studentQuestion(q),
+      ...(q.response_definition ? {response_definition:q.response_definition,response_resources:q.response_resources} : {}),
+    }));
+    pdfData.totalQuestions = pdfData.questions.length;
 
     // Log the download for audit
     console.log(`PDF generated successfully: contentType=${contentType}, contentId=${contentId}, studentId=${user.id}`);

@@ -15,9 +15,9 @@ async function handler(name:string,options:{answers?:string[];badKey?:boolean;ba
   if(options.badKey)rows[0].correct_answer='No matching option';
   const client={auth:{getUser:async()=>({data:{user:{id:user}},error:null})},
     rpc:async(name:string,args:any)=>{calls.push({name,args});if(name==='exam_access_info')return {data:{hasAccess:true,isOwner:false,isManager:false,isAssigned:true,gradesReleased:false,deadline:null}};
-      if(name==='claim_exam_marking')return {data:{state:'claimed',token:'token'}};
+      if(name==='claim_exam_responses')return {data:{state:'claimed',token:'token'}};
       if(name==='reserve_ai_request')return {data:{allowed:true,usedToday:1,usedInBurstWindow:1}};
-      if(name==='finish_exam_marking')return {data:{totalScore:15,totalMarks:15}};return {data:null,error:null};},
+      if(name==='finish_exam_responses')return {data:{totalScore:15,totalMarks:15}};return {data:null,error:null};},
     from(table:string){let op='select',value:any;const q:any={};
       for(const method of ['select','update','insert','upsert','eq','single','maybeSingle','order','in'])q[method]=(...args:any[])=>{if(['update','insert','upsert'].includes(method)){op=method;value=args[0];writes.push({table,op,value});}if(method==='eq')filters.push({table,column:args[0],value:args[1]});return q;};
       q.then=(resolve:any,reject:any)=>{let data:any=null;
@@ -46,17 +46,17 @@ it('uploads with the owned OCR course and ignores conflicting client AQA/tier me
 });
 it('marks all fifteen correct MCQs without an AI key/call and keeps unreleased scores hidden',async()=>{
   const h=await handler('submit-exam'),r=await h.run({examId:exam});expect(r.status).toBe(200);expect(h.requests).toHaveLength(0);
-  const finish=h.calls.find(c=>c.name==='finish_exam_marking');expect(finish).toBeTruthy();
+  const finish=h.calls.find(c=>c.name==='finish_exam_responses');expect(finish).toBeTruthy();
   expect(JSON.stringify(finish.args).match(/"score":1/g)).toHaveLength(15);expect((await r.json()).totalScore).toBeNull();
   expect(h.calls.some(c=>c.name==='reserve_ai_request')).toBe(true);
 });
 it('marks incorrect, blank and multiple selections as zero while preserving other marks',async()=>{
   const h=await handler('submit-exam',{answers:['A','','A and B']}),r=await h.run({examId:exam});expect(r.status).toBe(200);
-  const finish=h.calls.find(c=>c.name==='finish_exam_marking');expect(JSON.stringify(finish.args).match(/"score":0/g)).toHaveLength(3);expect(h.requests).toHaveLength(0);
+  const finish=h.calls.find(c=>c.name==='finish_exam_responses');expect(JSON.stringify(finish.args).match(/"score":0/g)).toHaveLength(3);expect(h.requests).toHaveLength(0);
 });
 it.each(['submit-exam','grade-practice-question'])('%s refuses an invalid saved key without awarding zero',async name=>{
   const h=await handler(name,{badKey:true}),r=await h.run({examId:exam,questionId:h.rows[0].id,setId:'set',answerText:'B'});
-  expect(r.status).toBeGreaterThanOrEqual(400);expect(h.requests).toHaveLength(0);expect(h.calls.some(c=>c.name==='finish_exam_marking')).toBe(false);
+  expect(r.status).toBeGreaterThanOrEqual(400);expect(h.requests).toHaveLength(0);expect(h.calls.some(c=>c.name==='finish_exam_responses')).toBe(false);
   expect(h.writes.some(w=>w.table==='practice_question_answers')).toBe(false);
 });
 it.each(['submit-exam','grade-practice-question'])('%s rejects an obsolete OCR snapshot before marking',async name=>{
