@@ -1741,6 +1741,50 @@ export type Database = {
           },
         ]
       }
+      question_response_results: {
+        Row: {
+          contract_id: string
+          draft_revision: number
+          marking_started_at: string | null
+          marking_token: string | null
+          response: Json | null
+          result: Json | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          contract_id: string
+          draft_revision?: number
+          marking_started_at?: string | null
+          marking_token?: string | null
+          response?: Json | null
+          result?: Json | null
+          status: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          contract_id?: string
+          draft_revision?: number
+          marking_started_at?: string | null
+          marking_token?: string | null
+          response?: Json | null
+          result?: Json | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_response_results_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "question_response_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       resource_items: {
         Row: {
           attribution: string | null
@@ -3243,6 +3287,18 @@ export type Database = {
         Args: { p_exam_id: string; p_time_taken: number; p_user_id: string }
         Returns: Json
       }
+      claim_exam_responses: {
+        Args: { p_exam_id: string; p_time_taken: number; p_user_id: string }
+        Returns: Json
+      }
+      claim_practice_response: {
+        Args: {
+          p_contract_id: string
+          p_expected_revision: number
+          p_user_id: string
+        }
+        Returns: Json
+      }
       create_deadline_change_notifications: {
         Args: {
           p_exam_id: string
@@ -3297,11 +3353,34 @@ export type Database = {
         Args: { p_exam_id: string; p_token: string; p_user_id: string }
         Returns: undefined
       }
+      fail_practice_response: {
+        Args: { p_contract_id: string; p_token: string; p_user_id: string }
+        Returns: undefined
+      }
       finish_exam_marking: {
         Args: {
           p_exam_id: string
           p_is_late: boolean
           p_results: Json
+          p_token: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      finish_exam_responses: {
+        Args: {
+          p_exam_id: string
+          p_is_late: boolean
+          p_results: Json
+          p_token: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      finish_practice_response: {
+        Args: {
+          p_contract_id: string
+          p_result: Json
           p_token: string
           p_user_id: string
         }
@@ -3317,6 +3396,10 @@ export type Database = {
           is_primary: boolean
           role: Database["public"]["Enums"]["app_role"]
         }[]
+      }
+      has_practice_response_contract: {
+        Args: { p_question_id: string }
+        Returns: boolean
       }
       has_role: {
         Args: {
