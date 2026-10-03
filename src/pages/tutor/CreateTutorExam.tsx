@@ -721,7 +721,13 @@ export default function CreateTutorExam() {
 
         {/* Loading Screen */}
         {generating && (
-          <GenerationLoadingScreen message={currentMessage} />
+              <GenerationLoadingScreen
+            message={currentMessage}
+            title={examName.trim() || subjectId}
+            questionCount={totalQuestions}
+            showTips={false}
+          />
+ 
         )}
 
         {/* Generation Complete Modal */}
