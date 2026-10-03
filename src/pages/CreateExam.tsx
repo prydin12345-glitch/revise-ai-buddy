@@ -1400,12 +1400,18 @@ export default function CreateExam() {
         </div>
       </div>
       {/* Loading Screen */}
-      {generating && !derivedTopicsOpen && (
-        <GenerationLoadingScreen
+           <GenerationLoadingScreen
           message={currentMessage}
           subjectColor={subjectColor}
           estimatedTime={300}
+          title={examName.trim() || subjectId}
+          board={resolvedExamBoard}
+          tier={generationContext.assessmentTier}
+          questionCount={totalQuestions}
+          topicCount={activeProfileTopics.length || selectedSubtopics.length}
+          hasDocument={!!file}
         />
+ 
       )}
 
       {showGenerationComplete && (
