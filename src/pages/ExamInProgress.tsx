@@ -1,3 +1,6 @@
+import {useResponseDrafts} from '@/hooks/useResponseDrafts';
+import {ResponseEditor} from '@/components/responses/ResponseEditor';
+import type {ResponseQuestionView} from '@/lib/response-view';
 import {useLegacyResponseState} from '@/hooks/useLegacyResponseState';
 import {legacyDraftHasAnswer,readLegacyBlanks,readLegacyDraft,type LegacyAnswerDraft} from '@/lib/legacy-response-state';
 import {ResponseSaveQueue} from '@/lib/response-save-queue';
@@ -143,7 +146,7 @@ const stripInlineMCQOptions = (text: string, questionType: string): string => {
   return cleanedText;
 };
 
-interface Question {
+interface Question extends ResponseQuestionView {
   id: string;
   question_number: string;
   question_type: string;
@@ -159,6 +162,7 @@ interface Question {
 
 const ExamInProgress = () => {
   const { examId } = useParams();
+  const structuredDrafts = useResponseDrafts('exam',examId);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const modeParam = searchParams.get('mode');
@@ -810,6 +814,7 @@ const ExamInProgress = () => {
           }catch{/* ignore corrupt local cache, retain the server answer */}
         }
       }
+      structuredDrafts.initialise(sortedQuestions,responseUser.id,!['marking','graded','submitted','completed'].includes(data.submission?.status));
       setSavedAnswers(savedSet);
       responseHydrating.current=false;
 
@@ -941,6 +946,7 @@ const ExamInProgress = () => {
   
   // Flush saves for current page questions before navigation
   const flushCurrentPageSaves = async () => {
+    try { await structuredDrafts.flushAll(); } catch(error) { toast({title:'Save Failed',description:(error as Error).message,variant:'destructive'});return false; }
     const currentQuestions = questionGroups[currentPage]?.questions || [];
     for (const question of currentQuestions) {
       if (saveTimeouts.current[question.id] || dirtyResponseIds.current.has(question.id)) {
@@ -1005,8 +1011,9 @@ const ExamInProgress = () => {
         }
       });
 
+      await structuredDrafts.flushAll();
       // 2. Save ALL answers synchronously before submission
-      const answersToSave = Object.entries(responseState.current.current);
+      const answersToSave = Object.entries(responseState.current.current).filter(([id])=>!questions.find(q=>q.id===id)?.response_definition);
       
       console.log(`[Submit] Saving ${answersToSave.length} answers before submission...`);
       const saved = retrySavedAttempt ? [] : await Promise.all(answersToSave.map(([qId]) => handleSaveAnswer(qId)));
@@ -1062,8 +1069,9 @@ const ExamInProgress = () => {
         }
       });
 
+      await structuredDrafts.flushAll();
       // 2. Save ALL current answers (not just pending ones)
-      const answersToSave = Object.entries(responseState.current.current);
+      const answersToSave = Object.entries(responseState.current.current).filter(([id])=>!questions.find(q=>q.id===id)?.response_definition);
       
       console.log(`[Quit] Saving ${answersToSave.length} answers...`);
       
@@ -1112,7 +1120,7 @@ const ExamInProgress = () => {
       : `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const hasQuestionResponse=(q:Question)=>readBiologyEssay(q).essay
+  const hasQuestionResponse=(q:Question)=>q.response_definition ? (structuredDrafts.get(q.id)?.completeness() ?? 'empty') !== 'empty' : readBiologyEssay(q).essay
     ? hasBiologyEssayText(responseState.current.current[q.id]?.text?.finalAnswer)
     : legacyDraftHasAnswer(responseState.current.current[q.id]);
   const answeredCount = questions.filter(hasQuestionResponse).length;
@@ -1707,6 +1715,7 @@ const ExamInProgress = () => {
 
 
                   <QuizQuestionErrorBoundary questionId={question.id}>
+                  {question.response_definition ? <ResponseEditor question={question} drafts={structuredDrafts} disabled={isReadOnly}/> : <>
                   {/* Render question text - handle tick/X tables, tables, fill-in-blanks, or standard */}
                   {isTickXTable(ensureString(question.question_text)) ? (
                     <>
@@ -2387,6 +2396,7 @@ const ExamInProgress = () => {
                   })()}
                     </>
                   )}
+                  </>}
                   </QuizQuestionErrorBoundary>
                 </QuestionCardShell>
                     </div>

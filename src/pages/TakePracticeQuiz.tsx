@@ -1,3 +1,7 @@
+import {useResponseDrafts} from '@/hooks/useResponseDrafts';
+import {ResponseEditor} from '@/components/responses/ResponseEditor';
+import {ResponseReview} from '@/components/responses/ResponseReview';
+import type {ResponseQuestionView} from '@/lib/response-view';
 /**
  * TakePracticeQuiz - Practice quiz taking and review component
  * 
@@ -138,7 +142,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-interface Question {
+interface Question extends ResponseQuestionView {
   id: string;
   question_number: string;
   question_type: string;
@@ -213,6 +217,7 @@ const shouldParseGraphData = (
 
 const TakePracticeQuiz = () => {
   const { setId } = useParams();
+  const structuredDrafts = useResponseDrafts('practice',setId);
   const navigate = useNavigate();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -376,11 +381,19 @@ const TakePracticeQuiz = () => {
   }, [setId, timeElapsed]);
 
   const handleSubmitAll = useCallback(async () => {
+    setIsGrading(true);
+    try{
+      await structuredDrafts.flushAll();
+      for(const question of questions){
+        if(question.response_definition && !userAnswers[question.id]?.submitted && (structuredDrafts.get(question.id)?.completeness()??'empty')!=='empty')await submitStructuredQuestion(question);
+      }
+    }catch(error){toast.error((error as Error).message);return;}finally{setIsGrading(false);}
     // Find drawing questions saved but not self-marked, and ones with no drawing
     const unmarkedDrawingQuestions: DrawQuestionForReview[] = [];
     const undrawnDrawingQuestionIds: string[] = [];
 
     for (const q of questions) {
+      if(q.response_definition)continue;
       const needsCanvas = detectDrawQuestion(
         q.question_text ?? '',
         (q as any).subject ?? '',
@@ -750,8 +763,8 @@ const TakePracticeQuiz = () => {
       }
       // 2. Load questions through the secure endpoint (strips answers for
       // unanswered questions so they never reach the browser)
-      const { data: questionsResponse, error: questionsFetchError } = await supabase.functions.invoke('get-practice-questions', {
-        body: { setId }
+      const { data: questionsResponse, error: questionsFetchError } = await supabase.functions.invoke('question-response', {
+        body: { action:'questions',source:'practice',parentId:setId }
       });
       if (questionsFetchError) {
         console.error('Failed to load questions:', questionsFetchError);
@@ -776,6 +789,7 @@ const TakePracticeQuiz = () => {
         return suffixA.localeCompare(suffixB);
       });
 
+      structuredDrafts.initialise(sortedQuestions,user.id);
       setQuestions(sortedQuestions);
 
       // 3. Initialize blank answers first
@@ -874,8 +888,8 @@ const TakePracticeQuiz = () => {
           initialAnswers[ans.question_id] = {
             answer: isDrawing ? '' : (ans.answer_text || ''),
             workingOut: isDrawing ? ans.answer_text : (ans.working_out || ''),
-            submitted: !isDrawing,
-            score: Number(ans.score),
+            submitted: !isDrawing && ans.score !== null && ans.submitted_at !== null,
+            score: ans.score === null ? undefined : Number(ans.score),
             methodMarks: ans.method_marks ? Number(ans.method_marks) : undefined,
             accuracyMarks: ans.accuracy_marks ? Number(ans.accuracy_marks) : undefined,
             feedback: ans.feedback ? ans.feedback.replace(/<!--MARKING_DATA:.*?-->/g, '') : "",
@@ -1017,9 +1031,27 @@ const TakePracticeQuiz = () => {
   };
 
 
+  async function submitStructuredQuestion(question: Question) {
+    const session=structuredDrafts.get(question.id);
+    if(!session || session.completeness()==='empty')throw new Error('Please provide an answer.');
+    await structuredDrafts.flush(question.id);
+    const {data,error}=await supabase.functions.invoke('grade-practice-question',{body:{setId,questionId:question.id,responseRevision:session.revision}});
+    if(error || !data || typeof data.score!=='number' || !Number.isFinite(data.score))throw new Error('Marking did not finish. Your saved answer is retained; check its status or retry.');
+    setUserAnswers(prev=>({...prev,[question.id]:{...prev[question.id],answer:JSON.stringify(session.response),submitted:true,score:data.score,isCorrect:data.isCorrect,feedback:data.feedback}}));
+    setQuestions(prev=>prev.map(q=>q.id===question.id?{...q,response_result:data.responseResult}:q));
+    const {data:review,error:reviewError}=await supabase.functions.invoke('question-response',{body:{action:'questions',source:'practice',parentId:setId,questionId:question.id}});
+    if(!reviewError && review?.questions?.[0])setQuestions(prev=>prev.map(q=>q.id===question.id?{...q,...review.questions[0]}:q));
+    toast.success(`${data.score}/${question.marks} marks`);
+  }
+
   const handleSubmitAnswer = async () => {
     const currentQuestion = questions[currentIndex];
     const currentAnswer = userAnswers[currentQuestion.id];
+    if(currentQuestion.response_definition){
+      setIsGrading(true);
+      try{await submitStructuredQuestion(currentQuestion);}catch(error){toast.error((error as Error).message);}finally{setIsGrading(false);}
+      return;
+    }
 
     // Check if there's an answer - for table_grid, check tableGridAnswers OR answer text
     const hasTableGridAnswer = currentAnswer.tableGridAnswers && 
@@ -1134,8 +1166,8 @@ const TakePracticeQuiz = () => {
 
       // Now that this question is answered, fetch its full version (including
       // worked_solution / rationale / correct_answer) for the review UI.
-      supabase.functions.invoke('get-practice-questions', {
-        body: { setId, questionId: currentQuestion.id }
+      supabase.functions.invoke('question-response', {
+        body: { action:'questions',source:'practice',parentId:setId, questionId: currentQuestion.id }
       }).then(({ data: fullResponse }) => {
         const fullQuestion = fullResponse?.questions?.[0];
         if (fullQuestion) {
@@ -1173,6 +1205,7 @@ const TakePracticeQuiz = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      await structuredDrafts.flushAll();
       // Prepare draft answers (only unanswered questions)
       const draftAnswers: Record<string, string> = {};
       Object.entries(userAnswers).forEach(([questionId, answer]) => {
@@ -1301,6 +1334,7 @@ const TakePracticeQuiz = () => {
       return;
     }
     
+    if(currentQuestion.response_definition){toast.info('This marked response is retained in your progress. Use a fresh question for another scored attempt.');return;}
     setIsRetrying(true);
     
     try {
@@ -1383,6 +1417,7 @@ const TakePracticeQuiz = () => {
   // Regenerate current question - creates new question with same constraints
   const handleRegenerateQuestion = async () => {
     const currentQuestion = questions[currentIndex];
+    if (currentQuestion.response_definition) { toast.info('Keep this saved question and create a fresh practice set for another attempt.'); return; }
     setIsRegenerating(true);
     
     try {
@@ -1422,8 +1457,8 @@ const TakePracticeQuiz = () => {
         .eq('question_id', currentQuestion.id);
 
       // Fetch the updated question through the secure endpoint
-      const { data: refreshResponse } = await supabase.functions.invoke('get-practice-questions', {
-        body: { setId, questionId: currentQuestion.id }
+      const { data: refreshResponse } = await supabase.functions.invoke('question-response', {
+        body: { action:'questions',source:'practice',parentId:setId, questionId: currentQuestion.id }
       });
       const updatedQuestion = refreshResponse?.questions?.[0] ?? null;
 
@@ -1463,6 +1498,7 @@ const TakePracticeQuiz = () => {
 
   // Retry entire practice set - clears all answers and marking
   const handleRetryEntireSet = async () => {
+    if (questions.some(q => q.response_definition)) { toast.info('This set keeps its marked responses. Create a fresh set for another attempt.'); return; }
     setIsRetrying(true);
     
     try {
@@ -1726,7 +1762,14 @@ const TakePracticeQuiz = () => {
   const currentGroup = groupedQuestions[currentGroupIdx] || { rootNumber: '', questions: [currentQuestion] };
   
   // Count answers including those with LaTeX
-  const answeredCount = Object.values(userAnswers).filter(a => a.answer.trim() || a.answerLatex?.trim()).length;
+  const navigationAnswers = {...userAnswers};
+  for (const question of questions) {
+    if (!question.response_definition || userAnswers[question.id]?.submitted) continue;
+    const draft = structuredDrafts.get(question.id);
+    navigationAnswers[question.id] = {...userAnswers[question.id],submitted:false,
+      answer:draft && draft.completeness() !== 'empty' ? JSON.stringify(draft.response) : ''};
+  }
+  const answeredCount = Object.values(navigationAnswers).filter(a => a.answer.trim() || a.answerLatex?.trim()).length;
   const unansweredCount = questions.length - answeredCount;
   const totalScore = Object.values(userAnswers).reduce((sum, ans) => sum + (ans.score || 0), 0);
   const totalPossible = questions.reduce((sum, q) => sum + q.marks, 0);
@@ -1801,9 +1844,9 @@ const TakePracticeQuiz = () => {
                 disabled={currentAnswer.submitted}
                 showProtractor={showProtractor}
                 onToggleProtractor={() => setShowProtractor(prev => !prev)}
-                onRetryQuestion={handleRetryQuestion}
-                onRegenerateQuestion={handleRegenerateQuestion}
-                onRetryEntireSet={() => setShowRetrySetDialog(true)}
+                onRetryQuestion={currentQuestion.response_definition ? undefined : handleRetryQuestion}
+                onRegenerateQuestion={currentQuestion.response_definition ? undefined : handleRegenerateQuestion}
+                onRetryEntireSet={questions.some(q => q.response_definition) ? undefined : () => setShowRetrySetDialog(true)}
                 isRetrying={isRetrying}
                 isRegenerating={isRegenerating}
               />
@@ -1929,6 +1972,9 @@ const TakePracticeQuiz = () => {
 
 
                   <QuizQuestionErrorBoundary questionId={currentQuestion.id}>
+                    {currentQuestion.response_definition ? <>
+                      {currentAnswer.submitted || isReviewMode ? <><MathRenderer content={currentQuestion.question_text}/><ResponseReview question={currentQuestion} answerText={currentAnswer.answer} solutionsReleased={currentAnswer.submitted}/></> : <ResponseEditor question={currentQuestion} drafts={structuredDrafts} disabled={isGrading}/>}
+                    </> : <>
                     {/* Question text */}
                     <div className="text-base lg:text-lg leading-relaxed">
                       <MathRenderer content={currentQuestion.question_text} question={currentQuestion} hasMath={currentQuestion.has_math} />
@@ -2938,6 +2984,7 @@ const TakePracticeQuiz = () => {
                       </div>
                     );
                   })()}
+                  </>}
                   </QuizQuestionErrorBoundary>
 
                   {/* Feedback section after submission */}
@@ -3021,12 +3068,12 @@ const TakePracticeQuiz = () => {
                       ) : (
                         <Button
                           onClick={handleSubmitAnswer}
-                          disabled={isGrading || (
+                          disabled={isGrading || (currentQuestion.response_definition ? (structuredDrafts.get(currentQuestion.id)?.completeness()??'empty')==='empty' : (
                             !currentAnswer.answer.trim() &&
                             !(currentAnswer.finalAnswer && currentAnswer.finalAnswer.trim()) &&
                             !(currentAnswer.tableGridAnswers && Object.values(currentAnswer.tableGridAnswers).some(arr => arr.length > 0)) &&
                             !(currentAnswer.tableGridInputs && Object.values(currentAnswer.tableGridInputs).some(obj => Object.values(obj).some(v => v !== '' && v !== 0)))
-                          )}
+                          ))}
                           className="rounded-token-sm px-5 font-semibold"
                           style={{ backgroundColor: subjectColor, color: '#fff' }}
                         >

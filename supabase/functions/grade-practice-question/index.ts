@@ -1,4 +1,8 @@
-import {requireLegacyResponsePath} from '../_shared/response-foundation.ts';
+import {loadResponseContracts,gradePracticeResponse} from '../_shared/response-service.ts';
+import {responseResources} from '../_shared/response-resources.ts';
+import {responseRubricMarker} from '../_shared/response-rubric.ts';
+import {logAIUsage} from '../_shared/usage-logger.ts';
+import {ExamRequestError} from '../_shared/exam-access.ts';
 import {OCR_ALEVEL_BIOLOGY_ID} from '../_shared/assessment-tier.ts';
 import {markSingleChoice} from '../_shared/single-choice-marking.ts';
 import { biologyMarkingInstructions, biologyQuestionResourceContext } from '../_shared/biology-marking.ts';
@@ -53,7 +57,7 @@ serve(async (req) => {
     }
     // ───────────────────────────────────────────────────────────────────
 
-    const { questionId, setId, answerText, normalizedAnswer, workingOut } = await req.json();
+    const { questionId, setId, answerText, normalizedAnswer, workingOut, responseRevision } = await req.json();
 
     // Subject-aware marking: fetch the set's subject so English isn't graded
     // by a "mathematics tutor" persona (the root of pedantic retrieval
@@ -78,7 +82,24 @@ serve(async (req) => {
       throw new Error('Question not found');
     }
 
-    await requireLegacyResponsePath(rateLimitClient,'practice',[questionId]);
+    const contracts = await loadResponseContracts(rateLimitClient, 'practice', [question]);
+    const responseContract = contracts.get(questionId);
+    if (responseContract) {
+      const paidFetch: typeof fetch = async (url, init) => {
+        const quota = await enforceRateLimit(rateLimitClient,user.id,'grade-practice-response-model',{dailyLimit:300,burstLimit:60});
+        if (!quota.allowed) throw new ExamRequestError(quota.status ?? 429, quota.message);
+        const response = await fetch(url,{...init,signal:AbortSignal.timeout(45_000)});
+        if (response.ok) {
+          const usage = await response.clone().json();
+          await logAIUsage(rateLimitClient,{userId:user.id,feature:'practice_marking',model:'google/gemini-2.5-flash',inputTokens:usage.usage?.prompt_tokens ?? 0,outputTokens:usage.usage?.completion_tokens ?? 0,cacheHit:false});
+        }
+        return response;
+      };
+      const result = await gradePracticeResponse(rateLimitClient,user.id,responseContract,question,responseRevision,
+        responseRubricMarker(question,responseResources(question,responseContract.definition),Deno.env.get('LOVABLE_API_KEY'),paidFetch));
+      return new Response(JSON.stringify({...result,responseResult:result}),{headers:{...corsHeaders,'Content-Type':'application/json'}});
+    }
+
 
     // Owned OCR practice questions use their saved choices/key; never spend a
     // model call deciding whether a selected letter is correct.
@@ -1708,7 +1729,7 @@ Return your grading using the grade_practice_answer function.`;
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { 
-        status: 500,
+        status: error instanceof ExamRequestError ? error.status : 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );

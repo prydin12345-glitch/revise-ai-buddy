@@ -1,4 +1,7 @@
-import {requireLegacyResponsePath} from '../_shared/response-foundation.ts';
+import {loadResponseContracts} from '../_shared/response-service.ts';
+import {markResponse,type ResponseMarkResult} from '../_shared/response-marking.ts';
+import {responseResources} from '../_shared/response-resources.ts';
+import {responseRubricMarker} from '../_shared/response-rubric.ts';
 import {OCR_ALEVEL_BIOLOGY_ID} from '../_shared/assessment-tier.ts';
 import {singleChoiceKey,markSingleChoice} from '../_shared/single-choice-marking.ts';
 import {validateBiologyEssayGrade} from '../_shared/biology-essay-marking.ts';
@@ -51,7 +54,7 @@ serve(async (req) => {
     console.log('Submitting exam:', examId, 'for user:', user.id, 'self-mark questions:', Object.keys(selfMarkScores).length);
 
     const access = await requireExamAccess(supabase, examId, user.id);
-    const { data: claim, error: claimError } = await supabase.rpc('claim_exam_marking', {
+    const { data: claim, error: claimError } = await supabase.rpc('claim_exam_responses', {
       p_exam_id: examId, p_user_id: user.id,
       p_time_taken: Number.isFinite(timeTakenSeconds) ? Math.max(0, Math.round(timeTakenSeconds)) : 0,
     });
@@ -65,7 +68,7 @@ serve(async (req) => {
     markingClient=supabase; markingExamId=examId; markingUserId=user.id; markingToken=claim.token;
     const requestQuota = await enforceRateLimit(supabase,user.id,'submit-exam',{dailyLimit:30,burstLimit:6});
     if (!requestQuota.allowed) throw new ExamRequestError(requestQuota.status ?? 429, requestQuota.message);
-    const results: Array<{question_id:string;score:number;feedback:string;is_correct:boolean}> = [];
+    const results: Array<{question_id:string;score:number;feedback:string;is_correct:boolean;response_result?:ResponseMarkResult}> = [];
     // Each paid marking call has its own quota and timeout; refresh the claim before work.
     const markingFetch = async (url: string, init: RequestInit): Promise<Response> => {
       const {data: active,error: leaseError} = await supabase.from('exam_submissions')
@@ -106,7 +109,7 @@ serve(async (req) => {
       .eq('exam_id', examId);
 
     if (questionsError || !questions?.length) throw new Error('Questions could not be loaded');
-    await requireLegacyResponsePath(supabase,'exam',questions.map(q=>q.id));
+    const responseContracts = await loadResponseContracts(supabase, 'exam', questions);
 
     // Fetch student answers including table_answers and answer_latex for math input
     const { data: studentAnswers, error: answersError } = await supabase
@@ -127,6 +130,7 @@ serve(async (req) => {
     
     // Preflight every essay choice/key and source before ANY paid marking call.
     const essayMarking = new Map((questions || []).map(question => {
+      if (responseContracts.has(question.id)) return [question.id, null] as const;
       biologyQuestionResourceContext(examData.generation_context, question);
       if(examData.generation_context?.course_id===OCR_ALEVEL_BIOLOGY_ID&&question.question_type==='mcq'){
         singleChoiceKey(question);
@@ -158,6 +162,18 @@ serve(async (req) => {
     for (const question of questions || []) {
       totalMarks += question.marks;
       const studentAnswer = answerMap.get(question.id) || '';
+      const responseContract = responseContracts.get(question.id);
+      if (responseContract) {
+        if (Object.prototype.hasOwnProperty.call(selfMarkScores, question.id)) throw new ExamRequestError(400, 'Structured questions are marked from the saved response.');
+        let response = null;
+        if (studentAnswer) { try { response = JSON.parse(studentAnswer); } catch { throw new Error('Saved structured response could not be read'); } }
+        const result = await markResponse({questionId:question.id,marks:question.marks,definition:responseContract.definition,key:responseContract.key,response},
+          responseRubricMarker(question,responseResources(question,responseContract.definition),Deno.env.get('LOVABLE_API_KEY'),markingFetch));
+        totalScore += result.score;
+        results.push({question_id:question.id,score:result.score,feedback:result.feedback,is_correct:result.isCorrect,response_result:result});
+        continue;
+      }
+
       const essay = essayMarking.get(question.id);
       if(essay?.blank){totalScore += 0;results.push({question_id:question.id,score:0,feedback:'No essay answer provided.',is_correct:false});continue;}
 
@@ -678,7 +694,7 @@ Provide:
     }
 
     // One transaction commits every answer grade and the aggregate, or nothing.
-    const {data: finished,error: finishError} = await supabase.rpc('finish_exam_marking', {
+    const {data: finished,error: finishError} = await supabase.rpc('finish_exam_responses', {
       p_exam_id:examId,p_user_id:user.id,p_token:markingToken,p_results:results,p_is_late:isLate,
     });
     if(finishError || !finished)throw new Error('Results could not be saved. Please retry.');

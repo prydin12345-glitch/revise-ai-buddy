@@ -1,3 +1,5 @@
+import {ResponseReview} from '@/components/responses/ResponseReview';
+import type {ResponseQuestionView} from '@/lib/response-view';
 import { PaperSectionHeading } from "@/components/exams/PaperSectionHeading";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -43,7 +45,7 @@ import {
   TableGridData
 } from "@/components/exam/TableGridQuestion";
 
-interface Question {
+interface Question extends ResponseQuestionView {
   id: string;
   question_number: string;
   question_type: string;
@@ -672,6 +674,7 @@ const ExamReview = () => {
                   />
 
 
+                   {question.response_definition ? <ResponseReview question={question} answerText={answer?.answer_text} solutionsReleased={!scoresHidden} /> : <>
                    {/* Chart rendering — diagram_config first, options fallback */}
                    {(() => {
                      const chartData = getChartData(question);
@@ -1110,6 +1113,7 @@ const ExamReview = () => {
                       <AIExplainPanel question={question} answer={answer} />
                     )}
                   </div>
+                  </>}
                   {/* Bottom padding to prevent cutoff */}
                   <div className="pb-2" />
                 </Card>

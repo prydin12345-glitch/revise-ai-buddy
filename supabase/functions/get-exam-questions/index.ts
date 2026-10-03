@@ -1,4 +1,4 @@
-import {requireLegacyResponsePath} from '../_shared/response-foundation.ts';
+import {projectResponseQuestions} from '../_shared/response-service.ts';
 import { requireExamAccess, mayReadSolutions, studentQuestion, stripSolutionData, ExamRequestError } from '../_shared/exam-access.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -29,7 +29,7 @@ serve(async (req) => {
       });
     }
 
-    const { examId, isPreview } = await req.json();
+    const { examId, isPreview, studentId } = await req.json();
 
     if (!examId) {
       return new Response(JSON.stringify({ error: 'Exam ID required' }), {
@@ -39,6 +39,12 @@ serve(async (req) => {
     }
 
     const access = await requireExamAccess(supabase, examId, user.id);
+    const answerUserId = studentId ?? user.id;
+    if (answerUserId !== user.id) {
+      if (!access.isManager) throw new ExamRequestError(403, 'Only an exam manager may review another student');
+      // The target must belong to this exam, not merely be a known account.
+      await requireExamAccess(supabase, examId, answerUserId);
+    }
 
     // Check if user is exam creator
     const { data: exam } = await supabase
@@ -55,7 +61,6 @@ serve(async (req) => {
       .select('*')
       .eq('exam_id', examId);
 
-    if(!questionsError)await requireLegacyResponsePath(supabase,'exam',(questions??[]).map(q=>q.id));
 
     if (questionsError) {
       console.error('Fetch questions error:', questionsError);
@@ -77,7 +82,7 @@ serve(async (req) => {
       .from('exam_submissions')
       .select('submitted_at, total_score, total_marks, status, time_taken_seconds, time_remaining_seconds, exam_started_at, marking_started_at, marking_error')
       .eq('exam_id', examId)
-      .eq('student_id', user.id)
+      .eq('student_id', answerUserId)
       .maybeSingle();
 
     // Calculate remaining time for timer
@@ -101,9 +106,9 @@ serve(async (req) => {
     // Fetch student's existing answers (including table_answers and answer_latex for math input)
     const { data: existingAnswers } = await supabase
       .from('student_answers')
-      .select('question_id, answer_text, answer_latex, answer_format, score, feedback, is_correct, table_answers')
+      .select('question_id, answer_text, answer_latex, answer_format, score, feedback, is_correct, table_answers, is_flagged')
       .eq('exam_id', examId)
-      .eq('student_id', user.id);
+      .eq('student_id', answerUserId);
 
     // Robust question number parser
     const parseQuestionNumber = (numStr: string) => {
@@ -150,7 +155,13 @@ serve(async (req) => {
 
     // Preview is a presentation mode, never a permission grant.
     const canRead = mayReadSolutions(access, submission?.status);
-    const responseQuestions = canRead ? sortedQuestions : sortedQuestions.map(studentQuestion);
+    const decorated = await projectResponseQuestions(supabase, 'exam', sortedQuestions, answerUserId, () => canRead);
+    const responseQuestions = decorated.map(q => ({
+      ...(canRead ? q : studentQuestion(q)),
+      ...(q.response_definition ? {response_definition:q.response_definition,response_resources:q.response_resources,
+        ...(isPreview ? {} : {response_snapshot:q.response_snapshot}),
+        ...(canRead && q.response_key ? {response_key:q.response_key,response_result:q.response_result} : {})} : {}),
+    }));
     const safeAnswers = (existingAnswers || []).map(answer => canRead ? answer : {
       ...answer, score: null, feedback: null, is_correct: null,
     });

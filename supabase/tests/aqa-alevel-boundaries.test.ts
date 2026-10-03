@@ -15,9 +15,9 @@ async function handler(name:string,options:{foreign?:boolean;badEdition?:boolean
     rpc:async(name:string,args:any)=>{
       calls.push({name,args});
       if(name==='exam_access_info')return {data:{hasAccess:true,isOwner:false,isManager:false,isAssigned:true,gradesReleased:false,deadline:null}};
-      if(name==='claim_exam_marking')return {data:{state:'claimed',token:'token'}};
+      if(name==='claim_exam_responses')return {data:{state:'claimed',token:'token'}};
       if(name==='reserve_ai_request')return {data:{allowed:true,usedToday:1,usedInBurstWindow:1}};
-      if(name==='finish_exam_marking')return {data:{totalScore:3,totalMarks:5}};
+      if(name==='finish_exam_responses')return {data:{totalScore:3,totalMarks:5}};
       return {data:null,error:null};
     },from(table:string){
       const q:any={};let op='select',value:any;
@@ -81,19 +81,19 @@ it.each(['submit-exam','grade-practice-question'].flatMap(name=>(['paper_1','pap
   expect(h.requests[0].messages[1].content).toContain('PRIVATE POINT-BASED KEY');
   if(paper==='paper_2')expect(h.requests[0].messages[1].content).toContain('Researchers investigated');
   if(name==='submit-exam'){
-    expect(h.calls.filter(c=>c.name==='finish_exam_marking')).toHaveLength(1);
+    expect(h.calls.filter(c=>c.name==='finish_exam_responses')).toHaveLength(1);
     expect((await response.json()).totalScore).toBeNull();
   }else expect(h.writes.find(w=>w.table==='practice_question_answers')?.value.score).toBe(3);
 });
 it.each(['submit-exam','grade-practice-question'])('%s blocks a mismatched saved edition before any model call',async name=>{
   const h=await handler(name,{badEdition:true}),response=await h.run({examId:exam,questionId:question,setId:'set',answerText:'My synthetic answer'});
   expect(response.status).toBeGreaterThanOrEqual(400);expect(h.requests).toHaveLength(0);
-  expect(h.calls.some(c=>c.name==='finish_exam_marking')).toBe(false);
+  expect(h.calls.some(c=>c.name==='finish_exam_responses')).toBe(false);
 });
 
 it.each(['submit-exam','grade-practice-question'])('%s refuses marking without the saved comprehension source',async name=>{
   const h=await handler(name,{paper:'paper_2',missingSource:true}),r=await h.run({examId:exam,questionId:question,setId:'set',answerText:'My synthetic answer'});
-  expect(r.status).toBeGreaterThanOrEqual(400);expect(h.requests).toHaveLength(0);expect(h.calls.some(c=>c.name==='finish_exam_marking')).toBe(false);
+  expect(r.status).toBeGreaterThanOrEqual(400);expect(h.requests).toHaveLength(0);expect(h.calls.some(c=>c.name==='finish_exam_responses')).toBe(false);
 });
 
 it.each(['A','B'] as const)('submits selected Paper 3 essay %s using only its private key and rubric',async choice=>{
@@ -101,14 +101,14 @@ it.each(['A','B'] as const)('submits selected Paper 3 essay %s using only its pr
   expect(r.status).toBe(200);expect(h.requests).toHaveLength(1);
   const request=h.requests[0];expect(request.messages[0].content).toContain('21–25');expect(request.messages[1].content).toContain(`PRIVATE ESSAY ${choice}`);expect(request.messages[1].content).not.toContain(`PRIVATE ESSAY ${choice==='A'?'B':'A'}`);
   expect(request.tools[0].function.parameters.required).toEqual(expect.arrayContaining(['essay_band','essay_choice']));
-  const finish=h.calls.find(c=>c.name==='finish_exam_marking');expect(finish).toBeTruthy();expect(JSON.stringify(finish.args)).toContain('19');
+  const finish=h.calls.find(c=>c.name==='finish_exam_responses');expect(finish).toBeTruthy();expect(JSON.stringify(finish.args)).toContain('19');
 });
 it.each(['missing_choice','missing_source','bad_band','bad_choice','provider_failure'])('does not save a zero or final grade after %s',async fault=>{
   const h=await handler('submit-exam',{paper:'paper_3',essayAnswer:fault==='missing_choice'?'My unselected essay':'[Essay A]\nMy essay',missingSource:fault==='missing_source',badBand:fault==='bad_band',badChoice:fault==='bad_choice',providerFailure:fault==='provider_failure'});
-  const r=await h.run({examId:exam});expect(r.status).toBeGreaterThanOrEqual(400);expect(h.calls.some(c=>c.name==='finish_exam_marking')).toBe(false);
+  const r=await h.run({examId:exam});expect(r.status).toBeGreaterThanOrEqual(400);expect(h.calls.some(c=>c.name==='finish_exam_responses')).toBe(false);
   if(fault.startsWith('missing'))expect(h.requests).toHaveLength(0);
 });
 it('scores a genuinely blank essay as zero without calling the model',async()=>{
   const h=await handler('submit-exam',{paper:'paper_3',essayAnswer:'[Essay A]\n\n'}),r=await h.run({examId:exam});
-  expect(r.status).toBe(200);expect(h.requests).toHaveLength(0);const finish=h.calls.find(c=>c.name==='finish_exam_marking');expect(finish).toBeTruthy();expect(JSON.stringify(finish.args)).toContain('No essay answer provided');
+  expect(r.status).toBe(200);expect(h.requests).toHaveLength(0);const finish=h.calls.find(c=>c.name==='finish_exam_responses');expect(finish).toBeTruthy();expect(JSON.stringify(finish.args)).toContain('No essay answer provided');
 });

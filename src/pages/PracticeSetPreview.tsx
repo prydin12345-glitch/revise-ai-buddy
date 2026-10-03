@@ -1,3 +1,6 @@
+import {ResponseInput} from '@/components/responses/ResponseInput';
+import {ResponseResources} from '@/components/responses/ResponseResources';
+import type {ResponseQuestionView} from '@/lib/response-view';
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +11,7 @@ import { Loader2, Eye, Play, ArrowLeft, ChevronRight, RotateCcw } from "lucide-r
 import { toast } from "@/hooks/use-toast";
 import { MathRenderer } from "@/components/MathRenderer";
 
-interface Question {
+interface Question extends ResponseQuestionView {
   id: string;
   question_number: string;
   question_type: string;
@@ -88,8 +91,8 @@ const PracticeSetPreview = () => {
       if (setError) throw setError;
       setPracticeSet(setData);
 
-      const { data: questionsResponse, error: questionsError } = await supabase.functions.invoke('get-practice-questions', {
-        body: { setId }
+      const { data: questionsResponse, error: questionsError } = await supabase.functions.invoke('question-response', {
+        body: { action:'questions',source:'practice',parentId:setId }
       });
       const questionsData = questionsResponse?.questions ?? [];
 
@@ -337,6 +340,7 @@ const PracticeSetPreview = () => {
                   <MathRenderer content={question.question_text} hasMath={true} />
                 </div>
 
+                {question.response_definition && <div className="mt-4"><ResponseResources resources={question.response_resources}/><ResponseInput questionId={question.id} definition={question.response_definition} value={null} disabled/></div>}
                 {/* MCQ Options */}
                 {question.options && Array.isArray(question.options) && question.options.length > 0 && (
                   <div className="space-y-3 mt-4">

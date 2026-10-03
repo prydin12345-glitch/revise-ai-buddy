@@ -35,6 +35,8 @@ export const useStudentPDF = () => {
         subject: pdfData.subject,
         total_marks: pdfData.questions.reduce((sum: number, q: any) => sum + (q.marks || 1), 0),
         questions: pdfData.questions.map((q: any) => ({
+          response_definition: q.response_definition,
+          response_resources: q.response_resources,
           id: q.id,
           question_number: q.question_number,
           question_text: q.question_text,

@@ -1,3 +1,4 @@
+import {readPracticeResponses} from '../_shared/response-service.ts';
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { handleResponseDraft } from '../_shared/response-foundation.ts';
@@ -24,7 +25,9 @@ serve(async (req) => {
         catch {
             throw new ExamRequestError(400, 'Invalid JSON');
         }
-        const result = await handleResponseDraft(client, user.id, body);
+        const result = body?.action === 'questions' && body?.source === 'practice'
+            ? await readPracticeResponses(client, user.id, body)
+            : await handleResponseDraft(client, user.id, body);
         return new Response(JSON.stringify(result), { headers });
     }
     catch (e) {
