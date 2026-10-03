@@ -15,11 +15,24 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    // One React/router instance only — a second copy breaks hooks and Router context.
+    dedupe: ["react", "react-dom", "react-router", "react-router-dom"],
   },
   define: {
     global: 'window',
   },
   optimizeDeps: {
-    include: ['react-mathquill'],
+    // Pre-bundle core libraries up front so a mid-session re-optimisation
+    // cannot split them into mismatched chunks.
+    include: [
+      'react-mathquill',
+      'react',
+      'react-dom',
+      'react-dom/client',
+      'react/jsx-runtime',
+      'react-router',
+      'react-router-dom',
+      '@tanstack/react-query',
+    ],
   },
 }));
