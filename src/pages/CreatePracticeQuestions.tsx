@@ -1234,6 +1234,7 @@ const CreatePracticeQuestions = () => {
       </div>
 
       {/* Modals */}
+      {generating && (
         <GenerationLoadingScreen
           message="Creating your practice questions..."
           subjectColor={subjectColor}
@@ -1243,7 +1244,6 @@ const CreatePracticeQuestions = () => {
           questionCount={questionCount}
           topicCount={selectedSubtopics.length}
         />
- 
       )}
 
 

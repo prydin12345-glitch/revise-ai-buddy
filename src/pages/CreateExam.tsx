@@ -1400,7 +1400,8 @@ export default function CreateExam() {
         </div>
       </div>
       {/* Loading Screen */}
-           <GenerationLoadingScreen
+      {generating && !derivedTopicsOpen && (
+        <GenerationLoadingScreen
           message={currentMessage}
           subjectColor={subjectColor}
           estimatedTime={300}
@@ -1411,7 +1412,6 @@ export default function CreateExam() {
           topicCount={activeProfileTopics.length || selectedSubtopics.length}
           hasDocument={!!file}
         />
- 
       )}
 
       {showGenerationComplete && (
