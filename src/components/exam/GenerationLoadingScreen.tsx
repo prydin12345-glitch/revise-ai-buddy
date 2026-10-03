@@ -1,28 +1,69 @@
+import { useEffect, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { Clock } from "lucide-react";
+
 interface GenerationLoadingScreenProps {
+  /** Kept for API back-compat; no longer shown. Callers cycle it on a timer,
+   *  so it never reflected real progress (and looped back to "Analyzing…"
+   *  after "Almost there"). */
   message?: string;
   subjectColor?: string;
   /** Kept for API back-compat; no longer used. */
   estimatedTime?: number;
   /** Kept for API back-compat; no longer used. */
   apiComplete?: boolean;
+
+  /** "exam" shows the working steps; "practice" is a shorter wait, so it
+   *  shows the summary, timer and tip only. */
+  variant?: "exam" | "practice";
+  /** What's being built — exam name, or the subject for practice. */
+  title?: string;
+  board?: string;
+  tier?: string | null;
+  questionCount?: number;
+  topicCount?: number;
+  /** A file was uploaded, so the first step is reading it. */
+  hasDocument?: boolean;
+  /** Student-facing exam tips. Off for tutors setting a paper. */
+  showTips?: boolean;
 }
 
+const TIPS = [
+  "Read the command word first. “State” wants one fact; “Explain” wants a reason.",
+  "Check the marks. A 3-mark question usually needs three separate points.",
+  "Show your working in calculations. You can pick up method marks even if the final answer is wrong.",
+  "Use the data in the question. Quote a figure from the table or graph when asked to describe it.",
+  "Link your points with “because”, “so” or “which means”. That turns a statement into an explanation.",
+  "For “Evaluate” questions, weigh up both sides, then reach a conclusion.",
+  "Don’t leave a multiple-choice question blank. A blank can’t score; a guess might.",
+];
+
+const TIP_INTERVAL_MS = 9000;
+
+const EXAM_STEPS = [
+  "Writing fresh questions",
+  "Handling diagrams and formatting",
+  "Matching your specification",
+];
+
+const formatElapsed = (seconds: number) =>
+  `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
 /**
- * Shimmering skeleton block — replaces the flat pulse Skeleton for a
- * premium "loading" feel. Uses only design tokens.
+ * Shimmering placeholder bar. The shimmer overlay stops under reduced motion,
+ * leaving a plain static bar.
  */
-function Shim({ className = "" }: { className?: string }) {
+function Shim({ className = "", delayMs = 0 }: { className?: string; delayMs?: number }) {
   return (
-    <div
-      className={
-        "relative overflow-hidden rounded-md bg-muted/60 " + className
-      }
-    >
+    <div className={"relative overflow-hidden bg-muted/60 " + className}>
       <div
-        className="absolute inset-0 -translate-x-full animate-shimmer"
+        className="absolute inset-0 -translate-x-full animate-shimmer motion-reduce:animate-none"
         style={{
+          animationDelay: `${delayMs}ms`,
           backgroundImage:
-            "linear-gradient(90deg, transparent, hsl(var(--foreground) / 0.06), transparent)",
+            "linear-gradient(90deg, transparent, hsl(var(--foreground) / 0.08), transparent)",
         }}
       />
     </div>
@@ -32,123 +73,157 @@ function Shim({ className = "" }: { className?: string }) {
 /**
  * Loading state for exam / practice generation.
  *
- * - No dark modal — sits on bg-background as the destination page skeleton.
- * - Sits above app chrome (z-[100]) so glowing FABs / tab bars don't leak through.
- * - One honest indeterminate 2px primary bar at the top.
- * - One pill: live dot + one restrained status line.
- * - All colors are semantic tokens. subjectColor tints only the live dot.
+ * Shows what is being built (from values the page already holds), the working
+ * steps, an elapsed timer and an exam tip. It deliberately has no percentage
+ * or ticked-off steps: the page only learns "done" or "failed", so any
+ * progress figure would be invented.
+ *
+ * Sits above app chrome (z-[100]) so FABs / tab bars don't leak through.
+ * Colours are semantic tokens; subjectColor tints the header band and accents.
  */
 export function GenerationLoadingScreen({
-  message,
   subjectColor,
+  variant = "exam",
+  title,
+  board,
+  tier,
+  questionCount,
+  topicCount,
+  hasDocument = false,
+  showTips = true,
 }: GenerationLoadingScreenProps) {
-  const statusText =
-    message?.trim() || "Analysing your materials and compiling your paper…";
+  const reduced = useReducedMotion();
+  const accent = subjectColor || "hsl(var(--primary))";
 
-  const dotColor = subjectColor || "hsl(var(--primary))";
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const start = Date.now();
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const [tipIndex, setTipIndex] = useState(() => Math.floor(Math.random() * TIPS.length));
+  useEffect(() => {
+    if (!showTips) return;
+    const id = setInterval(() => setTipIndex((i) => (i + 1) % TIPS.length), TIP_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [showTips]);
+
+  const kicker = variant === "practice" ? "Creating practice questions" : "Building your paper";
+  const headline = title?.trim() || "";
+
+  const tags = [
+    board?.trim() || "",
+    tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : "",
+    typeof questionCount === "number" && questionCount > 0 ? plural(questionCount, "question", "questions") : "",
+    typeof topicCount === "number" && topicCount > 0 ? plural(topicCount, "topic", "topics") : "",
+  ].filter((t) => t && t !== headline);
+
+  const steps =
+    variant === "practice"
+      ? []
+      : hasDocument
+      ? ["Reading your document", ...EXAM_STEPS]
+      : EXAM_STEPS;
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-background text-foreground overflow-hidden"
-      role="status"
-      aria-live="polite"
-      aria-label={statusText}
+      className="fixed inset-0 z-[100] bg-background text-foreground overflow-y-auto"
+      aria-busy="true"
     >
-      {/* Indeterminate progress bar — primary token, 2px, clearly visible */}
-      <div className="absolute inset-x-0 top-0 h-[2px] overflow-hidden bg-border/40">
+      {/* Only this line is announced. The timer and tips change constantly
+          and would flood a screen reader if the whole overlay were live. */}
+      <span role="status" className="sr-only">
+        {kicker}. Please wait.
+      </span>
+
+      {/* Honest indeterminate bar. Under reduced motion it holds still. */}
+      <div className="absolute inset-x-0 top-0 h-[2px] overflow-hidden bg-border/40" aria-hidden="true">
         <div
-          className="h-full w-1/3 animate-indeterminate-bar rounded-full"
-          style={{
-            background:
-              "linear-gradient(90deg, transparent, hsl(var(--primary)) 45%, hsl(var(--primary)) 55%, transparent)",
-          }}
+          className="h-full w-1/3 animate-indeterminate-bar rounded-full motion-reduce:animate-none motion-reduce:w-full motion-reduce:opacity-50"
+          style={{ backgroundColor: accent }}
         />
       </div>
 
-      {/* Destination page skeleton */}
-      <div className="h-full w-full flex flex-col">
-        {/* Top bar */}
-        <div className="h-14 lg:h-16 border-b border-border/50 flex items-center px-4 lg:px-6 gap-3 shrink-0">
-          <Shim className="h-6 w-6 rounded-md" />
-          <Shim className="h-4 w-32" />
-          <div className="flex-1" />
-          <Shim className="h-4 w-16 hidden sm:block" />
-          <Shim className="h-8 w-8 rounded-full" />
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 flex min-h-0">
-          <aside className="hidden lg:flex w-[280px] shrink-0 border-r border-border/50 flex-col gap-3 p-5">
-            <Shim className="h-3 w-20" />
-            <div className="space-y-2 pt-1">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <Shim key={i} className="h-9 w-full" />
-              ))}
-            </div>
-            <div className="mt-auto space-y-2">
-              <Shim className="h-3 w-16" />
-              <Shim className="h-9 w-full" />
-            </div>
-          </aside>
-
-          <main className="flex-1 min-w-0 overflow-hidden">
-            <div className="max-w-3xl mx-auto px-4 lg:px-8 py-6 lg:py-10 space-y-6">
-              <div className="space-y-2">
-                <Shim className="h-3 w-24" />
-                <Shim className="h-6 w-2/3" />
-              </div>
-
-              <div className="rounded-xl border border-border/60 bg-card/40 p-5 lg:p-6 space-y-4">
-                <div className="flex items-center gap-3">
-                  <Shim className="h-5 w-5 rounded" />
-                  <Shim className="h-4 w-40" />
-                  <div className="flex-1" />
-                  <Shim className="h-5 w-12 rounded-full" />
+      <div className="min-h-full flex items-center justify-center px-4 py-10" aria-hidden="true">
+        <div className="w-full max-w-md sm:max-w-lg space-y-3">
+          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+            <div
+              className="px-5 pt-4 pb-4"
+              style={{ background: `linear-gradient(135deg, ${accent}, color-mix(in srgb, ${accent} 65%, black))` }}
+            >
+              {headline ? (
+                <>
+                  <div className="text-11 text-white/80 mb-1">{kicker}</div>
+                  <div className="text-17 font-semibold text-white leading-snug break-words">{headline}</div>
+                </>
+              ) : (
+                <div className="text-17 font-semibold text-white leading-snug">{kicker}</div>
+              )}
+              {tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {tags.map((tag) => (
+                    <span key={tag} className="text-11 px-2.5 py-1 rounded-md bg-white/20 text-white">
+                      {tag}
+                    </span>
+                  ))}
                 </div>
-                <div className="space-y-2">
-                  <Shim className="h-4 w-full" />
-                  <Shim className="h-4 w-11/12" />
-                  <Shim className="h-4 w-4/5" />
-                </div>
-                <div className="pt-3 space-y-2">
-                  <Shim className="h-10 w-full" />
-                  <Shim className="h-10 w-full" />
-                  <Shim className="h-10 w-full" />
-                  <Shim className="h-10 w-full" />
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-border/50 bg-card/30 p-5 space-y-3">
-                <Shim className="h-4 w-32" />
-                <Shim className="h-4 w-full" />
-                <Shim className="h-4 w-3/4" />
-              </div>
-
-              {/* Bottom breathing room so the pill never overlaps the last card */}
-              <div className="h-24" aria-hidden />
+              )}
             </div>
-          </main>
-        </div>
-      </div>
 
-      {/* Status pill — strong blur, opaque enough to sit above content */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-        <div className="pointer-events-auto flex items-center gap-2.5 rounded-full border border-border bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl px-4 py-2 shadow-lg shadow-foreground/5">
-          <span className="relative flex h-2 w-2">
-            <span
-              className="absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping"
-              style={{ backgroundColor: dotColor }}
-            />
-            <span
-              className="relative inline-flex h-2 w-2 rounded-full"
-              style={{ backgroundColor: dotColor }}
-            />
-          </span>
-          <span className="text-[13px] font-medium tracking-tight text-foreground">
-            {statusText}
-          </span>
+            {steps.length > 0 && (
+              <ul className="px-5 divide-y divide-border">
+                {steps.map((step, i) => (
+                  <li key={step} className="flex items-center gap-3 py-3">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full border-[1.5px] shrink-0"
+                      style={{ borderColor: accent }}
+                    />
+                    <span className="flex-1 text-sm text-foreground">{step}</span>
+                    <Shim className="w-11 h-1.5 rounded-full" delayMs={i * 350} />
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="flex items-center justify-between px-5 py-2.5 border-t border-border bg-muted/40">
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums">
+                <Clock className="w-3.5 h-3.5" />
+                {formatElapsed(elapsed)}
+              </span>
+              <span className="text-xs text-muted-foreground">Ready when it&rsquo;s ready</span>
+            </div>
+          </div>
+
+          {showTips && (
+            <div className="rounded-2xl border border-border bg-card px-5 py-3.5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-11 text-muted-foreground">While you wait</span>
+                <span className="flex items-center gap-1">
+                  {TIPS.map((_, i) => (
+                    <span
+                      key={i}
+                      className={`h-1 rounded-full transition-all ${
+                        i === tipIndex ? "w-3.5 bg-foreground/60" : "w-1 bg-border"
+                      }`}
+                    />
+                  ))}
+                </span>
+              </div>
+              <motion.p
+                key={tipIndex}
+                initial={reduced ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.4 }}
+                className="text-sm leading-relaxed text-foreground min-h-[3.25rem]"
+              >
+                {TIPS[tipIndex]}
+              </motion.p>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
+
