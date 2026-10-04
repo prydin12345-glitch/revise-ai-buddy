@@ -102,7 +102,7 @@ export function analyseGroupRepair(
     if (!part) { fail('missing_part', 'Required repaired part was not returned.', number); continue; }
     const scored = Number(row.marks ?? 0) > 0;
     const rowText = assembleQuestionText(row);
-    const task = readRepairTask(part, rowText);
+    const task = readRepairTask(part, rowText, mode);
     if (scored && !hasAssessedTask(task)) {
       fail('missing_task', `Return a separately stated task with an assessed instruction. Received: "${task.slice(0, 120)}"`, number); continue;
     }
