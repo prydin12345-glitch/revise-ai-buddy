@@ -74,7 +74,7 @@ export function resolvePaperSelection(lookup: CourseLookup, tier: AssessmentTier
       if(saved!=null&&saved!==WJEC_BIOLOGY_SPECIFICATION)throw new Error('Reapply the reviewed WJEC written-unit specification version.');
   }
   if(course?.id===OCR_ALEVEL_BIOLOGY_ID){
-    if(!paperId)throw new Error('Choose and save OCR A-level Biology A Paper 1 in your profile.');
+    if(!paperId)throw new Error('Choose and save OCR A-level Biology A Paper 1 or Paper 2 in your profile.');
     if(tier!=='not_tiered')throw new Error('OCR A-level Biology A is untiered. Reapply its profile settings.');
     for(const saved of [choice.specificationVersion,contract.specificationVersion])
       if(saved!=null&&saved!==OCR_ALEVEL_BIOLOGY_SPECIFICATION)throw new Error('Reapply the reviewed OCR A-level specification version.');
@@ -107,7 +107,7 @@ export function paperPlanForAttempt(context: any, legacyBlueprint?: unknown) {
   }
   const legacy = context.context_version === 1;
   if(canonicalCourseId(context.course_id??object(object(legacyBlueprint).paperContract).courseId)===OCR_ALEVEL_BIOLOGY_ID &&
-    (legacy||context.specification_version!==OCR_ALEVEL_BIOLOGY_SPECIFICATION||context.paper_id!=='paper_1'||context.component_code!=='H420/01'||context.assessment_tier!=='not_tiered'))
+    (legacy||context.specification_version!==OCR_ALEVEL_BIOLOGY_SPECIFICATION||!['paper_1','paper_2'].includes(context.paper_id)||context.component_code!==(context.paper_id==='paper_2'?'H420/02':'H420/01')||context.assessment_tier!=='not_tiered'))
     throw new Error('Create a fresh OCR A-level Biology A attempt with its supported paper, component and reviewed edition saved by the server.');
   if(canonicalCourseId(context.course_id ?? object(object(legacyBlueprint).paperContract).courseId)===AQA_ALEVEL_BIOLOGY_ID &&
     (legacy || context.specification_version!==AQA_ALEVEL_BIOLOGY_SPECIFICATION || !['paper_1','paper_2','paper_3'].includes(context.paper_id) || context.assessment_tier!=='not_tiered'))
