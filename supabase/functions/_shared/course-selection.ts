@@ -1,3 +1,4 @@
+import { parseResponseFormatPolicy, type ResponseFormatPolicy } from './response-format-policy.ts';
 import {OCR_ALEVEL_BIOLOGY_ID} from './assessment-tier.ts';
 import {OCR_ALEVEL_BIOLOGY_SPECIFICATION} from './ocr-alevel-biology-scope.ts';
 import { canonicalCourseId, getCourseCapability, getCourseOptions, OCR_GATEWAY_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID, WJEC_BIOLOGY_ID,
@@ -11,6 +12,7 @@ import type { CurriculumIdentity } from './curriculum-identity.ts';
 
 export interface SavedPaperContract { courseId: string; paperId: string; mode: PaperMode; contractVersion: number; specificationVersion?: string; }
 export interface ResolvedPaperSelection {
+  responseFormats?: ResponseFormatPolicy;
   courseId: string | null;
   paperId: string | null;
   componentCode: string | null;
@@ -91,7 +93,9 @@ export function resolvePaperSelection(lookup: CourseLookup, tier: AssessmentTier
     if (contract.mode !== 'custom' && (!tier || !course?.tiers.includes(tier))) throw new Error('Select Foundation or Higher before generating a guided paper.');
     resolvedContract = {courseId: definition.courseId, paperId: definition.paperId, mode: contract.mode, contractVersion: definition.contractVersion, ...(definition.specificationVersion?{specificationVersion:definition.specificationVersion}:{})};
   }
-  return {courseId: course?.id ?? null, paperId, componentCode: paperId ? definition?.componentCode ?? null : null, paperContract: resolvedContract, ...(definition?.specificationVersion?{specificationVersion:definition.specificationVersion}:{}), ...(course?.curriculum?{curriculum:course.curriculum}:{})};
+  const responseFormats = parseResponseFormatPolicy(bp.responseFormats);
+  if (responseFormats && (!resolvedContract || !['short_practice','full_mock'].includes(resolvedContract.mode))) throw new Error('Interactive formats require a guided Biology profile.');
+  return {...(responseFormats ? {responseFormats} : {}), courseId: course?.id ?? null, paperId, componentCode: paperId ? definition?.componentCode ?? null : null, paperContract: resolvedContract, ...(definition?.specificationVersion?{specificationVersion:definition.specificationVersion}:{}), ...(course?.curriculum?{curriculum:course.curriculum}:{})};
 }
 
 /** v2 snapshots freeze the profile preset at attempt creation. Legacy AQA

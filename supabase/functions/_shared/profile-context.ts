@@ -130,6 +130,7 @@ export const toStoredGenerationContext = (
   paper_id: ctx.paperId,
   component_code: ctx.componentCode,
   paper_contract: ctx.paperContract,
+  ...(ctx.responseFormats ? {response_formats:ctx.responseFormats} : {}),
   ...(ctx.specificationVersion ? {specification_version:ctx.specificationVersion} : {}),
   ...(ctx.curriculum ? {curriculum:ctx.curriculum} : {}),
   resolved_by: SERVER_RESOLVED_MARKER,

@@ -263,6 +263,7 @@ export const ExamProfileModal = ({
   const [includeGraphs, setIncludeGraphs] = useState(false);
   const [includeTables, setIncludeTables] = useState(false);
   // Guided paper mode. "custom" keeps every manual count and media toggle.
+  const [interactiveResponses, setInteractiveResponses] = useState(false);
   const [paperMode, setPaperMode] = useState<PaperMode>("custom");
   const [planApplied, setPlanApplied] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
@@ -303,6 +304,7 @@ export const ExamProfileModal = ({
       setSelectedTopics(initialData?.topics || []);
       setStudiedTexts(Array.isArray((initialData as any)?.studied_texts) ? (initialData as any).studied_texts : []);
       const bp = (initialData as any)?.paper_blueprint;
+      setInteractiveResponses(bp?.responseFormats === 'interactive_v1');
       setSelectedCourseId(profileCourseId(bp));
       setSelectedPaperId(profilePaperId(bp));
       const bpSections = Array.isArray(bp?.sections) ? bp.sections : [];
@@ -438,7 +440,7 @@ export const ExamProfileModal = ({
         const courseSelection = (courseCapability?.id === OCR_GATEWAY_BIOLOGY_ID || selectedPaperId) && paperDefinition
           ? {courseId: courseCapability.id, paperId: paperDefinition.paperId, ...(paperDefinition.specificationVersion?{specificationVersion:paperDefinition.specificationVersion}:{})} : undefined;
         if (!currentPlan) return blueprintActive || courseSelection ? { ...(blueprintActive ? { sections: blueprintSections } : {}), ...(courseSelection ? {courseSelection} : {}) } : null;
-        return {courseSelection: {courseId: currentPlan.courseId, paperId: currentPlan.paperId, ...(currentPlan.specificationVersion?{specificationVersion:currentPlan.specificationVersion}:{})},
+        return {...(interactiveResponses ? {responseFormats:'interactive_v1'} : {}), courseSelection: {courseId: currentPlan.courseId, paperId: currentPlan.paperId, ...(currentPlan.specificationVersion?{specificationVersion:currentPlan.specificationVersion}:{})},
           paperContract: {courseId: currentPlan.courseId, paperId: currentPlan.paperId,
             mode: currentPlan.mode, contractVersion: currentPlan.contractVersion, ...(currentPlan.specificationVersion?{specificationVersion:currentPlan.specificationVersion}:{})}};
       })(),
@@ -637,6 +639,12 @@ export const ExamProfileModal = ({
             )}
           </SectionCard>
 
+          {guidedActive && <label className="flex items-start gap-3 rounded-lg border border-border p-3">
+            <input type="checkbox" className="mt-1" checked={interactiveResponses} onChange={event => setInteractiveResponses(event.target.checked)} />
+            <span><span className="font-medium text-sm">Interactive answer formats (preview)</span>
+              <span className="block text-xs text-muted-foreground">Use tick boxes and, where suitable, grids, inline blanks and labelled fields in new exams and quizzes from this profile. Keeps the paper's marks and topics. May take longer to generate. Existing attempts stay unchanged.</span>
+            </span>
+          </label>}
           {guidedActive && <p className="text-xs text-muted-foreground">The guided preset controls the topics, counts, timing and resources. Choose Custom to set your own layout.</p>}
           {!configurationReady && <p role="status" className="text-xs text-amber-600">{courseCapability?.id === OCR_ALEVEL_BIOLOGY_ID ? 'Choose Paper 1, then apply the guided settings or choose Custom. OCR A-level Biology A is untiered.' : courseCapability?.id === AQA_ALEVEL_BIOLOGY_ID ? 'Choose Paper 1, Paper 2 or Paper 3, then apply the guided settings or choose Custom. A-level Biology is untiered.' : courseCapability?.id === OCR_21C_BIOLOGY_ID ? 'Choose Breadth or Depth and Foundation or Higher, then apply the guided settings or choose Custom.' : courseCapability?.id === EDEXCEL_BIOLOGY_ID ? 'Choose Paper 1 or Paper 2 and Foundation or Higher. Then apply the guided settings, or choose Custom with your own topics.' : 'Choose a supported course and tier, then use the guided settings, or select Custom.'}</p>}
           {!guidedActive && <fieldset className="space-y-4">

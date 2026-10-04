@@ -1741,6 +1741,35 @@ export type Database = {
           },
         ]
       }
+      question_response_generation_drafts: {
+        Row: {
+          carrier: Json
+          created_at: string
+          draft_id: string
+          source_snapshot: Json
+        }
+        Insert: {
+          carrier: Json
+          created_at?: string
+          draft_id: string
+          source_snapshot: Json
+        }
+        Update: {
+          carrier?: Json
+          created_at?: string
+          draft_id?: string
+          source_snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_response_generation_drafts_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: true
+            referencedRelation: "exam_question_drafts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       question_response_results: {
         Row: {
           contract_id: string
@@ -3295,6 +3324,16 @@ export type Database = {
         Args: {
           p_contract_id: string
           p_expected_revision: number
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      commit_generated_responses: {
+        Args: {
+          p_context: Json
+          p_parent_id: string
+          p_rows: Json
+          p_source: string
           p_user_id: string
         }
         Returns: Json
