@@ -1,3 +1,5 @@
+import { legacyResponseCandidate, generatedResponse, validateGeneratedResponses, commitGeneratedResponses, loadGeneratedExamDrafts, responseSourceSnapshot } from '../_shared/response-generation.ts';
+import { responseFormatsEnabled } from '../_shared/response-format-policy.ts';
 import { paperPlanForAttempt } from '../_shared/course-selection.ts';
 import { biologyScopeFromContext } from '../_shared/gcse-biology-scope.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -60,7 +62,7 @@ serve(async (req) => {
     }
 
     // Fetch verified question drafts
-    const { data: drafts, error: draftError } = await supabase
+    const { data: storedDrafts, error: draftError } = await supabase
       .from('exam_question_drafts')
       .select('*')
       .eq('exam_id', draftId)
@@ -74,13 +76,16 @@ serve(async (req) => {
       });
     }
 
-    if (!drafts || drafts.length === 0) {
+    if (!storedDrafts || storedDrafts.length === 0) {
       return new Response(JSON.stringify({ error: 'No questions found. Please extract questions first.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    if(responseFormatsEnabled(exam.generation_context) && exam.extraction_status!=='completed')throw new Error('Interactive extraction must finish successfully before publication');
+    const sourceDrafts=storedDrafts.map(responseSourceSnapshot);
+    const drafts=await loadGeneratedExamDrafts(supabase,storedDrafts,exam.generation_context);
     console.log(`Publishing ${drafts.length} extracted questions`);
 
     // Valid question types for exam_questions table
@@ -142,8 +147,9 @@ serve(async (req) => {
     // task, a usable answer key and any resource it references. There is no
     // "default the MCQ answer to A" fallback any more — a missing or ambiguous
     // key blocks completion instead of inventing a grade.
+    validateGeneratedResponses(drafts,exam.generation_context);
     const plan = paperPlanForAttempt(exam.generation_context);
-    const gate = validateQuestionCandidates(drafts as any, {
+    const gate = validateQuestionCandidates(drafts.map(legacyResponseCandidate) as any, {
       plan, ...(plan ? {expectedTotalMarks: plan.totalMarks, expectedPartCount: plan.partCount} : {}),
       scope: biologyScopeFromContext(exam.generation_context, {subject: exam.subject_id, educationalLevel: exam.qualification_level, examBoard: exam.exam_board}),
     });
@@ -163,6 +169,7 @@ serve(async (req) => {
       });
     }
 
+    if(drafts.some(d=>generatedResponse(d)) && !responseFormatsEnabled(exam.generation_context))throw new Error('Response contract does not match the saved profile policy');
     for (const draft of drafts) {
       const resources = resolveQuestionResources(draft);
       draft.question_text = resources.text;
@@ -322,6 +329,12 @@ serve(async (req) => {
         profile_id: (exam as any).profile_id ?? null,
       };
     });
+
+    if(responseFormatsEnabled(exam.generation_context)) {
+      const commitRows=questionInserts.map((row:any,index:number)=>({...row,source_draft:sourceDrafts[index]}));
+      const committed=await commitGeneratedResponses(supabase,'exam',draftId,user.id,exam.generation_context,commitRows);
+      return new Response(JSON.stringify({examId:draftId,questionsPublished:committed.count}),{headers:{...corsHeaders,'Content-Type':'application/json'}});
+    }
 
     // Idempotent publish: a double invocation (double-tap, client retry,
     // network replay) previously inserted every question TWICE — the paper

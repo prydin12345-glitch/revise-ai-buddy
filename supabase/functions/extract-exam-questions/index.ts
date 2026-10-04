@@ -1,3 +1,5 @@
+import { generateResponseFormats, responseProposalCaller, saveGeneratedExamDrafts } from '../_shared/response-generation.ts';
+import { responseFormatsEnabled } from '../_shared/response-format-policy.ts';
 import {OCR_ALEVEL_BIOLOGY_ID} from '../_shared/assessment-tier.ts';
 import {essayKeyObject} from '../_shared/biology-essay-marking.ts';
 import { AQA_ALEVEL_BIOLOGY_ID, OCR_GATEWAY_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID, WJEC_BIOLOGY_ID } from "../_shared/assessment-tier.ts";
@@ -360,6 +362,9 @@ serve(async (req) => {
 
     console.log('Extracting questions for exam:', draftId);
 
+    const {data:ownedExam,error:ownedError}=await supabase.from('exams').select('id,status,generation_context').eq('id',draftId).eq('user_id',user.id).maybeSingle();
+    if(ownedError || !ownedExam)return new Response(JSON.stringify({error:'Exam not found'}),{status:404,headers:{...corsHeaders,'Content-Type':'application/json'}});
+    if(responseFormatsEnabled(ownedExam.generation_context) && ownedExam.status==='published')return new Response(JSON.stringify({error:'Create a fresh exam instead of replacing a published interactive paper.'}),{status:409,headers:{...corsHeaders,'Content-Type':'application/json'}});
     await supabase.from('exams').update({ extraction_status: 'extracting' }).eq('id', draftId);
 
     EdgeRuntime.waitUntil(
@@ -390,7 +395,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   // rounds, Flash/Pro fallbacks and answerability repairs all draw on it, and
   // failed attempts consume their slot. Quota enforcement is unchanged and
   // still applies before any of this.
-  aiBudget = new AiCallBudget({ maxCalls: MAX_AI_CALLS_PER_REQUEST, maxMs: MAX_AI_MS_PER_REQUEST });
+  const aiBudget = new AiCallBudget({ maxCalls: MAX_AI_CALLS_PER_REQUEST, maxMs: MAX_AI_MS_PER_REQUEST });
 
   const { data: exam, error: examError } = await supabase
     .from('exams')
@@ -400,6 +405,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     .single();
 
   if (examError || !exam) throw new Error('Exam not found');
+  if(responseFormatsEnabled(exam.generation_context) && exam.status==='published')throw new Error('Create a fresh exam instead of regenerating a published interactive paper.');
 
   const rawFormat = exam.exam_format;
   const formatData = Array.isArray(rawFormat) ? rawFormat[0] : rawFormat;
@@ -744,8 +750,8 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   // the outset: one response cannot reliably carry 36 planned parts.
   const guidedSystemPrompt = guidedPack?.generation.systemPrompt ?? systemPrompt;
   const parsedData = (usesContractOnlyGeneration && guidedPlan)
-    ? { questions: await generateGuidedPaper(guidedPlan, lovableApiKey, guidedSystemPrompt, extractionPrompt, guidedPromptSuffix, hasResourcePack), topics: [] }
-    : await callAI(lovableApiKey, guidedSystemPrompt, extractionPrompt, hasResourcePack);
+    ? { questions: await generateGuidedPaper(guidedPlan, lovableApiKey, guidedSystemPrompt, extractionPrompt, guidedPromptSuffix, hasResourcePack, aiBudget), topics: [] }
+    : await callAI(lovableApiKey, guidedSystemPrompt, extractionPrompt, hasResourcePack, aiBudget);
 
   if (!parsedData.questions?.length) {
     await supabase.from('exams').update({ extraction_status: 'failed', extraction_error: 'No questions found' }).eq('id', draftId);
@@ -1505,7 +1511,15 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   // parent group (text + expected answer + mark scheme together), at most three times
   // per group and within a whole-request budget, then revalidate. If the paper
   // still fails, the extraction fails — it is never presented as ready.
-  await enforceAnswerability(draftId, supabase, lovableApiKey, exam.subject_id, guidedPlan, generationScope);
+  await enforceAnswerability(draftId, supabase, lovableApiKey, exam.subject_id, guidedPlan, generationScope, aiBudget);
+  if (responseFormatsEnabled(exam.generation_context)) {
+    const {data:sourceRows,error:sourceError}=await supabase.from('exam_question_drafts').select('*').eq('exam_id',draftId).order('question_number');
+    if(sourceError || !sourceRows?.length)throw new Error('Interactive response source could not be loaded');
+    const converted=await generateResponseFormats(sourceRows,exam.generation_context,responseProposalCaller(lovableApiKey,aiBudget));
+    console.log('[response-formats]',converted.report.join('; '));
+    await saveGeneratedExamDrafts(supabase,sourceRows,converted.rows,exam.generation_context);
+  }
+
 
 
 
@@ -2744,11 +2758,11 @@ Match genuine AQA/Edexcel/OCR A-level standard:
 // Track which model was actually used for logging
 let modelUsed = 'google/gemini-2.5-flash';
 
-async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean, purpose = 'generation') {
+async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean, aiBudget: AiCallBudget, purpose = 'generation') {
   // ── OPTIMISATION 4: Always try Flash first, only upgrade to Pro on failure ──
   try {
     console.log('Attempting generation with gemini-2.5-flash');
-    const result = await callAIWithModel(apiKey, systemPrompt, userPrompt, hasResourcePack, 'google/gemini-2.5-flash', purpose);
+    const result = await callAIWithModel(apiKey, systemPrompt, userPrompt, hasResourcePack, 'google/gemini-2.5-flash', aiBudget, purpose);
     if (result?.questions && result.questions.length > 0) {
       console.log('Flash generation successful');
       modelUsed = 'google/gemini-2.5-flash';
@@ -2763,10 +2777,10 @@ async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, 
   // Only reach here if Flash failed
   console.log('Attempting generation with gemini-2.5-pro');
   modelUsed = 'google/gemini-2.5-pro';
-  return await callAIWithModel(apiKey, systemPrompt, userPrompt, hasResourcePack, 'google/gemini-2.5-pro', purpose);
+  return await callAIWithModel(apiKey, systemPrompt, userPrompt, hasResourcePack, 'google/gemini-2.5-pro', aiBudget, purpose);
 }
 
-async function callAIWithModel(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean, model: string, purpose = 'generation') {
+async function callAIWithModel(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean, model: string, aiBudget: AiCallBudget, purpose = 'generation') {
   console.log(`AI model selected: ${model}`);
   aiBudget.reserve(`${purpose} (${model})`);
   const started = Date.now();
@@ -2825,6 +2839,7 @@ async function generateGuidedPaper(
   wholePaperPrompt: string,
   promptSuffix: string,
   hasResourcePack: boolean,
+  aiBudget: AiCallBudget,
 ): Promise<any[]> {
   const produced = new Map<string, any>();
   const batches = planGroupBatches(plan.parts, MAX_PARTS_PER_BATCH);
@@ -2846,7 +2861,7 @@ async function generateGuidedPaper(
       : biologyBatchInstructions(plan, batch, { siblings }) + '\n' + promptSuffix;
     let data: any;
     try {
-      data = await callAI(apiKey, systemPrompt, prompt, hasResourcePack, label);
+      data = await callAI(apiKey, systemPrompt, prompt, hasResourcePack, aiBudget, label);
     } catch (error) {
       if (error instanceof AiBudgetExhaustedError) throw error;
       console.error(`[plan] ${label} failed: ${(error as Error).message}`);
@@ -3053,7 +3068,7 @@ const MAX_AI_MS_PER_REQUEST = 9 * 60 * 1000;
 const MAX_PARTS_PER_BATCH = 10;
 const COMPLETION_BATCH_SIZE = 6;
 const MAX_COMPLETION_ROUNDS = 6;
-let aiBudget = new AiCallBudget({ maxCalls: MAX_AI_CALLS_PER_REQUEST, maxMs: MAX_AI_MS_PER_REQUEST });
+
 
 
 async function enforceAnswerability(
@@ -3063,6 +3078,7 @@ async function enforceAnswerability(
   subject: string,
   plan: PaperPlan | null = null,
   scope: BiologyScope = {},
+  aiBudget: AiCallBudget,
 ): Promise<void> {
   const planExpectations = { scope, plan, ...(plan ? { expectedTotalMarks: plan.totalMarks, expectedPartCount: plan.partCount } : {}) };
   const load = async () => {

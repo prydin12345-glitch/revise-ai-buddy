@@ -1,3 +1,5 @@
+import { generateResponseFormats, responseProposalCaller, commitGeneratedResponses } from '../_shared/response-generation.ts';
+import { responseFormatsEnabled } from '../_shared/response-format-policy.ts';
 import { checkBiologyPracticeCourse, biologyPracticeInstructions, assertBiologyPractice, biologyCachedRows, usesBiologyPracticeValidation, biologyPracticeCacheVersion, normalizeBiologyPracticePayload } from '../_shared/biology-practice.ts';
 // FILE: supabase/functions/generate-practice-questions/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -122,6 +124,7 @@ async function generateQuestionsInBackground(
       setData,
     );
 
+    const interactiveResponses = responseFormatsEnabled(generationContext);
     checkBiologyPracticeCourse(generationContext);
     const coursePracticeInstructions = biologyPracticeInstructions(generationContext);
     const resolvedAssessmentTier = (generationContext?.assessment_tier as string | null) ?? null;
@@ -145,7 +148,7 @@ async function generateQuestionsInBackground(
     // Determine variation slot for this student
     const MAX_VARIATION_SLOTS = 5;
     let variationSlot = 0;
-    const baseCacheKey = (!isCustomNicheForCache && cacheParams.examBoard && cacheParams.educationalLevel)
+    const baseCacheKey = (!interactiveResponses && !isCustomNicheForCache && cacheParams.examBoard && cacheParams.educationalLevel)
       ? await buildBaseCacheKey(cacheParams)
       : null;
 
@@ -191,7 +194,7 @@ async function generateQuestionsInBackground(
       variationSlot,
     });
 
-    if (cacheKey && !forceRefresh) {
+    if (!interactiveResponses && cacheKey && !forceRefresh) {
       const { data: cached } = await supabaseClient
         .from('question_generation_cache')
         .select('questions, hit_count, subject, exam_board, educational_level')
@@ -250,12 +253,14 @@ async function generateQuestionsInBackground(
       console.log('Force refresh requested — skipping cache check');
     }
 
-    // Make retries idempotent: clear any previously inserted questions + reset status/error.
-    // (If a previous attempt partially inserted rows, this prevents duplicates.)
-    await supabaseClient
-      .from('practice_questions')
-      .delete()
-      .eq('set_id', setId);
+    // Interactive attempts are committed atomically; never clear an existing attempt on retry.
+    if(interactiveResponses) {
+      const {data:existing,error}=await supabaseClient.from('practice_questions').select('id').eq('set_id',setId).limit(1);
+      if(error)throw new Error('Existing interactive attempt could not be checked');
+      if(existing?.length) { if(setData.extraction_status==='completed')return; throw new Error('This quiz already has questions. Create a fresh set instead of replacing responses.'); }
+    } else {
+      await supabaseClient.from('practice_questions').delete().eq('set_id',setId);
+    }
 
     await supabaseClient
       .from('practice_question_sets')
@@ -4766,6 +4771,12 @@ Generate questions that are meaningfully different from all of the above.`;
     // ───────────────────────────────────────────────────────────────────
 
     assertBiologyPractice(questionsToInsert, generationContext);
+    if(interactiveResponses) {
+      const converted=await generateResponseFormats(questionsToInsert,generationContext,responseProposalCaller(LOVABLE_API_KEY));
+      console.log('[response-formats]',converted.report.join('; '));
+      await commitGeneratedResponses(supabaseClient,'practice',setId,userId,generationContext,converted.rows);
+    } else {
+
 
     const { error: insertError } = await supabaseClient
       .from('practice_questions')
@@ -4785,10 +4796,12 @@ Generate questions that are meaningfully different from all of the above.`;
       })
       .eq('id', setId);
 
+    }
+
     console.log('Questions generated successfully');
 
     // ── OPTIMISATION 1: SAVE TO CACHE after successful generation ──
-    if (cacheKey && questionsToInsert.length > 0) {
+    if (!interactiveResponses && cacheKey && questionsToInsert.length > 0) {
       try {
         await supabaseClient.from('question_generation_cache').upsert({
           cache_key: cacheKey,
@@ -4945,6 +4958,11 @@ serve(async (req) => {
       );
     }
 
+    if(responseFormatsEnabled(setData.generation_context)) {
+      if(setData.extraction_status==='completed')return new Response(JSON.stringify({success:true,status:'completed',setId}),{headers:{...corsHeaders,'Content-Type':'application/json'}});
+      const {data:existing,error}=await supabaseClient.from('practice_questions').select('id').eq('set_id',setId).limit(1);
+      if(error || existing?.length)return new Response(JSON.stringify({error:'Create a fresh quiz instead of replacing an existing interactive attempt.'}),{status:409,headers:{...corsHeaders,'Content-Type':'application/json'}});
+    }
     // Update status to extracting immediately
     await supabaseClient
       .from('practice_question_sets')
