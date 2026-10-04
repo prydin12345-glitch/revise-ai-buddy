@@ -167,7 +167,7 @@ export function parseResponseDefinition(value: unknown): ResponseDefinition {
                 keys(o, ['blankId']);
                 return { blankId: id(o.blankId) };
             } keys(o, ['text']); return { text: str(o.text, 10000) }; });
-            const ids = unique(segments.flatMap(s => 'blankId' in s ? [s.blankId] : []));
+            const ids = unique(segments.flatMap(s => 'blankId' in s ? [s.blankId as string] : []));
             if (ids.length !== fs.length || fs.some(f => !ids.includes(f.id)))
                 fail('blanks must each reference one defined field');
             return { ...base, kind: 'cloze', segments, fields: fs };

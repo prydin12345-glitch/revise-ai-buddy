@@ -1108,7 +1108,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     }
     const flatQuestions: any[] = [];
     const sortedRoots = Object.keys(rootGroups).sort((a, b) => parseInt(a) - parseInt(b));
-    for (let i = 0; i < sortedRoots.length && i < desiredMcqCount; i++) {
+    for (let i = 0; i < sortedRoots.length && i < (desiredMcqCount ?? 0); i++) {
       const group = rootGroups[sortedRoots[i]];
       const q = group[0]; // keep first sub-part only
       q.question_number = String(i + 1);
@@ -3217,7 +3217,7 @@ async function enforceAnswerability(
     const outcome = await requestQuestionRepair({
       group, subject, scope, plan, defects: describeDefects(groupDefects, group),
       mode: taskOnly && !escalate ? 'task_only' : 'full_group',
-      targetNumbers: escalate ? new Set(group.map((row: any) => String(row.question_number))) : failedNumbers,
+      targetNumbers: escalate ? new Set<string>(group.map((row: any) => String(row.question_number))) : failedNumbers as Set<string>,
       previousDiagnostics: lastRejections[groupId],
     }, apiKey);
 

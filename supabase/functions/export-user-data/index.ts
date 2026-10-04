@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
     // Helper for safe parallel fetches that ignore missing tables / errors.
     const safeFetch = async (
       label: string,
-      query: () => Promise<{ data: unknown; error: unknown }>,
+      query: () => PromiseLike<{ data: unknown; error: unknown }>,
     ) => {
       try {
         const { data, error } = await query();
