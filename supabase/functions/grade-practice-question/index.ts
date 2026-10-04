@@ -1524,7 +1524,7 @@ serve(async (req) => {
     const displayAnswer = answerText || '(No answer provided)';
 
     // Prepare grading prompt
-    const systemPrompt = `${isOcrAlevelBiology ? `You are an OCR A-level Biology A H420/01 examiner. Use the saved task-specific key: OCR best-fit science/communication levels for six-mark extended responses, capped points for other written parts.` : isAlevelBiology ? `You are an AQA A-level Biology examiner grading this saved Paper ${gradeSet.generation_context?.paper_id==='paper_2'?'2':'1'} practice task against its private point-based key.` : isHumanitiesMarking
+    const systemPrompt = `${isOcrAlevelBiology ? `You are an OCR A-level Biology A ${gradeSet.generation_context?.component_code} examiner. Use the saved task-specific key: OCR best-fit science/communication levels for six-mark extended responses, capped points for other written parts.` : isAlevelBiology ? `You are an AQA A-level Biology examiner grading this saved Paper ${gradeSet.generation_context?.paper_id==='paper_2'?'2':'1'} practice task against its private point-based key.` : isHumanitiesMarking
       ? `You are an experienced ${gradeSubject || 'humanities'} examiner grading student work with levels-based mark schemes.`
       : 'You are a supportive mathematics tutor grading student work.'} Your role is to:
 - Award partial credit generously for correct methods, even if the final answer is wrong

@@ -1,6 +1,8 @@
 import {OCR_ALEVEL_BIOLOGY_ID} from './assessment-tier.ts';
 import {OCR_ALEVEL_P1,buildOcrAlevelPaper1Plan,assertOcrAlevelPaper1Plan,ocrAlevelPaper1Instructions,ocrAlevelPartInstruction} from './ocr-alevel-biology-contract.ts';
 import {OCR_ALEVEL_SPEC_URL,OCR_ALEVEL_SAM_URL,OCR_ALEVEL_P1_RULES} from './ocr-alevel-biology-scope.ts';
+import {OCR_ALEVEL_P2,buildOcrAlevelPaper2Plan,assertOcrAlevelPaper2Plan,ocrAlevelPaper2Instructions,ocrAlevelPaper2PartInstruction} from './ocr-alevel-biology-paper2-contract.ts';
+import {OCR_ALEVEL_P2_SAM_URL,OCR_ALEVEL_P2_RULES} from './ocr-alevel-biology-paper2-scope.ts';
 import {AQA_ALEVEL_P3,buildAqaAlevelPaper3Plan,assertAqaAlevelPaper3Plan,aqaAlevelPaper3Instructions,aqaAlevelPaper3PartInstruction} from './aqa-alevel-biology-paper3-contract.ts';
 import {AQA_ALEVEL_P3_RULES} from './aqa-alevel-biology-paper3-scope.ts';
 import { canonicalCourseId } from './assessment-tier.ts';
@@ -268,6 +270,31 @@ export const BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [
     repairPartInstructions:ocrAlevelPartInstruction,validatePlan:assertOcrAlevelPaper1Plan,
   },
 
+  {
+    id:'ocr-h420-paper-2-v1',courseId:OCR_ALEVEL_BIOLOGY_ID,paperId:'paper_2',contractVersion:1,
+    curriculum:{...curriculum,qualification:'A-level'},examBoard:'OCR',tiers:['not_tiered'],
+    sources:[
+      {url:OCR_ALEVEL_SPEC_URL,section:'Version 4.1 (April 2026): Modules 1/2/4/6, sections 2a, 3a/3b, 3i and 5d',checkedOn:'2026-10-04'},
+      {url:OCR_ALEVEL_P2_SAM_URL,section:'Version 3.0 (February 2026): fifteen one-mark A-D MCQs, Section B and OCR levels',checkedOn:'2026-10-04'},
+      {url:'https://www.ocr.org.uk/Images/752365-question-paper-biological-diversity.pdf',section:'June 2025 H420/02: compulsory Section A/B, original structured/practical/calculation response conventions',checkedOn:'2026-10-04'},
+      {url:'https://www.ocr.org.uk/Images/752492-mark-scheme-biological-diversity.pdf',section:'June 2025: one private choice per MCQ, capped points and science/communication levels',checkedOn:'2026-10-04'},
+      {url:'https://www.ocr.org.uk/Images/752105-examiners-report-biological-diversity.pdf',section:'June 2025: command words, quantitative evidence, interpretation and precise terminology',checkedOn:'2026-10-04'},
+      {url:'https://www.ocr.org.uk/Images/726691-question-paper-biological-diversity.pdf',section:'June 2024: comparison of response/resource conventions, not copied question content',checkedOn:'2026-10-04'},
+      {url:'https://www.ocr.org.uk/Images/726818-mark-scheme-biological-diversity.pdf',section:'June 2024: calculation and extended-response marking conventions',checkedOn:'2026-10-04'},
+      {url:'https://www.ocr.org.uk/Images/726426-examiners-report-biological-diversity.pdf',section:'June 2024: evidence use, scientific precision and practical evaluation',checkedOn:'2026-10-04'},
+    ],
+    official:{fullMarks:100,durationMinutes:135,sections:[{id:'A',marks:15},{id:'B',marks:85}]},
+    layoutChoices:[
+      'H420/02 assesses Modules 1/2/4/6 with synoptic assessment, untiered, 37% of A-level; practical endorsement is separate.',
+      'Fifteen one-mark Section A MCQs are official. Seven Section B groups, 43 scored parts and two six-mark responses are Examly choices, not historical fixed counts.',
+      'AO targets 36/42/22, maths and practical annotations guide drafting and do not certify scientific content or demand.',
+      'Short practice is an Examly development template: five MCQs, six written parts, 25 marks and 34 minutes; Custom retains manual choices.',
+    ],
+    validation:{rows:'exact_parts',mcqOptions:4,levelSchemeAtMarks:6},rules:OCR_ALEVEL_P2_RULES,
+    generation:{strategy:'contract_only',systemPrompt:'Write an original OCR A-level Biology A H420/02 Biological diversity paper. Follow the saved untiered Modules 1/2/4/6 outcomes and immutable Section A/B plan. Complete tasks, consistent required resources and private keys; four distinct choices and one private answer per MCQ. OCR science/communication levels for six-mark responses. Never copy past-paper material. Return complete JSON only.'},
+    definition:()=>({...OCR_ALEVEL_P2}),build:buildOcrAlevelPaper2Plan,instructions:ocrAlevelPaper2Instructions,
+    repairPartInstructions:ocrAlevelPaper2PartInstruction,validatePlan:assertOcrAlevelPaper2Plan,
+  },
 ];
 
 export const biologyPaperOptions = (courseId: string | null | undefined) =>

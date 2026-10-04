@@ -1,13 +1,14 @@
 // @vitest-environment node
+import {ocrPaper2Snapshot} from './ocr-alevel-paper2-fixtures';
 import {build} from 'esbuild';
 import vm from 'node:vm';
 import {it,expect} from 'vitest';
 import {responseFixture,responseParent as parent,responseQuestion as qid,responseContractId as cid,responseUser as user,responseOther as other} from './response-foundation-fixtures';
 import {markResponse} from '../functions/_shared/response-marking';
-async function harness(name:string,options:{kind?:Parameters<typeof responseFixture>[0];released?:boolean;graded?:boolean;manager?:boolean;access?:boolean;owner?:boolean;resourceMissing?:boolean;providerFails?:boolean;saveFails?:boolean;contractFails?:boolean}={}){
+async function harness(name:string,options:{snapshot?:any;kind?:Parameters<typeof responseFixture>[0];released?:boolean;graded?:boolean;manager?:boolean;access?:boolean;owner?:boolean;resourceMissing?:boolean;providerFails?:boolean;saveFails?:boolean;contractFails?:boolean}={}){
  const f=responseFixture(options.kind??'grid'),calls:any[]=[],reads:any[]=[],writes:any[]=[],modelCalls:any[]=[];
  const result=await markResponse({questionId:qid,marks:2,definition:f.definition,key:f.key,response:f.envelope},async()=>({units:[{unitId:'u1',score:1,feedback:'Partial credit.'}]}));
- const question={id:qid,exam_id:parent,set_id:parent,question_number:'1',question_number_int:1,question_text:'Complete the response.',question_type:'written',marks:2,correct_answer:'LEGACY_SECRET',subtopic:'Biomolecules',diagram_config: options.resourceMissing?null:{type:'response_context',resources:[{id:'experiment',kind:'table',title:'Incubation',columns:['Tube','Time (s)'],rows:[['X','20']]}]}};
+ const question={id:qid,exam_id:parent,set_id:parent,question_number:options.snapshot?'16(a)':'1',question_number_int:options.snapshot?16:1,question_text:'Complete the response.',question_type:'written',marks:2,correct_answer:'LEGACY_SECRET',subtopic:'Biomolecules',diagram_config: options.resourceMissing?null:{type:'response_context',resources:[{id:'experiment',kind:'table',title:'Incubation',columns:['Tube','Time (s)'],rows:[['X','20']]}]}};
  const access={hasAccess:options.access??true,isOwner:false,isManager:options.manager??false,isAssigned:true,gradesReleased:options.released??false,deadline:null};
  const client={auth:{getUser:async()=>({data:{user:{id:user}},error:null})},rpc:async(name:string,args:any)=>{
   calls.push({name,args});
@@ -25,10 +26,10 @@ async function harness(name:string,options:{kind?:Parameters<typeof responseFixt
   };
   query.then=(resolve:any,reject:any)=>{
    reads.push({table,filters});let rows:any[]=[],error:any=null;
-   if(table==='exams')rows=[{id:parent,user_id:user,title:'Response fixture',subject_id:'Biology'}];
+   if(table==='exams')rows=[{id:parent,user_id:user,title:'Response fixture',subject_id:'Biology',generation_context:options.snapshot}];
    if(table==='exam_questions'||table==='practice_questions')rows=[question];
    if(table==='exam_submissions')rows=operation==='update'?[{id:'s'}]:[{status:options.graded?'graded':'in_progress',total_score:2,total_marks:2}];
-   if(table==='practice_question_sets'&&options.owner!==false)rows=[{id:parent,user_id:user,subject_id:'Biology',set_name:'Response fixture'}];
+   if(table==='practice_question_sets'&&options.owner!==false)rows=[{id:parent,user_id:user,subject_id:'Biology',set_name:'Response fixture',generation_context:options.snapshot}];
    if(table==='student_answers')rows=[{question_id:qid,answer_text:JSON.stringify(f.envelope),score:options.graded?2:null,feedback:'PRIVATE FEEDBACK'}];
    if(table==='practice_question_answers'&&options.graded)rows=[{question_id:qid,score:2,submitted_at:'2026-10-01'}];
    if(table==='question_response_contracts'){rows=[{id:cid,exam_question_id:qid,practice_question_id:qid,definition:f.definition,marking_key:f.key}];if(options.contractFails)error={message:'cannot load contracts'};}
@@ -79,4 +80,17 @@ it('refuses missing shared data and failed contract reads before marking',async(
 });
 it('student PDF data carries blank input definitions and shared resources with no answers even after grading',async()=>{
  const h=await harness('generate-student-pdf',{graded:true});const r=await h.run({contentType:'practice',contentId:parent,includeAnswers:true});expect(r.status).toBe(200);const body=await r.json();expect(body.pdfData.questions[0].response_definition.kind).toBe('grid');expect(JSON.stringify(body)).not.toMatch(/response_key|marking_key|response_snapshot|response_result|LEGACY_SECRET|PRIVATE FEEDBACK/);
+});
+
+it.each(['grid','cloze','fields','choice'] as const)('H420/02 %s response retains one capped mastery result and release controls',async kind=>{
+ const h=await harness('submit-exam',{kind,snapshot:ocrPaper2Snapshot()});
+ const r=await h.run({examId:parent});expect(r.status).toBe(200);expect((await r.json()).totalScore).toBeNull();
+ const results=h.calls.find(c=>c.name==='finish_exam_responses').args.p_results;
+ expect(results).toHaveLength(1);expect(results[0].response_result.maxMarks).toBe(2);expect(results[0].response_result.score).toBeLessThanOrEqual(2);
+ expect(h.modelCalls).toHaveLength(0);
+});
+it('H420/02 failed rubric marking leaves the response ungraded',async()=>{
+ const h=await harness('grade-practice-question',{kind:'text',snapshot:ocrPaper2Snapshot(),providerFails:true});
+ expect((await h.run({setId:parent,questionId:qid,responseRevision:2})).status).toBeGreaterThanOrEqual(400);
+ expect(h.calls.some(c=>c.name==='finish_practice_response')).toBe(false);expect(h.calls.some(c=>c.name==='fail_practice_response')).toBe(true);
 });

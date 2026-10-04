@@ -46,6 +46,15 @@ export function validateBiologyPlan(rows: CandidatePart[], plan?: PaperPlan | nu
       try{singleChoiceKey(row);}catch(error){push(`Q${number}: ${(error as Error).message}`, 'invalid_options');}
     }
     const resources = resolveQuestionResources(row);
+    if(plan.courseId===OCR_ALEVEL_BIOLOGY_ID && plan.paperId==='paper_2') {
+      // Canonical projection is not permission to accept answer-bearing model
+      // resources. Refuse private fields even when a renderer would ignore them.
+      const privateResourceField=(value:unknown):boolean => {
+        if(!value || typeof value!=='object')return false;
+        return Object.entries(value).some(([key,v]) => /^(?:correct_answer|mark_scheme|solution|solutions|private_key|answer_key|completed_answers)$/i.test(key) || privateResourceField(v));
+      };
+      if(privateResourceField(row.diagram_config) || privateResourceField(row.chart_data))push(`Q${number} resource contains private marking or completed-answer fields.`, 'invalid_resource');
+    }
     if(resources.essay && expected.resource!=='essay_choice')push(`Q${number} is not the planned essay.`, 'invalid_resource');
     if(expected.resource==='essay_choice'){
       if(!resources.essay)push(`Q${number} needs both saved essay titles.`, 'missing_required_resource');
