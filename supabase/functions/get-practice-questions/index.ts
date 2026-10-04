@@ -2360,7 +2360,7 @@ Generate questions that are meaningfully different from all of the above.`;
     }
 
 
-    for (const q of questions) {
+    for (const q of questions as any[]) {
       const hasBrokenRef = hasBrokenDiagramReference(q.question_text || '', q.diagramConfig, q.chart_data ?? q.options);
       if (!hasBrokenRef) continue;
 
@@ -2390,7 +2390,7 @@ Generate questions that are meaningfully different from all of the above.`;
     // the discrete path mode by stripping conflicting data and ensuring
     // expectedPath exists for non-math graph_plotting questions.
     if (!isMathSubject) {
-      for (const q of questions) {
+      for (const q of questions as any[]) {
         if (q.question_type !== 'graph_plotting') continue;
         
         let graphData: any = null;

@@ -387,7 +387,7 @@ export function assertBiologyPlanIntegrity(plan: PaperPlan, pack = packForBiolog
     if (!['none', 'data_table', 'graph', 'diagram', 'passage', 'essay_choice'].includes(part.resource)) reject('unknown resource type');
     if (part.resource !== 'none') {
       if (!part.resourceId || resources.has(part.resourceId)) reject('missing or duplicate resource identity');
-      resources.add(part.resourceId);
+      if (part.resourceId) resources.add(part.resourceId);
     }
   }
   if (!plan.parts.length || plan.partCount !== plan.parts.length || plan.parentCount !== new Set(plan.parts.map(p => p.parentId)).size) reject('part or parent count mismatch');

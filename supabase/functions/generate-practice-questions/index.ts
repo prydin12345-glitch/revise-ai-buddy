@@ -11,7 +11,7 @@ import { validateGraphQuestion, generateFallbackGraphSpec, logGraphValidation, p
 import { getRegionalPersona, getRegionAwareSubjectInstructions, getExamHardeningRules } from "../_shared/regional-personas.ts";
 import { buildGenerationContext, formatGenerationContextPrompt } from "../_shared/generation-context.ts";
 import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyInstruction } from "../_shared/copyright-rules.ts";
-import { translateExamBoard, getBoardMarkSchemeStyle, MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildCircuitInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
+import { translateExamBoard, getBoardMarkSchemeStyle, MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildCircuitInstructions as buildCircuitRuleInstructions, buildPhysicsInstructions } from "../_shared/prompt-templates.ts";
 import { buildCacheKey, buildBaseCacheKey, isCacheEntryCompatible, shuffleArray } from "../_shared/cache-utils.ts";
 import { establishGenerationContext, assessmentTierPrompt } from "../_shared/profile-context.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
@@ -1414,7 +1414,7 @@ ${subjectGraphInstructions}
 ${MULTI_PART_GRAPH_INSTRUCTIONS}
 ${coursePracticeInstructions ? "" : buildBiologyInstructions(subjectName)}
 ${buildMathsInstructions(subjectName)}
-${needsCircuitRules(detectSubject(subjectName), setData.subtopics || []) ? buildCircuitInstructions() : ''}
+${needsCircuitRules(detectSubject(subjectName), setData.subtopics || []) ? buildCircuitRuleInstructions() : ''}
 ${detectSubject(subjectName).usePhysicsDiagramInstructions ? buildPhysicsInstructions() : ''}
 ${resourcePackContext}
 
@@ -2625,7 +2625,7 @@ Generate questions that are meaningfully different from all of the above.`;
 
     // Circuit config validation (parity with the exam extractor): repair or
     // drop unrenderable circuits before they reach a student.
-    for (const q of questions) {
+    for (const q of questions as any[]) {
       const cfg = q.diagramConfig ?? q.diagram_config;
       if (!cfg || (cfg.type && cfg.type !== 'circuit')) continue;
       const result = validateCircuitConfig(cfg);
@@ -2644,7 +2644,7 @@ Generate questions that are meaningfully different from all of the above.`;
       }
     }
 
-    for (const q of questions) {
+    for (const q of questions as any[]) {
       const hasBrokenRef = hasBrokenDiagramReference(q.question_text || '', q.diagramConfig, q.chart_data ?? q.options);
       if (!hasBrokenRef) continue;
 
@@ -2674,7 +2674,7 @@ Generate questions that are meaningfully different from all of the above.`;
     // the discrete path mode by stripping conflicting data and ensuring
     // expectedPath exists for non-math graph_plotting questions.
     if (!isMathSubject) {
-      for (const q of questions) {
+      for (const q of questions as any[]) {
         if (q.question_type !== 'graph_plotting') continue;
         
         let graphData: any = null;
