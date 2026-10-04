@@ -1,6 +1,6 @@
 import { validateBiologyPlan } from './biology-plan-validator.ts';
 import { biologyRepairInstructions, packForBiologyPlan } from './biology-course-packs.ts';
-import { analyseGroupRepair, type RepairDiagnostic, type RepairMode, type RepairResult } from './prepare-group-repair.ts';
+import { analyseGroupRepair, repairNumberKey, type RepairDiagnostic, type RepairMode, type RepairResult } from './prepare-group-repair.ts';
 import { biologyScopeInstructions, type BiologyScope } from './gcse-biology-scope.ts';
 import type { PaperPlan } from './biology-paper-contract.ts';
 import { isMcqType } from './model-question-normalization.ts';
@@ -25,7 +25,8 @@ export const describeRepairDiagnostics = (items: RepairDiagnostic[]): string => 
 
 export function buildQuestionRepairPrompt(input: RepairRequest): string {
   const taskOnly = input.mode === 'task_only';
-  const sample = input.group.find(row => Number(row.marks) > 0);
+  const targets = new Set([...input.targetNumbers].map(repairNumberKey));
+  const sample = input.group.find(row => Number(row.marks) > 0 && (!taskOnly || targets.has(repairNumberKey(row.question_number))));
   const essay = input.plan?.parts.some(p => p.resource === 'essay_choice' && input.group.some(row => String(row.question_number) === p.questionNumber));
   const comprehension = input.plan?.parts.some(p => p.resource === 'passage' && input.group.some(row => String(row.question_number) === p.questionNumber));
   const levelScheme = input.plan ? packForBiologyPlan(input.plan).validation.levelSchemeAtMarks : 6;
@@ -41,6 +42,7 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
   return [
     taskOnly ? 'Repair the missing assessed tasks for the named parts only. Original context, data and other siblings must remain unchanged.'
       : 'Repair the COMPLETE parent group, including every sibling, resource and private mark scheme.',
+    'OUTPUT ENVELOPE: Return one JSON object with a non-empty "parts" array, even for one target. Each entry is one explicitly numbered repair. Do not return a bare part, a numbered dictionary or an empty array.',
     `Subject: ${input.subject}. Board: ${input.scope.examBoard ?? 'unchanged'}. Qualification: ${input.scope.educationalLevel ?? 'unchanged'}.`,
     biologyScopeInstructions(input.scope),
     'Blocking defects: ' + input.defects,
@@ -54,7 +56,7 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     essay ? 'Keep the 25-mark essay holistic; do not replace its private structured scheme with point counts or GCSE bands.' : levelScheme === 6
       ? 'correct_answer must be a plain string. For any 6-mark extended-response part the string must contain "Level 1 (1-2 marks):", "Level 2 (3-4 marks):" and "Level 3 (5-6 marks):" descriptors plus indicative content.'
       : 'correct_answer must contain the task-specific marking points, numerical working where relevant, acceptable alternatives and caps for the saved mark allocation. Do not add a GCSE three-level scheme.',
-    taskOnly ? 'Return ONLY question_number, task and correct_answer for the targets. Do not emit a new context, table, graph, options or unrelated siblings.'
+    taskOnly ? 'Each entry in "parts" must contain only question_number, task and correct_answer for a target. Do not emit a new context, table, graph, options or unrelated siblings.'
       : 'Return every sibling. For context-only unmarked parents, retain context and zero marks. For scored parts return context, task and correct_answer.',
     taskOnly ? '' : essay ? 'Return the two public titles as biology_essay_choice in diagram_config, with no answer content. Rebuild both matching private schemes in correct_answer. Do not substitute a table or create two scored rows.' : comprehension
       ? 'Keep ONE coherent original comprehension passage for this group. Return its full biology_comprehension payload on (a) and matching biology_comprehension_ref payloads on siblings, using diagram_config. All tasks and rewritten keys must agree with that source. Do not substitute a table or lose its paragraph numbering.'
@@ -65,7 +67,7 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
       : 'For every MCQ row return an options array of exactly four distinct non-empty choices (plain text, no A./B. prefixes) plus a correct_answer that matches one of them exactly. Never omit or null the options.',
     'Put mathematics inside $...$.',
     biologyRepairInstructions(input.plan, new Set(input.group.map(row => String(row.question_number))), !taskOnly),
-    taskOnly ? 'TASK-ONLY OUTPUT: the plan above is context, not an instruction to replace resources. Return ONLY question_number, task and correct_answer for the targets.'
+    taskOnly ? 'TASK-ONLY OUTPUT: the plan above is context, not an instruction to replace resources. Return {"parts":[...]} with question_number, task and correct_answer in each target entry.'
       : 'FULL-GROUP OUTPUT: use diagram_config for the repaired canonical resource, even where generation instructions above say chart_data. Return every sibling and every planned resource. A resource=none part may instead be rewritten to remove a dependency, but its task must remain answerable and its key must be rewritten too.',
     taskOnly ? '' : 'RESOURCE CHECKLIST:\n' + resourceChecklist.join('\n'),
     taskOnly ? '' : plannedResourceTypeNotes(input.plan?.parts.filter(p => input.group.some(row => String(row.question_number) === p.questionNumber)) ?? [], 'diagram_config'),
@@ -103,7 +105,23 @@ export async function requestQuestionRepair(input: RepairRequest, apiKey: string
   let parsed: any;
   try { parsed = JSON.parse(content); }
   catch { return failure('parse', 'invalid_json', 'Repair content is not complete JSON.'); }
-  const parts = Array.isArray(parsed) ? parsed : parsed?.parts ?? parsed?.questions;
+  const object = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  const containers = ['parts', 'questions'].filter(field => object?.[field] != null);
+  if (containers.length > 1 || (containers.length && object?.question_number != null)) {
+    return failure('parse', 'ambiguous_response_shape', 'Return one parts array, not competing repair containers or both an envelope and a numbered part.');
+  }
+  const candidate = containers.length ? object[containers[0]] : parsed;
+  // A provider sometimes returns the requested entry without its array wrapper.
+  // Wrap only an explicitly numbered object, losslessly; never infer a number
+  // from the target, dictionary keys, array position or an unrelated wrapper.
+  const numbered = candidate && typeof candidate === 'object' && !Array.isArray(candidate)
+    && ((typeof candidate.question_number === 'string' && candidate.question_number.trim())
+      || (typeof candidate.question_number === 'number' && Number.isFinite(candidate.question_number)));
+  const parts = Array.isArray(candidate) ? candidate : numbered ? [candidate] : null;
+  if (!parts?.length) {
+    const shape = candidate === null ? 'null' : Array.isArray(candidate) ? 'empty array' : typeof candidate;
+    return failure('parse', 'invalid_response_shape', `Expected a non-empty parts array of explicitly numbered repairs, even for one target. Received ${containers.length ? containers[0] + ': ' : ''}${shape}; no numbered repairs found.`);
+  }
   const requiredParts = new Set((input.plan?.parts ?? []).filter(p => p.resource !== 'none').map(p => p.questionNumber));
   const result = analyseGroupRepair(input.group, parts, input.scope, requiredParts, input.targetNumbers, input.mode);
   if (result.ok && input.plan) {
