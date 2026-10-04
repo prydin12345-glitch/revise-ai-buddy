@@ -6,6 +6,7 @@ import type { PaperPlan } from './biology-paper-contract.ts';
 import { isMcqType } from './model-question-normalization.ts';
 import { assembleQuestionText, referencesResource } from './question-contract-validator.ts';
 import { questionResourceInstructions } from './question-resource-instructions.ts';
+import { plannedResourceTypeNotes } from './planned-resource-types.ts';
 
 export interface RepairRequest {
   group: any[];
@@ -67,6 +68,8 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     taskOnly ? 'TASK-ONLY OUTPUT: the plan above is context, not an instruction to replace resources. Return ONLY question_number, task and correct_answer for the targets.'
       : 'FULL-GROUP OUTPUT: use diagram_config for the repaired canonical resource, even where generation instructions above say chart_data. Return every sibling and every planned resource. A resource=none part may instead be rewritten to remove a dependency, but its task must remain answerable and its key must be rewritten too.',
     taskOnly ? '' : 'RESOURCE CHECKLIST:\n' + resourceChecklist.join('\n'),
+    taskOnly ? '' : plannedResourceTypeNotes(input.plan?.parts.filter(p => input.group.some(row => String(row.question_number) === p.questionNumber)) ?? [], 'diagram_config'),
+    taskOnly ? '' : 'Every scored part MUST have a non-empty "task" field holding its assessed instruction (for example "Calculate ...", "Explain ..."), separate from "context". Do not leave task empty or put the instruction only inside question_text.',
     taskOnly ? '' : questionResourceInstructions('diagram_config'),
     'Planned parts: ' + JSON.stringify(input.plan?.parts.filter(p => input.group.some(row => String(row.question_number) === p.questionNumber)) ?? []),
     'Current group: ' + JSON.stringify(input.group.map(row => ({ question_number: row.question_number,

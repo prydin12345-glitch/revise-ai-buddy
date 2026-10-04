@@ -7,6 +7,7 @@ import { expandComprehensionReferences } from '../_shared/biology-comprehension.
 import { isAqaPaper2 } from "../_shared/aqa-biology-paper2.ts";
 import { paperPlanForAttempt } from "../_shared/course-selection.ts";
 import { biologyPlanInstructions, biologyBatchInstructions, packForBiologyPlan } from "../_shared/biology-course-packs.ts";
+import { plannedResourceTypeNotes } from "../_shared/planned-resource-types.ts";
 import { AiCallBudget, AiBudgetExhaustedError, usageTokens } from "../_shared/ai-call-budget.ts";
 import { plannedPartKey, salvageTruncatedQuestions, planGroupBatches, mergeBatchRows, missingPlannedParts, describeRejections } from "../_shared/guided-batching.ts";
 import { requestQuestionRepair, saveQuestionRepairs, describeRepairDiagnostics } from '../_shared/question-repair.ts';
@@ -2856,9 +2857,11 @@ async function generateGuidedPaper(
 
   const runBatch = async (batch: any[], label: string): Promise<number> => {
     const siblings = siblingsFor(batch);
-    const prompt = (batches.length === 1 && !siblings.length)
+    const basePrompt = (batches.length === 1 && !siblings.length)
       ? wholePaperPrompt
       : biologyBatchInstructions(plan, batch, { siblings }) + '\n' + promptSuffix;
+    const typeNotes = plannedResourceTypeNotes(batch);
+    const prompt = typeNotes ? `${basePrompt}\n${typeNotes}` : basePrompt;
     let data: any;
     try {
       data = await callAI(apiKey, systemPrompt, prompt, hasResourcePack, aiBudget, label);

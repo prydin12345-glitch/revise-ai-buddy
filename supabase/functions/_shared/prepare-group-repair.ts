@@ -27,13 +27,22 @@ const stable = (value: any): string => JSON.stringify(value === undefined ? null
     ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item);
 
 /** Models label the instruction inconsistently; accept the usual aliases. */
-const readRepairTask = (part: any, originalText = ''): string => {
+const readRepairTask = (part: any, originalText = '', mode: RepairMode = 'task_only'): string => {
   const explicit = readQuestionTask(part);
   if (explicit) return explicit;
   const text = typeof part?.question_text === 'string' ? part.question_text.trim() : '';
   if (text && originalText && text.startsWith(originalText.trim())) {
     const suffix = text.slice(originalText.trim().length).trim();
     if (suffix) return suffix;
+  }
+  // A complete group rewrite often returns the whole stem in question_text with
+  // no separate task field. Take the final paragraph that is itself a genuine
+  // assessed instruction; background-only text still fails the gate.
+  if (mode === 'full_group' && text) {
+    const paragraphs = text.split(/\n\s*\n|\n/).map((p: string) => p.trim()).filter(Boolean);
+    for (let i = paragraphs.length - 1; i >= 0; i--) {
+      if (hasAssessedTask(paragraphs[i])) return paragraphs[i];
+    }
   }
   return '';
 };
@@ -93,7 +102,7 @@ export function analyseGroupRepair(
     if (!part) { fail('missing_part', 'Required repaired part was not returned.', number); continue; }
     const scored = Number(row.marks ?? 0) > 0;
     const rowText = assembleQuestionText(row);
-    const task = readRepairTask(part, rowText);
+    const task = readRepairTask(part, rowText, mode);
     if (scored && !hasAssessedTask(task)) {
       fail('missing_task', `Return a separately stated task with an assessed instruction. Received: "${task.slice(0, 120)}"`, number); continue;
     }
