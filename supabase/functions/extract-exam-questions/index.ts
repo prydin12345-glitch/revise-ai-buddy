@@ -3217,7 +3217,7 @@ async function enforceAnswerability(
     const outcome = await requestQuestionRepair({
       group, subject, scope, plan, defects: describeDefects(groupDefects, group),
       mode: taskOnly && !escalate ? 'task_only' : 'full_group',
-      targetNumbers: escalate ? new Set<string>(group.map((row: any) => String(row.question_number))) : failedNumbers,
+      targetNumbers: escalate ? new Set<string>(group.map((row: any) => String(row.question_number))) : failedNumbers as Set<string>,
       previousDiagnostics: lastRejections[groupId],
     }, apiKey);
 
