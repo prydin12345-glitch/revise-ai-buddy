@@ -113,6 +113,26 @@ describe('merging batch rows', () => {
     expect(plannedPartKey('1a')).toBe('1(a)');
     expect(plannedPartKey('12')).toBe('12');
   });
+
+  it('stores the exact authored label and group for an explicitly matched Q-prefixed row without changing its data', () => {
+    const produced = new Map<string, any>();
+    const row = {question_number: 'Q 1 (A)', root_question_number: 'Q1', parent_question_number: 'Q1',
+      question_text: 'Calculate the mean.', marks: 2, correct_answer: '4', chart_data: {type: 'data_table', headers: ['Count'], rows: [[4]]}};
+    const before = structuredClone(row);
+    const result = mergeBatchRows(produced, [row], [part('1(a)')], currentPlan);
+    expect(result.rejections).toEqual([]);
+    expect(produced.get('1(a)')).toEqual({...row, question_number: '1(a)', root_question_number: '1', parent_question_number: '1'});
+    expect(row).toEqual(before);
+  });
+
+  it('never canonicalises an unknown number into a missing planned position', () => {
+    const produced = new Map<string, any>();
+    const result = mergeBatchRows(produced, [{question_number: 'Q9(a)', question_text: 'Calculate the mean.', marks: 2}], [part('1(a)')], currentPlan);
+    expect(result.added).toBe(0);
+    expect(result.rejections[0].code).toBe('unplanned_part');
+    expect(produced.size).toBe(0);
+    expect(missingPlannedParts(currentPlan, produced)).toHaveLength(3);
+  });
 });
 
 describe('shared provider-call budget', () => {

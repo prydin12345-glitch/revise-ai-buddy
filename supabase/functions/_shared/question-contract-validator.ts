@@ -373,7 +373,11 @@ export function validateQuestionCandidates(
   return { defects, failedPartIds, failedGroupIds, ok: defects.length === 0 };
 }
 
+/** Model numbering may already include Q; diagnostics add it exactly once. */
+export const questionLabel = (value: unknown): string =>
+  `Q${String(value ?? '').trim().replace(/^Q\s*(?=\d)/i, '')}`;
+
 export const describeDefects = (defects: QuestionDefect[], parts: CandidatePart[] = []): string => {
   const numbers = new Map(parts.map((part, index) => [partIdOf(part, index), part.question_number]));
-  return defects.map((d) => `${numbers.get(d.partId) ? `Q${numbers.get(d.partId)} [${d.partId}]` : d.partId}: ${d.code} — ${d.detail}`).join("; ");
+  return defects.map((d) => `${numbers.get(d.partId) ? `${questionLabel(numbers.get(d.partId))} [${d.partId}]` : d.partId}: ${d.code} — ${d.detail}`).join("; ");
 };
