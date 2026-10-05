@@ -15,8 +15,9 @@ export function buildPaperPlan(
   tier: PaperPlan['tier'],
   courseId: string = AQA_BIOLOGY_P1.courseId,
   paperId?: string | null,
+  contractVersion?: number,
 ): PaperPlan | null {
-  const pack = getBiologyPaperPack(courseId, paperId);
+  const pack = getBiologyPaperPack(courseId, paperId, contractVersion);
   if (!pack) throw new Error('This course does not have a guided Biology paper yet.');
   if (!['custom', 'short_practice', 'full_mock'].includes(mode)) throw new Error('Unknown Biology paper mode.');
   if (tier !== null && !pack.tiers.includes(tier)) throw new Error('Unsupported Biology assessment tier.');
@@ -37,6 +38,6 @@ export function supportsBiologyPaperContract(input: {
   return !!course && course.generationAvailable !== false && !!getBiologyPaperPack(course.id, input.paperId);
 }
 
-export function biologyPaperDefinition(courseId: string | null, tier: PaperPlan['tier'], paperId?: string | null) {
-  return getBiologyPaperPack(courseId, paperId)?.definition(tier) ?? null;
+export function biologyPaperDefinition(courseId: string | null, tier: PaperPlan['tier'], paperId?: string | null, contractVersion?: number) {
+  return getBiologyPaperPack(courseId, paperId, contractVersion)?.definition(tier) ?? null;
 }

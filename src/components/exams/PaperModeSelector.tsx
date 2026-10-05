@@ -17,6 +17,7 @@ interface PaperModeSelectorProps {
   onApplyPlan: (plan: NonNullable<ReturnType<typeof buildPaperPlan>>) => void;
   /** True when the current profile already matches the selected guided plan. */
   applied: boolean;
+  contractVersion?: number;
 }
 
 const MODES: Array<{ id: PaperMode; label: string; description: string }> = [
@@ -45,9 +46,10 @@ export function PaperModeSelector({
   onModeChange,
   onApplyPlan,
   applied,
+  contractVersion,
 }: PaperModeSelectorProps) {
-  const definition = biologyPaperDefinition(courseId ?? "aqa_gcse_biology", tier, paperId);
-  const plan = tier && definition ? buildPaperPlan(mode, tier, courseId ?? undefined, paperId) : null;
+  const definition = biologyPaperDefinition(courseId ?? "aqa_gcse_biology", tier, paperId, contractVersion);
+  const plan = tier && definition ? buildPaperPlan(mode, tier, courseId ?? undefined, paperId, contractVersion) : null;
 
   return (
     <div className="space-y-2 rounded-lg border border-border/60 p-3">

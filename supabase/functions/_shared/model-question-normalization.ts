@@ -1,4 +1,5 @@
 import {essayKeyObject} from './biology-essay-marking.ts';
+import { declaredStatementText } from './numbered-statements.ts';
 // Model-output adapters only. No AI calls, invented answers or relaxed gates.
 // Generation and repair must preserve the same content before validating it.
 const text = (value: unknown): string => typeof value === 'string' ? value.trim() : '';
@@ -17,11 +18,17 @@ export function readQuestionTask(raw: unknown): string {
 export function assembledModelText(raw: unknown): string {
   const part = record(raw);
   const context = text(part.context), task = readQuestionTask(part), displayed = text(part.question_text);
-  if (context && task) return context.endsWith(task) ? context : `${context}\n\n${task}`;
+  const statements = declaredStatementText(part.statements);
+  const includeStatements = (stem: string): string => {
+    if (!statements || stem.includes(statements)) return stem;
+    if (task && stem.endsWith(task)) return `${stem.slice(0, -task.length).trim()}\n\n${statements}\n\n${task}`.trim();
+    return `${stem}\n\n${statements}`.trim();
+  };
+  if (context && task) return includeStatements(context.endsWith(task) ? context : `${context}\n\n${task}`);
   // Some responses supply context and a complete question_text, but no task field.
   // Preserve that complete stem so the gate can inspect the actual instruction.
-  if (displayed && ((task && displayed.includes(task)) || (context && displayed.startsWith(context)))) return displayed;
-  return task || context || displayed;
+  if (displayed && ((task && displayed.includes(task)) || (context && displayed.startsWith(context)))) return includeStatements(displayed);
+  return includeStatements(task || context || displayed);
 }
 
 const optionLabel = (value: unknown): string | null => {

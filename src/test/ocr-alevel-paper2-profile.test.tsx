@@ -35,7 +35,7 @@ it.each(['full_mock','short_practice'] as const)('saves and reopens untiered OCR
   fireEvent.click(screen.getByRole('button',{name:'Update Profile'}));const args=save.mock.calls[0];
   expect(args[2]).toBe(plan.partCount);expect(args[4]).toBe(plan.durationMinutes);expect(args[5].assessmentTier).toBe('not_tiered');
   expect(args[5].mcqCount).toBe(mode==='full_mock'?15:5);expect(args[5].mcqPosition).toBe('start');expect(args[7].parentQuestionCount).toBe(plan.parentCount);expect(args[6]).toBe(mode==='full_mock'?28:6);
-  expect(args[5].paperBlueprint.paperContract).toEqual(snapshot.paper_contract);expect(args[5].paperBlueprint.courseSelection.paperId).toBe('paper_2');expect(screen.getByText(/Paper 2: Modules 1, 2, 4 and 6/)).toBeVisible();
+  expect(args[5].paperBlueprint.paperContract).toEqual({...snapshot.paper_contract,contractVersion:2});expect(args[5].paperBlueprint.courseSelection.paperId).toBe('paper_2');expect(screen.getByText(/Paper 2: Modules 1, 2, 4 and 6/)).toBeVisible();
   unmount();const next=editor({...base,topics:args[1],question_count:args[2],written_question_count:args[6],mcq_count:args[5].mcqCount,time_limit_minutes:args[4],assessment_tier:'not_tiered',paper_blueprint:args[5].paperBlueprint,question_structure:args[7].questionStructure});
   expect(screen.getByLabelText('Biology paper')).toHaveValue('paper_2');expect(screen.queryByText('Use these settings')).toBeNull();
   fireEvent.click(screen.getByRole('button',{name:'Update Profile'}));expect(next.save.mock.calls[0][5].mcqCount).toBe(args[5].mcqCount);
@@ -71,4 +71,22 @@ it('keeps OCR MCQ answer boxes above the footer after a data table',async()=>{
   const pdf=await generateExamPDF({title:'OCR pagination sample',subject:'Biology',generation_context:snapshot,questions:rows.slice(0,5) as any},{includeWorkingSpace:false});
   const positions=[...pdf.output().matchAll(/(-?[\d.]+) (-?[\d.]+) Td\n\(Your answer\)/g)].map(m=>Number(m[2])*25.4/72);
   expect(positions).toHaveLength(5);expect(positions.every(fromBottom=>fromBottom>=24)).toBe(true);
+});
+
+it('reopens and resaves a v1 Paper 2 profile unchanged, upgrading only after explicit reapplication',()=>{
+  const snapshot=ocrAlevelSnapshot(),bp={paperContract:snapshot.paper_contract,courseSelection:{courseId:OCR_ALEVEL_BIOLOGY_ID,paperId:'paper_2'}};
+  const {save}=editor({...base,assessment_tier:'not_tiered',paper_blueprint:bp});
+  fireEvent.click(screen.getByRole('button',{name:'Update Profile'}));
+  expect(save.mock.calls[0][5].paperBlueprint.paperContract.contractVersion).toBe(1);
+  fireEvent.click(screen.getByRole('button',{name:/^Full mock/}));fireEvent.click(screen.getByRole('button',{name:'Use these settings'}));
+  fireEvent.click(screen.getByRole('button',{name:'Update Profile'}));
+  expect(save.mock.calls[1][5].paperBlueprint.paperContract.contractVersion).toBe(2);
+});
+it('exports all three Q13 propositions and H420/02 labels for v2 without private marking text',async()=>{
+  const {ocrPaper2V2Fixture}=await import('../../supabase/tests/ocr-alevel-paper2-v2-fixtures');
+  const f=ocrPaper2V2Fixture(),q={...f.rows[12],correct_answer:'PRIVATE FERMENTATION KEY'};
+  const pdf=await generateExamPDF({title:'Revised Paper 2',generation_context:f.snapshot,questions:[q] as any},{includeWorkingSpace:false});
+  const content=pdf.output();expect(content).toContain('H420/02');expect(content).toContain('closed batch culture');expect(content).toContain('steady-state continuous culture');expect(content).toContain('aseptic conditions');expect(content).not.toContain('PRIVATE FERMENTATION KEY');
+  expect(gatewaySectionHeading(f.snapshot,'1')).toBe('Section A — Multiple choice (15 marks)');
+  expect(biologyPaperDisplay(f.snapshot)?.plan.contractVersion).toBe(2);
 });

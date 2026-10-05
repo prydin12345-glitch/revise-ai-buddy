@@ -12,6 +12,7 @@
 // never needs a question mark.
 
 import { resolveQuestionResources, type ResourceQuestion } from './question-resources.ts';
+import { statementCombinationIssue, statementTableText } from './numbered-statements.ts';
 import { biologyContentIssue, isGcseBiology, type BiologyScope } from './gcse-biology-scope.ts';
 import { assembledModelText, canonicalMcqAnswer, coerceMcqOptions, flattenAnswerKey, isMcqType, readAnswerKey, readQuestionTask } from './model-question-normalization.ts';
 export { coerceMcqOptions, flattenAnswerKey } from './model-question-normalization.ts';
@@ -25,6 +26,7 @@ export const CONTRACT_VERSION = 2;
 export type DefectCode =
   | "plan_mismatch"
   | "missing_task"
+  | "invalid_statements"
   | "missing_required_resource"
   | "missing_answer"
   | "answer_mismatch"
@@ -299,6 +301,10 @@ export function validateQuestionCandidates(
 
     // 2. Options
     const mcqOptions = type === "mcq" ? coerceMcqOptions(part) : null;
+    if (type === 'mcq') {
+      const statementIssue = statementCombinationIssue(`${displayed}\n${statementTableText(resources.table)}`, mcqOptions);
+      if (statementIssue) push('invalid_statements', statementIssue);
+    }
     if (type === "mcq" && (!mcqOptions || mcqOptions.length < 3 || mcqOptions.some(o => !o.trim()) || new Set(mcqOptions.map(words)).size !== mcqOptions.length)) {
       push("invalid_options", "Single-select MCQ needs at least 3 distinct non-empty options with unambiguous labels.");
     }
