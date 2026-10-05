@@ -24,7 +24,7 @@ export default function ActivityPanel({
   const hasMore = tab === "exams" ? mockExams.length > MAX_ROWS : quizzes.length > MAX_ROWS;
 
   return (
-    <section className="rounded-[20px] border border-border bg-card p-5 shadow-sm">
+    <section className="rounded-lg border border-border bg-card p-5 shadow-none">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-base font-bold">Recent Activity</h2>
         <button
@@ -36,7 +36,7 @@ export default function ActivityPanel({
       </div>
 
       {/* segmented toggle */}
-      <div className="inline-flex gap-1 rounded-[11px] border border-border bg-panel-2 p-1">
+      <div className="inline-flex gap-1 rounded-md border border-border bg-panel-2 p-1">
         <SegButton active={tab === "exams"} onClick={() => setTab("exams")} label="Mock Exams" count={mockExams.length} />
         <SegButton active={tab === "quizzes"} onClick={() => setTab("quizzes")} label="Practice Quizzes" count={quizzes.length} />
       </div>
@@ -65,12 +65,12 @@ function SegButton({
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-bold transition-colors ${
-        active ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30" : "text-muted-foreground hover:text-foreground"
+      className={`flex items-center gap-2 min-h-11 rounded-md px-3 py-2 text-[13px] font-bold transition-colors ${
+        active ? "bg-primary text-primary-foreground shadow-none" : "text-muted-foreground hover:text-foreground"
       }`}
     >
       {label}
-      <span className={`rounded-full px-1.5 text-[11px] font-bold ${active ? "bg-white/20 text-white" : "bg-white/[0.06] text-muted-foreground"}`}>
+      <span className={`rounded-full px-1.5 text-[11px] font-bold ${active ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"}`}>
         {count}
       </span>
     </button>
@@ -81,7 +81,7 @@ function scoreChipClass(score: number): string {
   if (score >= 70) return "bg-success/15 text-success";
   if (score >= 40) return "bg-warning/15 text-warning";
   if (score > 0) return "bg-danger/15 text-danger";
-  return "bg-white/[0.06] text-muted-foreground";
+  return "bg-muted text-muted-foreground";
 }
 
 const STATUS_LABEL: Record<MockExam["status"], string> = {
@@ -96,21 +96,21 @@ function ExamRow({ exam, onClick }: { exam: MockExam; onClick: () => void }) {
       onClick={onClick}
       className="group flex items-center gap-3.5 border-b border-border px-2 py-3.5 text-left transition-colors last:border-0 hover:bg-panel-2"
     >
-      <span className="h-[34px] w-[3px] flex-none rounded-full" style={{ background: exam.color }} />
+      <span className="h-2 w-2 flex-none rounded-full" style={{ background: exam.color }} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-bold">{exam.title}</span>
-        <span className="mt-0.5 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+        <span className="block break-words text-sm font-semibold leading-snug">{exam.title}</span>
+        <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-muted-foreground">
           {exam.subject}
           <span className="h-[3px] w-[3px] rounded-full bg-muted-foreground" />
           {exam.when}
         </span>
       </span>
       {exam.status === "not-started" ? (
-        <span className="flex-none rounded-full bg-white/[0.06] px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+        <span className="flex-none rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
           {STATUS_LABEL[exam.status]}
         </span>
       ) : (
-        <span className={`flex-none rounded-[9px] px-2.5 py-1.5 text-[12.5px] font-extrabold tabular-nums ${scoreChipClass(exam.score)}`}>
+        <span className={`flex-none rounded-md px-2.5 py-1.5 text-[12.5px] font-extrabold tabular-nums ${scoreChipClass(exam.score)}`}>
           {exam.score}%
         </span>
       )}
@@ -125,11 +125,11 @@ function QuizRow({ quiz, onClick }: { quiz: Quiz; onClick: () => void }) {
       onClick={onClick}
       className="group flex items-center gap-3.5 border-b border-border px-2 py-3.5 text-left transition-colors last:border-0 hover:bg-panel-2"
     >
-      <span className="h-[34px] w-[3px] flex-none rounded-full" style={{ background: quiz.color }} />
+      <span className="h-2 w-2 flex-none rounded-full" style={{ background: quiz.color }} />
       <MiniRing value={quiz.best ?? 0} color={quiz.color} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-bold">{quiz.title}</span>
-        <span className="mt-0.5 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+        <span className="block break-words text-sm font-semibold leading-snug">{quiz.title}</span>
+        <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-muted-foreground">
           {quiz.subject}
           <span className="h-[3px] w-[3px] rounded-full bg-muted-foreground" />
           {quiz.questions} questions
@@ -141,7 +141,7 @@ function QuizRow({ quiz, onClick }: { quiz: Quiz; onClick: () => void }) {
           )}
         </span>
       </span>
-      <span className="flex-none rounded-[9px] bg-primary/15 px-3.5 py-1.5 text-[12.5px] font-bold text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+      <span className="flex-none rounded-md bg-primary/15 px-3.5 py-1.5 text-[12.5px] font-bold text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
         {quiz.best == null ? "Start" : "Retry"}
       </span>
     </button>

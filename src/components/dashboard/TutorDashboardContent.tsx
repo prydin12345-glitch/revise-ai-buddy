@@ -139,7 +139,7 @@ export const TutorDashboardContent = () => {
     <>
     <div className="max-w-[1600px] mx-auto space-y-6">
       {/* Stats Row - Compact icon+number style */}
-      <div className="flex flex-wrap items-center gap-6 p-4 rounded-xl bg-card/30 border border-border/50">
+      <div className="flex flex-wrap items-center gap-6 p-4 rounded-xl bg-card border border-border">
         {statItems.map((stat, index) => (
           <Tooltip key={index}>
             <TooltipTrigger asChild>
@@ -175,7 +175,7 @@ export const TutorDashboardContent = () => {
       </div>
 
       {/* Student Groups */}
-      <Card className="shadow-lg rounded-2xl">
+      <Card className="shadow-none rounded-lg">
         <CardHeader className="border-b border-border">
           <CardTitle className="flex items-center justify-between text-xl font-bold">
             <span>Your Student Groups</span>
@@ -226,7 +226,7 @@ export const TutorDashboardContent = () => {
       </Card>
 
       {/* Recent Exams - Improved UI */}
-      <Card className="shadow-lg rounded-2xl">
+      <Card className="shadow-none rounded-lg">
         <CardHeader className="border-b border-border">
           <CardTitle className="flex items-center justify-between text-xl font-bold">
             <span>Your Exams</span>

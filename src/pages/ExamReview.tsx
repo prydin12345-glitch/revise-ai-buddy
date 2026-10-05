@@ -412,7 +412,7 @@ const ExamReview = () => {
         </div>
       ) : (
         <div className="rounded-xl border border-border bg-[hsl(var(--surface-panel-2))] p-4">
-          <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1">Your score</div>
+          <div className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground mb-1">Your score</div>
           <div className="flex items-baseline gap-2">
             <span className={`font-serif text-4xl font-bold leading-none ${pctTone}`}>{Math.round(percentage)}%</span>
             <span className="text-[11px] font-mono text-muted-foreground">
@@ -436,7 +436,7 @@ const ExamReview = () => {
               <button
                 key={chip.key}
                 onClick={() => setFilter(chip.key)}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${
+                className={`min-h-10 px-2.5 py-2 rounded-md text-xs font-semibold border transition-all ${
                   active ? chip.active : 'text-muted-foreground bg-transparent border-border hover:bg-[hsl(var(--surface-hover))]'
                 }`}
               >
@@ -447,7 +447,7 @@ const ExamReview = () => {
           <button
             onClick={jumpToNextMistake}
             disabled={counts.lost + counts.partial === 0}
-            className="w-full mt-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-semibold border border-danger/40 text-danger bg-danger/5 hover:bg-danger/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full min-h-10 mt-1 inline-flex items-center justify-center gap-1 px-2.5 py-2 rounded-md text-xs font-semibold border border-danger/40 text-danger bg-danger/5 hover:bg-danger/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Next mistake <ArrowDown className="w-3 h-3" />
           </button>
@@ -457,7 +457,7 @@ const ExamReview = () => {
       {/* Where you lost marks */}
       {!scoresHidden && lostByTopic.length > 0 && (
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-2">
+          <div className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground mb-2">
             Where you lost marks
           </div>
           <div className="space-y-1.5">
@@ -479,7 +479,7 @@ const ExamReview = () => {
 
       {/* Question navigator grid */}
       <div>
-        <h2 className="text-[10px] font-bold uppercase tracking-[0.12em] mb-3 text-muted-foreground">Questions</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-[0.08em] mb-3 text-muted-foreground">Questions</h2>
         <div className="grid grid-cols-4 gap-2">
           {questions.map((q) => {
             const answer = answers[q.id];
@@ -488,7 +488,7 @@ const ExamReview = () => {
                 <button
                   key={q.id}
                   onClick={() => scrollToQuestion(q.id)}
-                  className="aspect-square rounded-lg flex items-center justify-center font-serif text-sm font-semibold transition-all hover:scale-105 bg-[hsl(var(--surface-hover))] text-muted-foreground"
+                  className="aspect-square rounded-lg flex items-center justify-center font-serif text-sm font-semibold transition-all hover:border-border-strong bg-[hsl(var(--surface-hover))] text-muted-foreground"
                 >
                   {q.question_number}
                 </button>
@@ -503,8 +503,9 @@ const ExamReview = () => {
               <button
                 key={q.id}
                 onClick={() => scrollToQuestion(q.id)}
-                className={`aspect-square rounded-lg flex items-center justify-center font-serif text-sm font-semibold transition-all hover:scale-105 ${cls}`}
+                className={`aspect-square rounded-lg flex items-center justify-center font-serif text-sm font-semibold transition-all hover:border-border-strong ${cls}`}
                 title={answer ? `Score: ${Math.round(answer.score)}/${q.marks}` : 'Not answered'}
+                aria-label={`Question ${q.question_number}: ${s}`}
               >
                 {q.question_number}
               </button>
@@ -524,9 +525,9 @@ const ExamReview = () => {
 
 
   return (
-    <div className="min-h-screen flex flex-col bg-[hsl(var(--surface-panel))]">
+    <div className="examly-review min-h-screen flex flex-col bg-background">
       {/* Top Bar */}
-      <div className="sticky top-0 z-50 border-b border-border bg-[hsl(var(--surface-panel))]/95 backdrop-blur supports-[backdrop-filter]:bg-[hsl(var(--surface-panel))]/80">
+      <div className="sticky top-0 z-50 border-b border-border bg-card">
         <div className="flex items-center justify-between h-14 px-3 sm:px-6">
           <div className="flex items-center gap-2">
             {isMobile && (
@@ -581,7 +582,7 @@ const ExamReview = () => {
 
         {/* Main Panel */}
         <div className="flex-1 overflow-y-auto scroll-themed">
-          <div className="max-w-4xl mx-auto py-4 sm:py-8 px-3 sm:px-6 space-y-5 sm:space-y-6">
+          <div className="max-w-3xl mx-auto py-4 sm:py-8 px-3 sm:px-6 space-y-5 sm:space-y-6">
             {insertFigures.length > 0 && (
               <div className="rounded-xl border border-border bg-[hsl(var(--surface-panel))]">
                 <InsertPanel figures={insertFigures} />
@@ -625,7 +626,7 @@ const ExamReview = () => {
                   )}
                 <Card 
                   ref={(el) => questionRefs.current[question.id] = el}
-                  className={`p-4 sm:p-6 bg-[hsl(var(--surface-panel))] border-l-4 ${cardBorder}`}
+                  className={`p-4 sm:p-6 bg-card border ${cardBorder}`}
                 >
                   {/* Marked-paper question header */}
                   <div className="flex items-start gap-3 sm:gap-4 mb-4">
@@ -836,7 +837,7 @@ const ExamReview = () => {
                   {/* For non-MCQ, show answer section */}
                   {!isMcq && (
                   <div>
-                    <div className="text-[10px] font-bold uppercase tracking-[0.12em] mb-1.5 text-muted-foreground">Your response</div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.08em] mb-1.5 text-muted-foreground">Your response</div>
                     <div className={`bg-[hsl(var(--surface-panel-2))] border-l-2 ${
                       s === 'correct' ? 'border-l-success' : s === 'lost' ? 'border-l-danger' : s === 'partial' ? 'border-l-warning' : 'border-l-border'
                     } rounded-r-md px-3 py-2 space-y-3`}>
@@ -931,7 +932,7 @@ const ExamReview = () => {
                   {/* Non-MCQ correct answer */}
                   {!isMcq && !scoresHidden && s !== 'correct' && (
                     <div>
-                      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-success mb-1.5">Mark scheme</div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.08em] text-success mb-1.5">Mark scheme</div>
                       <div className="px-3 py-2 rounded-md bg-success/10 border border-success/20">
                         {(() => {
                           if (isTickXTable(question.question_text) && question.correct_answer) {
@@ -1092,7 +1093,7 @@ const ExamReview = () => {
 
                     {!scoresHidden && answer?.feedback && (
                       <div>
-                        <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1.5">Examiner's note</div>
+                        <div className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground mb-1.5">Examiner's note</div>
                         <div className="border border-dashed border-border rounded-md px-3 py-2 text-sm text-foreground/85 leading-snug flex items-start gap-2">
                           <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" />
                           <span>{answer.feedback}</span>
@@ -1105,7 +1106,7 @@ const ExamReview = () => {
                       <div className="border border-dashed border-border rounded-md px-3 py-2 flex items-start gap-2.5">
                         <Lightbulb className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                         <div>
-                          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-0.5">Quick insight</p>
+                          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground mb-0.5">Quick insight</p>
                           <p className="text-xs leading-relaxed text-foreground/85">{question.rationale}</p>
                         </div>
                       </div>

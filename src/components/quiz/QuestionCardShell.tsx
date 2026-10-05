@@ -92,7 +92,7 @@ export const QuestionCardShell: React.FC<QuestionCardShellProps> = ({
               <button
                 type="button"
                 aria-label="Question details"
-                className="ml-auto inline-flex items-center justify-center rounded-full w-6 h-6 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="ml-auto -my-2 inline-flex items-center justify-center rounded-md w-11 h-11 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
                 <Info className="w-3.5 h-3.5" />
               </button>

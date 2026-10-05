@@ -40,11 +40,11 @@ export default function MobileSpeedDial({ onCreateExam, onCreateQuiz, onAskAI, a
       {/* backdrop */}
       <div
         onClick={() => setOpen(false)}
-        className={`fixed inset-0 z-[54] bg-black/45 transition-opacity duration-200 ${
+        className={`fixed inset-0 z-[44] bg-black/45 transition-opacity duration-200 ${
           open ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       />
-      <div className="fixed bottom-[104px] right-[18px] z-[55] h-14 w-14 md:bottom-6">
+      <div className="fixed bottom-[104px] right-[18px] z-[45] h-14 w-14 md:bottom-6">
         {opts.map((o, i) => {
           const Icon = o.icon;
           return (
@@ -57,7 +57,7 @@ export default function MobileSpeedDial({ onCreateExam, onCreateQuiz, onAskAI, a
                 transitionDelay: `${open ? i * 45 : (opts.length - 1 - i) * 30}ms`,
                 pointerEvents: open ? "auto" : "none",
               }}
-              className={`absolute bottom-1 right-1 z-[2] grid h-12 w-12 place-items-center rounded-2xl text-white shadow-xl transition-[transform,opacity] duration-[380ms] ${o.className}`}
+              className={`absolute bottom-1 right-1 z-[2] grid h-12 w-12 place-items-center rounded-2xl text-white shadow-xl transition-[transform,opacity] duration-300 ${o.className}`}
             >
               <span className="pointer-events-none absolute right-[calc(100%+12px)] top-1/2 -translate-y-1/2 whitespace-nowrap rounded-[10px] border border-border bg-[hsl(var(--popover)/0.96)] px-2.5 py-1.5 text-xs font-extrabold text-foreground shadow-lg">
                 {o.label}
@@ -74,7 +74,7 @@ export default function MobileSpeedDial({ onCreateExam, onCreateQuiz, onAskAI, a
         {/* main button */}
         <button
           onClick={() => setOpen((v) => !v)}
-          className={`absolute bottom-0 right-0 z-[3] grid h-14 w-14 place-items-center rounded-[19px] bg-primary text-primary-foreground shadow-xl shadow-primary/40 transition-transform duration-300 ${
+          className={`absolute bottom-0 right-0 z-[3] grid h-14 w-14 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm transition-transform duration-300 ${
             open ? "rotate-45" : ""
           }`}
         >

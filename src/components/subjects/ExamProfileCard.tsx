@@ -42,25 +42,25 @@ export const ExamProfileCard = ({ profile, subjectName, subjectColor, onEdit }: 
   const accent = subjectColor || "hsl(var(--primary))";
 
   return (
-    <div className="group relative rounded-2xl border border-border bg-card overflow-hidden hover:border-border-strong transition-colors h-full flex flex-col">
+    <div className="group relative rounded-lg border border-border bg-card overflow-hidden hover:border-border-strong transition-colors h-full flex flex-col">
       <button
         onClick={() => navigate(`/my-subjects/${encodeURIComponent(subjectName)}/${profile.id}`)}
-        className="text-left flex-1"
+        className="text-left flex-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
       >
         <div
-          className="relative px-4 pt-4 pb-3.5"
+          className="profile-header relative px-4 pt-4 pb-3.5 border-b border-border"
           style={{ background: `linear-gradient(135deg, ${accent}, color-mix(in srgb, ${accent} 65%, black))` }}
         >
           {profile.topics.length > 0 && (
-            <span className="absolute top-3 right-3 text-11 font-medium px-2 py-0.5 rounded-md bg-white/20 text-white">
+            <span className="absolute top-3 right-3 text-11 font-medium px-2 py-0.5 rounded-md bg-card text-foreground border border-border">
               {profile.topics.length} {profile.topics.length === 1 ? "topic" : "topics"}
             </span>
           )}
-          <h3 className="text-15 font-semibold text-white leading-snug pr-16 line-clamp-2">
+          <h3 className="text-base font-semibold text-foreground leading-snug pr-16 line-clamp-2">
             {profile.profile_name}
           </h3>
           {bandTags.length > 0 && (
-            <span className="inline-block mt-2.5 text-11 px-2.5 py-1 rounded-md bg-white/20 text-white">
+            <span className="inline-block mt-2.5 text-11 px-2.5 py-1 rounded-md bg-card text-foreground border border-border">
               {bandTags.join(" · ")}
             </span>
           )}
@@ -86,7 +86,7 @@ export const ExamProfileCard = ({ profile, subjectName, subjectColor, onEdit }: 
             e.stopPropagation();
             onEdit();
           }}
-          className="flex items-center gap-1.5 text-11 text-muted-foreground hover:text-foreground transition-colors"
+          className="flex min-h-10 items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           <Pencil className="w-3 h-3" />
           Edit

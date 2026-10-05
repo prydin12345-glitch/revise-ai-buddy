@@ -11,7 +11,7 @@ export function BiologyCourseSelector({lookup, value, tier, onChange}: {
   if (options.length < 2) return null;
   return <div className="space-y-2">
     <label className="text-sm font-medium" htmlFor="biology-course">OCR Biology course</label>
-    <select id="biology-course" className="w-full rounded-md border bg-background p-2 text-sm"
+    <select id="biology-course" className="min-h-11 w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
       value={value ?? ''} onChange={event => onChange(event.target.value)}>
       <option value="" disabled>Choose the course your school teaches</option>
       {options.map(course => <option key={course.id} value={course.id} disabled={course.generationAvailable === false}>

@@ -104,7 +104,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           sidebarCollapsed ? "justify-center px-2" : "justify-start px-3"
         } ${
           isActive
-            ? "bg-primary/10 dark:bg-primary/20 text-primary font-medium"
+            ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
             : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10 hover:text-foreground"
         }`}
         style={{
@@ -124,10 +124,10 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   };
 
   return (
-    <div className="min-h-screen flex w-full bg-background">
+    <div className="examly-workspace min-h-screen flex w-full bg-background">
       {/* Sidebar - visible from lg (iPad horizontal) and up */}
       <aside
-        className={`hidden lg:block fixed left-0 top-0 h-screen bg-sidebar-background border-r border-sidebar-border z-50 transition-all duration-300 shadow-sm ${
+        className={`hidden lg:block fixed left-0 top-0 h-screen bg-sidebar-background border-r border-sidebar-border z-50 transition-all duration-300 ${
           sidebarCollapsed ? "w-16" : "w-64"
         }`}
       >
@@ -154,7 +154,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <nav className="flex-1 p-3 overflow-y-auto">
             {/* Section label */}
             {!sidebarCollapsed && (
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 px-3 mb-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-3 mb-2">
                 Main
               </p>
             )}
@@ -165,7 +165,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             <Separator className="my-3 bg-border" />
 
             {!sidebarCollapsed && (
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 px-3 mb-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-3 mb-2">
                 Learning
               </p>
             )}
@@ -226,13 +226,13 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <div className="pt-3 mt-1 border-t border-border/60 flex flex-wrap items-center gap-x-3 gap-y-1 px-3">
                 <button
                   onClick={() => navigate("/privacy")}
-                  className="text-[11px] text-muted-foreground/70 hover:text-foreground transition-colors bg-transparent border-none cursor-pointer p-0"
+                  className="text-[11px] text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer p-0"
                 >
                   Privacy
                 </button>
                 <button
                   onClick={() => navigate("/terms")}
-                  className="text-[11px] text-muted-foreground/70 hover:text-foreground transition-colors bg-transparent border-none cursor-pointer p-0"
+                  className="text-[11px] text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer p-0"
                 >
                   Terms
                 </button>
@@ -250,8 +250,8 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         {/* Top bar */}
         <header className={`sticky top-0 z-30 h-14 lg:h-16 border-b transition-all duration-200 ${
           scrolled
-            ? 'bg-background/95 backdrop-blur-md shadow-lg border-border'
-            : 'bg-background border-transparent shadow-none'
+            ? 'bg-card border-border'
+            : 'bg-card border-border shadow-none'
         }`}>
           <div className="h-full flex items-center justify-between gap-4 px-4 lg:px-6">
             {/* Left: Logo */}
@@ -289,7 +289,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <Button
                 variant="default"
                 size="sm"
-                className="hidden sm:flex items-center gap-1.5 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white shadow-lg hover:shadow-xl transition-all h-9"
+                className="hidden sm:flex items-center gap-1.5 border border-border bg-card text-foreground hover:bg-muted shadow-none transition-colors h-10"
                 onClick={() => navigate("/pricing")}
               >
                 <Sparkles className="w-3.5 h-3.5" />
@@ -337,8 +337,8 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors px-1 gap-2 h-9">
-                    <Avatar className="w-8 h-8 border-2 border-primary/40">
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-white text-xs">
+                    <Avatar className="w-8 h-8 border border-border">
+                      <AvatarFallback className="bg-secondary text-foreground text-xs">
                         <User className="w-3.5 h-3.5" />
                       </AvatarFallback>
                     </Avatar>
@@ -360,7 +360,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </header>
 
         {/* Page content — always reserve room for the mobile bottom tab bar */}
-        <main className="p-4 pb-24 md:pb-6 xl:p-6 xl:pb-6 overflow-x-hidden overflow-y-auto">{children}</main>
+        <main className="mx-auto w-full max-w-[1440px] p-4 pb-24 md:px-6 md:py-8 md:pb-6 xl:px-8 xl:pb-8 overflow-x-hidden overflow-y-auto">{children}</main>
       </div>
 
       {/* Mobile bottom tab bar stays visible on Settings for navigation.

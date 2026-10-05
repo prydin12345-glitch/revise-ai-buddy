@@ -14,7 +14,7 @@ export function BiologyPaperSelector({courseId,value,tier,onChange}:{
   const selected=options.find(pack=>pack.paperId===selectedId),wjec=courseId===WJEC_BIOLOGY_ID;
   return <div className="space-y-2">
     <label htmlFor="biology-paper" className="text-sm font-medium">{wjec?'Biology unit':'Biology paper'}</label>
-    <select id="biology-paper" className="w-full rounded-md border bg-background p-2 text-sm" value={selectedId} onChange={event=>onChange(event.target.value)}>
+    <select id="biology-paper" className="min-h-11 w-full rounded-md border border-input bg-card px-3 py-2 text-sm" value={selectedId} onChange={event=>onChange(event.target.value)}>
       {!selectedId&&<option value="" disabled>{ocrAlevel?'Choose Paper 1 or Paper 2':wjec?'Choose Unit 1 or Unit 2':courseId===OCR_21C_BIOLOGY_ID?'Choose Breadth or Depth':alevel?'Choose Paper 1, Paper 2 or Paper 3':'Choose Paper 1 or Paper 2'}</option>}
       {options.map(pack=><option key={pack.id} value={pack.paperId}>{pack.definition(tier).displayName}</option>)}
 

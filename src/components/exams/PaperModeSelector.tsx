@@ -52,10 +52,10 @@ export function PaperModeSelector({
   const plan = tier && definition ? buildPaperPlan(mode, tier, courseId ?? undefined, paperId, contractVersion) : null;
 
   return (
-    <div className="space-y-2 rounded-lg border border-border/60 p-3">
+    <div className="space-y-3 rounded-md border border-border bg-panel-2 p-4">
       <div>
         <p className="text-sm font-medium">Paper mode</p>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-xs leading-relaxed text-muted-foreground">
           Guided modes plan the question mix for you. Custom never changes on its own.
         </p>
       </div>
@@ -65,14 +65,14 @@ export function PaperModeSelector({
             key={m.id}
             type="button"
             onClick={() => onModeChange(m.id)}
-            className={`rounded-md border p-2 text-left transition-colors ${
+            className={`min-h-20 rounded-md border p-3 text-left transition-colors ${
               mode === m.id
-                ? "border-primary bg-primary/5"
+                ? "border-primary bg-primary/10 ring-1 ring-primary"
                 : "border-border hover:bg-muted/50"
             }`}
           >
             <span className="block text-sm font-medium">{m.label}</span>
-            <span className="mt-0.5 block text-[11px] text-muted-foreground">
+            <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
               {m.id === "full_mock" && definition ? `${definition.displayName}: ${definition.fullMockMarks} marks, ${definition.fullMockMinutes} minutes.` : m.description}
             </span>
           </button>
@@ -81,9 +81,9 @@ export function PaperModeSelector({
 
       {mode !== "custom" && !tier && <p className="text-xs text-muted-foreground">Choose Foundation or Higher before applying a guided preset.</p>}
       {plan && (
-        <div className="space-y-2 rounded-md bg-muted/40 p-2">
-          <p className="text-[11px] text-muted-foreground">{describePlan(plan)}</p>
-          <ul className="text-[11px] text-muted-foreground">
+        <div className="space-y-2 border-t border-border pt-3">
+          <p className="text-xs leading-relaxed text-muted-foreground">{describePlan(plan)}</p>
+          <ul className="text-xs leading-relaxed text-muted-foreground">
             <li>
               {plan.parts.filter((p) => p.responseType === "mcq_single").length} single-select
               multiple choice ·{" "}
@@ -95,13 +95,13 @@ export function PaperModeSelector({
             </li>
           </ul>
           {applied ? (
-            <p className="text-[11px] text-primary">These settings are applied.</p>
+            <p className="text-xs leading-relaxed text-primary">These settings are applied.</p>
           ) : (
             <Button
               type="button"
               size="sm"
               variant="outline"
-              className="h-7 text-xs"
+              className="min-h-10 text-xs"
               onClick={() => onApplyPlan(plan)}
             >
               Use these settings

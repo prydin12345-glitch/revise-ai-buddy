@@ -51,13 +51,13 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 // the component re-created the element type on every keystroke, remounting the
 // subtree and dropping input focus after one character.
 const SectionCard = ({ icon: Icon, title, hint, accent, children }: { icon: any; title: string; hint?: string; accent: string; children: React.ReactNode }) => (
-  <section className="rounded-xl border border-border/60 bg-card/50 p-4 space-y-3">
-    <div className="flex items-center gap-2">
+  <section className="rounded-md border border-border bg-card p-4 sm:p-5 space-y-4">
+    <div className="flex flex-wrap items-center gap-2">
       <span className="inline-flex h-6 w-6 items-center justify-center rounded-md" style={{ backgroundColor: accent + "1A", color: accent }}>
         <Icon className="h-3.5 w-3.5" />
       </span>
       <h3 className="text-sm font-semibold">{title}</h3>
-      {hint && <span className="text-[11px] text-muted-foreground ml-auto">{hint}</span>}
+      {hint && <span className="text-xs leading-relaxed text-muted-foreground ml-auto">{hint}</span>}
     </div>
     {children}
   </section>
@@ -506,22 +506,22 @@ export const ExamProfileModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[88vh] flex flex-col p-0 gap-0 bg-card border-border/60">
-        <DialogHeader className="px-6 pt-5 pb-4 border-b border-border/60">
+      <DialogContent className="exam-profile-settings sm:max-w-2xl max-h-[88vh] flex flex-col p-0 gap-0 bg-card border-border">
+        <DialogHeader className="px-5 sm:px-6 pt-5 pb-4 pr-14 border-b border-border">
           <div className="flex items-center gap-2.5">
-            <div className="w-2 h-8 rounded-full" style={{ backgroundColor: subjectColor }} />
+            <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: subjectColor }} />
             <div>
               <DialogTitle className="text-lg">
                 {initialData ? "Edit" : "Create"} Exam Profile
               </DialogTitle>
               <DialogDescription className="text-xs">
-                {subjectName} — a reusable recipe for generating exams
+                {subjectName} · Saved settings for your practice papers
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 accent-scroll" style={{ "--scroll-accent": subjectColor } as React.CSSProperties}>
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-5 space-y-5 accent-scroll" style={{ "--scroll-accent": subjectColor } as React.CSSProperties}>
           {/* ── Basics ── */}
           <SectionCard accent={subjectColor} icon={User} title="Basics">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -585,7 +585,7 @@ export const ExamProfileModal = ({
                             >
                               <div className="text-[13px]">{level.label}</div>
                               {alias && (
-                                <div className="text-[11px] text-muted-foreground mt-0.5">
+                                <div className="text-xs leading-relaxed text-muted-foreground mt-0.5">
                                   {userRegion}: {alias}
                                 </div>
                               )}
@@ -597,7 +597,7 @@ export const ExamProfileModal = ({
                   </PopoverContent>
                 </Popover>
                 {missingLevel && (
-                  <p className="text-[11px] text-amber-500 flex items-center gap-1">
+                  <p className="text-[11px] text-warning flex items-center gap-1">
                     Please select a level so questions match your standard.
                   </p>
                 )}
@@ -636,7 +636,7 @@ export const ExamProfileModal = ({
                   placeholder="e.g. HNC/HND, NVQ Level 3, AWS Certification..."
                   className="h-9 border-primary/50"
                 />
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs leading-relaxed text-muted-foreground">
                   The AI will interpret your qualification level when generating questions
                 </p>
               </div>
@@ -658,7 +658,7 @@ export const ExamProfileModal = ({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground">Written</Label>
-                  <span className="text-sm font-bold tabular-nums" style={{ color: subjectColor }}>{writtenCount}</span>
+                  <span className="text-sm font-bold tabular-nums text-foreground">{writtenCount}</span>
                 </div>
                 <Slider
                   min={0} max={20} step={1}
@@ -672,18 +672,18 @@ export const ExamProfileModal = ({
                   style={{ "--slider-track": "hsl(var(--muted))", "--slider-range": subjectColor } as React.CSSProperties}
                 />
                 {structureLocksWritten && (
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs leading-relaxed text-muted-foreground">
                     {blueprintActive ? `Set by your paper structure: ${blueprintTotalQuestions} questions · ${blueprintTotalMarks} marks` : `Set by your structure: ${parentQuestionCount} question${parentQuestionCount === 1 ? "" : "s"} × ${maxPartsPerQuestion} parts = ${writtenCount} written parts`}
                   </p>
                 )}
                 {writtenCount >= 15 && (
-                  <p className="text-[11px] text-orange-400">⚠ {writtenCount} written questions may reduce quality</p>
+                  <p className="text-[11px] text-warning">⚠ {writtenCount} written questions may reduce quality</p>
                 )}
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground">Multiple choice</Label>
-                  <span className="text-sm font-bold tabular-nums text-emerald-500">{mcqCount}</span>
+                  <span className="text-sm font-bold tabular-nums text-foreground">{mcqCount}</span>
                 </div>
                 <Slider
                   min={0} max={30} step={1}
@@ -697,10 +697,10 @@ export const ExamProfileModal = ({
                   style={{ "--slider-track": "hsl(var(--muted))", "--slider-range": "hsl(160 84% 39%)" } as React.CSSProperties}
                 />
                 {blueprintActive && (
-                  <p className="text-[11px] text-muted-foreground">Locked by Exact paper layout — add MCQs as a section there instead.</p>
+                  <p className="text-xs leading-relaxed text-muted-foreground">Locked by Exact paper layout — add MCQs as a section there instead.</p>
                 )}
                 {mcqCount >= 25 && (
-                  <p className="text-[11px] text-orange-400">⚠ {mcqCount} MCQ — consider splitting into two sessions</p>
+                  <p className="text-[11px] text-warning">⚠ {mcqCount} MCQ — consider splitting into two sessions</p>
                 )}
               </div>
             </div>
@@ -710,7 +710,7 @@ export const ExamProfileModal = ({
           {/* ── Structure ── */}
           <SectionCard accent={subjectColor} icon={ListChecks} title={isMcqOnlyProfile ? "Answer options" : "Structure"} hint={blueprintActive ? "locked by Exact paper layout" : (isMcqOnlyProfile ? undefined : "how written questions are organised")}>
             {blueprintActive && (
-              <p className="text-[11px] text-muted-foreground -mt-1">Locked — your Exact paper layout defines the structure. Turn it off below to edit these.</p>
+              <p className="text-xs leading-relaxed text-muted-foreground -mt-1">Locked — your Exact paper layout defines the structure. Turn it off below to edit these.</p>
             )}
             <div className={blueprintActive ? "opacity-50 pointer-events-none" : ""}>
             {isMcqOnlyProfile ? (
@@ -728,7 +728,7 @@ export const ExamProfileModal = ({
                       }`}
                     >
                       <div className="text-xs font-semibold text-foreground">{option.label}</div>
-                      <div className="text-[10px] text-muted-foreground mt-0.5">{option.example}</div>
+                      <div className="text-xs leading-relaxed text-muted-foreground mt-0.5">{option.example}</div>
                     </button>
                   ))}
                 </div>
@@ -736,14 +736,14 @@ export const ExamProfileModal = ({
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs font-medium">Include graph-based questions</p>
-                      <p className="text-[10px] text-muted-foreground">Allow chart/graph MCQs where relevant.</p>
+                      <p className="text-xs leading-relaxed text-muted-foreground">Allow chart/graph MCQs where relevant.</p>
                     </div>
                     <Switch checked={includeGraphs} onCheckedChange={setIncludeGraphs} />
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs font-medium">Include table/data questions</p>
-                      <p className="text-[10px] text-muted-foreground">Allow table interpretation and data MCQs.</p>
+                      <p className="text-xs leading-relaxed text-muted-foreground">Allow table interpretation and data MCQs.</p>
                     </div>
                     <Switch checked={includeTables} onCheckedChange={setIncludeTables} />
                   </div>
@@ -787,7 +787,7 @@ export const ExamProfileModal = ({
 
                 {(questionStructure === "sub_questions" || questionStructure === "mixed") && (
                   <div className="rounded-lg border border-border/40 bg-muted/30 p-3 space-y-3">
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-xs leading-relaxed text-muted-foreground">
                       {questionStructure === "sub_questions"
                         ? `${parentQuestionCount} question${parentQuestionCount === 1 ? "" : "s"}, each with up to ${maxPartsPerQuestion} parts — ${parentQuestionCount * maxPartsPerQuestion} written parts in total.`
                         : `${parentQuestionCount} of your ${writtenCount} written questions will have sub-parts; the other ${Math.max(0, writtenCount - parentQuestionCount)} are standalone.`}
@@ -795,8 +795,8 @@ export const ExamProfileModal = ({
                     <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <Label className="text-[11px] text-muted-foreground">Questions with parts</Label>
-                        <span className="text-xs font-bold tabular-nums" style={{ color: subjectColor }}>{parentQuestionCount}</span>
+                        <Label className="text-xs leading-relaxed text-muted-foreground">Questions with parts</Label>
+                        <span className="text-xs font-bold tabular-nums text-foreground">{parentQuestionCount}</span>
                       </div>
                       <Slider min={1} max={10} step={1} value={[parentQuestionCount]}
                         onValueChange={(v) => setParentQuestionCount(v[0])}
@@ -804,8 +804,8 @@ export const ExamProfileModal = ({
                     </div>
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <Label className="text-[11px] text-muted-foreground">Parts per question (a, b, c…)</Label>
-                        <span className="text-xs font-bold tabular-nums" style={{ color: subjectColor }}>{maxPartsPerQuestion}</span>
+                        <Label className="text-xs leading-relaxed text-muted-foreground">Parts per question (a, b, c…)</Label>
+                        <span className="text-xs font-bold tabular-nums text-foreground">{maxPartsPerQuestion}</span>
                       </div>
                       <Slider min={2} max={6} step={1} value={[maxPartsPerQuestion]}
                         onValueChange={(v) => setMaxPartsPerQuestion(v[0])}
@@ -830,7 +830,7 @@ export const ExamProfileModal = ({
               if (!hasTopicSuggestions(subjectName || "")) return null;
               if (!finalTier) {
                 return (
-                  <p className="text-[11px] text-muted-foreground rounded-md bg-muted/40 px-2.5 py-1.5">
+                  <p className="text-xs leading-relaxed text-muted-foreground rounded-md bg-muted/40 px-2.5 py-1.5">
                     Choose your level in Basics above and suggested areas for {subjectName} will appear here.
                   </p>
                 );
@@ -840,7 +840,7 @@ export const ExamProfileModal = ({
               if (suggestions.length === 0) return null;
               return (
                 <div className="space-y-1.5">
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs leading-relaxed text-muted-foreground">
                     Quick add — common {isAdvanced ? "A-level" : "GCSE"} areas for {subjectName}:
                   </p>
                   <div className="flex flex-wrap gap-1.5">
@@ -870,7 +870,7 @@ export const ExamProfileModal = ({
           {/* ── Studied texts (text-based subjects) ── */}
           {isTextBasedSubject && (
             <SectionCard accent={subjectColor} icon={BookOpen} title={studiedContentCfg.title} hint={studiedTexts.length ? `${studiedTexts.length} added` : studiedContentCfg.hint}>
-              <p className="text-[11px] text-muted-foreground -mt-1">
+              <p className="text-xs leading-relaxed text-muted-foreground -mt-1">
                 {studiedContentCfg.description}
               </p>
               <div className="space-y-1.5">
@@ -932,7 +932,7 @@ export const ExamProfileModal = ({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium">Define the exact paper layout</p>
-                <p className="text-[10px] text-muted-foreground">Recreate a real paper's layout question by question — every question's marks and purpose, organised into sections. While this is on, it sets the question counts (the sliders above lock).</p>
+                <p className="text-xs leading-relaxed text-muted-foreground">Recreate a real paper's layout question by question — every question's marks and purpose, organised into sections. While this is on, it sets the question counts (the sliders above lock).</p>
               </div>
               <Switch checked={blueprintEnabled} onCheckedChange={(v) => {
                 setBlueprintEnabled(v);
@@ -944,7 +944,7 @@ export const ExamProfileModal = ({
             {blueprintEnabled && (
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Label className="text-[11px] text-muted-foreground shrink-0">Start from a preset</Label>
+                  <Label className="text-xs leading-relaxed text-muted-foreground shrink-0">Start from a preset</Label>
                   <select
                     className="h-8 rounded-md border border-input bg-background px-2 text-xs flex-1"
                     value={advanced.structurePreset && advanced.structurePreset !== "custom" ? advanced.structurePreset : ""}
@@ -966,7 +966,7 @@ export const ExamProfileModal = ({
                   </select>
                 </div>
                 {availablePresets.length === 1 && availablePresets[0].id === "universal_mixed" && (
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs leading-relaxed text-muted-foreground">
                     No exact preset exists yet for this subject, board and level combination — the standard paper is a safe starting shape, and every question below stays fully editable.
                   </p>
                 )}
@@ -982,13 +982,13 @@ export const ExamProfileModal = ({
                     </div>
                     {sec.questions.map((q, qi) => (
                       <div key={qi} className="flex flex-wrap items-center gap-2">
-                        <span className="text-[10px] text-muted-foreground w-7 shrink-0 tabular-nums">
+                        <span className="text-xs leading-relaxed text-muted-foreground w-7 shrink-0 tabular-nums">
                           Q{blueprintSections.slice(0, si).reduce((n, s) => n + s.questions.length, 0) + qi + 1}
                         </span>
                         <Input type="number" min={1} max={60} value={q.marks || ""}
                           onChange={(e) => setBlueprintSections(blueprintSections.map((s, j) => j === si ? { ...s, questions: s.questions.map((qq, k) => k === qi ? { ...qq, marks: parseInt(e.target.value) || 0 } : qq) } : s))}
                           className="h-8 w-16 text-xs text-center" aria-label="Marks" />
-                        <span className="text-[10px] text-muted-foreground shrink-0">marks</span>
+                        <span className="text-xs leading-relaxed text-muted-foreground shrink-0">marks</span>
                         <select
                           value={QUESTION_STYLE_OPTIONS.includes(q.style) ? q.style : "__other"}
                           onChange={(e) => {
@@ -1025,7 +1025,7 @@ export const ExamProfileModal = ({
                     </Button>
                     {sec.questions.length > 1 && (
                       <div className="flex items-center gap-2 pt-1">
-                        <Label className="text-[11px] text-muted-foreground">Students answer</Label>
+                        <Label className="text-xs leading-relaxed text-muted-foreground">Students answer</Label>
                         <Input type="number" min={1} max={sec.questions.length}
                           value={sec.answerCount ?? sec.questions.length}
                           onChange={(e) => {
@@ -1035,7 +1035,7 @@ export const ExamProfileModal = ({
                               : s));
                           }}
                           className="h-7 w-14 text-xs text-center" aria-label="Number of questions students answer in this section" />
-                        <span className="text-[11px] text-muted-foreground">of {sec.questions.length} question{sec.questions.length === 1 ? "" : "s"}{sec.answerCount && sec.answerCount < sec.questions.length ? " (their choice)" : " (all)"}</span>
+                        <span className="text-xs leading-relaxed text-muted-foreground">of {sec.questions.length} question{sec.questions.length === 1 ? "" : "s"}{sec.answerCount && sec.answerCount < sec.questions.length ? " (their choice)" : " (all)"}</span>
                       </div>
                     )}
                   </div>
@@ -1045,10 +1045,10 @@ export const ExamProfileModal = ({
                     onClick={() => setBlueprintSections([...blueprintSections, { title: "", questions: [{ marks: 4, style: "" }] }])}>
                     + Add section
                   </Button>
-                  <p className="text-[11px] text-muted-foreground tabular-nums">{blueprintTotalQuestions} questions · {blueprintCountedMarks < blueprintTotalMarks ? `${blueprintCountedMarks} marks counted (of ${blueprintTotalMarks} printed)` : `${blueprintTotalMarks} marks`}</p>
+                  <p className="text-xs leading-relaxed text-muted-foreground tabular-nums">{blueprintTotalQuestions} questions · {blueprintCountedMarks < blueprintTotalMarks ? `${blueprintCountedMarks} marks counted (of ${blueprintTotalMarks} printed)` : `${blueprintTotalMarks} marks`}</p>
                 </div>
                 {blueprintTotalQuestions > 0 && (
-                  <p className="text-[11px] text-muted-foreground tabular-nums rounded-md bg-muted/40 px-2.5 py-1.5">
+                  <p className="text-xs leading-relaxed text-muted-foreground tabular-nums rounded-md bg-muted/40 px-2.5 py-1.5">
                     Preview: {(() => { let n = 0; return blueprintSections.flatMap((s) => s.questions).map((q) => { n++; return `Q${n} [${q.marks || "?"}]`; }).join(" · "); })()}
                   </p>
                 )}
@@ -1056,10 +1056,10 @@ export const ExamProfileModal = ({
                   <p className="text-[11px] text-destructive">⚠ Some questions have no marks set — fix or remove them to save this profile.</p>
                 )}
                 {blueprintSections.some((s) => s.questions.some((q) => q.marks > 40)) && (
-                  <p className="text-[11px] text-orange-400">⚠ Questions above 40 marks are rare on real papers — double-check this is intended.</p>
+                  <p className="text-[11px] text-warning">⚠ Questions above 40 marks are rare on real papers — double-check this is intended.</p>
                 )}
                 {blueprintActive && mcqCount > 0 && (
-                  <p className="text-[11px] text-orange-400">⚠ Your paper structure and MCQ count ({mcqCount}) are both set — MCQs will be generated as an additional section.</p>
+                  <p className="text-[11px] text-warning">⚠ Your paper structure and MCQ count ({mcqCount}) are both set — MCQs will be generated as an additional section.</p>
                 )}
               </div>
             )}
@@ -1079,10 +1079,10 @@ export const ExamProfileModal = ({
         </div>
 
         {/* ── Sticky footer with live summary + disabled reason ── */}
-        <DialogFooter className="px-6 py-4 border-t border-border/60 bg-card sm:justify-between gap-3">
+        <DialogFooter className="flex-col sm:flex-row px-4 sm:px-6 py-4 border-t border-border bg-card sm:justify-between gap-3">
           <div className="text-left self-center min-w-0">
             <p className="text-xs font-medium truncate">{profileName.trim() || "Untitled profile"}</p>
-            <p className="text-[11px] text-muted-foreground truncate">
+            <p className="text-xs leading-relaxed text-muted-foreground truncate">
               {!configurationReady ? "Choose the course, tier and apply the preset" : canSave ? summaryParts : (!profileName.trim() ? "Add a profile name" : effectiveTopics.length === 0 ? "Pick at least one topic" : "Select an educational level") + " to continue"}
             </p>
           </div>
