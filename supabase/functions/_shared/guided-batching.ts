@@ -92,7 +92,7 @@ export function mergeBatchRows(
   plan: PaperPlan,
 ): { added: number; rejections: MergeRejection[] } {
   const wanted = new Set(batch.map(p => plannedPartKey(p.questionNumber)));
-  const planned = new Set(plan.parts.map(p => plannedPartKey(p.questionNumber)));
+  const planned = new Map(plan.parts.map(p => [plannedPartKey(p.questionNumber), p]));
   const rejections: MergeRejection[] = [];
   let added = 0;
   for (const row of rows) {
@@ -102,7 +102,7 @@ export function mergeBatchRows(
       rejections.push({ questionNumber: number, code: 'duplicate_part', detail: 'An accepted part with this number already exists; the duplicate was discarded.' });
       continue;
     }
-    if (!wanted.has(key)) {
+    if (!wanted.has(key) || !planned.has(key)) {
       rejections.push({
         questionNumber: number,
         code: planned.has(key) ? 'outside_batch' : 'unplanned_part',
@@ -110,7 +110,14 @@ export function mergeBatchRows(
       });
       continue;
     }
-    produced.set(key, row);
+    const part = planned.get(key)!;
+    const root = part.questionNumber.match(/^\d+/)?.[0];
+    // The explicit model number already matches this authored part. Store its
+    // exact plan label before any draft ID exists, so Q1 cannot sort after Q15
+    // or lose its plan/resource requirements during repair. Never fill a gap
+    // by assigning an unplanned row to a position.
+    produced.set(key, {...row, question_number: part.questionNumber,
+      ...(root ? {root_question_number: root, parent_question_number: row.parent_question_number == null ? null : root} : {})});
     added += 1;
   }
   return { added, rejections };

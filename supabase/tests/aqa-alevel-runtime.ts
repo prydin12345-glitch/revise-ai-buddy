@@ -7,6 +7,7 @@ import vm from 'node:vm';
 import {z} from 'zod';
 import {alevelFixture,alevelSnapshot,pointScheme} from './aqa-alevel-fixtures';
 import {alevelPaper2Fixture,alevelPaper2Snapshot} from './aqa-alevel-paper2-fixtures';
+import {plannedPartKey} from '../functions/_shared/guided-batching';
 
 export interface RuntimeFixture { rows:any[]; snapshot:any; }
 interface ExtractionScenario {
@@ -81,7 +82,7 @@ export async function extract(scenario: boolean | ExtractionScenario = false, mo
       if(isGeneration) generationCalls.push(request); else repairCalls.push(request);
       const batch=/PARTS IN THIS RESPONSE: (.+)/.exec(prompt)?.[1].split(', ').map(s=>s.trim());
       const content=isGeneration
-        ?{questions:batch?questions.filter(q=>batch.includes(String(q.question_number))):questions}
+        ?{questions:batch?questions.filter(q=>batch.some(number=>plannedPartKey(number)===plannedPartKey(q.question_number))):questions}
         :config.repair?.(request,questions)??{parts:[]};
       if(isGeneration&&config.truncateEssayBatch&&!essayTruncated&&content.questions.some((q:any)=>q.chart_data?.type==='biology_essay_choice')){
         essayTruncated=true;

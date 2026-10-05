@@ -4,7 +4,7 @@ import { analyseGroupRepair, repairNumberKey, type RepairDiagnostic, type Repair
 import { biologyScopeInstructions, type BiologyScope } from './gcse-biology-scope.ts';
 import type { PaperPlan } from './biology-paper-contract.ts';
 import { isMcqType } from './model-question-normalization.ts';
-import { assembleQuestionText, referencesResource } from './question-contract-validator.ts';
+import { assembleQuestionText, referencesResource, questionLabel } from './question-contract-validator.ts';
 import { questionResourceInstructions } from './question-resource-instructions.ts';
 import { plannedResourceTypeNotes } from './planned-resource-types.ts';
 
@@ -21,19 +21,27 @@ export interface RepairRequest {
 export interface RepairOutcome extends RepairResult { phase: 'transport' | 'parse' | 'validation' | 'partial' | 'accepted'; }
 
 export const describeRepairDiagnostics = (items: RepairDiagnostic[]): string => items.map(item =>
-  `${item.partNumber ? `Q${item.partNumber}: ` : ''}${item.code} (${item.detail})`).join('; ');
+  `${item.partNumber ? `${questionLabel(item.partNumber)}: ` : ''}${item.code} (${item.detail})`).join('; ');
+
+/** Match the same explicit identity formats accepted by the repair validator.
+ * Existing draft labels/IDs stay intact; no missing part is assigned a number. */
+const plannedRepairParts = (input: RepairRequest) => {
+  const numbers = new Set(input.group.map(row => repairNumberKey(row.question_number)));
+  return (input.plan?.parts ?? []).filter(part => numbers.has(repairNumberKey(part.questionNumber)));
+};
 
 export function buildQuestionRepairPrompt(input: RepairRequest): string {
   const taskOnly = input.mode === 'task_only';
   const targets = new Set([...input.targetNumbers].map(repairNumberKey));
   const sample = input.group.find(row => Number(row.marks) > 0 && (!taskOnly || targets.has(repairNumberKey(row.question_number))));
-  const essay = input.plan?.parts.some(p => p.resource === 'essay_choice' && input.group.some(row => String(row.question_number) === p.questionNumber));
-  const comprehension = input.plan?.parts.some(p => p.resource === 'passage' && input.group.some(row => String(row.question_number) === p.questionNumber));
+  const plannedParts = plannedRepairParts(input);
+  const essay = plannedParts.some(p => p.resource === 'essay_choice');
+  const comprehension = plannedParts.some(p => p.resource === 'passage');
   const levelScheme = input.plan ? packForBiologyPlan(input.plan).validation.levelSchemeAtMarks : 6;
   const resourceChecklist = input.group.map(row => {
-    const planned = input.plan?.parts.find(part => part.questionNumber === String(row.question_number));
+    const planned = plannedParts.find(part => repairNumberKey(part.questionNumber) === repairNumberKey(row.question_number));
     const reference = referencesResource(assembleQuestionText(row));
-    return `Q${row.question_number}: planned resource=${planned?.resource ?? 'not specified'}; current reference=${reference ? 'yes' : 'no'}; saved payload=${row.diagram_config || row.table_data ? 'present (validate it)' : 'absent'}.`;
+    return `${questionLabel(row.question_number)}: planned resource=${planned?.resource ?? 'not specified'}; current reference=${reference ? 'yes' : 'no'}; saved payload=${row.diagram_config || row.table_data ? 'present (validate it)' : 'absent'}.`;
   });
   const example = {question_number: sample?.question_number ?? '1(a)',
     ...(taskOnly ? {} : {context: '...'}), task: '...', correct_answer: '...',
@@ -66,14 +74,14 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     taskOnly ? 'For an MCQ, use the ORIGINAL choices when checking correct_answer; do not emit or change the choices.'
       : 'For every MCQ row return an options array of exactly four distinct non-empty choices (plain text, no A./B. prefixes) plus a correct_answer that matches one of them exactly. Never omit or null the options.',
     'Put mathematics inside $...$.',
-    biologyRepairInstructions(input.plan, new Set(input.group.map(row => String(row.question_number))), !taskOnly),
+    biologyRepairInstructions(input.plan, new Set(plannedParts.map(part => part.questionNumber)), !taskOnly),
     taskOnly ? 'TASK-ONLY OUTPUT: the plan above is context, not an instruction to replace resources. Return {"parts":[...]} with question_number, task and correct_answer in each target entry.'
       : 'FULL-GROUP OUTPUT: use diagram_config for the repaired canonical resource, even where generation instructions above say chart_data. Return every sibling and every planned resource. A resource=none part may instead be rewritten to remove a dependency, but its task must remain answerable and its key must be rewritten too.',
     taskOnly ? '' : 'RESOURCE CHECKLIST:\n' + resourceChecklist.join('\n'),
-    taskOnly ? '' : plannedResourceTypeNotes(input.plan?.parts.filter(p => input.group.some(row => String(row.question_number) === p.questionNumber)) ?? [], 'diagram_config'),
+    taskOnly ? '' : plannedResourceTypeNotes(plannedParts, 'diagram_config'),
     taskOnly ? '' : 'Every scored part MUST have a non-empty "task" field holding its assessed instruction (for example "Calculate ...", "Explain ..."), separate from "context". Do not leave task empty or put the instruction only inside question_text.',
     taskOnly ? '' : questionResourceInstructions('diagram_config'),
-    'Planned parts: ' + JSON.stringify(input.plan?.parts.filter(p => input.group.some(row => String(row.question_number) === p.questionNumber)) ?? []),
+    'Planned parts: ' + JSON.stringify(plannedParts),
     'Current group: ' + JSON.stringify(input.group.map(row => ({ question_number: row.question_number,
       question_type: row.question_type, marks: row.marks, topic_tag: row.topic_tag, question_text: row.question_text,
       correct_answer: row.correct_answer, options: row.options, diagram_config: row.diagram_config, table_data: row.table_data }))),
@@ -125,8 +133,7 @@ export async function requestQuestionRepair(input: RepairRequest, apiKey: string
   const requiredParts = new Set((input.plan?.parts ?? []).filter(p => p.resource !== 'none').map(p => p.questionNumber));
   const result = analyseGroupRepair(input.group, parts, input.scope, requiredParts, input.targetNumbers, input.mode);
   if (result.ok && input.plan) {
-    const numbers = new Set(input.group.map(row => String(row.question_number)));
-    const groupPlan = {...input.plan, parts: input.plan.parts.filter(p => numbers.has(p.questionNumber))};
+    const groupPlan = {...input.plan, parts: plannedRepairParts(input)};
     const proposed = input.group.map(row => ({...row, ...result.replacements[String(row.question_number)]}));
     const defects = validateBiologyPlan(proposed, groupPlan);
     if (defects.length) return {ok: false, replacements: {}, phase: 'validation',
@@ -149,7 +156,7 @@ export async function saveQuestionRepairs(supabase: any, examId: string, group: 
     if (fix.options !== undefined) payload.options = fix.options;
     const { data, error } = await supabase.from('exam_question_drafts').update(payload)
       .eq('id', row.id).eq('exam_id', examId).select('id').maybeSingle();
-    if (error || !data?.id) throw new Error(`Repair save failed for Q${row.question_number}: ${error ? 'database write rejected' : 'no matching draft row'}.`);
+    if (error || !data?.id) throw new Error(`Repair save failed for ${questionLabel(row.question_number)}: ${error ? 'database write rejected' : 'no matching draft row'}.`);
     saved += 1;
   }
   if (!saved) throw new Error('Repair save failed: no matching replacements.');
