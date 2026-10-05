@@ -3,13 +3,15 @@ import {build} from 'esbuild';
 import vm from 'node:vm';
 import {expect,it} from 'vitest';
 import {ocrPaper2Fixture as ocrAlevelFixture,ocrPaper2Snapshot as ocrAlevelSnapshot} from './ocr-alevel-paper2-fixtures';
+import {ocrPaper2V2Fixture,ocrPaper2V2Snapshot} from './ocr-alevel-paper2-v2-fixtures';
 import {singleChoiceKey} from '../functions/_shared/single-choice-marking';
 const exam='10000000-0000-0000-0000-000000000001',user='00000000-0000-0000-0000-000000000002';
-async function handler(name:string,options:{answers?:string[];badKey?:boolean;badEdition?:boolean;foreign?:boolean;failSave?:boolean;written?:boolean;quizNumber?:string}={}){
+async function handler(name:string,options:{version?:1|2;answers?:string[];badKey?:boolean;badEdition?:boolean;foreign?:boolean;failSave?:boolean;written?:boolean;quizNumber?:string}={}){
   const calls:any[]=[],writes:any[]=[],filters:any[]=[],requests:any[]=[];
-  const snapshot={...ocrAlevelSnapshot(),...(options.badEdition?{specification_version:'old'}:{})};
+  const snapshot={...(options.version===2?ocrPaper2V2Snapshot():ocrAlevelSnapshot()),...(options.badEdition?{specification_version:'old'}:{})};
   const profile={id:'profile',user_id:user,subject_name:'Biology Higher',exam_board:'OCR',educational_tier:'level3',assessment_tier:null,paper_blueprint:{paperContract:snapshot.paper_contract}};
-  const rows=options.written?[ocrAlevelFixture().rows.find(q=>q.question_number==='17(d)')!]:ocrAlevelFixture().rows.slice(0,name==='submit-exam'?15:1);
+  const fixture=options.version===2?ocrPaper2V2Fixture():ocrAlevelFixture();
+  const rows=options.written?[fixture.rows.find(q=>q.question_number==='17(d)')!]:fixture.rows.slice(0,name==='submit-exam'?15:1);
   if(options.quizNumber)rows[0].question_number=options.quizNumber;
   const answers=rows.map((q,i)=>({question_id:q.id,answer_text:options.answers?.[i]??(options.written?'My written answer':singleChoiceKey(q).letter)}));
   if(options.badKey)rows[0].correct_answer='No matching option';
@@ -79,4 +81,17 @@ it.each(['submit-exam','grade-practice-question'])('%s sends OCR levels, not the
 
 it('does not require full-paper Q4 resources for an ordinary written quiz question numbered 4',async()=>{
   const h=await handler('grade-practice-question',{written:true,quizNumber:'4'}),r=await h.run({questionId:h.rows[0].id,setId:'set',answerText:'My explanation'});expect(r.status).toBe(200);expect(h.requests).toHaveLength(1);
+});
+
+it('routes every v2 MCQ, including fermentation Q13, to one capped result without paid marking or released-score leakage',async()=>{
+  const h=await handler('submit-exam',{version:2}),r=await h.run({examId:exam});
+  expect(r.status).toBe(200);expect(h.requests).toHaveLength(0);
+  const finish=h.calls.find(c=>c.name==='finish_exam_responses');
+  expect(JSON.stringify(finish.args).match(/"score":1/g)).toHaveLength(15);
+  expect((await r.json()).totalScore).toBeNull();
+});
+it.each(['submit-exam','grade-practice-question'])('%s keeps invalid v2 keys ungraded instead of zero',async name=>{
+  const h=await handler(name,{version:2,badKey:true}),r=await h.run({examId:exam,questionId:h.rows[0].id,setId:'set',answerText:'B'});
+  expect(r.status).toBeGreaterThanOrEqual(400);expect(h.requests).toHaveLength(0);
+  expect(h.calls.some(c=>c.name==='finish_exam_responses')).toBe(false);expect(h.writes.some(w=>w.table==='practice_question_answers')).toBe(false);
 });

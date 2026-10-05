@@ -1,5 +1,7 @@
 import {OCR_ALEVEL_BIOLOGY_ID} from './assessment-tier.ts';
 import {singleChoiceKey} from './single-choice-marking.ts';
+import { statementCombinationIssue } from './numbered-statements.ts';
+import { assembledModelText } from './model-question-normalization.ts';
 import {requireBiologyEssayKey} from './biology-essay-marking.ts';
 import { packForBiologyPlan } from './biology-course-packs.ts';
 import type { PaperPlan } from './biology-paper-contract.ts';
@@ -34,6 +36,13 @@ export function validateBiologyPlan(rows: CandidatePart[], plan?: PaperPlan | nu
     if (!expected || seen.has(number)) { push(`Unexpected or duplicate scored row ${number}; do not silently renumber or discard it.`); continue; }
     seen.add(number);
     if (Number(row.marks) !== expected.marks) push(`Q${number} requires ${expected.marks} marks and a matching scheme.`);
+    if (pack.id === 'ocr-h420-paper-2-v2') {
+      if ((row as any).topic_tag !== expected.topic) push(`Q${number} must retain its planned Paper 2 topic ${expected.topic}.`);
+      if (expected.mcqStyle === 'statements') {
+        const issue = statementCombinationIssue(assembledModelText(row), coerceMcqOptions(row), [1,2,3]);
+        if (issue) push(issue, 'invalid_statements');
+      }
+    }
     const isMcq = isMcqType(row.question_type);
     if (isMcq !== (expected.responseType === 'mcq_single')) push(`Q${number} must be ${expected.responseType}.`);
     if (expected.responseType === 'mcq_single') {

@@ -3,6 +3,7 @@ import {OCR_ALEVEL_P1,buildOcrAlevelPaper1Plan,assertOcrAlevelPaper1Plan,ocrAlev
 import {OCR_ALEVEL_SPEC_URL,OCR_ALEVEL_SAM_URL,OCR_ALEVEL_P1_RULES} from './ocr-alevel-biology-scope.ts';
 import {OCR_ALEVEL_P2,buildOcrAlevelPaper2Plan,assertOcrAlevelPaper2Plan,ocrAlevelPaper2Instructions,ocrAlevelPaper2PartInstruction} from './ocr-alevel-biology-paper2-contract.ts';
 import {OCR_ALEVEL_P2_SAM_URL,OCR_ALEVEL_P2_RULES} from './ocr-alevel-biology-paper2-scope.ts';
+import {OCR_ALEVEL_P2_V2,OCR_ALEVEL_P2_V2_RULES,buildOcrAlevelPaper2V2Plan,assertOcrAlevelPaper2V2Plan,ocrAlevelPaper2V2Instructions,ocrAlevelPaper2V2PartInstruction} from './ocr-alevel-biology-paper2-v2-contract.ts';
 import {AQA_ALEVEL_P3,buildAqaAlevelPaper3Plan,assertAqaAlevelPaper3Plan,aqaAlevelPaper3Instructions,aqaAlevelPaper3PartInstruction} from './aqa-alevel-biology-paper3-contract.ts';
 import {AQA_ALEVEL_P3_RULES} from './aqa-alevel-biology-paper3-scope.ts';
 import { canonicalCourseId } from './assessment-tier.ts';
@@ -141,7 +142,7 @@ const wjecPack=(unit:WjecBiologyUnit):BiologyPaperPack=>({
 });
 
 /** Register only implemented paper versions. A catalogue entry alone never enables generation. */
-export const BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [
+const HISTORICAL_BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [
   {
     id: 'aqa-8461-paper-1-v1', courseId: AQA_BIOLOGY_P1.courseId, paperId: AQA_BIOLOGY_P1.paperId,
     contractVersion: BIOLOGY_CONTRACT_VERSION, curriculum, examBoard: 'AQA', tiers: ['foundation', 'higher'],
@@ -297,8 +298,19 @@ export const BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [
   },
 ];
 
+// Register a new version without mutating any historical plan or prompt.
+const paper2V1 = HISTORICAL_BIOLOGY_PAPER_PACKS.find(pack => pack.id === 'ocr-h420-paper-2-v1')!;
+export const BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [...HISTORICAL_BIOLOGY_PAPER_PACKS, { ...paper2V1, id: 'ocr-h420-paper-2-v2', contractVersion: 2,
+  layoutChoices: [...paper2V1.layoutChoices, 'Examly v2 full-template primary-module marks: Module 2 = 14, Module 4 = 41, Module 6 = 45. Module 1 skills are embedded. These are not official OCR weightings.'],
+  rules: OCR_ALEVEL_P2_V2_RULES,
+  definition: () => ({...OCR_ALEVEL_P2_V2}), build: buildOcrAlevelPaper2V2Plan,
+  instructions: ocrAlevelPaper2V2Instructions, repairPartInstructions: ocrAlevelPaper2V2PartInstruction,
+  validatePlan: assertOcrAlevelPaper2V2Plan,
+}];
+
 export const biologyPaperOptions = (courseId: string | null | undefined) =>
-  BIOLOGY_PAPER_PACKS.filter(pack => canonicalCourseId(pack.courseId) === canonicalCourseId(courseId));
+  BIOLOGY_PAPER_PACKS.filter(pack => canonicalCourseId(pack.courseId) === canonicalCourseId(courseId))
+    .filter(pack => !BIOLOGY_PAPER_PACKS.some(other => other.courseId === pack.courseId && other.paperId === pack.paperId && other.contractVersion > pack.contractVersion));
 
 /** Explicit paper/version lookups never fall back to a different registered paper. */
 export function getBiologyPaperPack(courseId: string | null | undefined, paperId?: string | null, contractVersion?: number): BiologyPaperPack | null {
@@ -309,7 +321,9 @@ export function getBiologyPaperPack(courseId: string | null | undefined, paperId
   const selectedPaper = paperId ?? (course === 'aqa_gcse_biology' ? 'paper_1' : null);
   const matches = BIOLOGY_PAPER_PACKS.filter(pack => canonicalCourseId(pack.courseId) === course &&
     (selectedPaper == null || pack.paperId === selectedPaper) && (contractVersion === undefined || pack.contractVersion === contractVersion));
-  // Ambiguous defaults require an explicit paper/version; never select the first match.
+  // The current Paper 2 preset is explicit. Saved versions always use the
+  // exact lookup above, including v1; unsupported versions never fall back.
+  if (course === OCR_ALEVEL_BIOLOGY_ID && selectedPaper === 'paper_2' && contractVersion === undefined) return matches.find(pack => pack.contractVersion === 2) ?? null;
   return matches.length === 1 ? matches[0] : null;
 }
 

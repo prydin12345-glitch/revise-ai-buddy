@@ -266,6 +266,7 @@ export const ExamProfileModal = ({
   const [interactiveResponses, setInteractiveResponses] = useState(false);
   const [paperMode, setPaperMode] = useState<PaperMode>("custom");
   const [planApplied, setPlanApplied] = useState(false);
+  const [savedContractVersion, setSavedContractVersion] = useState<number | undefined>();
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [selectedPaperId, setSelectedPaperId] = useState<string | null>(null);
 
@@ -352,8 +353,9 @@ export const ExamProfileModal = ({
       setIncludeTables(initialData?.include_tables ?? false);
       const storedContract = (initialData as any)?.paper_blueprint?.paperContract;
       setPaperMode((storedContract?.mode as PaperMode) ?? "custom");
-      const storedDefinition = storedContract ? biologyPaperDefinition(storedContract.courseId, normaliseAssessmentTier(initialData?.assessment_tier), storedContract.paperId) : null;
-      setPlanApplied(!!storedContract && storedContract.mode !== "custom" && (!storedDefinition?.specificationVersion || storedContract.specificationVersion === storedDefinition.specificationVersion));
+      setSavedContractVersion(storedContract?.contractVersion);
+      const storedDefinition = storedContract ? biologyPaperDefinition(storedContract.courseId, normaliseAssessmentTier(initialData?.assessment_tier), storedContract.paperId, storedContract.contractVersion) : null;
+      setPlanApplied(!!storedDefinition && storedContract.mode !== "custom" && (!storedDefinition.specificationVersion || storedContract.specificationVersion === storedDefinition.specificationVersion));
     }
   }, [open, initialData]);
 
@@ -403,7 +405,7 @@ export const ExamProfileModal = ({
   const selectedTier = effectiveAssessmentTier;
   const guidedActive = paperMode !== "custom" && planApplied && supportsGuidedPaper && !!selectedTier;
   const paperDefinition = biologyPaperDefinition(courseCapability?.id ?? null, selectedTier, selectedPaperId);
-  const currentPlan = guidedActive ? buildPaperPlan(paperMode, selectedTier, courseCapability?.id, selectedPaperId) : null;
+  const currentPlan = guidedActive ? buildPaperPlan(paperMode, selectedTier, courseCapability?.id, selectedPaperId, savedContractVersion) : null;
   const effectiveTopics = currentPlan?.parts.some(p=>p.assessmentRole==='synoptic_essay') ? [...(paperDefinition?.topics??[])] : currentPlan ? [...new Set(currentPlan.parts.map(p => p.topic))] : selectedTopics;
   const configurationReady = (!explicitCourseNeeded || (!!courseCapability && courseCapability.generationAvailable !== false && !!selectedTier)) &&
     (![EDEXCEL_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, WJEC_BIOLOGY_ID, AQA_ALEVEL_BIOLOGY_ID, OCR_ALEVEL_BIOLOGY_ID].includes(courseCapability?.id ?? '') || (!!selectedPaperId && !!selectedTier)) &&
@@ -411,6 +413,7 @@ export const ExamProfileModal = ({
 
   // Explicit conversion only — nothing is overwritten until the user accepts.
   const applyGuidedPlan = (plan: PaperPlan) => {
+    setSavedContractVersion(plan.contractVersion);
     setMcqCount(plan.parts.filter((p) => p.responseType === "mcq_single").length);
     setWrittenCount(plan.parts.filter((p) => p.responseType !== "mcq_single").length);
     setParentQuestionCount(plan.parentCount);
@@ -603,7 +606,7 @@ export const ExamProfileModal = ({
             <BiologyCourseSelector lookup={courseLookup} value={selectedCourseId} tier={selectedTier}
               onChange={(id) => { setSelectedCourseId(id); setSelectedPaperId(null); setAssessmentTier(null); setPaperMode("short_practice"); setPlanApplied(false); }} />
             <BiologyPaperSelector courseId={courseCapability?.id ?? null} value={selectedPaperId} tier={selectedTier}
-              onChange={(id) => { setSelectedPaperId(id); setPlanApplied(false); }} />
+              onChange={(id) => { setSelectedPaperId(id); setPlanApplied(false); setSavedContractVersion(undefined); }} />
             {assessmentTierOptions.length > 0 && (
               <AssessmentTierSelector
                 options={assessmentTierOptions}
@@ -619,7 +622,8 @@ export const ExamProfileModal = ({
                 paperId={selectedPaperId}
                 mode={paperMode}
                 tier={effectiveAssessmentTier}
-                onModeChange={(m) => { setPaperMode(m); setPlanApplied(m === "custom"); }}
+                contractVersion={planApplied ? savedContractVersion : undefined}
+                onModeChange={(m) => { setPaperMode(m); setPlanApplied(m === "custom"); setSavedContractVersion(undefined); }}
                 onApplyPlan={applyGuidedPlan}
                 applied={planApplied}
               />

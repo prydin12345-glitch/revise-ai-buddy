@@ -54,6 +54,7 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     `Subject: ${input.subject}. Board: ${input.scope.examBoard ?? 'unchanged'}. Qualification: ${input.scope.educationalLevel ?? 'unchanged'}.`,
     biologyScopeInstructions(input.scope),
     'Blocking defects: ' + input.defects,
+    !taskOnly && /invalid_statements/.test(input.defects) ? 'STATEMENT REPAIR: If numbered propositions are missing, their original truth values and original answer cannot be recovered from combination-only options. Rewrite the complete MCQ as original synthetic material: put each full numbered statement in context, keep the same number/type/marks/topic, return all four distinct combination choices, evaluate every proposition privately and return the one matching correct_answer. Do not expose truth flags, explanations or the answer in context.' : '',
     'Targets: ' + [...input.targetNumbers].join(', '),
     input.previousDiagnostics?.length ? 'Previous response was rejected: ' + describeRepairDiagnostics(input.previousDiagnostics) : '',
     'Keep each stored question number, topic, question type and mark allocation. Return an explicit task field for every scored part.',
