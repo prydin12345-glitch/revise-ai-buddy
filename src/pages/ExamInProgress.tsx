@@ -1273,9 +1273,9 @@ const ExamInProgress = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="examly-assessment min-h-screen flex flex-col bg-background">
       {/* Top Bar */}
-      <div className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+      <div className="sticky top-0 z-50 border-b bg-card">
         <div className="flex items-center justify-between px-3 sm:px-4 lg:px-6 h-14 lg:h-16 gap-2 lg:grid lg:grid-cols-3 max-w-none">
           {/* Left: Menu and Title */}
           <div className="flex items-center gap-2 min-w-0 flex-1 lg:flex-none">
@@ -1669,7 +1669,7 @@ const ExamInProgress = () => {
 
           {/* Questions Container */}
           <div className={`flex-1 overflow-y-auto scrollbar-hide ${examView === 'insert' ? 'hidden' : ''}`}>
-            <div className="container max-w-7xl py-4 sm:py-6 lg:py-8 px-3 sm:px-4 lg:px-8 space-y-4 sm:space-y-6 lg:space-y-8 min-h-[calc(100vh-12rem)] flex flex-col justify-start">
+            <div className="container max-w-5xl py-4 sm:py-6 lg:py-8 px-3 sm:px-4 lg:px-8 space-y-4 sm:space-y-6 lg:space-y-8 min-h-[calc(100vh-12rem)] flex flex-col justify-start">
               {currentGroup.questions.map((question, qIdx) => {
                 // Determine if this is a sub-part (e.g., "1a", "2b") vs standalone ("1", "2")
                 // In a multi-part group, EVERY question gets a clean letter label (a, b, c)
@@ -2209,7 +2209,7 @@ const ExamInProgress = () => {
                             return (
                             <div 
                                 key={idx} 
-                                className={`flex items-center space-x-3 px-3 py-2.5 sm:p-4 rounded-lg border-2 transition-all cursor-pointer min-h-[44px] ${
+                                className={`flex items-center space-x-3 px-3 py-2.5 sm:p-4 rounded-lg border transition-colors cursor-pointer min-h-[44px] ${
                                   isSelected ? '' : 'border-border hover:bg-accent'
                                 }`}
                                 style={isSelected ? {
@@ -2407,7 +2407,7 @@ const ExamInProgress = () => {
           </div>
 
           {/* Bottom Navigation — section-level, aligned with practice workspace radius/typography */}
-          <div className="border-t border-border bg-background/80 backdrop-blur-sm px-3 sm:px-4 lg:px-6 py-3 sm:py-4 flex items-center justify-between">
+          <div className="border-t border-border bg-card px-3 sm:px-4 lg:px-6 py-3 sm:py-4 flex items-center justify-between">
             <Button
               variant="ghost"
               className="rounded-token-sm px-3 sm:px-5 min-h-[44px] text-foreground hover:bg-muted"

@@ -511,12 +511,12 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="font-sans">
-      <main className="mx-auto max-w-[1480px] px-4 py-6 lg:px-6">
+      <main className="mx-auto max-w-[1280px] px-4 py-6 lg:px-6">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_332px] lg:items-start">
           <div className="flex min-w-0 flex-col gap-5">
             <header className="mb-1">
-              <h1 className="text-[25px] font-extrabold tracking-tight">
-                Welcome back, {profile.name.split(" ")[0]}!
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+                Welcome back, {profile.name.split(" ")[0]}
               </h1>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 Here's your study overview.
@@ -534,7 +534,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
               />
             )}
             {classes.length === 0 ? (
-              <section className="rounded-[20px] border border-border bg-card p-5 shadow-sm">
+              <section className="rounded-lg border border-border bg-card p-5 shadow-none">
                 <h2 className="mb-2 text-base font-bold">My Classes</h2>
                 <div className="rounded-xl border border-dashed border-border p-6 text-center">
                   <p className="text-sm text-muted-foreground">

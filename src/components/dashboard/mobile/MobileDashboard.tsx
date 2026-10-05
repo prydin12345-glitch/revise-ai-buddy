@@ -27,17 +27,18 @@ export default function MobileDashboard(props: DashboardData) {
       <header className="flex flex-col gap-[15px] px-[18px]">
         <div>
           <div className="text-[13px] font-semibold text-muted-foreground">{greeting()},</div>
-          <div className="text-[23px] font-extrabold leading-tight tracking-tight">{firstName} 👋</div>
+          <div className="text-[23px] font-extrabold leading-tight tracking-tight">{firstName}</div>
         </div>
 
 
-        <div className="flex items-center gap-4">
+        <div className="grid grid-cols-2 gap-3">
           {profileStats.map((s) => {
             const Icon = s.icon;
             return (
               <div key={s.key} className="flex items-center gap-1.5 text-base font-extrabold tracking-tight">
                 <Icon className={`h-[17px] w-[17px] ${s.iconClass}`} />
                 <span className="tabular-nums">{s.value}</span>
+                <span className="text-xs font-medium text-muted-foreground">{s.label}</span>
               </div>
             );
           })}

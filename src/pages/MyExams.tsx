@@ -613,13 +613,13 @@ const MyExams = () => {
 
   return (
     <DashboardLayout>
-      <div className="max-w-[1600px] mx-auto space-y-6">
+      <div className="max-w-[1280px] mx-auto space-y-7">
         {/* Unified Tab Bar */}
         <MyWorkTabBar />
 
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground">My Exams</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">My Exams</h1>
           
           {/* Create Button - compact pill */}
           <DropdownMenu>
@@ -644,9 +644,9 @@ const MyExams = () => {
 
         {/* Controls Bar - Order: Search → Tabs → Sort/Filter */}
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+          <div className="flex flex-col 2xl:flex-row 2xl:items-center gap-3">
             {/* Search Bar (First) */}
-            <div className="relative flex-1 max-w-md order-1">
+            <div className="relative w-full min-w-0 2xl:flex-1 2xl:max-w-md order-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Search exams…"
@@ -667,8 +667,8 @@ const MyExams = () => {
             </div>
 
             {/* Segmented Control Tabs (Second) */}
-            <div className="flex-shrink-0 overflow-x-auto scrollbar-hide order-2">
-              <div className="inline-flex p-1 bg-muted rounded-lg gap-1">
+            <div className="min-w-0 max-w-full overflow-x-auto order-2">
+              <div className="inline-flex min-h-11 p-1 border border-border bg-muted/50 rounded-md gap-1">
                 {TABS.map((tab) => {
                   const Icon = tab.icon;
                   return (
@@ -691,7 +691,7 @@ const MyExams = () => {
             </div>
 
             {/* Sort + Filter Controls (Third) */}
-            <div className="flex items-center gap-2 order-3">
+            <div className="flex flex-wrap items-center gap-2 order-3">
               {/* Board Filter */}
               {(() => {
                 const uniqueBoards = [...new Set(exams.map(e => e.exam_board).filter(Boolean))] as string[];
@@ -758,7 +758,7 @@ const MyExams = () => {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : sortedExams.length === 0 ? (
-          <div className="text-center py-20">
+          <div className="rounded-lg border border-dashed border-border bg-card px-5 py-16 text-center">
             <h3 className="text-2xl font-semibold mb-2">No exams yet</h3>
             <p className="text-muted-foreground mb-6">Upload your first exam to get started</p>
             <Button onClick={() => navigate("/upload")}>
@@ -795,9 +795,9 @@ const MyExams = () => {
                         </span>
                       </div>
 
-                      <div className="relative -mx-4 sm:-mx-6">
+                      <div className="relative">
                         <div
-                          className="subject-scrollbar flex gap-4 overflow-x-auto px-4 sm:px-6 pb-3 snap-x snap-mandatory scroll-smooth"
+                          className="subject-scrollbar flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory scroll-smooth"
                           style={{ ['--scrollbar-thumb' as any]: subjectColor }}
                         >
 
@@ -814,7 +814,7 @@ const MyExams = () => {
                             return (
                               <div
                                 key={exam.id}
-                                className="snap-start shrink-0 w-[210px] sm:w-[230px] md:w-[240px]"
+                                className="snap-start shrink-0 w-[min(300px,calc(100vw-2rem))] sm:w-[280px]"
                               >
                                 <ExamCard
                                   exam={exam}

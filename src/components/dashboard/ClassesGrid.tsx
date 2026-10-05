@@ -45,14 +45,14 @@ function thumbStyle(motif: ClassItem["motif"], accent: string): React.CSSPropert
 function ClassCard({ item, onContinue }: { item: ClassItem; onContinue?: (id: string) => void }) {
   const Glyph = item.glyph;
   return (
-    <article className="flex overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:border-border">
+    <article className="flex overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-border-strong">
       {/* thumb */}
       <div
-        className="relative grid w-[120px] flex-none place-items-center sm:w-[138px]"
+        className="class-thumbnail relative grid w-[88px] flex-none place-items-center sm:w-[96px]"
         style={thumbStyle(item.motif, item.accentColor)}
       >
         <span
-          className="absolute left-3 top-3 z-[2] flex items-center gap-1.5 rounded-[7px] bg-black/40 px-2.5 py-1 text-[10.5px] font-bold backdrop-blur"
+          className="absolute left-3 top-3 z-[2] flex items-center gap-1.5 rounded-[7px] class-subject-label bg-card border border-border px-2.5 py-1 text-xs font-bold "
           style={{ color: item.accentColor }}
         >
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: item.accentColor }} />
@@ -64,8 +64,8 @@ function ClassCard({ item, onContinue }: { item: ClassItem; onContinue?: (id: st
       {/* body */}
       <div className="flex min-w-0 flex-1 flex-col gap-2.5 p-4">
         <div>
-          <div className="truncate text-[15.5px] font-bold tracking-tight">{item.title}</div>
-          <div className="mt-0.5 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+          <div className="break-words text-base font-bold tracking-tight">{item.title}</div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs font-semibold text-muted-foreground">
             {item.teacher}
             <span className="h-[3px] w-[3px] rounded-full bg-muted-foreground" />
             {item.students} students
@@ -84,14 +84,14 @@ function ClassCard({ item, onContinue }: { item: ClassItem; onContinue?: (id: st
               {item.progress}%
             </span>
           </div>
-          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-track">
             <div className="h-full rounded-full" style={{ width: `${item.progress}%`, background: item.accentColor }} />
           </div>
         </div>
 
         <button
           onClick={() => onContinue?.(item.id)}
-          className="mt-3 flex items-center justify-center gap-1.5 rounded-[10px] border border-border bg-panel-2 py-2 text-[13px] font-bold transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
+          className="mt-3 flex items-center justify-center gap-1.5 rounded-md border border-border bg-panel-2 min-h-11 py-2 text-sm font-bold transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
         >
           Continue <ArrowRight className="h-[15px] w-[15px]" />
         </button>

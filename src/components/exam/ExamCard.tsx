@@ -58,59 +58,59 @@ export const ExamCard = ({
         onClick={() => {
           if (!isArchived) navigate(`/exam/${exam.id}/cover`);
         }}
-        className="relative block w-full rounded-md border border-border bg-card text-left overflow-hidden shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        style={{ aspectRatio: "1 / 1.414" }}
+        className="relative block w-full rounded-md border border-border bg-card text-left overflow-hidden transition-colors duration-200 hover:border-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        style={{ minHeight: "340px" }}
         aria-label={`Open ${exam.title}`}
       >
         {/* Subject-colour spine */}
         <div
-          className="absolute left-0 top-0 bottom-0 w-1.5"
+          className="absolute left-4 top-5 h-2 w-2 rounded-full"
           style={{ backgroundColor: subjectColor }}
         />
 
-        <div className="flex h-full flex-col px-4 pt-4 pb-3 pl-5">
+        <div className="flex h-full flex-col px-4 pt-4 pb-4">
           {/* Masthead */}
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-2 pl-4">
             <div className="flex items-center gap-1.5">
               <span
-                className="inline-flex h-4 w-4 items-center justify-center rounded text-[9px] font-bold text-white"
+                className="inline-flex h-4 w-4 items-center justify-center rounded text-xs font-bold text-white"
                 style={{ backgroundColor: subjectColor }}
               >
                 E
               </span>
-              <span className="text-[10px] font-bold tracking-tight">Examly</span>
+              <span className="text-xs font-bold tracking-tight">Examly</span>
             </div>
-            <p className="text-[8px] uppercase tracking-[0.16em] text-muted-foreground">
+            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
               Practice paper
             </p>
           </div>
 
           {/* Title block — exam name is the prominent line */}
-          <div className="mt-3 rounded-md border-2 border-foreground/80 p-3">
+          <div className="mt-4 border-y border-border py-3">
 
-            <p className="text-[9px] font-semibold text-muted-foreground line-clamp-1">
+            <p className="text-xs font-semibold text-muted-foreground line-clamp-1">
               {boardLabel ? `Modelled on ${boardLabel}` : "Generic exam style"}
               {levelLabel ? ` · ${levelLabel}` : ""}
             </p>
-            <h3 className="font-serif text-lg font-bold leading-tight tracking-tight text-foreground mt-1 line-clamp-2">
+            <h3 className="font-serif text-lg font-bold leading-tight tracking-tight text-foreground mt-1 break-words">
               {exam.title || "Untitled exam"}
             </h3>
-            <p className="font-serif text-[11px] text-foreground/80 leading-snug mt-1 line-clamp-1">
+            <p className="font-serif text-xs text-foreground/80 leading-snug mt-1 line-clamp-1">
               {exam.subject_id || "Subject"}
             </p>
           </div>
 
           {/* Questions / Time strip */}
-          <div className="mt-2 flex items-stretch rounded-md border border-border overflow-hidden text-[10px]">
+          <div className="mt-2 flex items-stretch rounded-md border border-border overflow-hidden text-xs">
             <div className="flex-1 px-2 py-1.5">
-              <p className="text-muted-foreground text-[9px]">Questions</p>
+              <p className="text-muted-foreground text-xs">Questions</p>
               <p className="font-semibold leading-tight">
                 {progress.totalQuestions || "—"}
               </p>
             </div>
             <div className="w-px bg-border" />
             <div className="flex-1 px-2 py-1.5">
-              <p className="text-muted-foreground text-[9px]">Time</p>
+              <p className="text-muted-foreground text-xs">Time</p>
               <p className="font-semibold leading-tight">
                 {progress.timeRemaining && progress.timeRemaining !== "No timer"
                   ? progress.timeRemaining
@@ -122,7 +122,7 @@ export const ExamCard = ({
           {/* Topics — up to 5, stacked vertically */}
           {visibleTopics.length > 0 && (
             <div className="mt-2">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-foreground/80">
+              <p className="text-xs font-bold uppercase tracking-wider text-foreground/80">
                 Topics
               </p>
               <ul className="mt-0.5 space-y-0.5">
@@ -132,7 +132,7 @@ export const ExamCard = ({
                   return (
                     <li
                       key={`${topic}-${i}`}
-                      className="text-[11px] text-foreground/85 leading-snug truncate"
+                      className="text-xs text-foreground/85 leading-snug break-words"
                     >
                       {topic}{suffix}
                     </li>
@@ -147,7 +147,7 @@ export const ExamCard = ({
 
           {/* Bottom: progress bar with % overlay */}
           <div className="mt-2">
-            <div className="flex items-center justify-between text-[9px] text-muted-foreground mb-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
               <span className="uppercase tracking-wider">Progress</span>
               <span className="font-semibold">{formatProgress(progress.percentComplete)}</span>
             </div>

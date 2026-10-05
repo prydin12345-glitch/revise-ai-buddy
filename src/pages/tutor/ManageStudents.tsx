@@ -127,7 +127,7 @@ export default function ManageStudents() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">My Classes</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">My Classes</h1>
           <p className="text-muted-foreground mt-1">
             Manage your student classes, assignments, and announcements
           </p>
@@ -139,7 +139,7 @@ export default function ManageStudents() {
               Export
             </Button>
           )}
-          <Button onClick={() => setCreateModalOpen(true)} className="shadow-lg">
+          <Button onClick={() => setCreateModalOpen(true)} className="shadow-none">
             <Plus className="w-4 h-4 mr-2" />
             Create Class
           </Button>
@@ -148,7 +148,7 @@ export default function ManageStudents() {
 
       {/* Quick Stats - Icon + Number with Tooltips */}
       {groups.length > 0 && (
-        <div className="flex items-center gap-6 py-2">
+        <div className="flex flex-wrap items-center gap-6 py-3">
           <Tooltip>
             <TooltipTrigger asChild>
               <button 
@@ -200,7 +200,7 @@ export default function ManageStudents() {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       ) : groups.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/60 bg-card p-12 text-center">
+        <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
           <div className="w-[52px] h-[52px] rounded-[14px] bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <Users className="w-6 h-6 text-primary" strokeWidth={1.5} />
           </div>

@@ -69,7 +69,7 @@ export const MobileNavFAB = () => {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={() => setOpen(false)}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[98]"
+            className="fixed inset-0 bg-black/50 z-[43]"
           />
         )}
       </AnimatePresence>
@@ -82,7 +82,7 @@ export const MobileNavFAB = () => {
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-            className="fixed inset-x-0 bottom-0 z-[99] rounded-t-2xl bg-card border-t border-border/50 shadow-2xl"
+            className="fixed inset-x-0 bottom-0 z-[44] rounded-t-2xl bg-card border-t border-border/50 shadow-2xl"
             style={{ maxHeight: '75vh', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
           >
             {/* Handle bar */}
@@ -150,7 +150,7 @@ export const MobileNavFAB = () => {
       <motion.button
         whileTap={{ scale: 0.9 }}
         onClick={() => setOpen(prev => !prev)}
-        className={`fixed z-[100] hidden md:flex lg:hidden items-center justify-center w-[52px] h-[52px] rounded-full border-none shadow-xl cursor-pointer transition-colors duration-200 ${
+        className={`fixed z-[45] hidden md:flex lg:hidden items-center justify-center w-[52px] h-[52px] rounded-full border-none shadow-sm cursor-pointer transition-colors duration-200 ${
           open ? 'bg-foreground' : 'bg-primary'
         }`}
         style={{

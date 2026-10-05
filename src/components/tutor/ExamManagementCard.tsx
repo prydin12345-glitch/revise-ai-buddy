@@ -46,7 +46,7 @@ const StatusBadge = ({ status }: { status: string }) => {
       case "closed":
         return "bg-red-500/15 text-red-400 border-red-500/30";
       case "scheduled":
-        return "bg-amber-500/15 text-amber-400 border-amber-500/30";
+        return "bg-amber-500/15 text-warning border-amber-500/30";
       default:
         return "bg-muted/50 text-muted-foreground border-border/50";
     }
@@ -128,20 +128,20 @@ export const ExamManagementCard = ({
   return (
     <div 
       className={cn(
-        "group relative rounded-2xl border bg-card/60 backdrop-blur-sm",
-        "p-6 transition-all duration-300 flex flex-col h-full",
-        "hover:bg-card/80 hover:shadow-xl hover:shadow-black/10 hover:-translate-y-0.5",
-        isOverdue ? "border-red-500/30" : "border-border/40 hover:border-border/60"
+        "group relative rounded-lg border bg-card",
+        "p-5 transition-colors flex flex-col h-full",
+        "hover:border-border-strong",
+        isOverdue ? "border-red-500/30" : "border-border hover:border-border-strong"
       )}
     >
       {/* Subject color accent */}
       <div 
-        className="absolute left-0 top-4 bottom-4 w-1 rounded-full"
+        className="absolute left-5 top-5 h-2 w-2 rounded-full"
         style={{ backgroundColor: subjectColor }}
       />
 
       {/* Main Content */}
-      <div className="flex flex-col gap-4 flex-1">
+      <div className="flex flex-col gap-4 flex-1 pt-3">
         {/* Header Row */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
@@ -181,7 +181,7 @@ export const ExamManagementCard = ({
           {isNotAssigned ? (
             <Badge 
               variant="outline" 
-              className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-xs"
+              className="bg-amber-500/10 text-warning border-amber-500/30 text-xs"
             >
               <AlertTriangle className="h-3 w-3 mr-1" />
               Not assigned
@@ -221,7 +221,7 @@ export const ExamManagementCard = ({
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">
                   {isComplete ? (
-                    <span className="text-emerald-400">All students completed</span>
+                    <span className="text-success">All students completed</span>
                   ) : (
                     <span className="text-muted-foreground">
                       {exam.completed_students} / {exam.total_students} completed
@@ -237,7 +237,7 @@ export const ExamManagementCard = ({
             </>
           ) : (
             <div className="h-8 flex items-center">
-              <span className="text-xs text-muted-foreground/70">No submissions yet</span>
+              <span className="text-xs text-muted-foreground">No submissions yet</span>
             </div>
           )}
         </div>
@@ -253,7 +253,7 @@ export const ExamManagementCard = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 rounded-xl text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                  className="h-10 w-10 rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
                   onClick={() => navigate(`/tutor/exams/${exam.id}?tab=questions`)}
                 >
                   <Eye className="h-4 w-4" />
@@ -267,7 +267,7 @@ export const ExamManagementCard = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 rounded-xl text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                  className="h-10 w-10 rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
                   onClick={() => navigate(`/tutor/exams/${exam.id}?tab=assignments`)}
                 >
                   <Users className="h-4 w-4" />
@@ -281,7 +281,7 @@ export const ExamManagementCard = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 rounded-xl text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                  className="h-10 w-10 rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
                   onClick={() => navigate(`/tutor/exams/${exam.id}?tab=results`)}
                 >
                   <BarChart3 className="h-4 w-4" />
@@ -303,7 +303,7 @@ export const ExamManagementCard = ({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 rounded-xl text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive"
+                className="h-10 w-10 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                 onClick={() => onDelete(exam.id, exam.title, exam.status)}
               >
                 <Trash2 className="h-4 w-4" />

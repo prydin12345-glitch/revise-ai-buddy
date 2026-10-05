@@ -4,20 +4,17 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center rounded-md border px-2 py-1 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
   {
     variants: {
       variant: {
-        default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
+        default: "border-primary/20 bg-primary/10 text-primary hover:bg-primary/15",
         secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
         destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
         outline: "text-foreground",
-        // High-contrast danger variant - bright red background, white text, glow effect
-        danger: "bg-[hsl(0_75%_55%)] text-white border-[hsl(0_70%_50%)] shadow-[0_0_10px_hsl(0_75%_55%/0.5),inset_0_1px_0_hsl(0_75%_70%/0.3)] font-semibold",
-        // High-contrast warning variant - bright orange background, dark text for contrast
-        warning: "bg-[hsl(35_95%_55%)] text-[hsl(35_100%_8%)] border-[hsl(35_90%_48%)] shadow-[0_0_10px_hsl(35_95%_55%/0.4),inset_0_1px_0_hsl(35_95%_70%/0.3)] font-semibold",
-        // Success variant - green with white text
-        success: "bg-[hsl(142_70%_45%)] text-white border-[hsl(142_65%_40%)] shadow-[0_0_8px_hsl(142_70%_45%/0.4)]",
+        danger: "bg-danger-muted text-danger border-danger/30 font-semibold",
+        warning: "bg-warning-light text-warning border-warning/30 font-semibold",
+        success: "bg-success-light text-success border-success/30 font-semibold",
         // Neutral variant - muted styling
         neutral: "bg-muted text-muted-foreground border-border",
       },

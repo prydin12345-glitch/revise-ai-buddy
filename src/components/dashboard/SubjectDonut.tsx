@@ -220,7 +220,7 @@ export default function SubjectDonut({
   const direction = view === "subjects" ? -1 : 1;
 
   return (
-    <section className="rounded-[20px] border border-border bg-card p-5 shadow-sm">
+    <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           {view !== "subjects" && (

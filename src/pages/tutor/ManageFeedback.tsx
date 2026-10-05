@@ -405,7 +405,7 @@ const ManageFeedback = () => {
         </div>
 
         {/* Timestamp & Quick Actions */}
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-y-3 mb-3">
           <div className="flex items-center gap-2">
             <p className="text-xs text-muted-foreground">
               {isPending ? dateStr : `Responded ${thread.responded_at ? formatFeedbackDate(thread.responded_at) : ""}`}
@@ -711,7 +711,7 @@ const ManageFeedback = () => {
                   <Bell className="h-3 w-3" />
                   Notification Preferences
                 </p>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-y-3">
                   <Label htmlFor="notify-reply" className="text-sm">Notify when student replies</Label>
                   <Switch
                     id="notify-reply"
@@ -719,7 +719,7 @@ const ManageFeedback = () => {
                     onCheckedChange={setNotifyOnReply}
                   />
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-y-3">
                   <Label htmlFor="notify-resolve" className="text-sm">Notify when resolved</Label>
                   <Switch
                     id="notify-resolve"

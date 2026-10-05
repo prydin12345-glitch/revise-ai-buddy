@@ -22,7 +22,7 @@ export function PageHeader({ title, subtitle, showBack = true, backTo, step }: P
   };
 
   return (
-    <div className="mb-8">
+    <div className="mb-8 max-w-3xl">
       {showBack && (
         <Button
           variant="ghost"
@@ -37,9 +37,9 @@ export function PageHeader({ title, subtitle, showBack = true, backTo, step }: P
       {step && (
         <p className="text-sm text-muted-foreground mb-2">{step}</p>
       )}
-      <h1 className="text-3xl font-bold text-foreground">{title}</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold leading-tight text-foreground">{title}</h1>
       {subtitle && (
-        <p className="text-muted-foreground mt-2">{subtitle}</p>
+        <p className="text-sm sm:text-base leading-relaxed text-muted-foreground mt-2">{subtitle}</p>
       )}
     </div>
   );

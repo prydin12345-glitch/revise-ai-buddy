@@ -225,9 +225,9 @@ const ManageExams = () => {
   return (
     <div className="container mx-auto py-6 space-y-6">
       {/* Header - matches Practice Sets */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-y-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Manage Exams</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Manage Exams</h1>
           <p className="text-muted-foreground">Create, assign, and track student exams</p>
         </div>
         <Button onClick={() => navigate("/tutor/exams/create")}>
@@ -466,7 +466,7 @@ const ManageExams = () => {
           ) : (
             <div className="space-y-4">
               {/* Results count */}
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-y-3">
                 <span className="text-sm text-muted-foreground">
                   Showing {filteredExams.length} of {exams.length} exam{exams.length !== 1 ? 's' : ''}
                 </span>

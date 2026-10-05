@@ -11,9 +11,9 @@ interface ProfileCardProps {
 
 export default function ProfileCard({ profile, stats }: ProfileCardProps) {
   return (
-    <section className="rounded-[20px] border border-border bg-card p-5 pt-6 shadow-sm">
+    <section className="rounded-lg border border-border bg-card p-5">
       <div className="flex flex-col items-center text-center">
-        <div className="relative grid h-[78px] w-[78px] place-items-center rounded-full bg-primary text-[28px] font-extrabold text-primary-foreground shadow-xl shadow-primary/30">
+        <div className="relative grid h-14 w-14 place-items-center rounded-lg bg-secondary text-xl font-bold text-foreground">
           {profile.initials}
           <span className="absolute bottom-0.5 right-0.5 h-4 w-4 rounded-full border-[3px] border-card bg-success" />
         </div>
@@ -23,7 +23,7 @@ export default function ProfileCard({ profile, stats }: ProfileCardProps) {
 
       {/* icon + number, no container, hover for label */}
       <TooltipProvider delayDuration={120}>
-        <div className="mt-5 flex w-full justify-between gap-1.5">
+        <div className="mt-5 grid w-full grid-cols-2 gap-2 border-t border-border pt-4">
           {stats.map((s) => {
             const Icon = s.icon;
             const Cmp: any = s.onClick ? "button" : "div";
@@ -32,10 +32,11 @@ export default function ProfileCard({ profile, stats }: ProfileCardProps) {
                 <TooltipTrigger asChild>
                   <Cmp
                     onClick={s.onClick}
-                    className={`flex flex-1 flex-col items-center gap-2.5 rounded-xl px-1 py-2.5 transition-colors hover:bg-panel-2 ${s.onClick ? "cursor-pointer" : "cursor-default"}`}
+                    className={`flex flex-1 flex-col items-center gap-1 rounded-md px-2 py-3 transition-colors hover:bg-panel-2 ${s.onClick ? "cursor-pointer" : "cursor-default"}`}
                   >
                     <Icon className={`h-[22px] w-[22px] ${s.iconClass}`} />
-                    <span className="text-[19px] font-extrabold tabular-nums tracking-tight">{s.value}</span>
+                    <span className="text-xl font-bold tabular-nums tracking-tight">{s.value}</span>
+                    <span className="text-xs leading-snug text-muted-foreground">{s.label}</span>
                   </Cmp>
                 </TooltipTrigger>
                 <TooltipContent className="font-bold">{s.label}</TooltipContent>

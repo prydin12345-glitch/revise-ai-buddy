@@ -180,7 +180,7 @@ export const TeacherDashboardContent = ({ userEmail }: DashboardContentProps) =>
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat, index) => (
-          <Card key={index} className="shadow-lg rounded-2xl hover:shadow-xl transition-shadow">
+          <Card key={index} className="shadow-none rounded-lg hover:border-border-strong transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -195,7 +195,7 @@ export const TeacherDashboardContent = ({ userEmail }: DashboardContentProps) =>
       </div>
 
       {/* Recent Exams */}
-      <Card className="shadow-lg rounded-2xl">
+      <Card className="shadow-none rounded-lg">
         <CardHeader className="border-b border-border">
           <CardTitle className="flex items-center justify-between text-2xl font-bold">
             <span>Your Exams</span>
@@ -255,7 +255,7 @@ export const TeacherDashboardContent = ({ userEmail }: DashboardContentProps) =>
       </Card>
 
       {/* Recent Assignments */}
-      <Card className="shadow-lg rounded-2xl">
+      <Card className="shadow-none rounded-lg">
         <CardHeader className="border-b border-border">
           <CardTitle className="flex items-center justify-between text-2xl font-bold">
             <span>Recent Assignments</span>

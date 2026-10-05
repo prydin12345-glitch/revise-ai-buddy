@@ -153,53 +153,36 @@ const Auth = () => {
     }
   };
 
-  const inputClass = "w-full bg-background border-border/50 focus:border-primary transition-colors";
+  const inputClass = "w-full bg-card border-input focus:border-primary transition-colors";
 
   return (
-    <div className="min-h-screen flex bg-background text-foreground relative overflow-hidden">
-      {/* Background blobs */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <motion.div
-          animate={{ x: [0, 30, 0], y: [0, -20, 0] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-1/3 left-1/4 w-[400px] h-[400px] rounded-full opacity-10 blur-[120px]"
-          style={{ background: "hsl(var(--primary))" }}
-        />
-        <motion.div
-          animate={{ x: [0, -20, 0], y: [0, 30, 0] }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute bottom-1/3 right-1/4 w-[300px] h-[300px] rounded-full opacity-10 blur-[120px]"
-          style={{ background: "hsl(263 70% 58%)" }}
-        />
-      </div>
-
+    <div className="examly-auth min-h-screen flex bg-background text-foreground relative">
       {/* ── Left panel (desktop only) ── */}
-      <div className="hidden md:flex flex-col justify-center w-1/2 p-16 relative z-10">
+      <div className="hidden md:flex flex-col justify-center w-1/2 max-w-2xl px-10 lg:px-16 py-12 border-r border-border bg-secondary/40 relative z-10">
         <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }}>
           <button onClick={() => navigate("/")} className="text-2xl font-bold tracking-tight mb-12 block hover:opacity-80 transition-opacity bg-transparent border-none cursor-pointer text-foreground font-[inherit]">
             Examly
           </button>
           <h2 className="text-3xl font-bold mb-4 leading-tight">
-            Smarter revision starts here
+            A space for focused revision
           </h2>
           <p className="text-muted-foreground leading-relaxed mb-12 max-w-md">
-            Join thousands of students generating unlimited AI-powered practice questions tailored to their exact syllabus.
+            Practise exam-style questions, show your working and review your feedback in one place.
           </p>
 
           <div className="space-y-4">
             {[
-              { value: "10,000+", label: "Questions generated daily" },
-              { value: "94%", label: "Of students improve their grade" },
-              { value: "Free", label: "To get started — no card needed" },
+              { value: "Mock papers", label: "Practice shaped around your subject and qualification" },
+              { value: "Question feedback", label: "Review your marks and understand your next steps" },
+              { value: "Your progress", label: "Keep your papers, profiles and study activity together" },
             ].map((item, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: 0.3 + i * 0.1 }}
-                className="flex items-center gap-4"
+                className="border-t border-border pt-4"
               >
-                <div className="w-1 h-10 rounded-full bg-primary/50" />
                 <div>
                   <div className="text-sm font-semibold">{item.value}</div>
                   <div className="text-xs text-muted-foreground">{item.label}</div>
@@ -211,14 +194,14 @@ const Auth = () => {
       </div>
 
       {/* ── Right panel (form) ── */}
-      <div className="flex-1 flex items-center justify-center p-6 md:p-16 relative z-10">
+      <div className="flex-1 min-w-0 flex items-center justify-center p-5 sm:p-8 lg:p-12 relative z-10">
         {showForgotPassword ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="w-full max-w-md"
           >
-            <div className="rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm p-6 md:p-8">
+            <div className="rounded-lg border border-border bg-card p-6 md:p-8">
               {!forgotSent ? (
                 <>
                   <button
@@ -264,7 +247,7 @@ const Auth = () => {
                   <div className="text-sm font-semibold text-primary mb-5">
                     {forgotEmail}
                   </div>
-                  <p className="text-xs text-muted-foreground/70 leading-relaxed mb-6">
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-6">
                     The link expires in 1 hour. If you do not see the email check your spam folder.
                   </p>
                   <button
@@ -290,7 +273,7 @@ const Auth = () => {
             animate={{ opacity: 1, y: 0 }}
             className="w-full max-w-md"
           >
-            <div className="rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm p-8 text-center">
+            <div className="rounded-lg border border-border bg-card p-8 text-center">
               <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-5">
                 <Mail size={24} className="text-primary" strokeWidth={1.8} />
               </div>
@@ -301,7 +284,7 @@ const Auth = () => {
               <div className="text-sm font-semibold text-primary mb-5">
                 {confirmedEmail}
               </div>
-              <p className="text-xs text-muted-foreground/70 leading-relaxed mb-7">
+              <p className="text-xs text-muted-foreground leading-relaxed mb-7">
                 Click the link in the email to verify your account and get started. The link will expire in 24 hours.
               </p>
               <Button
@@ -318,13 +301,13 @@ const Auth = () => {
               </Button>
               <button
                 onClick={() => { setShowEmailConfirmation(false); setMode("login"); }}
-                className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit]"
+                className="text-xs text-muted-foreground hover:text-muted-foreground transition-colors bg-transparent border-none cursor-pointer font-[inherit]"
               >
                 Back to sign in
               </button>
             </div>
             <div className="text-center mt-4">
-              <span className="text-xs text-muted-foreground/40">Wrong email? </span>
+              <span className="text-xs text-muted-foreground">Wrong email? </span>
               <button
                 onClick={() => setShowEmailConfirmation(false)}
                 className="text-xs text-primary hover:underline bg-transparent border-none cursor-pointer font-[inherit]"
@@ -354,7 +337,7 @@ const Auth = () => {
               </p>
             </div>
 
-            <div className="rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm p-6 md:p-8">
+            <div className="rounded-lg border border-border bg-card p-6 md:p-8">
               <form onSubmit={handleAuth} className="space-y-5">
                 {mode === "signup" && (
                   <>
@@ -449,7 +432,7 @@ const Auth = () => {
                 </Button>
 
                 {mode === "signup" && (
-                  <p className="text-[11px] leading-relaxed text-muted-foreground/70 text-center">
+                  <p className="text-[11px] leading-relaxed text-muted-foreground text-center">
                     By creating an account you agree to our{" "}
                     <a href="/terms" target="_blank" className="text-muted-foreground hover:text-foreground underline underline-offset-2">
                       Terms of Service

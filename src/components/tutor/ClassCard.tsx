@@ -56,26 +56,25 @@ export const ClassCard = ({
   return (
     <div
       className={cn(
-        "group relative rounded-xl bg-card p-5",
-        "border border-border/50 hover:border-border",
+        "group relative rounded-lg bg-card p-5",
+        "border border-border hover:border-border-strong",
         "transition-all duration-200 ease-out",
-        "hover:shadow-lg hover:shadow-black/5",
-        "hover:-translate-y-0.5",
+        "shadow-none",
       )}
       style={{
-        background: `linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--card)) 95%, ${accentColor}10 100%)`,
+        background: "hsl(var(--card))",
       }}
     >
       {/* Accent bar */}
       <div
-        className="absolute left-0 top-4 bottom-4 w-1 rounded-r-full opacity-80"
+        className="absolute left-5 top-7 h-2 w-2 rounded-full"
         style={{ backgroundColor: accentColor }}
       />
 
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0 pl-3">
-          <h3 className="text-lg font-semibold text-foreground truncate mb-1.5">{name}</h3>
+          <h3 className="text-lg font-semibold text-foreground break-words mb-1.5">{name}</h3>
           <div className="flex flex-wrap items-center gap-1.5">
             {primarySubject && (
               <Badge
@@ -112,7 +111,7 @@ export const ClassCard = ({
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+              className="h-10 w-10 text-muted-foreground"
             >
               <MoreHorizontal className="h-4 w-4" />
             </Button>
@@ -167,7 +166,7 @@ export const ClassCard = ({
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8"
+                className="h-10 w-10"
                 onClick={onCopyInvite}
               >
                 <Copy className="w-4 h-4" />
@@ -183,7 +182,7 @@ export const ClassCard = ({
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8"
+                className="h-10 w-10"
                 onClick={onAnnounce}
               >
                 <Megaphone className="w-4 h-4" />

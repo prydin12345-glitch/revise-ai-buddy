@@ -34,13 +34,13 @@ export default function DashboardShell(props: DashboardData) {
         onJoinClass={onJoinClass}
       />
 
-      <main className="mx-auto max-w-[1480px] px-6 py-7 lg:px-8">
+      <main className="mx-auto max-w-[1280px] px-6 py-7 lg:px-8">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_332px] lg:items-start">
           {/* LEFT — scrolls with the page */}
           <div className="flex min-w-0 flex-col gap-5">
             <header className="mb-1">
-              <h1 className="text-[25px] font-extrabold tracking-tight">
-                Welcome back, {firstName}! 👋
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+                Welcome back, {firstName}
               </h1>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 {greeting()} — here's your study overview.

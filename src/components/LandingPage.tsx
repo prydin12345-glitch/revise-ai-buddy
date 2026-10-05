@@ -1,8 +1,6 @@
 // FILE: src/components/LandingPage.tsx
-// Examly landing v2 — the exam theatre takes the stage.
-// Audit-driven rework: theatre is the hero centrepiece with product chrome,
-// serif display headings (the exam-paper metaphor in the type itself),
-// distinct textures per section, honest trust signals, legal footer.
+// Product examples retain their existing display state and controls.
+// Public-page presentation shares the academic workspace foundations.
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
@@ -262,7 +260,7 @@ const NavArrow = ({
     onClick={onClick}
     aria-label={side === "left" ? "Previous example" : "Next example"}
     className={
-      "hidden md:flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary " +
+      "hidden md:flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary " +
       className
     }
   >
@@ -350,7 +348,7 @@ const ExamTheatre = () => {
               animate="center"
               exit="exit"
               transition={{ duration: 0.45, ease: [0.32, 0.72, 0, 1] }}
-              className="absolute inset-y-0 right-0 z-0 w-[560px] max-w-none scale-[0.94] origin-right rounded-2xl border border-border bg-card text-left opacity-35 hover:opacity-55 focus-visible:opacity-70 focus-visible:outline-none transition-opacity overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_55%)]"
+              className="absolute inset-y-0 right-0 z-0 w-[560px] max-w-none scale-[0.94] origin-right rounded-lg border border-border bg-card text-left opacity-35 hover:opacity-55 focus-visible:opacity-70 focus-visible:outline-none transition-opacity overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_55%)]"
             >
               <TheatreStaticCard example={prevExample} />
             </motion.button>
@@ -379,7 +377,7 @@ const ExamTheatre = () => {
                 if (info.offset.x < -70) goBy(1);
                 else if (info.offset.x > 70) goBy(-1);
               }}
-              className="absolute inset-0 rounded-2xl border border-border bg-card shadow-[0_32px_80px_-28px_hsl(var(--primary)/0.4)] overflow-hidden cursor-grab active:cursor-grabbing md:cursor-default z-10"
+              className="absolute inset-0 rounded-lg border border-border bg-card shadow-none overflow-hidden cursor-grab active:cursor-grabbing md:cursor-default z-10"
             >
               {/* Product chrome: subject pill · timer · running marks total */}
               <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-border bg-secondary/60">
@@ -546,7 +544,7 @@ const ExamTheatre = () => {
               animate="center"
               exit="exit"
               transition={{ duration: 0.45, ease: [0.32, 0.72, 0, 1] }}
-              className="absolute inset-y-0 left-0 z-0 w-[560px] max-w-none scale-[0.94] origin-left rounded-2xl border border-border bg-card text-left opacity-35 hover:opacity-55 focus-visible:opacity-70 focus-visible:outline-none transition-opacity overflow-hidden [mask-image:linear-gradient(to_left,transparent,black_55%)]"
+              className="absolute inset-y-0 left-0 z-0 w-[560px] max-w-none scale-[0.94] origin-left rounded-lg border border-border bg-card text-left opacity-35 hover:opacity-55 focus-visible:opacity-70 focus-visible:outline-none transition-opacity overflow-hidden [mask-image:linear-gradient(to_left,transparent,black_55%)]"
             >
               <TheatreStaticCard example={nextExample} />
             </motion.button>
@@ -600,19 +598,19 @@ const SketchVignette = () => (
 const MarkingVignette = () => (
   <div className="rounded-lg border border-border bg-background p-3 space-y-1.5 text-xs">
     <div className="flex items-center justify-between">
-      <span className="text-muted-foreground">Method — completing the square</span>
+      <span className="text-muted-foreground">Method. completing the square</span>
       <span className="font-semibold text-green-600">M1 ✓</span>
     </div>
     <div className="flex items-center justify-between">
-      <span className="text-muted-foreground">Accuracy — turning point stated</span>
+      <span className="text-muted-foreground">Accuracy. turning point stated</span>
       <span className="font-semibold text-green-600">A1 ✓</span>
     </div>
     <div className="flex items-center justify-between">
-      <span className="text-muted-foreground">Accuracy — intercepts labelled</span>
+      <span className="text-muted-foreground">Accuracy. intercepts labelled</span>
       <span className="font-semibold text-danger">A0 ✗</span>
     </div>
     <div className="pt-1 border-t border-border text-muted-foreground">
-      "State (0, 5) on the y-axis — the sketch is right, the label is missing."
+      "State (0, 5) on the y-axis. the sketch is right, the label is missing."
     </div>
   </div>
 );
@@ -644,7 +642,7 @@ const HeatmapVignette = () => (
           style={{ background: v === 0 ? "hsl(var(--secondary))" : `hsl(var(--primary) / ${0.25 + v * 0.65})` }} />
       ))}
     </div>
-    <p className="mt-2 text-xs text-muted-foreground">23 sessions · strongest: algebra · revise next: vectors</p>
+    <p className="mt-2 text-xs text-muted-foreground">Example study activity · Topic performance</p>
   </div>
 );
 
@@ -652,7 +650,7 @@ const FEATURES = [
   {
     icon: FunctionSquare,
     title: "Draw your answer",
-    body: "Sketch curves, plot points and measure angles on an interactive canvas — your drawing gets marked, not just your typing.",
+    body: "Sketch curves, plot points and measure angles on an interactive canvas. Your drawing gets marked, not just your typing.",
     vignette: SketchVignette,
   },
   {
@@ -664,7 +662,7 @@ const FEATURES = [
   {
     icon: Upload,
     title: "Any past paper becomes practice",
-    body: "Upload a PDF and Examly extracts the questions — graphs, sub-parts and all — into an exam you sit on screen.",
+    body: "Upload a PDF and Examly extracts the questions, including graphs and sub-parts, into an exam you sit on screen.",
     vignette: UploadVignette,
   },
   {
@@ -676,9 +674,9 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { icon: PenLine, title: "Tell it your topic", body: "Pick your subject, level and topics — or upload a past paper and Examly reads it." },
-  { icon: Sparkles, title: "Your paper writes itself", body: "Exam-style questions in seconds: MCQs, calculations, data tables, sketch graphs." },
-  { icon: BadgeCheck, title: "Marked in seconds", body: "Answer on screen — draw the curve, show your working — and get method marks with feedback." },
+  { icon: PenLine, title: "Choose your paper", body: "Pick your subject, qualification and topics, or upload a past paper." },
+  { icon: Sparkles, title: "Practise on screen", body: "Work through multiple-choice questions, calculations, data tables and sketch graphs." },
+  { icon: BadgeCheck, title: "Review your marks", body: "Review the mark breakdown and feedback on your answers and working." },
 ];
 
 const PLANS = [
@@ -711,7 +709,7 @@ const Reveal = ({ children, delay = 0, className = "" }: { children: React.React
   return (
     <motion.div
       ref={ref}
-      className={className}
+      className={`landing-reveal ${className}`}
       initial={reduced ? false : { opacity: 0, y: 18 }}
       animate={inView ? { opacity: 1, y: 0 } : undefined}
       transition={{ duration: 0.55, delay }}
@@ -769,9 +767,9 @@ const LandingPage = () => {
   const goSignup = () => navigate("/auth?mode=signup");
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="landing-page min-h-screen bg-background text-foreground">
       {/* ── Nav ── */}
-      <header className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled ? "border-b border-border/60 bg-background/80 backdrop-blur-md shadow-sm" : "border-b border-transparent bg-transparent"}`}>
+      <header className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled ? "border-b border-border bg-card" : "border-b border-border bg-card"}`}>
         <nav className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="flex items-center gap-2">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -826,25 +824,24 @@ const LandingPage = () => {
 
       {/* ── Hero: the theatre IS the hero ── */}
       <section className="relative pt-28 pb-20 sm:pt-32 sm:pb-24 px-4 overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none" style={paperGrid} />
-        <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-background/30 to-background" />
 
-        <div className="relative max-w-6xl flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+        <div className="relative max-w-6xl mx-auto flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
           <div className="max-w-3xl">
             <Reveal>
-              <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.06]">
-                A full exam-style paper
-                <br />
-                in under a minute.
-                <span className="block text-primary mt-1">Marked like an examiner.</span>
+              <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.15]">
+                Practise your paper.
+                <span className="block mt-1">Understand every mark.</span>
               </h1>
+              <p className="mt-5 max-w-xl text-base sm:text-lg leading-relaxed text-muted-foreground">
+                Create a mock exam or upload a paper, answer on screen, and review your working with feedback.
+              </p>
             </Reveal>
           </div>
           <Reveal delay={0.14} className="shrink-0">
             <Button
               size="lg"
               onClick={goSignup}
-              className="group text-base px-8 w-fit font-semibold shadow-[0_8px_28px_-6px_hsl(var(--primary)/0.55)] hover:shadow-[0_14px_36px_-6px_hsl(var(--primary)/0.65)] hover:-translate-y-0.5 transition-all duration-200"
+              className="text-sm px-6 w-fit font-semibold"
             >
               Generate your first paper
               <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
@@ -855,7 +852,7 @@ const LandingPage = () => {
         <Reveal delay={0.26} className="relative mt-12">
           <ExamTheatre />
           <p className="text-center text-xs text-muted-foreground mt-3">
-            Live preview — this is the product, not a video.
+            Example questions · Use the arrows to explore the response formats.
           </p>
         </Reveal>
 
@@ -875,21 +872,20 @@ const LandingPage = () => {
           <Reveal className="text-center mb-12">
             <h2 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight">From topic to marked paper</h2>
             <p className="mt-3 text-muted-foreground max-w-lg mx-auto">
-              The whole loop takes under a minute — it's the sequence playing above.
+              Choose what to practise, answer the questions and use your feedback to plan the next session.
             </p>
           </Reveal>
-          <div className="grid sm:grid-cols-3 gap-6">
+          <div className="grid gap-0 divide-y divide-border border-y border-border">
             {STEPS.map((step, i) => (
               <Reveal key={step.title} delay={i * 0.1}>
-                <div className="relative h-full rounded-2xl border border-border bg-card p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <step.icon className="h-5 w-5" />
-                    </span>
+                <div className="relative grid gap-3 py-6 sm:grid-cols-[160px_1fr]">
+                  <div className="flex items-center gap-3">
                     <span className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">Step {i + 1}</span>
                   </div>
-                  <h3 className="font-semibold text-lg mb-2">{step.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{step.body}</p>
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">{step.title}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{step.body}</p>
+                  </div>
                 </div>
               </Reveal>
             ))}
@@ -898,23 +894,19 @@ const LandingPage = () => {
       </section>
 
       {/* ── Features with product vignettes ── */}
-      <section id="features" className="relative py-24 px-4 border-y border-border bg-secondary/30">
-        <div className="absolute inset-0 pointer-events-none opacity-60" style={dotGrid} />
+      <section id="features" className="relative py-16 px-4 border-y border-border bg-secondary/30">
         <div className="relative max-w-6xl mx-auto">
-          <Reveal className="text-center mb-14">
-            <h2 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight">Not flashcards. Real exam questions.</h2>
-            <p className="mt-3 text-muted-foreground max-w-xl mx-auto">
+          <Reveal className="text-left mb-10">
+            <h2 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight">Practice that follows the question</h2>
+            <p className="mt-3 text-muted-foreground max-w-xl">
               The question types that actually appear on your paper, answered the way you would in the hall.
             </p>
           </Reveal>
           <div className="grid sm:grid-cols-2 gap-6">
             {FEATURES.map((f, i) => (
               <Reveal key={f.title} delay={i * 0.08}>
-                <div className="h-full rounded-2xl border border-border bg-card p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex flex-col">
+                <div className="h-full border-t border-border py-6 flex flex-col">
                   <div className="flex items-center gap-3 mb-3">
-                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <f.icon className="h-[18px] w-[18px]" />
-                    </span>
                     <h3 className="font-semibold text-lg">{f.title}</h3>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed mb-4">{f.body}</p>
@@ -929,21 +921,17 @@ const LandingPage = () => {
       </section>
 
       {/* ── Tutors ── */}
-      <section id="tutors" className="relative py-24 px-4 overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none opacity-50" style={ruledLines} />
+      <section id="tutors" className="relative py-16 px-4 overflow-hidden">
         <div className="relative max-w-6xl mx-auto grid lg:grid-cols-2 gap-10 items-center">
           <Reveal>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-card text-xs text-muted-foreground mb-5">
-              <Users className="h-3.5 w-3.5" />
+            <div className="text-sm font-semibold text-muted-foreground mb-4">
               For tutors
             </div>
             <h2 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight">
-              Set a paper for your class in the time it takes to take the register.
+              Keep class practice in one place.
             </h2>
             <p className="mt-4 text-muted-foreground leading-relaxed">
-              Upload last year's paper or generate a fresh one, assign it to your class, and watch
-              results come in — marked, with method marks broken down per student. Your Sunday
-              evenings are yours again.
+              Upload or create a paper, assign it to your class, and review results and feedback for each student.
             </p>
             <Button className="mt-6" size="lg" onClick={goSignup}>
               Create your first class
@@ -951,13 +939,13 @@ const LandingPage = () => {
             </Button>
           </Reveal>
           <Reveal delay={0.12}>
-            <div className="rounded-2xl border border-border bg-card p-5">
+            <div className="rounded-lg border border-border bg-card p-5">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
                 The tutor dashboard
               </p>
               <div className="space-y-3">
                 {[
-                  { icon: FileText, label: "Mock Paper 2 — Algebra & Graphs", meta: "Assigned · due Friday" },
+                  { icon: FileText, label: "Mock Paper 2. Algebra & Graphs", meta: "Assigned · due Friday" },
                   { icon: BadgeCheck, label: "Class results, per question", meta: "Method and accuracy marks for every student" },
                   { icon: LineChart, label: "Topic gaps at a glance", meta: "See which topics the whole class is missing" },
                 ].map((row) => (
@@ -979,13 +967,13 @@ const LandingPage = () => {
       <section id="pricing" className="py-20 px-4 bg-secondary/30 border-y border-border">
         <div className="max-w-4xl mx-auto">
           <Reveal className="text-center mb-12">
-            <h2 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight">Less than one hour of tutoring</h2>
-            <p className="mt-3 text-muted-foreground">Start free. Upgrade when exam season gets serious.</p>
+            <h2 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight">Choose a plan for your revision</h2>
+            <p className="mt-3 text-muted-foreground">Start with the Free plan or explore Student Pro.</p>
           </Reveal>
           <div className="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
             {PLANS.map((plan, i) => (
               <Reveal key={plan.name} delay={i * 0.1}>
-                <div className={`relative h-full rounded-2xl border p-6 flex flex-col ${plan.highlighted ? "border-primary bg-card shadow-[0_12px_40px_-12px_hsl(var(--primary)/0.4)]" : "border-border bg-card"}`}>
+                <div className={`relative h-full rounded-lg border p-6 flex flex-col ${plan.highlighted ? "border-primary bg-card" : "border-border bg-card"}`}>
                   <h3 className="font-semibold text-lg">{plan.name}</h3>
                   <p className="text-sm text-muted-foreground">{plan.blurb}</p>
                   <p className="mt-4 mb-5">
@@ -1011,17 +999,17 @@ const LandingPage = () => {
       </section>
 
       {/* ── Final CTA — contrasting band to land the close ── */}
-      <section className="py-24 px-4 bg-primary text-primary-foreground">
+      <section className="py-16 px-4 bg-secondary/50 text-foreground">
         <Reveal className="max-w-2xl mx-auto text-center">
           <h2 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight leading-tight">
-            For students who'd rather practise than panic.
+            Make room for focused practice.
           </h2>
-          <p className="mt-5 text-primary-foreground">
-            Generate it, sit it, get it marked — before your kettle boils.
+          <p className="mt-5 text-muted-foreground">
+            Choose your subject and start a practice session.
           </p>
           <Button
             size="lg"
-            className="mt-8 text-base px-8 bg-background text-foreground hover:bg-background/90"
+            className="mt-6 text-sm px-6"
             onClick={goSignup}
           >
             Generate your first paper
