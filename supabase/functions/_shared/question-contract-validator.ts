@@ -152,6 +152,18 @@ export function hasAssessedTask(raw: string | null | undefined): boolean {
       const rest = c.slice(comma + 1).replace(/^[\s"'(\[|*\-–—]+/, "").trim();
       if (lead.split(" ").length <= 10 && startsWithCommand(rest)) return true;
     }
+    // Conditional calculation stems put the givens first: "If 20 units
+    // measured 150 µm, and the cell was 8 units, calculate its diameter."
+    // Accept a command after ANY comma when the clause opens with a condition.
+    if (/^(if|given( that)?|assuming( that)?|suppose|supposing|when|where|since)\b/.test(c)) {
+      const pieces = c.split(", ");
+      for (let i = 1; i < pieces.length; i++) {
+        const rest = pieces.slice(i).join(", ").replace(/^(and|then)\s+/, "").replace(/^[\s"'(\[|*\-–—]+/, "").trim();
+        if (startsWithCommand(rest)) return true;
+      }
+    }
+
+
 
     // Explicit completion / selection instructions.
     if (/\b(complete the (table|diagram|sentence|graph)|fill in|tick (one|two|the) box|choose one answer|select one)\b/.test(c)) {

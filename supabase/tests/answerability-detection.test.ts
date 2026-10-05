@@ -62,3 +62,11 @@ describe("normalizeRepairPart", () => {
     })).toBeNull();
   });
 });
+
+import { hasAssessedTask as conditionalTask } from '../functions/_shared/question-contract-validator';
+import { it as cit, expect as cexpect } from 'vitest';
+cit('accepts a conditional calculation stem with givens before the command', () => {
+  cexpect(conditionalTask("If 20 eyepiece units measured 150 micrometres (µm) with a ×10 objective lens, and the cell's diameter was 8 eyepiece units, calculate the actual diameter of the cell.")).toBe(true);
+  cexpect(conditionalTask('Given that the mean was 12, the median was 10, and the range was 4, explain what this shows.')).toBe(true);
+  cexpect(conditionalTask("If 20 eyepiece units measured 150 micrometres, the cell's diameter was 8 eyepiece units.")).toBe(false);
+});
