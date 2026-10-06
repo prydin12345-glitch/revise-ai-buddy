@@ -31,7 +31,7 @@ it.each(['full_mock','short_practice'] as const)('saves and reopens untiered OCR
   expect(screen.getByLabelText('OCR Biology course')).toHaveValue('');expect(screen.getByRole('option',{name:/Advancing Biology B/})).toBeDisabled();
   expect(screen.queryByRole('button',{name:'Higher'})).toBeNull();expect(screen.queryByRole('button',{name:'Foundation'})).toBeNull();
   expect(screen.getByRole('button',{name:'Update Profile'})).toBeDisabled();
-  apply(mode);expect(screen.getByRole('option',{name:/Paper 2.*Biological diversity/})).not.toBeDisabled();expect(screen.getByRole('option',{name:/Paper 3.*not available/})).toBeDisabled();
+  apply(mode);expect(screen.getByRole('option',{name:/Paper 2.*Biological diversity/})).not.toBeDisabled();expect(screen.getByRole('option',{name:/Paper 3.*Unified biology/})).not.toBeDisabled();
   fireEvent.click(screen.getByRole('button',{name:'Update Profile'}));const args=save.mock.calls[0];
   expect(args[2]).toBe(plan.partCount);expect(args[4]).toBe(plan.durationMinutes);expect(args[5].assessmentTier).toBe('not_tiered');
   expect(args[5].mcqCount).toBe(mode==='full_mock'?15:5);expect(args[5].mcqPosition).toBe('start');expect(args[7].parentQuestionCount).toBe(plan.parentCount);expect(args[6]).toBe(mode==='full_mock'?28:6);

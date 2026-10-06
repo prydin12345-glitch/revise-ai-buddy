@@ -1,3 +1,4 @@
+import {OcrUnifiedPaperLabel} from '@/components/exams/OcrUnifiedPaperLabel';
 import {ResponseReview} from '@/components/responses/ResponseReview';
 import type {ResponseQuestionView} from '@/lib/response-view';
 import { PaperSectionHeading } from "@/components/exams/PaperSectionHeading";
@@ -537,7 +538,7 @@ const ExamReview = () => {
             </Button>
           </div>
           <div className="flex items-center gap-3 min-w-0">
-            <h1 className="font-serif text-base sm:text-xl font-bold text-foreground truncate">Exam Review</h1>
+            <div className="min-w-0"><h1 className="font-serif text-base sm:text-xl font-bold text-foreground truncate">Exam Review</h1><OcrUnifiedPaperLabel context={paperContext}/></div>
             {!scoresHidden && submission && (
               <span className={`font-serif font-bold text-base sm:text-lg ${pctTone}`}>
                 {Math.round(percentage)}%

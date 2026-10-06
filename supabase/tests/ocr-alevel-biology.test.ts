@@ -32,7 +32,7 @@ it('requires explicit supported course, paper and edition',()=>{
   expect(()=>resolvePaperSelection(lookup,null,null)).toThrow(/Select/);
   expect(()=>resolvePaperSelection(lookup,'not_tiered',{courseSelection:{courseId:OCR_ALEVEL_BIOLOGY_B_ID,paperId:'paper_1'}})).toThrow(/not available/);
   expect(getBiologyPaperPack(OCR_ALEVEL_BIOLOGY_ID)).toBeNull();
-  for(const paperId of ['paper_3','paper_4'])expect(()=>resolvePaperSelection(lookup,'not_tiered',{courseSelection:{courseId:OCR_ALEVEL_BIOLOGY_ID,paperId}})).toThrow(/not available/);
+  for(const paperId of ['paper_4'])expect(()=>resolvePaperSelection(lookup,'not_tiered',{courseSelection:{courseId:OCR_ALEVEL_BIOLOGY_ID,paperId}})).toThrow(/not available/);
   const c=ocrAlevelSnapshot();expect(resolvePaperSelection(lookup,'not_tiered',{paperContract:c.paper_contract}).componentCode).toBe('H420/01');
   expect(()=>paperPlanForAttempt({...c,specification_version:'old'})).toThrow(/fresh/);
 });

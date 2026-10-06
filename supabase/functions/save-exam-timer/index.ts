@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { OCR_ALEVEL_BIOLOGY_ID } from "../_shared/assessment-tier.ts";
+import { paperPlanForAttempt } from "../_shared/course-selection.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,7 +43,7 @@ serve(async (req) => {
     // Verify exam ownership
     const { data: exam, error: examError } = await supabase
       .from('exams')
-      .select('id')
+      .select('id, generation_context')
       .eq('id', draftId)
       .eq('user_id', user.id)
       .single();
@@ -53,13 +55,21 @@ serve(async (req) => {
       });
     }
 
+    // Guided Unified biology timing comes from the frozen server contract,
+    // including retries after profile edits. Custom timing and other papers
+    // retain their existing behaviour; the user's timer toggle is preserved.
+    const context = exam.generation_context;
+    const unifiedPlan = context?.course_id === OCR_ALEVEL_BIOLOGY_ID && context.paper_id === 'paper_3'
+      ? paperPlanForAttempt(context) : null;
+    const effectiveDuration = unifiedPlan?.durationMinutes ?? duration;
+
     // Upsert timer config
     const { error: timerError } = await supabase
       .from('exam_timer')
       .upsert({
         exam_id: draftId,
         enabled,
-        duration_minutes: enabled ? duration : null,
+        duration_minutes: enabled ? effectiveDuration : null,
       }, {
         onConflict: 'exam_id',
       });

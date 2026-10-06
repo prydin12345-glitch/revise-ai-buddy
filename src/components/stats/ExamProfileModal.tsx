@@ -406,7 +406,7 @@ export const ExamProfileModal = ({
   const guidedActive = paperMode !== "custom" && planApplied && supportsGuidedPaper && !!selectedTier;
   const paperDefinition = biologyPaperDefinition(courseCapability?.id ?? null, selectedTier, selectedPaperId);
   const currentPlan = guidedActive ? buildPaperPlan(paperMode, selectedTier, courseCapability?.id, selectedPaperId, savedContractVersion) : null;
-  const effectiveTopics = currentPlan?.parts.some(p=>p.assessmentRole==='synoptic_essay') ? [...(paperDefinition?.topics??[])] : currentPlan ? [...new Set(currentPlan.parts.map(p => p.topic))] : selectedTopics;
+  const effectiveTopics = (currentPlan?.parts.some(p=>p.assessmentRole==='synoptic_essay') || currentPlan?.courseId===OCR_ALEVEL_BIOLOGY_ID&&currentPlan.paperId==='paper_3') ? [...(paperDefinition?.topics??[])] : currentPlan ? [...new Set(currentPlan.parts.map(p => p.topic))] : selectedTopics;
   const configurationReady = (!explicitCourseNeeded || (!!courseCapability && courseCapability.generationAvailable !== false && !!selectedTier)) &&
     (![EDEXCEL_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, WJEC_BIOLOGY_ID, AQA_ALEVEL_BIOLOGY_ID, OCR_ALEVEL_BIOLOGY_ID].includes(courseCapability?.id ?? '') || (!!selectedPaperId && !!selectedTier)) &&
     (!selectedPaperId || !!paperDefinition) && (selectedPaperId !== 'paper_2' || !!selectedTier) && (paperMode === "custom" || !!currentPlan);
@@ -650,7 +650,7 @@ export const ExamProfileModal = ({
             </span>
           </label>}
           {guidedActive && <p className="text-xs text-muted-foreground">The guided preset controls the topics, counts, timing and resources. Choose Custom to set your own layout.</p>}
-          {!configurationReady && <p role="status" className="text-xs text-amber-600">{courseCapability?.id === OCR_ALEVEL_BIOLOGY_ID ? 'Choose Paper 1 or Paper 2, then apply the guided settings or choose Custom. OCR A-level Biology A is untiered.' : courseCapability?.id === AQA_ALEVEL_BIOLOGY_ID ? 'Choose Paper 1, Paper 2 or Paper 3, then apply the guided settings or choose Custom. A-level Biology is untiered.' : courseCapability?.id === OCR_21C_BIOLOGY_ID ? 'Choose Breadth or Depth and Foundation or Higher, then apply the guided settings or choose Custom.' : courseCapability?.id === EDEXCEL_BIOLOGY_ID ? 'Choose Paper 1 or Paper 2 and Foundation or Higher. Then apply the guided settings, or choose Custom with your own topics.' : 'Choose a supported course and tier, then use the guided settings, or select Custom.'}</p>}
+          {!configurationReady && <p role="status" className="text-xs text-amber-600">{courseCapability?.id === OCR_ALEVEL_BIOLOGY_ID ? 'Choose Paper 1, Paper 2 or Paper 3, then apply the guided settings or choose Custom. OCR A-level Biology A is untiered.' : courseCapability?.id === AQA_ALEVEL_BIOLOGY_ID ? 'Choose Paper 1, Paper 2 or Paper 3, then apply the guided settings or choose Custom. A-level Biology is untiered.' : courseCapability?.id === OCR_21C_BIOLOGY_ID ? 'Choose Breadth or Depth and Foundation or Higher, then apply the guided settings or choose Custom.' : courseCapability?.id === EDEXCEL_BIOLOGY_ID ? 'Choose Paper 1 or Paper 2 and Foundation or Higher. Then apply the guided settings, or choose Custom with your own topics.' : 'Choose a supported course and tier, then use the guided settings, or select Custom.'}</p>}
           {!guidedActive && <fieldset className="space-y-4">
           {/* ── Questions ── */}
           <SectionCard accent={subjectColor} icon={ListChecks} title="Questions" hint={`${totalQuestionCount} total`}>

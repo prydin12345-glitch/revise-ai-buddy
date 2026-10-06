@@ -1,3 +1,4 @@
+import {unifiedPlottingData} from '@/lib/ocr-unified-plotting';
 import {useResponseDrafts} from '@/hooks/useResponseDrafts';
 import {ResponseEditor} from '@/components/responses/ResponseEditor';
 import type {ResponseQuestionView} from '@/lib/response-view';
@@ -1958,7 +1959,7 @@ const ExamInProgress = () => {
                       question.correct_answer || null,
                       (question as any).diagram_config ?? null,
                       question.question_type ?? null,
-                    );
+                    ) ?? unifiedPlottingData(paperContext, question);
                     const physicsOverride = isPhysicsDrawOverride(
                       question.question_text,
                       (question as any).subject,
@@ -2185,7 +2186,7 @@ const ExamInProgress = () => {
                       question.correct_answer || null,
                       (question as any).diagram_config ?? null,
                       question.question_type ?? null,
-                    );
+                    ) ?? unifiedPlottingData(paperContext, question);
                     return question.question_type === 'graph_interpretation' || 
                            question.question_type === 'graph_plotting' || 
                            question.question_type === 'graph_transformation' ||
