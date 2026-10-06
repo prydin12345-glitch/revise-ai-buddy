@@ -70,7 +70,7 @@ serve(async (req) => {
     if (!requestQuota.allowed) throw new ExamRequestError(requestQuota.status ?? 429, requestQuota.message);
     const results: Array<{question_id:string;score:number;feedback:string;is_correct:boolean;response_result?:ResponseMarkResult}> = [];
     // Each paid marking call has its own quota and timeout; refresh the claim before work.
-    const markingFetch = async (url: string, init: RequestInit): Promise<Response> => {
+    const markingFetch = async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
       const {data: active,error: leaseError} = await supabase.from('exam_submissions')
         .update({marking_started_at:new Date().toISOString()}).eq('exam_id',examId)
         .eq('student_id',user.id).eq('marking_token',markingToken).eq('status','marking').select('id').maybeSingle();
