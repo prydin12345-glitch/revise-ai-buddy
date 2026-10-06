@@ -2,7 +2,7 @@ import {drawResponsePDF} from './response-pdf';
 import {responseKeyLines, type ResponseQuestionView} from './response-view';
 import {OCR_ALEVEL_BIOLOGY_ID} from '@/lib/assessment-tier';
 import {readBiologyEssay,isBiologyEssayResource,formatBiologyEssayKey} from '@/lib/biology-essay';
-import { gatewaySectionHeading, biologyResponseNotice, biologyPaperDisplay } from "@/lib/biology-paper-display";
+import { gatewaySectionHeading, biologyResponseNotice, biologyPaperDisplay, ocrUnifiedPaperLabel } from "@/lib/biology-paper-display";
 import { comprehensionInsertFigures, isComprehensionResource } from '@/lib/biology-comprehension';
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -685,7 +685,7 @@ export async function generateExamPDF(
   let figureCount = 1;
 
   const display = biologyPaperDisplay(examData.generation_context);
-  const paperLabel = display && (display.plan.courseId === OCR_ALEVEL_BIOLOGY_ID || (display.plan.courseId === 'aqa_alevel_biology_7402' && ['paper_2','paper_3'].includes(display.plan.paperId))) ? display.label : null;
+  const paperLabel = display && (display.plan.courseId === OCR_ALEVEL_BIOLOGY_ID || (display.plan.courseId === 'aqa_alevel_biology_7402' && ['paper_2','paper_3'].includes(display.plan.paperId))) ? display.label : ocrUnifiedPaperLabel(examData.generation_context);
   const questionGroups = groupQuestionsByMain(examData.questions);
   const totalMarks = examData.questions.reduce((sum, q) => sum + (q.marks || 0), 0);
 

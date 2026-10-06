@@ -9,6 +9,8 @@ import type { CandidatePart, QuestionDefect } from './question-contract-validato
 import { resolveQuestionResources } from './question-resources.ts';
 import { coerceMcqOptions, hasThreeLevelScheme, isMcqType } from './model-question-normalization.ts';
 import { comprehensionTaskIssues } from './biology-comprehension.ts';
+import {unifiedPartIssues} from './ocr-alevel-biology-paper3-validation.ts';
+import type {UnifiedPart} from './ocr-alevel-biology-paper3-contract.ts';
 
 export const canonicalPartNumber = (value: unknown): string => {
   const text = String(value ?? '').trim().replace(/^Q\s*/i, '');
@@ -28,6 +30,7 @@ export function validateBiologyPlan(rows: CandidatePart[], plan?: PaperPlan | nu
   const seen = new Set<string>();
   const passages = new Map<string,string>();
   const experiments = new Map<string,string>();
+  const unifiedDatasets = new Map<string,string>();
   for (const row of rows) {
     const number = canonicalPartNumber(row.question_number);
     const expected = byNumber.get(number);
@@ -35,6 +38,7 @@ export function validateBiologyPlan(rows: CandidatePart[], plan?: PaperPlan | nu
       parentId: row.root_question_number ?? row.parent_question_number ?? null, code, detail});
     if (!expected || seen.has(number)) { push(`Unexpected or duplicate scored row ${number}; do not silently renumber or discard it.`); continue; }
     seen.add(number);
+    if(pack.id==='ocr-h420-paper-3-v1')for(const issue of unifiedPartIssues(row,expected as UnifiedPart,unifiedDatasets))push(`Q${number}: ${issue.detail}`,issue.code);
     if (Number(row.marks) !== expected.marks) push(`Q${number} requires ${expected.marks} marks and a matching scheme.`);
     if (pack.id === 'ocr-h420-paper-2-v2') {
       if ((row as any).topic_tag !== expected.topic) push(`Q${number} must retain its planned Paper 2 topic ${expected.topic}.`);

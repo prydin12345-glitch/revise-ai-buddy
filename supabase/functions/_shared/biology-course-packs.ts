@@ -4,6 +4,8 @@ import {OCR_ALEVEL_SPEC_URL,OCR_ALEVEL_SAM_URL,OCR_ALEVEL_P1_RULES} from './ocr-
 import {OCR_ALEVEL_P2,buildOcrAlevelPaper2Plan,assertOcrAlevelPaper2Plan,ocrAlevelPaper2Instructions,ocrAlevelPaper2PartInstruction} from './ocr-alevel-biology-paper2-contract.ts';
 import {OCR_ALEVEL_P2_SAM_URL,OCR_ALEVEL_P2_RULES} from './ocr-alevel-biology-paper2-scope.ts';
 import {OCR_ALEVEL_P2_V2,OCR_ALEVEL_P2_V2_RULES,buildOcrAlevelPaper2V2Plan,assertOcrAlevelPaper2V2Plan,ocrAlevelPaper2V2Instructions,ocrAlevelPaper2V2PartInstruction} from './ocr-alevel-biology-paper2-v2-contract.ts';
+import {OCR_ALEVEL_P3,buildOcrAlevelPaper3Plan,assertOcrAlevelPaper3Plan,ocrAlevelPaper3Instructions,ocrAlevelPaper3PartInstruction} from './ocr-alevel-biology-paper3-contract.ts';
+import {OCR_ALEVEL_P3_SAM_URL,OCR_ALEVEL_P3_RULES} from './ocr-alevel-biology-paper3-scope.ts';
 import {AQA_ALEVEL_P3,buildAqaAlevelPaper3Plan,assertAqaAlevelPaper3Plan,aqaAlevelPaper3Instructions,aqaAlevelPaper3PartInstruction} from './aqa-alevel-biology-paper3-contract.ts';
 import {AQA_ALEVEL_P3_RULES} from './aqa-alevel-biology-paper3-scope.ts';
 import { canonicalCourseId } from './assessment-tier.ts';
@@ -306,6 +308,30 @@ export const BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [...HISTORICAL_B
   definition: () => ({...OCR_ALEVEL_P2_V2}), build: buildOcrAlevelPaper2V2Plan,
   instructions: ocrAlevelPaper2V2Instructions, repairPartInstructions: ocrAlevelPaper2V2PartInstruction,
   validatePlan: assertOcrAlevelPaper2V2Plan,
+}, {
+  id:'ocr-h420-paper-3-v1',courseId:OCR_ALEVEL_BIOLOGY_ID,paperId:'paper_3',contractVersion:1,
+  curriculum:{...curriculum,qualification:'A-level'},examBoard:'OCR',tiers:['not_tiered'],
+  sources:[
+    {url:OCR_ALEVEL_SPEC_URL,section:'Version 4.1 (April 2026): sections 3a/3b, Modules 1–6 and mathematical appendix 5d',checkedOn:'2026-10-06'},
+    {url:OCR_ALEVEL_P3_SAM_URL,section:'Version 3.0 (February 2026): H420/03 instructions, structured/practical resources and private marking conventions',checkedOn:'2026-10-06'},
+    {url:'https://www.ocr.org.uk/Images/726692-question-paper-unified-biology.pdf',section:'June 2024: compulsory unified questions, graph/statistical/calculation resource conventions',checkedOn:'2026-10-06'},
+    {url:'https://www.ocr.org.uk/Images/726819-mark-scheme-unified-biology.pdf',section:'June 2024: six parent questions; point/method credit and science/communication levels',checkedOn:'2026-10-06'},
+    {url:'https://www.ocr.org.uk/Images/726425-examiners-report-unified-biology.pdf',section:'June 2024 assessment overview: synoptic application, practical design, evidence and precise calculations',checkedOn:'2026-10-06'},
+    {url:'https://www.ocr.org.uk/Images/752366-question-paper-unified-biology.pdf',section:'June 2025: compulsory unified questions, supplied evidence and mathematical demand',checkedOn:'2026-10-06'},
+    {url:'https://www.ocr.org.uk/Images/752493-mark-scheme-unified-biology.pdf',section:'June 2025: seven parent questions; task-specific points and six-mark levels',checkedOn:'2026-10-06'},
+    {url:'https://www.ocr.org.uk/Images/752104-examiners-report-unified-biology.pdf',section:'June 2025 assessment overview: unfamiliar contexts, supported conclusions, methodology and units',checkedOn:'2026-10-06'},
+  ],
+  official:{fullMarks:70,durationMinutes:90},
+  layoutChoices:[
+    'H420/03 Unified biology is untiered, compulsory, assesses Modules 1–6 and contributes 26% of the qualification. No Section A/B split or fifteen-MCQ section.',
+    'Six linked parent groups, 24 scored parts and two six-mark responses are Examly full-mock choices; recent OCR parent counts vary.',
+    'AO targets 15/29/26, practical/mathematical annotations and resource allocations guide drafting; they do not certify generated demand.',
+    'Short practice: two synoptic groups, six parts, 20 marks and 26 minutes (rounded proportionally). This is an Examly development template. Custom retains manual settings.',
+  ],
+  validation:{rows:'exact_parts',mcqOptions:4,levelSchemeAtMarks:6},rules:OCR_ALEVEL_P3_RULES,
+  generation:{strategy:'contract_only',systemPrompt:'Write original OCR A-level Biology A H420/03 Unified biology from the immutable saved untiered plan. Link Modules 1–6 within coherent investigations, with practical, mathematical, statistical and evidence-based reasoning. No Section A/B split or forced MCQs. Return complete separate context/task fields, canonical unsolved required resources and private task-specific marking material. Never copy past-paper material. Return complete JSON only.'},
+  definition:()=>({...OCR_ALEVEL_P3}),build:buildOcrAlevelPaper3Plan,instructions:ocrAlevelPaper3Instructions,
+  repairPartInstructions:ocrAlevelPaper3PartInstruction,validatePlan:assertOcrAlevelPaper3Plan,
 }];
 
 export const biologyPaperOptions = (courseId: string | null | undefined) =>

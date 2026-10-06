@@ -1,14 +1,15 @@
 // @vitest-environment node
 import {ocrPaper2Snapshot} from './ocr-alevel-paper2-fixtures';
+import {ocrPaper3Snapshot} from './ocr-alevel-paper3-fixtures';
 import {build} from 'esbuild';
 import vm from 'node:vm';
 import {it,expect} from 'vitest';
 import {responseFixture,responseParent as parent,responseQuestion as qid,responseContractId as cid,responseUser as user,responseOther as other} from './response-foundation-fixtures';
 import {markResponse} from '../functions/_shared/response-marking';
-async function harness(name:string,options:{snapshot?:any;kind?:Parameters<typeof responseFixture>[0];released?:boolean;graded?:boolean;manager?:boolean;access?:boolean;owner?:boolean;resourceMissing?:boolean;providerFails?:boolean;saveFails?:boolean;contractFails?:boolean}={}){
+async function harness(name:string,options:{snapshot?:any;privateLegacyNull?:boolean;kind?:Parameters<typeof responseFixture>[0];released?:boolean;graded?:boolean;manager?:boolean;access?:boolean;owner?:boolean;resourceMissing?:boolean;providerFails?:boolean;saveFails?:boolean;contractFails?:boolean}={}){
  const f=responseFixture(options.kind??'grid'),calls:any[]=[],reads:any[]=[],writes:any[]=[],modelCalls:any[]=[];
  const result=await markResponse({questionId:qid,marks:2,definition:f.definition,key:f.key,response:f.envelope},async()=>({units:[{unitId:'u1',score:1,feedback:'Partial credit.'}]}));
- const question={id:qid,exam_id:parent,set_id:parent,question_number:options.snapshot?'16(a)':'1',question_number_int:options.snapshot?16:1,question_text:'Complete the response.',question_type:'written',marks:2,correct_answer:'LEGACY_SECRET',subtopic:'Biomolecules',diagram_config: options.resourceMissing?null:{type:'response_context',resources:[{id:'experiment',kind:'table',title:'Incubation',columns:['Tube','Time (s)'],rows:[['X','20']]}]}};
+ const question={id:qid,exam_id:parent,set_id:parent,question_number:options.snapshot?'16(a)':'1',question_number_int:options.snapshot?16:1,question_text:'Complete the response.',question_type:'written',marks:2,correct_answer:options.privateLegacyNull?null:'LEGACY_SECRET',subtopic:'Biomolecules',diagram_config: options.resourceMissing?null:{type:'response_context',resources:[{id:'experiment',kind:'table',title:'Incubation',columns:['Tube','Time (s)'],rows:[['X','20']]}]}};
  const access={hasAccess:options.access??true,isOwner:false,isManager:options.manager??false,isAssigned:true,gradesReleased:options.released??false,deadline:null};
  const client={auth:{getUser:async()=>({data:{user:{id:user}},error:null})},rpc:async(name:string,args:any)=>{
   calls.push({name,args});
@@ -65,6 +66,12 @@ it('denies practice data to a non-owner before loading questions',async()=>{
 it('marks persisted practice cells, ignores forged browser scores/text, and makes no model call',async()=>{
  const h=await harness('grade-practice-question');const r=await h.run({setId:parent,questionId:qid,responseRevision:2,answerText:'fake',score:999});expect(r.status).toBe(200);expect((await r.json()).score).toBe(2);expect(h.modelCalls).toHaveLength(0);
  expect(h.calls.find(c=>c.name==='claim_practice_response').args.p_expected_revision).toBe(2);expect(h.calls.find(c=>c.name==='finish_practice_response').args.p_result).toEqual(h.result);
+});
+it('marks Paper 3 interactive practice from its separate private key with the public legacy key null',async()=>{
+ const h=await harness('grade-practice-question',{snapshot:ocrPaper3Snapshot(),privateLegacyNull:true});
+ const r=await h.run({setId:parent,questionId:qid,responseRevision:2,answerText:'forged',score:999});
+ expect(r.status).toBe(200);expect((await r.json()).score).toBe(2);expect(h.modelCalls).toHaveLength(0);
+ expect(h.calls.filter(c=>c.name==='finish_practice_response')).toHaveLength(1);
 });
 it('marks structured exam answers through the atomic wrapper with hidden scores still hidden',async()=>{
  const h=await harness('submit-exam');const r=await h.run({examId:parent});expect(r.status).toBe(200);expect((await r.json()).totalScore).toBeNull();expect(h.modelCalls).toHaveLength(0);expect(h.calls.find(c=>c.name==='finish_exam_responses').args.p_results[0].response_result).toEqual(h.result);

@@ -1,3 +1,4 @@
+import {OcrUnifiedPaperLabel} from '@/components/exams/OcrUnifiedPaperLabel';
 import { practiceRecoveryKey } from "@/lib/setup-draft";
 import {useResponseDrafts} from '@/hooks/useResponseDrafts';
 import {ResponseEditor} from '@/components/responses/ResponseEditor';
@@ -225,6 +226,7 @@ const TakePracticeQuiz = () => {
   const [userAnswers, setUserAnswers] = useState<Record<string, UserAnswer>>({});
   const [loading, setLoading] = useState(true);
   const [quizTitle, setQuizTitle] = useState("");
+  const [paperContext, setPaperContext] = useState<unknown>(null);
   const [quizSubjectName, setQuizSubjectName] = useState("");
   const [insertFigures, setInsertFigures] = useState<any[]>([]);
   const [showFigures, setShowFigures] = useState(false);
@@ -733,6 +735,7 @@ const TakePracticeQuiz = () => {
       }
 
       setQuizTitle(quizSet.set_name);
+      setPaperContext(quizSet.generation_context);
       setQuizSubjectName(String((quizSet as any).subject_name ?? (quizSet as any).subject ?? ""));
       setInsertFigures(Array.isArray((quizSet as any).insert_figures) ? (quizSet as any).insert_figures : []);
       setSubjectColor(quizSet.subject_id || "#3B82F6");
@@ -1801,7 +1804,7 @@ const TakePracticeQuiz = () => {
             <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden flex-shrink-0">
               <Menu className="h-5 w-5" />
             </Button>
-            <h1 className="font-semibold text-base lg:text-lg truncate max-w-[200px] lg:max-w-[300px]">{quizTitle}</h1>
+            <div className="min-w-0"><h1 className="font-semibold text-base lg:text-lg truncate max-w-[200px] lg:max-w-[300px]">{quizTitle}</h1><OcrUnifiedPaperLabel context={paperContext}/></div>
             {insertFigures.length > 0 && (
               <Button
                 variant={showFigures ? "default" : "outline"}

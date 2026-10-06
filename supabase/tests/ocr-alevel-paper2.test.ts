@@ -27,7 +27,7 @@ it('requires an explicit owned H420 Paper 2 selection and freezes it on retry',(
   for(const patch of [{component_code:'H420/01'},{paper_id:'paper_1'},{assessment_tier:'higher'},{context_version:1},{specification_version:'old'}])expect(()=>paperPlanForAttempt({...snapshot,...patch})).toThrow();
   expect(()=>resolvePaperSelection(lookup,'not_tiered',{courseSelection:{courseId:OCR_ALEVEL_BIOLOGY_ID,paperId:'paper_1'},paperContract:snapshot.paper_contract})).toThrow();
   expect(()=>resolvePaperSelection({...lookup,examBoard:'AQA'},'not_tiered',{paperContract:snapshot.paper_contract})).toThrow();
-  expect(getBiologyPaperPack(OCR_ALEVEL_BIOLOGY_ID,'paper_3')).toBeNull();
+  expect(getBiologyPaperPack(OCR_ALEVEL_BIOLOGY_ID,'paper_3')?.definition('not_tiered').componentCode).toBe('H420/03');
 });
 it.each(['full_mock','short_practice'] as const)('locks %s marks/time/sections before a provider call',mode=>{
   const {plan,rows,snapshot}=ocrPaper2Fixture(mode);assertBiologyPlanIntegrity(plan);

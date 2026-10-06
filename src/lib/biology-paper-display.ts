@@ -8,7 +8,7 @@ export function biologyPaperDisplay(context: unknown) {
   if (gateway) return {...gateway, subject: 'Gateway Biology A'};
   try {
     const plan = paperPlanForAttempt(context);
-    if(plan?.courseId===OCR_ALEVEL_BIOLOGY_ID)return {plan,subject:'A-level Biology A',label:`OCR A-level Biology A · ${plan.componentCode} · ${plan.paperId==='paper_2'?'Biological diversity':'Biological processes'}`};
+    if(plan?.courseId===OCR_ALEVEL_BIOLOGY_ID)return {plan,subject:'A-level Biology A',label:`OCR A-level Biology A · ${plan.componentCode} · ${plan.paperId==='paper_3'?'Unified biology':plan.paperId==='paper_2'?'Biological diversity':'Biological processes'}`};
     if(plan?.courseId===AQA_ALEVEL_BIOLOGY_ID)return {plan,subject:'A-level Biology',label:`AQA A-level Biology Paper ${plan.paperId==='paper_3'?'3':plan.paperId==='paper_2'?'2':'1'} · ${plan.componentCode}`};
     if(plan?.courseId===WJEC_BIOLOGY_ID)return {plan,subject:'WJEC Wales Biology',label:`WJEC Wales Biology Unit ${plan.paperId==='unit_1'?'1':'2'} · ${plan.componentCode} · ${plan.tier==='foundation'?'Foundation':'Higher'}`};
     if (plan?.courseId === OCR_21C_BIOLOGY_ID) return {plan, subject:'Twenty First Century Biology B',
@@ -18,6 +18,13 @@ export function biologyPaperDisplay(context: unknown) {
     if (!plan || !isAqaPaper2(plan)) return null;
     return {plan, subject: 'Biology', label: `AQA Biology Paper 2 · ${plan.componentCode} · ${plan.tier === 'foundation' ? 'Foundation' : 'Higher'}`};
   } catch { return null; }
+}
+
+/** Also labels explicitly saved Custom/quiz identity without inventing a plan. */
+export function ocrUnifiedPaperLabel(context: unknown):string|null {
+  const c=context as any;
+  if(c?.course_id!==OCR_ALEVEL_BIOLOGY_ID||c.paper_id!=='paper_3')return null;
+  try{paperPlanForAttempt(c);return c?.resolved_by==='server'&&c.context_version===2?'OCR A-level Biology A · H420/03 · Unified biology':null;}catch{return null;}
 }
 
 export function gatewayPaperDisplay(context: unknown) {

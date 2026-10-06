@@ -20,11 +20,11 @@ it('preserves all 46 pre-change plan, definition and prompt fingerprints',()=>{
     expect(hash(plan)).toBe(row.planHash);expect(hash(pack.definition(row.tier as any))).toBe(row.definitionHash);expect(hash(biologyPlanInstructions(plan))).toBe(row.promptHash);
   }
 });
-it('selects v2 only for new explicit Paper 2 presets and retains exactly two visible paper choices',()=>{
+it('selects v2 only for new explicit Paper 2 presets and retains three explicit visible paper choices',()=>{
   expect(getBiologyPaperPack(course,'paper_2')?.contractVersion).toBe(2);
   expect(getBiologyPaperPack(course,'paper_1')?.contractVersion).toBe(1);
   expect(getBiologyPaperPack(course)).toBeNull();expect(getBiologyPaperPack(course,'paper_2',999)).toBeNull();
-  expect(biologyPaperOptions(course).map(p=>p.paperId)).toEqual(['paper_1','paper_2']);
+  expect(biologyPaperOptions(course).map(p=>p.paperId)).toEqual(['paper_1','paper_2','paper_3']);
 });
 it.each(['full_mock','short_practice'] as const)('validates the v2 %s total, resource identity, module allocation and scope',mode=>{
   const {plan,rows,snapshot}=ocrPaper2V2Fixture(mode);assertBiologyPlanIntegrity(plan);

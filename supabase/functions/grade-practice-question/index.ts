@@ -4,6 +4,8 @@ import {responseRubricMarker} from '../_shared/response-rubric.ts';
 import {logAIUsage} from '../_shared/usage-logger.ts';
 import {ExamRequestError} from '../_shared/exam-access.ts';
 import {OCR_ALEVEL_BIOLOGY_ID} from '../_shared/assessment-tier.ts';
+import {validatedGrade} from '../_shared/marking-result.ts';
+import {assertBiologyPractice} from '../_shared/biology-practice.ts';
 import {markSingleChoice} from '../_shared/single-choice-marking.ts';
 import { biologyMarkingInstructions, biologyQuestionResourceContext } from '../_shared/biology-marking.ts';
 import { AQA_ALEVEL_BIOLOGY_ID } from '../_shared/assessment-tier.ts';
@@ -81,9 +83,14 @@ serve(async (req) => {
     if (questionError || !question) {
       throw new Error('Question not found');
     }
+    const isOcrUnifiedBiology=isOcrAlevelBiology&&gradeSet.generation_context?.paper_id==='paper_3';
+    if(isOcrUnifiedBiology)biologyMarkingInstructions(gradeSet.generation_context);
 
     const contracts = await loadResponseContracts(rateLimitClient, 'practice', [question]);
     const responseContract = contracts.get(questionId);
+    // Converted responses deliberately have no legacy answer key. Their
+    // separately stored private contract is checked by loadResponseContracts.
+    if(isOcrUnifiedBiology&&!responseContract)assertBiologyPractice([question],gradeSet.generation_context);
     if (responseContract) {
       const paidFetch: typeof fetch = async (url, init) => {
         const quota = await enforceRateLimit(rateLimitClient,user.id,'grade-practice-response-model',{dailyLimit:300,burstLimit:60});
@@ -1656,6 +1663,12 @@ Return your grading using the grade_practice_answer function.`;
     }
 
     const gradingResult = JSON.parse(toolCall.function.arguments);
+    if(isOcrUnifiedBiology){
+      const checked=validatedGrade({...gradingResult,isCorrect:gradingResult.is_correct,
+        ...(gradingResult.method_marks==null?{}:{methodMarks:gradingResult.method_marks}),
+        ...(gradingResult.accuracy_marks==null?{}:{accuracyMarks:gradingResult.accuracy_marks})},Number(question.marks));
+      gradingResult.score=checked.score;gradingResult.is_correct=checked.isCorrect;
+    }
     gradingResult.feedback = sanitiseFeedback(gradingResult.feedback);
 
     // Save answer to database (with both latex and text)
