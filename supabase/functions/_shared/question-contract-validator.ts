@@ -96,6 +96,20 @@ const COMMAND_VERBS = [
 /** Interrogative openers ("Which of these…", "What is the…"). */
 const INTERROGATIVES = ["which", "what", "why", "how", "when", "where", "who"];
 
+// Direct questions can front a preposition: "At which pH is…" / "During
+// which period did…". Require an interrogative noun phrase followed by an
+// auxiliary, not merely a question mark or a mention of "which" in context.
+// Determiners/pronouns cannot introduce a reported subject inside that phrase
+// ("during which period the orchids were counted"); noun complements such as
+// "stage of the cell cycle" remain valid.
+const QUESTION_AUXILIARIES = "is|are|was|were|do|does|did|can|could|will|would|should|has|have|had|must|may|might";
+const QUESTION_NOUN_WORD = `(?!(?:a|an|the|this|that|these|those|i|you|he|she|it|we|they|${QUESTION_AUXILIARIES})\\b)[a-z0-9µ°'’/-]+`;
+const PREPOSITIONAL_INTERROGATIVE = new RegExp(
+  `^(?:at|during|in|on|over|under|for|from|to|by|with)\\s+(?:which|what)\\s+` +
+  `(?:${QUESTION_NOUN_WORD}\\s+){1,6}(?:(?:of|in|for)\\s+(?:(?:the|a|an)\\s+)?(?:${QUESTION_NOUN_WORD}\\s+){1,6})?` +
+  `(?:${QUESTION_AUXILIARIES})\\s+\\S`,
+);
+
 const words = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
 
 /**
@@ -122,7 +136,8 @@ const startsWithCommand = (raw: string): boolean => {
     c = next;
   }
   return COMMAND_VERBS.some((v) => c.startsWith(v + " ") || c === v) ||
-    INTERROGATIVES.some((w) => c.startsWith(w + " "));
+    INTERROGATIVES.some((w) => c.startsWith(w + " ")) ||
+    PREPOSITIONAL_INTERROGATIVE.test(c);
 };
 
 
