@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { hasAppHistory } from "@/lib/workspace-navigation";
 
 interface PageHeaderProps {
   title: string;
@@ -14,11 +15,8 @@ export function PageHeader({ title, subtitle, showBack = true, backTo, step }: P
   const navigate = useNavigate();
 
   const handleBack = () => {
-    if (backTo) {
-      navigate(backTo);
-    } else {
-      navigate(-1);
-    }
+    if (hasAppHistory()) navigate(-1);
+    else navigate(backTo || '/dashboard');
   };
 
   return (

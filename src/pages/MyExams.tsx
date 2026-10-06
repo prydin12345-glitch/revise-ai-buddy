@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
+import { useRetainedState, useWorkspaceSession } from "@/hooks/use-workspace-session";
+import { RefreshableList } from "@/components/shared/RefreshableList";
+import { ListSkeleton, LoadError } from "@/components/shared/ListFeedback";
+import { ResponsiveActionSheet } from "@/components/ui/responsive-action-sheet";
+import { useOptimisticFavourites } from "@/hooks/use-optimistic-favourites";
 import { EXAM_BOARD_OPTIONS } from "@/lib/board-scrubber";
 
 interface Exam {
@@ -66,30 +71,35 @@ const MyExams = () => {
   const navigate = useNavigate();
   const { subjects, getSubjectColor } = useUserSubjects();
   const { generateStudentPDF } = useStudentPDF();
-  const [exams, setExams] = useState<Exam[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [exams, setExams] = useRetainedState<Exam[]>("exams:exams", []);
+  const { ownerId, ready, store } = useWorkspaceSession();
+  const [loaded, setLoaded] = useRetainedState("exams:loaded", false);
+  const [loading, setLoading] = useState(!loaded);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const loadRequest = useRef<Promise<void> | null>(null);
+  const loadExamsRef = useRef<() => Promise<void>>();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [beginExamDialogOpen, setBeginExamDialogOpen] = useState(false);
   const [retakeExamDialogOpen, setRetakeExamDialogOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [editForm, setEditForm] = useState({ title: "", subject_id: "", created_at: "" });
-  
+
   // PDF Download Modal State
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [pdfExam, setPdfExam] = useState<Exam | null>(null);
-  
+
   // Tab, sort, search state
-  const [activeTab, setActiveTab] = useState<TabType>('published');
-  const [sortBy, setSortBy] = useState<SortType>('last-accessed');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [activeTab, setActiveTab] = useRetainedState<TabType>("exams:activeTab", 'published');
+  const [sortBy, setSortBy] = useRetainedState<SortType>("exams:sortBy", 'last-accessed');
+  const [searchQuery, setSearchQuery] = useRetainedState("exams:searchQuery", '');
+  const [debouncedSearch, setDebouncedSearch] = useRetainedState("exams:debouncedSearch", '');
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
-  const [completedExamIds, setCompletedExamIds] = useState<string[]>([]);
-  const [favouriteExamIds, setFavouriteExamIds] = useState<string[]>([]);
-  const [examStates, setExamStates] = useState<Map<string, 'not-started' | 'in-progress' | 'completed'>>(new Map());
-  const [examProgress, setExamProgress] = useState<Map<string, ExamProgress>>(new Map());
-  const [filters, setFilters] = useState({
+  const [completedExamIds, setCompletedExamIds] = useRetainedState<string[]>("exams:completedExamIds", []);
+  const [favouriteExamIds, setFavouriteExamIds] = useRetainedState<string[]>("exams:favouriteExamIds", []);
+  const [examStates, setExamStates] = useRetainedState<Map<string, 'not-started' | 'in-progress' | 'completed'>>("exams:examStates", new Map());
+  const [examProgress, setExamProgress] = useRetainedState<Map<string, ExamProgress>>("exams:examProgress", new Map());
+  const [filters, setFilters] = useRetainedState("exams:filters", {
     subjects: [] as string[],
     status: [] as string[],
     dateRange: { start: '', end: '' },
@@ -131,17 +141,21 @@ const MyExams = () => {
       setDebouncedSearch(searchQuery);
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, setDebouncedSearch]);
 
   useEffect(() => {
+    if (!ready) return;
+    setLoading(!store.get("exams:loaded", false));
     restoreGlobalPointerEvents();
+    let cancelled = false;
     let userIdForChannel: string | null = null;
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
+      if (cancelled) return;
       userIdForChannel = user?.id ?? null;
-      loadExams();
+      void loadExamsRef.current?.();
 
       // Scope realtime subscription to current user only — avoids reloading
       // on unrelated changes elsewhere in the table.
@@ -151,206 +165,225 @@ const MyExams = () => {
           .on(
             'postgres_changes',
             { event: '*', schema: 'public', table: 'exams', filter: `user_id=eq.${userIdForChannel}` },
-            () => loadExams()
+            () => loadExamsRef.current?.()
           )
           .subscribe();
       }
-    })();
+    })().catch(() => { if (!cancelled) { setLoadError("Couldn’t check your account. Please retry."); setLoading(false); } });
 
     return () => {
+      cancelled = true;
       if (channel) supabase.removeChannel(channel);
     };
-  }, []);
+  }, [ownerId, ready, store, restoreGlobalPointerEvents]);
 
-  const loadExams = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Safety net: recover any of this user's exams that finished generating
-      // but were never explicitly published (e.g. user closed the completion
-      // modal without clicking Begin / Save). For each one, invoke publish-exam
-      // so the question drafts become real exam_questions and the exam appears
-      // in this list.
+  const loadExams = (): Promise<void> => {
+    if (loadRequest.current) return loadRequest.current;
+    const favouriteVersion = favouriteAction.version();
+    const request = (async () => {
+      setLoadError(null);
       try {
-        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-        const { data: lostExams } = await supabase
-          .from('exams')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('status', 'draft')
-          .eq('extraction_status', 'completed')
-          .gte('created_at', sevenDaysAgo);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
-        if (lostExams && lostExams.length > 0) {
-          await Promise.allSettled(
-            lostExams.map(e =>
-              supabase.functions.invoke('publish-exam', { body: { draftId: e.id } })
-            )
-          );
+        // Safety net: recover any of this user's exams that finished generating
+        // but were never explicitly published (e.g. user closed the completion
+        // modal without clicking Begin / Save). For each one, invoke publish-exam
+        // so the question drafts become real exam_questions and the exam appears
+        // in this list.
+        try {
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          const { data: lostExams } = await supabase
+            .from('exams')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('status', 'draft')
+            .eq('extraction_status', 'completed')
+            .gte('created_at', sevenDaysAgo);
+
+          if (lostExams && lostExams.length > 0) {
+            await Promise.allSettled(
+              lostExams.map(e =>
+                supabase.functions.invoke('publish-exam', { body: { draftId: e.id } })
+              )
+            );
+          }
+        } catch (recoverErr) {
+          console.warn('Exam recovery check failed:', recoverErr);
         }
-      } catch (recoverErr) {
-        console.warn('Exam recovery check failed:', recoverErr);
-      }
 
 
-      // Step 1: Fetch exams + favourites in parallel (favourites is independent of exam IDs)
-      const [
-        { data, error },
-        { data: favourites, error: favouritesError },
-      ] = await Promise.all([
-        supabase
-          .from('exams')
-          .select('*, exam_topics(topic_name)')
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('favourite_exams')
-          .select('exam_id')
-          .eq('user_id', user.id),
-      ]);
-
-      if (error) throw error;
-      setExams(data || []);
-
-      if (!favouritesError) {
-        setFavouriteExamIds(favourites?.map(f => f.exam_id) || []);
-      }
-
-      // Batch fetch exam states and progress for all exams
-      if (data && data.length > 0) {
-        const examIds = data.map(exam => exam.id);
-
-        // Step 2: Run ALL remaining queries in parallel — they're all independent.
+        // Step 1: Fetch exams + favourites in parallel (favourites is independent of exam IDs)
         const [
-          { data: allSubmissions },
-          { data: allAnswers },
-          { data: questionsData },
-          { data: timerData },
+          { data, error },
+          { data: favourites, error: favouritesError },
         ] = await Promise.all([
           supabase
-            .from('exam_submission_metadata')
-            .select('exam_id, status, time_remaining_seconds, last_accessed_at, exam_started_at')
-            .eq('student_id', user.id)
-            .in('exam_id', examIds),
+            .from('exams')
+            .select('*, exam_topics(topic_name)')
+            .order('created_at', { ascending: false }),
           supabase
-            .from('student_answers')
+            .from('favourite_exams')
             .select('exam_id')
-            .eq('student_id', user.id)
-            .in('exam_id', examIds),
-          supabase
-            .from('exam_question_metadata')
-            .select('exam_id')
-            .in('exam_id', examIds),
-          supabase
-            .from('exam_timer')
-            .select('exam_id, enabled, duration_minutes')
-            .in('exam_id', examIds),
+            .eq('user_id', user.id),
         ]);
 
-        // Separate completed vs in-progress
-        const submittedExamIds = new Set(
-          allSubmissions?.filter(s => s.status === 'submitted' || s.status === 'completed' || s.status === 'graded').map(s => s.exam_id) || []
-        );
-        const inProgressExamIds = new Set(
-          allSubmissions?.filter(s => ['in_progress','marking','marking_failed'].includes(s.status)).map(s => s.exam_id) || []
-        );
+        if (error) throw error;
 
-        setCompletedExamIds(Array.from(submittedExamIds));
+        if (favouritesError) setLoadError(favouritesError.message || "Couldn’t load your favourites. Please retry.");
 
-        const examIdsWithAnswers = new Set(allAnswers?.map(a => a.exam_id) || []);
+        if (!favouritesError && favouriteVersion === favouriteAction.version()) {
+          setFavouriteExamIds(Array.from(favouriteAction.reconcile(new Set(favourites?.map(f => f.exam_id) || []))));
+        }
 
-        // Create lookup maps
-        const submissionsMap = new Map(allSubmissions?.map(s => [s.exam_id, s]) || []);
-        const answersCountMap = new Map<string, number>();
-        allAnswers?.forEach(a => {
-          answersCountMap.set(a.exam_id, (answersCountMap.get(a.exam_id) || 0) + 1);
-        });
-        const questionsCountMap = new Map<string, number>();
-        questionsData?.forEach(q => {
-          questionsCountMap.set(q.exam_id, (questionsCountMap.get(q.exam_id) || 0) + 1);
-        });
-        const timerMap = new Map(timerData?.map(t => [t.exam_id, t]) || []);
+        // Batch fetch exam states and progress for all exams
+        if (data && data.length > 0) {
+          const examIds = data.map(exam => exam.id);
 
-        // Determine states and calculate progress
-        const statesMap = new Map();
-        const progressMap = new Map<string, ExamProgress>();
+          // Step 2: Run ALL remaining queries in parallel — they're all independent.
+          const [
+            { data: allSubmissions, error: submissionsError },
+            { data: allAnswers, error: answersError },
+            { data: questionsData, error: questionsError },
+            { data: timerData, error: timersError },
+          ] = await Promise.all([
+            supabase
+              .from('exam_submission_metadata')
+              .select('exam_id, status, time_remaining_seconds, last_accessed_at, exam_started_at')
+              .eq('student_id', user.id)
+              .in('exam_id', examIds),
+            supabase
+              .from('student_answers')
+              .select('exam_id')
+              .eq('student_id', user.id)
+              .in('exam_id', examIds),
+            supabase
+              .from('exam_question_metadata')
+              .select('exam_id')
+              .in('exam_id', examIds),
+            supabase
+              .from('exam_timer')
+              .select('exam_id, enabled, duration_minutes')
+              .in('exam_id', examIds),
+          ]);
 
-        data.forEach(exam => {
-          let state: 'not-started' | 'in-progress' | 'completed';
-          
-          if (exam.status !== 'published') {
-            state = 'not-started';
-          } else if (submittedExamIds.has(exam.id)) {
-            state = 'completed';
-          } else if (inProgressExamIds.has(exam.id) || examIdsWithAnswers.has(exam.id)) {
-            state = 'in-progress';
-          } else {
-            state = 'not-started';
-          }
+          const detailError = submissionsError || answersError || questionsError || timersError;
+          if (detailError) throw detailError;
 
-          statesMap.set(exam.id, state);
+          // Separate completed vs in-progress
+          const submittedExamIds = new Set(
+            allSubmissions?.filter(s => s.status === 'submitted' || s.status === 'completed' || s.status === 'graded').map(s => s.exam_id) || []
+          );
+          const inProgressExamIds = new Set(
+            allSubmissions?.filter(s => ['in_progress','marking','marking_failed'].includes(s.status)).map(s => s.exam_id) || []
+          );
 
-          // Calculate progress
-          const totalQuestions = questionsCountMap.get(exam.id) || 0;
-          const questionsCompleted = state === 'completed' ? totalQuestions : (answersCountMap.get(exam.id) || 0);
-          const percentComplete = totalQuestions > 0 ? (questionsCompleted / totalQuestions) * 100 : 0;
+          setCompletedExamIds(Array.from(submittedExamIds));
 
-          // Calculate time remaining
-          let timeRemaining = "No timer";
-          const timer = timerMap.get(exam.id);
-          const submission = submissionsMap.get(exam.id);
-          
-          if (state === 'completed') {
-            timeRemaining = "Completed";
-          } else if (timer?.enabled) {
-            if (submission?.time_remaining_seconds !== undefined && submission.time_remaining_seconds !== null) {
-              const hours = Math.floor(submission.time_remaining_seconds / 3600);
-              const minutes = Math.floor((submission.time_remaining_seconds % 3600) / 60);
-              if (hours > 0) {
-                timeRemaining = `${hours}hr ${minutes}min`;
-              } else {
-                timeRemaining = `${minutes}min`;
-              }
-            } else if (timer.duration_minutes) {
-              const hours = Math.floor(timer.duration_minutes / 60);
-              const minutes = timer.duration_minutes % 60;
-              if (hours > 0) {
-                timeRemaining = `${hours}hr ${minutes}min`;
-              } else {
-                timeRemaining = `${minutes}min`;
+          const examIdsWithAnswers = new Set(allAnswers?.map(a => a.exam_id) || []);
+
+          // Create lookup maps
+          const submissionsMap = new Map(allSubmissions?.map(s => [s.exam_id, s]) || []);
+          const answersCountMap = new Map<string, number>();
+          allAnswers?.forEach(a => {
+            answersCountMap.set(a.exam_id, (answersCountMap.get(a.exam_id) || 0) + 1);
+          });
+          const questionsCountMap = new Map<string, number>();
+          questionsData?.forEach(q => {
+            questionsCountMap.set(q.exam_id, (questionsCountMap.get(q.exam_id) || 0) + 1);
+          });
+          const timerMap = new Map(timerData?.map(t => [t.exam_id, t]) || []);
+
+          // Determine states and calculate progress
+          const statesMap = new Map();
+          const progressMap = new Map<string, ExamProgress>();
+
+          data.forEach(exam => {
+            let state: 'not-started' | 'in-progress' | 'completed';
+
+            if (exam.status !== 'published') {
+              state = 'not-started';
+            } else if (submittedExamIds.has(exam.id)) {
+              state = 'completed';
+            } else if (inProgressExamIds.has(exam.id) || examIdsWithAnswers.has(exam.id)) {
+              state = 'in-progress';
+            } else {
+              state = 'not-started';
+            }
+
+            statesMap.set(exam.id, state);
+
+            // Calculate progress
+            const totalQuestions = questionsCountMap.get(exam.id) || 0;
+            const questionsCompleted = state === 'completed' ? totalQuestions : (answersCountMap.get(exam.id) || 0);
+            const percentComplete = totalQuestions > 0 ? (questionsCompleted / totalQuestions) * 100 : 0;
+
+            // Calculate time remaining
+            let timeRemaining = "No timer";
+            const timer = timerMap.get(exam.id);
+            const submission = submissionsMap.get(exam.id);
+
+            if (state === 'completed') {
+              timeRemaining = "Completed";
+            } else if (timer?.enabled) {
+              if (submission?.time_remaining_seconds !== undefined && submission.time_remaining_seconds !== null) {
+                const hours = Math.floor(submission.time_remaining_seconds / 3600);
+                const minutes = Math.floor((submission.time_remaining_seconds % 3600) / 60);
+                if (hours > 0) {
+                  timeRemaining = `${hours}hr ${minutes}min`;
+                } else {
+                  timeRemaining = `${minutes}min`;
+                }
+              } else if (timer.duration_minutes) {
+                const hours = Math.floor(timer.duration_minutes / 60);
+                const minutes = timer.duration_minutes % 60;
+                if (hours > 0) {
+                  timeRemaining = `${hours}hr ${minutes}min`;
+                } else {
+                  timeRemaining = `${minutes}min`;
+                }
               }
             }
-          }
 
-          // Format last accessed
-          let lastAccessed = "Never";
-          if (submission?.last_accessed_at) {
-            lastAccessed = new Date(submission.last_accessed_at).toLocaleDateString('en-GB');
-          } else if (submission?.exam_started_at) {
-            lastAccessed = new Date(submission.exam_started_at).toLocaleDateString('en-GB');
-          }
+            // Format last accessed
+            let lastAccessed = "Never";
+            if (submission?.last_accessed_at) {
+              lastAccessed = new Date(submission.last_accessed_at).toLocaleDateString('en-GB');
+            } else if (submission?.exam_started_at) {
+              lastAccessed = new Date(submission.exam_started_at).toLocaleDateString('en-GB');
+            }
 
-          progressMap.set(exam.id, {
-            questionsCompleted,
-            totalQuestions,
-            percentComplete,
-            timeRemaining,
-            lastAccessed,
-            examState: state,
+            progressMap.set(exam.id, {
+              questionsCompleted,
+              totalQuestions,
+              percentComplete,
+              timeRemaining,
+              lastAccessed,
+              examState: state,
+            });
           });
-        });
 
-        setExamStates(statesMap);
-        setExamProgress(progressMap);
+          setExamStates(statesMap);
+          setExamProgress(progressMap);
+        }
+
+        if (!data?.length) { setCompletedExamIds([]); setExamStates(new Map()); setExamProgress(new Map()); }
+        setExams(data || []);
+        setLoaded(true);
+        // Favourites already fetched in parallel above (Step 1)
+      } catch (error: any) {
+        setLoadError(error.message || "Couldn’t load your exams.");
+        toast({ title: "Load Failed", description: error.message, variant: "destructive" });
+      } finally {
+        setLoading(false);
+        loadRequest.current = null;
       }
-
-      // Favourites already fetched in parallel above (Step 1)
-    } catch (error: any) {
-      toast({ title: "Load Failed", description: error.message, variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
+    })();
+    loadRequest.current = request;
+    return request;
   };
+
+  loadExamsRef.current = loadExams;
 
   const handleBeginExam = (exam: Exam) => {
     setSelectedExam(exam);
@@ -377,7 +410,7 @@ const MyExams = () => {
 
   const handleConfirmRetake = async () => {
     if (!selectedExam) return;
-    
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -387,7 +420,7 @@ const MyExams = () => {
         .delete()
         .eq('exam_id', selectedExam.id)
         .eq('student_id', user.id);
-      
+
       await supabase
         .from('student_answers')
         .delete()
@@ -489,30 +522,17 @@ const MyExams = () => {
     }
   };
 
-  const handleToggleFavourite = async (examId: string) => {
-    try {
+  const favouriteAction = useOptimisticFavourites(new Set(favouriteExamIds),
+    update => setFavouriteExamIds(previous => Array.from(update(new Set(previous)))),
+    async (examId, selected) => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user || (ownerId && user.id !== ownerId)) throw new Error('Sign in to save favourites.');
+      const result = selected
+        ? await supabase.from('favourite_exams').insert({ user_id: user.id, exam_id: examId })
+        : await supabase.from('favourite_exams').delete().eq('user_id', user.id).eq('exam_id', examId);
+      if (result.error) throw result.error;
+    });
 
-      const isFav = favouriteExamIds.includes(examId);
-
-      if (isFav) {
-        await supabase
-          .from('favourite_exams')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('exam_id', examId);
-        setFavouriteExamIds(favouriteExamIds.filter(id => id !== examId));
-      } else {
-        await supabase
-          .from('favourite_exams')
-          .insert({ user_id: user.id, exam_id: examId });
-        setFavouriteExamIds([...favouriteExamIds, examId]);
-      }
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
-  };
 
   const getFilteredExamsByTab = useCallback(() => {
     switch (activeTab) {
@@ -544,8 +564,8 @@ const MyExams = () => {
     }
 
     if (filters.subjects.length > 0) {
-      filtered = filtered.filter(e => 
-        filters.subjects.some(s => 
+      filtered = filtered.filter(e =>
+        filters.subjects.some(s =>
           e.subject_id.toLowerCase() === s.toLowerCase()
         )
       );
@@ -582,7 +602,7 @@ const MyExams = () => {
 
   const sortedExams = useMemo(() => {
     const filtered = applyFilters(getFilteredExamsByTab());
-    
+
     return [...filtered].sort((a, b) => {
       switch (sortBy) {
         case 'last-accessed': {
@@ -613,6 +633,7 @@ const MyExams = () => {
 
   return (
     <DashboardLayout>
+      <RefreshableList onRefresh={loadExams}>
       <div className="max-w-[1280px] mx-auto space-y-7">
         {/* Unified Tab Bar */}
         <MyWorkTabBar />
@@ -620,7 +641,7 @@ const MyExams = () => {
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">My Exams</h1>
-          
+
           {/* Create Button - compact pill */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -634,7 +655,7 @@ const MyExams = () => {
                 <Upload className="w-4 h-4" />
                 Create Mock Exam
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate("/practice-questions/new")} className="gap-2 cursor-pointer">
+              <DropdownMenuItem onClick={() => navigate("/create-practice-questions")} className="gap-2 cursor-pointer">
                 <Settings className="w-4 h-4" />
                 Create Practice Questions
               </DropdownMenuItem>
@@ -726,7 +747,7 @@ const MyExams = () => {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {SORT_OPTIONS.map((option) => (
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       key={option.value}
                       onClick={() => setSortBy(option.value)}
                       className={`cursor-pointer ${sortBy === option.value ? 'bg-accent' : ''}`}
@@ -736,6 +757,7 @@ const MyExams = () => {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
+
 
               {/* Filter Button */}
               <Button
@@ -752,12 +774,9 @@ const MyExams = () => {
           </div>
         </div>
 
+        {loadError && <LoadError message={loadError} onRetry={() => void loadExams()} />}
         {/* Content */}
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : sortedExams.length === 0 ? (
+        {loading && !loaded ? <ListSkeleton /> : !loaded && loadError ? null : sortedExams.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border bg-card px-5 py-16 text-center">
             <h3 className="text-2xl font-semibold mb-2">No exams yet</h3>
             <p className="text-muted-foreground mb-6">Upload your first exam to get started</p>
@@ -797,7 +816,7 @@ const MyExams = () => {
 
                       <div className="relative">
                         <div
-                          className="subject-scrollbar flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory scroll-smooth"
+                          data-scroll-restoration={subjectName} className="subject-scrollbar flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory scroll-smooth"
                           style={{ ['--scrollbar-thumb' as any]: subjectColor }}
                         >
 
@@ -821,6 +840,7 @@ const MyExams = () => {
                                   progress={progress}
                                   subjectColor={subjectColor}
                                   isArchived={activeTab === 'archive'}
+                                  favourite={{ selected: favouriteExamIds.includes(exam.id), pending: favouriteAction.pending.has(exam.id), failed: favouriteAction.failed.has(exam.id), onToggle: () => void favouriteAction.toggle(exam.id) }}
                                 />
                               </div>
                             );
@@ -835,6 +855,7 @@ const MyExams = () => {
           })()
         )}
       </div>
+      </RefreshableList>
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
@@ -846,9 +867,9 @@ const MyExams = () => {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="title">Exam Title</Label>
-              <Input 
-                id="title" 
-                value={editForm.title} 
+              <Input
+                id="title"
+                value={editForm.title}
                 onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
                 placeholder="Enter exam title"
               />
@@ -863,8 +884,8 @@ const MyExams = () => {
                   {subjects.map((subject) => (
                     <SelectItem key={subject.id} value={subject.subject_name}>
                       <div className="flex items-center gap-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
+                        <div
+                          className="w-3 h-3 rounded-full"
                           style={{ backgroundColor: subject.subject_color }}
                         />
                         {subject.subject_name}
@@ -876,10 +897,10 @@ const MyExams = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="date">Date (Optional)</Label>
-              <Input 
-                id="date" 
-                type="date" 
-                value={editForm.created_at} 
+              <Input
+                id="date"
+                type="date"
+                value={editForm.created_at}
                 onChange={(e) => setEditForm({ ...editForm, created_at: e.target.value })}
               />
             </div>
@@ -947,22 +968,15 @@ const MyExams = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Filter Panel */}
-      <Sheet open={filterPanelOpen} onOpenChange={setFilterPanelOpen}>
-        <SheetContent side="right" className="w-[400px] sm:w-[540px] overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Filter Exams</SheetTitle>
-            <SheetDescription>
-              Apply filters to find specific exams
-            </SheetDescription>
-          </SheetHeader>
-
+      {/* Filter actions use a bottom sheet on phones and a dialog on tablets. */}
+      <ResponsiveActionSheet open={filterPanelOpen} onOpenChange={setFilterPanelOpen} title="Filter Exams" description="Apply filters to find specific exams"
+        trigger={<Button variant="outline" size="sm" className="hidden" tabIndex={-1} aria-hidden="true" />} returnFocus={() => document.querySelector<HTMLButtonElement>('[aria-label="Open filter panel"]')?.focus()}>
           <div className="space-y-6 py-6">
             {/* Subject Filter */}
             <div className="space-y-3">
               <Label className="text-base font-semibold">Subject</Label>
-              <Select 
-                value={filters.subjects[0] || 'all'} 
+              <Select
+                value={filters.subjects[0] || 'all'}
                 onValueChange={(value) => {
                   if (value === 'all') {
                     setFilters({ ...filters, subjects: [] });
@@ -979,8 +993,8 @@ const MyExams = () => {
                   {subjects.map((subject) => (
                     <SelectItem key={subject.id} value={subject.subject_name}>
                       <div className="flex items-center gap-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
+                        <div
+                          className="w-3 h-3 rounded-full"
                           style={{ backgroundColor: subject.subject_color }}
                         />
                         {subject.subject_name}
@@ -1022,10 +1036,10 @@ const MyExams = () => {
             {/* Date Filter */}
             <div className="space-y-3">
               <Label className="text-base font-semibold">Time & Date</Label>
-              
-              <Select 
-                value={filters.dateType} 
-                onValueChange={(value: 'published' | 'accessed') => 
+
+              <Select
+                value={filters.dateType}
+                onValueChange={(value: 'published' | 'accessed') =>
                   setFilters({ ...filters, dateType: value })
                 }
               >
@@ -1045,9 +1059,9 @@ const MyExams = () => {
                     id="date-start"
                     type="date"
                     value={filters.dateRange.start}
-                    onChange={(e) => setFilters({ 
-                      ...filters, 
-                      dateRange: { ...filters.dateRange, start: e.target.value } 
+                    onChange={(e) => setFilters({
+                      ...filters,
+                      dateRange: { ...filters.dateRange, start: e.target.value }
                     })}
                   />
                 </div>
@@ -1057,9 +1071,9 @@ const MyExams = () => {
                     id="date-end"
                     type="date"
                     value={filters.dateRange.end}
-                    onChange={(e) => setFilters({ 
-                      ...filters, 
-                      dateRange: { ...filters.dateRange, end: e.target.value } 
+                    onChange={(e) => setFilters({
+                      ...filters,
+                      dateRange: { ...filters.dateRange, end: e.target.value }
                     })}
                   />
                 </div>
@@ -1074,11 +1088,11 @@ const MyExams = () => {
                   {filters.subjects.map((subject) => (
                     <Badge key={subject} variant="secondary" className="gap-1">
                       {subject}
-                      <X 
-                        className="h-3 w-3 cursor-pointer" 
-                        onClick={() => setFilters({ 
-                          ...filters, 
-                          subjects: filters.subjects.filter(s => s !== subject) 
+                      <X
+                        className="h-3 w-3 cursor-pointer"
+                        onClick={() => setFilters({
+                          ...filters,
+                          subjects: filters.subjects.filter(s => s !== subject)
                         })}
                       />
                     </Badge>
@@ -1086,11 +1100,11 @@ const MyExams = () => {
                   {filters.status.map((status) => (
                     <Badge key={status} variant="secondary" className="gap-1 capitalize">
                       {status.replace('-', ' ')}
-                      <X 
-                        className="h-3 w-3 cursor-pointer" 
-                        onClick={() => setFilters({ 
-                          ...filters, 
-                          status: filters.status.filter(s => s !== status) 
+                      <X
+                        className="h-3 w-3 cursor-pointer"
+                        onClick={() => setFilters({
+                          ...filters,
+                          status: filters.status.filter(s => s !== status)
                         })}
                       />
                     </Badge>
@@ -1098,11 +1112,11 @@ const MyExams = () => {
                   {(filters.dateRange.start || filters.dateRange.end) && (
                     <Badge variant="secondary" className="gap-1">
                       {filters.dateRange.start || '...'} - {filters.dateRange.end || '...'}
-                      <X 
-                        className="h-3 w-3 cursor-pointer" 
-                        onClick={() => setFilters({ 
-                          ...filters, 
-                          dateRange: { start: '', end: '' } 
+                      <X
+                        className="h-3 w-3 cursor-pointer"
+                        onClick={() => setFilters({
+                          ...filters,
+                          dateRange: { start: '', end: '' }
                         })}
                       />
                     </Badge>
@@ -1112,9 +1126,9 @@ const MyExams = () => {
             )}
           </div>
 
-          <SheetFooter className="flex gap-2">
-            <Button 
-              variant="outline" 
+          <div className="flex gap-2 sticky bottom-0 bg-card py-2">
+            <Button
+              variant="outline"
               onClick={() => {
                 setFilters({
                   subjects: [],
@@ -1128,15 +1142,14 @@ const MyExams = () => {
             >
               Clear Filters
             </Button>
-            <Button 
+            <Button
               onClick={() => setFilterPanelOpen(false)}
               className="flex-1"
             >
               Apply
             </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+          </div>
+      </ResponsiveActionSheet>
 
       {/* PDF Download Modal */}
       <StudentPDFDownloadModal

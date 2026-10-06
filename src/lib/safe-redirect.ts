@@ -87,7 +87,7 @@ export function isInternalPath(path: string): boolean {
         }
       }
       // Re-check for protocol-relative after decoding
-      if (decoded.startsWith('//')) {
+      if (decoded.startsWith('//') || decoded.includes('\\') || hasControlCharacter(decoded)) {
         return false;
       }
     }
@@ -101,7 +101,17 @@ export function isInternalPath(path: string): boolean {
     return false;
   }
 
+  if (hasControlCharacter(trimmedPath)) return false;
+  // Browser URL parsing catches slash/backslash and path-normalisation tricks.
+  try {
+    if (new URL(trimmedPath, 'https://examly.invalid').origin !== 'https://examly.invalid') return false;
+  } catch { return false; }
+
   return true;
+}
+
+function hasControlCharacter(value: string) {
+  return Array.from(value).some(character => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127);
 }
 
 /**

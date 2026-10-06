@@ -1,3 +1,4 @@
+import { FavouriteControl, type FavouriteProps } from "@/components/shared/FavouriteControl";
 import { useNavigate } from "react-router-dom";
 import { getBoardDisplayName } from "@/lib/board-scrubber";
 import { LEVEL_DISPLAY_NAMES } from "@/lib/board-level-mapping";
@@ -23,6 +24,7 @@ interface PracticeSet {
 }
 
 interface PracticeSetCardProps {
+  favourite?: FavouriteProps;
   set: PracticeSet;
   progress: PracticeSetProgress;
   subjectColor: string;
@@ -30,7 +32,7 @@ interface PracticeSetCardProps {
 
 const formatProgress = (value: number): string => `${Math.round(value)}%`;
 
-export const PracticeSetCard = ({ set, progress, subjectColor }: PracticeSetCardProps) => {
+export const PracticeSetCard = ({ set, progress, subjectColor, favourite }: PracticeSetCardProps) => {
   const navigate = useNavigate();
 
   const percentComplete =
@@ -160,6 +162,7 @@ export const PracticeSetCard = ({ set, progress, subjectColor }: PracticeSetCard
           </div>
         </div>
       </button>
+      {favourite && <FavouriteControl {...favourite} />}
     </div>
   );
 };

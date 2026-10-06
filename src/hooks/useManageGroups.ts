@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useRetainedState, useWorkspaceSession } from "@/hooks/use-workspace-session";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface StudentGroup {
@@ -15,76 +16,86 @@ export interface StudentGroup {
 }
 
 export const useManageGroups = () => {
-  const [groups, setGroups] = useState<StudentGroup[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [groups, setGroups] = useRetainedState<StudentGroup[]>("tutor-groups:groups", []);
+  const { store } = useWorkspaceSession();
+  const [loaded, setLoaded] = useRetainedState("tutor-groups:loaded", false);
+  const [loading, setLoading] = useState(!loaded);
+  const pending = useRef<Promise<void> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchGroups = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+  const fetchGroups = useCallback((): Promise<void> => {
+    if (pending.current) return pending.current;
+    const request = (async () => {
+      setLoading(!store.get("tutor-groups:loaded", false));
+      setError(null);
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setLoading(false);
+          return;
+        }
+
+        // Get all groups managed by this tutor
+        const { data: groupsData, error: groupsError } = await supabase
+          .from("student_groups")
+          .select("*")
+          .eq("tutor_id", user.id)
+          .eq("is_active", true)
+          .order("created_at", { ascending: false });
+
+        if (groupsError) throw groupsError;
+
+        // Get member counts and assignment counts for each group
+        const groupsWithCounts = await Promise.all(
+          (groupsData || []).map(async (group) => {
+            // Member count
+            const { count: memberCount } = await supabase
+              .from("group_members")
+              .select("*", { count: "exact", head: true })
+              .eq("group_id", group.id)
+              .eq("is_active", true);
+
+            // Active assignment count
+            const { count: assignmentCount } = await supabase
+              .from("exam_assignments")
+              .select("*", { count: "exact", head: true })
+              .eq("target_id", group.id)
+              .eq("assignment_type", "group")
+              .eq("is_active", true);
+
+            const subjects = Array.isArray(group.subjects_covered)
+              ? group.subjects_covered as string[]
+              : [];
+
+            return {
+              id: group.id,
+              name: group.name,
+              description: group.description,
+              subjects_covered: subjects,
+              invite_code: group.invite_code,
+              capacity: group.capacity || 10,
+              member_count: memberCount || 0,
+              assignment_count: assignmentCount || 0,
+              created_at: group.created_at,
+              settings: (group.settings as Record<string, any>) || null,
+            };
+          })
+        );
+
+        setGroups(groupsWithCounts);
+        setLoaded(true);
+      } catch (err) {
+        console.error("Error fetching groups:", err);
+        setError(err instanceof Error ? err.message : "Failed to load groups");
+      } finally {
         setLoading(false);
-        return;
+        pending.current = null;
       }
-
-      // Get all groups managed by this tutor
-      const { data: groupsData, error: groupsError } = await supabase
-        .from("student_groups")
-        .select("*")
-        .eq("tutor_id", user.id)
-        .eq("is_active", true)
-        .order("created_at", { ascending: false });
-
-      if (groupsError) throw groupsError;
-
-      // Get member counts and assignment counts for each group
-      const groupsWithCounts = await Promise.all(
-        (groupsData || []).map(async (group) => {
-          // Member count
-          const { count: memberCount } = await supabase
-            .from("group_members")
-            .select("*", { count: "exact", head: true })
-            .eq("group_id", group.id)
-            .eq("is_active", true);
-
-          // Active assignment count
-          const { count: assignmentCount } = await supabase
-            .from("exam_assignments")
-            .select("*", { count: "exact", head: true })
-            .eq("target_id", group.id)
-            .eq("assignment_type", "group")
-            .eq("is_active", true);
-
-          const subjects = Array.isArray(group.subjects_covered) 
-            ? group.subjects_covered as string[]
-            : [];
-
-          return {
-            id: group.id,
-            name: group.name,
-            description: group.description,
-            subjects_covered: subjects,
-            invite_code: group.invite_code,
-            capacity: group.capacity || 10,
-            member_count: memberCount || 0,
-            assignment_count: assignmentCount || 0,
-            created_at: group.created_at,
-            settings: (group.settings as Record<string, any>) || null,
-          };
-        })
-      );
-
-      setGroups(groupsWithCounts);
-    } catch (err) {
-      console.error("Error fetching groups:", err);
-      setError(err instanceof Error ? err.message : "Failed to load groups");
-    } finally {
-      setLoading(false);
-    }
-  };
+    })();
+    pending.current = request;
+    return request;
+  }, [store, setGroups, setLoaded]);
 
   const deleteGroup = async (groupId: string): Promise<boolean> => {
     try {
@@ -140,15 +151,15 @@ export const useManageGroups = () => {
 
   useEffect(() => {
     fetchGroups();
-  }, []);
+  }, [fetchGroups]);
 
-  return { 
-    groups, 
-    loading, 
-    error, 
+  return {
+    groups,
+    loading,
+    error,
     deleteGroup,
     updateGroup,
     regenerateInviteCode,
-    refetch: fetchGroups 
+    refetch: fetchGroups
   };
 };

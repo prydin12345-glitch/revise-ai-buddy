@@ -9,7 +9,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { NotificationDropdown } from "./NotificationDropdown";
-import { MobileNavFAB } from "./MobileNavFAB";
+import { ResponsiveActionSheet } from "@/components/ui/responsive-action-sheet";
+import { useWorkspaceScroll } from "@/hooks/use-workspace-scroll";
+import { useKeyboardViewport } from "@/hooks/use-keyboard-viewport";
 import MobileBottomNav from "./mobile/MobileBottomNav";
 import MobileSpeedDial from "./mobile/MobileSpeedDial";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -26,6 +28,10 @@ interface DashboardLayoutProps {
 const SIDEBAR_COLLAPSED_KEY = 'sidebar-collapsed';
 
 export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
+  useWorkspaceScroll();
+  useKeyboardViewport();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const stored = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
@@ -125,9 +131,9 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   return (
     <div className="examly-workspace min-h-screen flex w-full bg-background">
-      {/* Sidebar - visible from lg (iPad horizontal) and up */}
+      {/* Desktop sidebar; tablet widths use the same five primary controls */}
       <aside
-        className={`hidden lg:block fixed left-0 top-0 h-screen bg-sidebar-background border-r border-sidebar-border z-50 transition-all duration-300 ${
+        className={`examly-workspace-sidebar hidden xl:block fixed left-0 top-0 h-screen bg-sidebar-background border-r border-sidebar-border z-50 transition-all duration-300 ${
           sidebarCollapsed ? "w-16" : "w-64"
         }`}
       >
@@ -246,7 +252,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       </aside>
 
       {/* Main content */}
-      <div className={`flex-1 min-w-0 overflow-x-hidden transition-all duration-300 ${sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>
+      <div className={`examly-workspace-body flex-1 min-w-0 overflow-x-hidden transition-all duration-300 ${sidebarCollapsed ? "xl:ml-16" : "xl:ml-64"}`}>
         {/* Top bar */}
         <header className={`sticky top-0 z-30 h-14 lg:h-16 border-b transition-all duration-200 ${
           scrolled
@@ -254,8 +260,18 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             : 'bg-card border-border shadow-none'
         }`}>
           <div className="h-full flex items-center justify-between gap-4 px-4 lg:px-6">
-            {/* Left: Logo */}
-            <div className="flex items-center gap-6 flex-1">
+            {/* Left: navigation menu + logo */}
+            <div className="flex items-center gap-3 flex-1">
+              <ResponsiveActionSheet open={menuOpen} onOpenChange={setMenuOpen} title="Workspace menu" description="Your other Examly tools and account controls."
+                trigger={<Button variant="ghost" size="icon" className="examly-workspace-menu xl:hidden shrink-0" aria-label="Open workspace menu"><Menu className="h-5 w-5" /></Button>}>
+                <div className="grid gap-1">
+                  {navItems.map(item => <Button key={item.path} variant="ghost" className="justify-start min-h-11" onClick={() => { setMenuOpen(false); navigate(item.path); }}><item.icon className="h-5 w-5 mr-3" />{item.label}</Button>)}
+                  <Separator className="my-2" />
+                  <Button variant="ghost" className="justify-start" onClick={() => { setMenuOpen(false); navigate("/settings"); }}><User className="h-5 w-5 mr-3" />Profile & settings</Button>
+                  <Button variant="ghost" className="justify-start" onClick={toggleTheme}>{theme === "light" ? <Moon className="h-5 w-5 mr-3" /> : <Sun className="h-5 w-5 mr-3" />}{theme === "light" ? "Dark mode" : "Light mode"}</Button>
+                  <Button variant="ghost" className="justify-start text-destructive" onClick={handleLogout}><LogOut className="h-5 w-5 mr-3" />Log out</Button>
+                </div>
+              </ResponsiveActionSheet>
               <div className="flex items-center">
                 <span className="text-xl font-bold text-foreground">Exam</span>
                 <span className="text-xl font-bold text-primary">ly</span>
@@ -296,11 +312,11 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 <span className="hidden lg:inline">Upgrade</span>
               </Button>
 
-              {/* Create dropdown — hidden on mobile (speed-dial FAB handles it there) */}
+              {/* Create dropdown — hidden on mobile (the central Create action handles it there) */}
               {primaryRole !== 'tutor' && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button size="sm" className="hidden md:flex items-center gap-1.5 h-9 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm">
+                    <Button size="sm" className="examly-desktop-create hidden xl:flex items-center gap-1.5 h-9 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm">
                       <Plus className="w-3.5 h-3.5" /> Create
                       <ChevronDown className="w-3 h-3 opacity-80" />
                     </Button>
@@ -360,27 +376,21 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </header>
 
         {/* Page content — always reserve room for the mobile bottom tab bar */}
-        <main className="mx-auto w-full max-w-[1440px] p-4 pb-24 md:px-6 md:py-8 md:pb-6 xl:px-8 xl:pb-8 overflow-x-hidden overflow-y-auto">{children}</main>
+        <main className="examly-workspace-main mx-auto w-full max-w-[1440px] p-4 md:px-6 md:py-8 xl:px-8 xl:pb-8 overflow-x-hidden">{children}</main>
       </div>
 
-      {/* Mobile bottom tab bar stays visible on Settings for navigation.
-          The Create speed-dial FAB is suppressed there to keep Settings calm. */}
-      {primaryRole !== 'tutor' && (
-        <>
-          <MobileBottomNav />
-          {!isSettingsRoute && (
-            <MobileSpeedDial
-              onCreateExam={() => navigate('/upload')}
-              onCreateQuiz={() => navigate('/create-practice-questions')}
-              onAskAI={() => setAiChatOpen(true)}
-              aiUnreadCount={aiUnread}
-            />
-          )}
-        </>
-      )}
-
-      {/* Tablet / tutor nav drawer FAB (md–lg only after edit) — hidden on Settings */}
-      {!isSettingsRoute && <MobileNavFAB />}
+      <MobileBottomNav tutor={primaryRole === 'tutor'} onCreate={() => setCreateOpen(true)} />
+      <ResponsiveActionSheet open={createOpen} onOpenChange={setCreateOpen} title="Create" description="Choose an existing Examly activity." returnFocus={() => document.querySelector<HTMLButtonElement>('[data-workspace-create]')?.focus()}
+        trigger={<button type="button" className="hidden" tabIndex={-1} aria-hidden="true" />}>
+        <div className="grid gap-2">
+          <Button variant="outline" className="justify-start" onClick={() => { setCreateOpen(false); navigate(primaryRole === 'tutor' ? '/tutor/exams/create' : '/upload'); }}><FileText className="h-5 w-5 mr-3" />Create mock exam</Button>
+          <Button variant="outline" className="justify-start" onClick={() => { setCreateOpen(false); navigate('/create-practice-questions'); }}><ListChecks className="h-5 w-5 mr-3" />Create practice quiz</Button>
+          {primaryRole === 'tutor' ? <Button variant="outline" className="justify-start" onClick={() => { setCreateOpen(false); navigate('/tutor/exams/create-manual'); }}><FileText className="h-5 w-5 mr-3" />Create manual exam</Button> : <Button variant="outline" className="justify-start" onClick={() => { setCreateOpen(false); setJoinClassModalOpen(true); }}><Users className="h-5 w-5 mr-3" />Join class</Button>}
+          <Button variant="outline" className="justify-start" onClick={() => { setCreateOpen(false); setAiChatOpen(true); }}><MessageCircle className="h-5 w-5 mr-3" />Ask AI tutor</Button>
+        </div>
+      </ResponsiveActionSheet>
+      {/* Retain the desktop quick actions. Mobile uses the central Create action. */}
+      {primaryRole !== 'tutor' && !isSettingsRoute && <div className="examly-desktop-quick-actions hidden xl:block"><MobileSpeedDial onCreateExam={() => navigate('/upload')} onCreateQuiz={() => navigate('/create-practice-questions')} onAskAI={() => setAiChatOpen(true)} aiUnreadCount={aiUnread} /></div>}
 
       {/* AI Tutor Chat — appears on every authenticated page */}
       <AiTutorChat

@@ -1,3 +1,5 @@
+import { useSetupDraft } from "@/hooks/use-setup-draft";
+import { SetupDraftNotice } from "@/components/shared/SetupDraftNotice";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -773,6 +775,65 @@ export default function CreateExam() {
     }
   };
 
+  const setupDraft = useSetupDraft({
+    item: 'create-exam:' + deepLinkParams.toString(),
+    values: { selectedProfile, profileMaxQuestions, profileTopics, activeProfileTopics, selectedSubtopics, useAIInterpretation, profileEducationalTier, profileTimeLimit, sessionTimeLimitOverride, profileMcqCount, profileWrittenCount, profileQuestionStructure, profileParentQuestionCount, profileMaxPartsPerQuestion, profileDifficultyProgression, profileCalculatorPolicy, profileMarkDistribution, profileIncludeExtended, profileExtendedMarks, profileStructurePreset, profileMcqPosition, profileMcqOptionsCount, profileIncludeGraphs, profileIncludeTables, examName, notes, subjectId, subjectColor, examBoard, qualificationLevel, useOriginal, educationalTier, customTier, totalQuestions, oneMarkCount, twoMarkCount, fourMarkCount, extendedCount, topicWeighting, includeDiagrams, includeMCQ, includeInsert, derivedTopics, includeGraphs, timerEnabled, timerDuration, duration },
+    dirty: !!(examName.trim() || notes.trim() || subjectId),
+    enabled: !generating,
+    restore: values => {
+      setSelectedProfile(values.selectedProfile);
+      setProfileMaxQuestions(values.profileMaxQuestions);
+      setProfileTopics(values.profileTopics);
+      setActiveProfileTopics(values.activeProfileTopics);
+      setSelectedSubtopics(values.selectedSubtopics);
+      setUseAIInterpretation(values.useAIInterpretation);
+      setProfileEducationalTier(values.profileEducationalTier);
+      setProfileTimeLimit(values.profileTimeLimit);
+      setSessionTimeLimitOverride(values.sessionTimeLimitOverride);
+      setProfileMcqCount(values.profileMcqCount);
+      setProfileWrittenCount(values.profileWrittenCount);
+      setProfileQuestionStructure(values.profileQuestionStructure);
+      setProfileParentQuestionCount(values.profileParentQuestionCount);
+      setProfileMaxPartsPerQuestion(values.profileMaxPartsPerQuestion);
+      setProfileDifficultyProgression(values.profileDifficultyProgression);
+      setProfileCalculatorPolicy(values.profileCalculatorPolicy);
+      setProfileMarkDistribution(values.profileMarkDistribution);
+      setProfileIncludeExtended(values.profileIncludeExtended);
+      setProfileExtendedMarks(values.profileExtendedMarks);
+      setProfileStructurePreset(values.profileStructurePreset);
+      setProfileMcqPosition(values.profileMcqPosition);
+      setProfileMcqOptionsCount(values.profileMcqOptionsCount);
+      setProfileIncludeGraphs(values.profileIncludeGraphs);
+      setProfileIncludeTables(values.profileIncludeTables);
+      setExamName(values.examName);
+      setNotes(values.notes);
+      setSubjectId(values.subjectId);
+      setSubjectColor(values.subjectColor);
+      setExamBoard(values.examBoard);
+      setQualificationLevel(values.qualificationLevel);
+      setUseOriginal(values.useOriginal);
+      setEducationalTier(values.educationalTier);
+      setCustomTier(values.customTier);
+      setTotalQuestions(values.totalQuestions);
+      setOneMarkCount(values.oneMarkCount);
+      setTwoMarkCount(values.twoMarkCount);
+      setFourMarkCount(values.fourMarkCount);
+      setExtendedCount(values.extendedCount);
+      setTopicWeighting(values.topicWeighting);
+      setIncludeDiagrams(values.includeDiagrams);
+      setIncludeMCQ(values.includeMCQ);
+      setIncludeInsert(values.includeInsert);
+      setDerivedTopics(values.derivedTopics);
+      setIncludeGraphs(values.includeGraphs);
+      setTimerEnabled(values.timerEnabled);
+      setTimerDuration(values.timerDuration);
+      setDuration(values.duration);
+      nameValidator.checkName(values.examName);
+    },
+  });
+  const clearSetupDraft = setupDraft.clear;
+  useEffect(() => { if (showGenerationComplete) clearSetupDraft(); }, [showGenerationComplete, clearSetupDraft]);
+
   return (
     <DashboardLayout>
       <div className="min-h-screen bg-background">
@@ -780,6 +841,7 @@ export default function CreateExam() {
           {/* Slim page title — the wizard renders the per-step header below */}
           <div className="max-w-4xl mx-auto mb-6">
             <h1 className="text-2xl sm:text-3xl font-bold">Create Mock Exam</h1>
+            <div className="mt-3"><SetupDraftNotice draft={setupDraft} /></div>
           </div>
 
           <StepWizard

@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  * so route transitions feel intentional rather than broken.
  */
 export const PageSkeleton = () => (
-  <div className="min-h-screen bg-background">
+  <div className="min-h-screen bg-background" role="status" aria-label="Loading page">
     {/* Simulated top bar */}
     <div className="h-14 lg:h-16 border-b border-border/30 bg-card/50 flex items-center px-6 gap-4">
       <Skeleton className="h-5 w-24 rounded" />

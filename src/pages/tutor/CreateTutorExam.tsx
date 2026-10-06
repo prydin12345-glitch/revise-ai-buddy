@@ -1,3 +1,5 @@
+import { useSetupDraft } from "@/hooks/use-setup-draft";
+import { SetupDraftNotice } from "@/components/shared/SetupDraftNotice";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getLevelsForBoard } from "@/lib/board-level-mapping";
@@ -421,10 +423,44 @@ export default function CreateTutorExam() {
     setFile(null);
   };
 
+  const setupDraft = useSetupDraft({
+    item: 'create-tutor-exam',
+    values: { selectedProfile, profileMaxQuestions, examName, notes, subjectId, subjectColor, examBoard, useOriginal, educationalTier, customTier, totalQuestions, oneMarkCount, twoMarkCount, fourMarkCount, extendedCount, topicWeighting, includeDiagrams, includeMCQ, includeGraphs, timerEnabled, timerDuration, duration },
+    dirty: !!(examName.trim() || notes.trim() || subjectId),
+    enabled: !generating,
+    restore: values => {
+      setSelectedProfile(values.selectedProfile);
+      setProfileMaxQuestions(values.profileMaxQuestions);
+      setExamName(values.examName);
+      setNotes(values.notes);
+      setSubjectId(values.subjectId);
+      setSubjectColor(values.subjectColor);
+      setExamBoard(values.examBoard);
+      setUseOriginal(values.useOriginal);
+      setEducationalTier(values.educationalTier);
+      setCustomTier(values.customTier);
+      setTotalQuestions(values.totalQuestions);
+      setOneMarkCount(values.oneMarkCount);
+      setTwoMarkCount(values.twoMarkCount);
+      setFourMarkCount(values.fourMarkCount);
+      setExtendedCount(values.extendedCount);
+      setTopicWeighting(values.topicWeighting);
+      setIncludeDiagrams(values.includeDiagrams);
+      setIncludeMCQ(values.includeMCQ);
+      setIncludeGraphs(values.includeGraphs);
+      setTimerEnabled(values.timerEnabled);
+      setTimerDuration(values.timerDuration);
+      setDuration(values.duration);
+    },
+  });
+  const clearSetupDraft = setupDraft.clear;
+  useEffect(() => { if (showGenerationComplete) clearSetupDraft(); }, [showGenerationComplete, clearSetupDraft]);
+
   return (
     <div className="container mx-auto py-6">
       <div className="min-h-screen bg-background">
         <div className="max-w-7xl mx-auto p-6">
+          <SetupDraftNotice draft={setupDraft} />
           {/* Header */}
           <div className="flex items-center justify-between mb-8 -mx-6 -mt-6 px-6 py-6 bg-background sticky top-0 z-10 border-b border-border">
             <h1 className="text-3xl font-bold">Create Exam</h1>

@@ -14,6 +14,7 @@ import { NotificationCard } from "./NotificationCard";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { getSafeRedirectPath } from '@/lib/safe-redirect';
 
 export const NotificationDropdown = () => {
   const {
@@ -32,7 +33,9 @@ export const NotificationDropdown = () => {
   const handleNotificationAction = async (notification: any) => {
     // Use link_url if available (new format), otherwise fall back to type-based routing
     if (notification.link_url) {
-      navigate(notification.link_url);
+      const path = getSafeRedirectPath(notification.link_url, '');
+      if (path) navigate(path);
+      else toast({ title: 'Link unavailable', description: 'This notification does not contain a valid Examly link.', variant: 'destructive' });
       return;
     }
 
@@ -134,7 +137,7 @@ export const NotificationDropdown = () => {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[400px] p-0">
+      <DropdownMenuContent align="end" className="w-[min(400px,calc(100vw-2rem))] p-0">
         <div className="flex items-center justify-between p-4 border-b">
           <DropdownMenuLabel className="p-0">Notifications</DropdownMenuLabel>
           <div className="flex gap-1">

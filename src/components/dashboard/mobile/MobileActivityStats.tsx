@@ -1,3 +1,4 @@
+import { useRetainedState } from "@/hooks/use-workspace-session";
 // src/components/dashboard/mobile/MobileActivityStats.tsx
 // Mobile "Recent Activity" / "Statistics" panel. Tab-toggled (no horizontal
 // swipe) so the view stays put. Statistics uses the full desktop SubjectDonut
@@ -51,7 +52,7 @@ export default function MobileActivityStats({
 function ActivityCard({
   mockExams, quizzes, onOpenExam, onStartQuiz,
 }: { mockExams: MockExam[]; quizzes: Quiz[]; onOpenExam?: (id: string) => void; onStartQuiz?: (id: string) => void }) {
-  const [tab, setTab] = useState<"exams" | "quizzes">("exams");
+  const [tab, setTab] = useRetainedState<"exams" | "quizzes">("dashboard:activity-tab", "exams");
   return (
     <div className="rounded-lg border border-border bg-card p-[18px]">
       <div className="flex gap-1 rounded-md border border-border bg-panel-2 p-1">

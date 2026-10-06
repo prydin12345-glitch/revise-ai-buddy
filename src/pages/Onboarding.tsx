@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { getSafeRedirectFromParams } from "@/lib/safe-redirect";
 import { Check } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { motion, AnimatePresence } from "framer-motion";
@@ -111,6 +112,8 @@ const Onboarding = () => {
   const [selectedSubjects, setSelectedSubjects] = useState<UserSubject[]>([]);
   const [alreadyCompleted, setAlreadyCompleted] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const nextPath = getSafeRedirectFromParams(searchParams, "next", "/dashboard");
   const { toast } = useToast();
   const { primaryRole, loading: roleLoading } = useUserRole();
   const { subjects, saveUserSubjects } = useSubjects();
@@ -137,11 +140,11 @@ const Onboarding = () => {
 
       if (data?.subjects_completed && data?.goals_completed) {
         setAlreadyCompleted(true);
-        navigate("/dashboard", { replace: true });
+        navigate(nextPath, { replace: true });
       }
     };
     checkAlreadyCompleted();
-  }, [navigate]);
+  }, [navigate, nextPath]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -156,7 +159,7 @@ const Onboarding = () => {
             description: "Please sign in to continue",
             variant: "destructive",
           });
-          navigate("/auth");
+          navigate(`/auth?mode=login&next=${encodeURIComponent("/onboarding?next=" + encodeURIComponent(nextPath))}`, { replace: true });
           return;
         }
 
@@ -171,7 +174,7 @@ const Onboarding = () => {
     };
 
     checkAuth();
-  }, [primaryRole, roleLoading, step, navigate, toast, alreadyCompleted]);
+  }, [primaryRole, roleLoading, step, navigate, toast, alreadyCompleted, nextPath]);
 
   const handleSubjectsComplete = async (selected: UserSubject[]) => {
     if (!selected || selected.length === 0) {
@@ -287,7 +290,7 @@ const Onboarding = () => {
         description: "Your account is all set up. Let's start revising!",
       });
 
-      navigate("/dashboard");
+      navigate(nextPath, { replace: true });
     } catch (error) {
       console.error("Error completing goals:", error);
       toast({
@@ -299,7 +302,7 @@ const Onboarding = () => {
   };
 
   const handleTutorComplete = () => {
-    navigate("/dashboard");
+    navigate(nextPath, { replace: true });
   };
 
   if (roleLoading || step === null) {

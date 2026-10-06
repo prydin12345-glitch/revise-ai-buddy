@@ -1,7 +1,8 @@
 import {ResponseReview} from '@/components/responses/ResponseReview';
 import type {ResponseQuestionView} from '@/lib/response-view';
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { hasAppHistory } from '@/lib/workspace-navigation';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +51,9 @@ interface StudentData {
 
 const StudentExamReview = () => {
   const { examId, studentId } = useParams();
+  const [searchParams] = useSearchParams();
+  const linkedQuestion = searchParams.get('questionId');
+  const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [examTitle, setExamTitle] = useState("");
@@ -139,6 +143,12 @@ const StudentExamReview = () => {
     loadStudentReview();
   }, [examId, studentId]);
 
+  useEffect(() => {
+    if (loading || !linkedQuestion || !questions.some(question => question.id === linkedQuestion)) return;
+    const frame = requestAnimationFrame(() => questionRefs.current[linkedQuestion]?.scrollIntoView({ behavior: 'auto', block: 'center' }));
+    return () => cancelAnimationFrame(frame);
+  }, [loading, linkedQuestion, questions]);
+
   const formatTime = (seconds: number | null) => {
     if (!seconds) return "-";
     const mins = Math.floor(seconds / 60);
@@ -170,7 +180,7 @@ const StudentExamReview = () => {
     <div className="container mx-auto py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(`/tutor/exams/${examId}/dashboard`)}>
+        <Button variant="ghost" size="icon" aria-label="Back" onClick={() => hasAppHistory() ? navigate(-1) : navigate(`/tutor/exams/${examId}`)}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
@@ -236,7 +246,7 @@ const StudentExamReview = () => {
             const answer = getAnswerForQuestion(question.id);
             
             return (
-              <Card key={question.id}>
+              <Card key={question.id} ref={element => { questionRefs.current[question.id] = element; }}>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base flex items-center gap-2">

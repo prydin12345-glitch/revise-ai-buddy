@@ -50,7 +50,7 @@ const Auth = () => {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        if (nextPath) window.location.href = nextPath;
+        if (nextPath) navigate(nextPath, { replace: true });
         else navigate("/dashboard");
       }
     });
@@ -133,7 +133,7 @@ const Auth = () => {
         if (error) throw error;
         if (data.user && data.session) {
           toast({ title: "Account created!", description: "Welcome! Let's set up your profile." });
-          if (nextPath) window.location.href = nextPath;
+          if (nextPath) navigate(nextPath, { replace: true });
           else navigate("/onboarding");
         } else {
           setConfirmedEmail(email);
@@ -143,7 +143,7 @@ const Auth = () => {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast({ title: "Welcome back!", description: "Successfully logged in." });
-        if (nextPath) window.location.href = nextPath;
+        if (nextPath) navigate(nextPath, { replace: true });
         else navigate("/dashboard");
       }
     } catch (error: any) {

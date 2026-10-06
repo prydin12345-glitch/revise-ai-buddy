@@ -1,3 +1,4 @@
+import { useRetainedState } from "@/hooks/use-workspace-session";
 // src/components/dashboard/ActivityPanel.tsx
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
@@ -18,7 +19,7 @@ const MAX_ROWS = 5;
 export default function ActivityPanel({
   mockExams, quizzes, onOpenExam, onStartQuiz, onViewAll,
 }: ActivityPanelProps) {
-  const [tab, setTab] = useState<Tab>("exams");
+  const [tab, setTab] = useRetainedState<Tab>("dashboard:activity-tab", "exams");
   const visibleExams = mockExams.slice(0, MAX_ROWS);
   const visibleQuizzes = quizzes.slice(0, MAX_ROWS);
   const hasMore = tab === "exams" ? mockExams.length > MAX_ROWS : quizzes.length > MAX_ROWS;

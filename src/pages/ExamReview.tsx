@@ -1,9 +1,10 @@
+import { LoadError } from "@/components/shared/ListFeedback";
 import {ResponseReview} from '@/components/responses/ResponseReview';
 import type {ResponseQuestionView} from '@/lib/response-view';
 import {formatBiologyEssayKey} from '@/lib/biology-essay';
 import { PaperSectionHeading } from "@/components/exams/PaperSectionHeading";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -233,6 +234,9 @@ function AIExplainPanel({ question, answer }: { question: Question; answer?: Ans
 
 const ExamReview = () => {
   const { examId } = useParams();
+  const [searchParams] = useSearchParams();
+  const linkedQuestion = searchParams.get("q");
+  const [loadError, setLoadError] = useState<string | null>(null);
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -254,6 +258,8 @@ const ExamReview = () => {
   }, [examId]);
 
   const loadReview = async () => {
+    setLoadError(null);
+    setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('get-exam-questions', {
         body: { examId }
@@ -298,6 +304,7 @@ const ExamReview = () => {
       setIsTutorAssigned(data.isAssigned === true);
 
     } catch (error: any) {
+      setLoadError("Couldn’t open this paper. It may be unavailable, deleted or inaccessible to your account. Retry or return to My Exams.");
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
@@ -305,9 +312,17 @@ const ExamReview = () => {
   };
 
   const scrollToQuestion = (questionId: string) => {
-    questionRefs.current[questionId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    questionRefs.current[questionId]?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
     if (isMobile) setSidebarOpen(false);
   };
+
+  useEffect(() => {
+    if (loading || !linkedQuestion) return;
+    const question = questions.find(item => item.question_number === linkedQuestion);
+    if (!question) return;
+    const frame = requestAnimationFrame(() => questionRefs.current[question.id]?.scrollIntoView({ behavior: 'auto', block: 'center' }));
+    return () => cancelAnimationFrame(frame);
+  }, [loading, linkedQuestion, questions]);
 
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
@@ -387,6 +402,8 @@ const ExamReview = () => {
     setFilter('all');
     requestAnimationFrame(() => scrollToQuestion(next.id));
   }, [questions, answers]);
+
+  if (loadError && !submission) return <div className="min-h-screen bg-background p-4 sm:p-8 max-w-2xl mx-auto space-y-4"><Button variant="ghost" onClick={() => navigate('/my-exams')}><ArrowLeft className="h-4 w-4 mr-2" />My Exams</Button><LoadError message={loadError} onRetry={() => void loadReview()} /></div>;
 
   if (loading) {
     return (

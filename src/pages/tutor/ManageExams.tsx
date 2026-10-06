@@ -1,3 +1,6 @@
+import { useRetainedState } from "@/hooks/use-workspace-session";
+import { RefreshableList } from "@/components/shared/RefreshableList";
+import { LoadError, ListSkeleton } from "@/components/shared/ListFeedback";
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { differenceInDays } from "date-fns";
@@ -62,7 +65,7 @@ const STATUS_FILTERS = [
 
 const ManageExams = () => {
   const navigate = useNavigate();
-  const { exams, loading, refetch } = useTutorExams();
+  const { exams, loading, error, refetch } = useTutorExams();
   const { subjects, getSubjectColor } = useUserSubjects();
   
   const [assignModalOpen, setAssignModalOpen] = useState(false);
@@ -72,18 +75,18 @@ const ManageExams = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   
   // Filters and search
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [sortBy, setSortBy] = useState<SortOption>("newest");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [subjectFilter, setSubjectFilter] = useState<string>("all");
-  const [groupFilter, setGroupFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useRetainedState("tutor-exams:searchQuery", "");
+  const [debouncedSearch, setDebouncedSearch] = useRetainedState("tutor-exams:debouncedSearch", "");
+  const [sortBy, setSortBy] = useRetainedState<SortOption>("tutor-exams:sortBy", "newest");
+  const [statusFilter, setStatusFilter] = useRetainedState<StatusFilter>("tutor-exams:statusFilter", "all");
+  const [subjectFilter, setSubjectFilter] = useRetainedState<string>("tutor-exams:subjectFilter", "all");
+  const [groupFilter, setGroupFilter] = useRetainedState<string>("tutor-exams:groupFilter", "all");
 
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, setDebouncedSearch]);
 
   // Get unique subjects and groups from exams
   const uniqueSubjects = useMemo(() => {
@@ -214,16 +217,11 @@ const ManageExams = () => {
     return { totalExams, activeExams, upcomingDeadlines, avgCompletion };
   }, [exams]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   return (
+    <RefreshableList onRefresh={refetch}>
     <div className="container mx-auto py-6 space-y-6">
+      {error && <LoadError message={error} onRetry={() => void refetch()} />}
       {/* Header - matches Practice Sets */}
       <div className="flex flex-wrap items-center justify-between gap-y-3">
         <div>
@@ -437,7 +435,7 @@ const ManageExams = () => {
         </CardHeader>
 
         <CardContent>
-          {exams.length === 0 ? (
+          {loading && exams.length === 0 ? <ListSkeleton /> : error && exams.length === 0 ? null : exams.length === 0 ? (
             // Empty state - no exams at all
             <div className="text-center py-12">
               <div className="rounded-full bg-muted/30 p-6 mb-6 mx-auto w-fit">
@@ -537,6 +535,7 @@ const ManageExams = () => {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </RefreshableList>
   );
 };
 

@@ -12,6 +12,7 @@ interface JoinClassModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  initialInviteCode?: string;
 }
 
 interface ClassPreview {
@@ -33,8 +34,8 @@ const LEVEL_LABELS: Record<string, string> = {
   university: "University",
 };
 
-export const JoinClassModal = ({ open, onOpenChange, onSuccess }: JoinClassModalProps) => {
-  const [inviteCode, setInviteCode] = useState("");
+export const JoinClassModal = ({ open, onOpenChange, onSuccess, initialInviteCode = '' }: JoinClassModalProps) => {
+  const [inviteCode, setInviteCode] = useState(initialInviteCode);
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<ClassPreview | null>(null);
 

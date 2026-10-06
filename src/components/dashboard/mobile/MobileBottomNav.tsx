@@ -1,34 +1,24 @@
-// Routing wrapper around MobileTabBar — derives active tab from current
-// path and navigates on tap. Only used by students; tutors keep the
-// existing MobileNavFAB drawer.
-import { useLocation, useNavigate } from "react-router-dom";
-import MobileTabBar, { type TabKey } from "./MobileTabBar";
+import { useLocation, useNavigate } from 'react-router-dom';
+import MobileTabBar from './MobileTabBar';
+import { activeWorkspaceTab, workspaceDestinations, scrollWorkspaceToTop } from '@/lib/workspace-navigation';
+import { useEffect } from 'react';
+import { useRetainedState } from '@/hooks/use-workspace-session';
 
-const ROUTE_FOR_TAB: Record<TabKey, string> = {
-  home: "/dashboard",
-  exams: "/my-exams",
-  quizzes: "/quizzes",
-  subjects: "/my-subjects",
-  classes: "/my-classes",
-  stats: "/stats",
-};
-
-function activeTabFor(pathname: string): TabKey {
-  if (pathname.startsWith("/my-exams") || pathname.startsWith("/exam")) return "exams";
-  if (pathname.startsWith("/quizzes") || pathname.startsWith("/practice")) return "quizzes";
-  if (pathname.startsWith("/my-subjects")) return "subjects";
-  if (pathname.startsWith("/my-classes")) return "classes";
-  if (pathname.startsWith("/stats")) return "stats";
-  return "home";
-}
-
-export default function MobileBottomNav() {
-  const { pathname } = useLocation();
+export default function MobileBottomNav({ tutor = false, onCreate }: { tutor?: boolean; onCreate: () => void }) {
+  const { pathname, search, hash } = useLocation();
+  const [lastPaths, setLastPaths] = useRetainedState<Record<string, string>>('navigation:last-paths', {});
   const navigate = useNavigate();
-  return (
-    <MobileTabBar
-      active={activeTabFor(pathname)}
-      onNavigate={(k) => navigate(ROUTE_FOR_TAB[k])}
-    />
-  );
+  useEffect(() => {
+    const destination = workspaceDestinations(tutor).find(tab => tab.path === pathname);
+    if (!destination) return;
+    const path = pathname + search + hash;
+    setLastPaths(previous => previous[destination.key] === path ? previous : { ...previous, [destination.key]: path });
+  }, [pathname, search, hash, tutor, setLastPaths]);
+  return <MobileTabBar tutor={tutor} active={activeWorkspaceTab(pathname, tutor)} onNavigate={key => {
+    if (key === 'create') { onCreate(); return; }
+    const tab = workspaceDestinations(tutor).find(item => item.key === key);
+    if (!tab?.path) return;
+    if (pathname === tab.path) scrollWorkspaceToTop();
+    else navigate(lastPaths[key] || tab.path);
+  }} />;
 }

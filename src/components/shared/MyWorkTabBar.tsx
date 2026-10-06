@@ -1,4 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
+import { scrollWorkspaceToTop } from '@/lib/workspace-navigation';
 
 const TABS = [
   { label: "Exams", path: "/my-exams" },
@@ -16,7 +17,8 @@ export const MyWorkTabBar = () => {
         return (
           <button
             key={tab.label}
-            onClick={() => navigate(tab.path)}
+            onClick={() => isActive ? scrollWorkspaceToTop() : navigate(tab.path)}
+            aria-current={isActive ? 'page' : undefined}
             className={`px-6 py-2.5 text-sm border-b-2 transition-all bg-transparent border-none cursor-pointer ${
               isActive
                 ? "border-b-primary text-foreground font-semibold"

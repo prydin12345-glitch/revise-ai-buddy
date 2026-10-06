@@ -1,3 +1,4 @@
+import { hasAppHistory } from "@/lib/workspace-navigation";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
@@ -171,7 +172,7 @@ const QuizCover = () => {
   }, [setId, navigate]);
 
   const goBack = () => {
-    if (window.history.length > 1) navigate(-1);
+    if (hasAppHistory()) navigate(-1);
     else navigate("/quizzes");
   };
 

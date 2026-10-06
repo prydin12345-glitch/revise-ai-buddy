@@ -129,3 +129,18 @@
     }
   }
 }
+
+@media screen and (max-width: 1279px), screen and (pointer: coarse) {
+  :root { --mobile-navigation-height: calc(68px + env(safe-area-inset-bottom, 0px)); }
+  .examly-workspace-sidebar, .examly-desktop-create, .examly-desktop-quick-actions { display: none; }
+  .examly-workspace-body { margin-left: 0; }
+  .examly-workspace-menu { display: inline-flex; }
+  .examly-bottom-nav { display: block; padding-bottom: env(safe-area-inset-bottom, 0px); padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px); }
+  .examly-workspace-main { padding-bottom: calc(var(--mobile-navigation-height) + 1.5rem); }
+  html[data-keyboard-open="true"] .examly-bottom-nav { display: none; }
+  html[data-keyboard-open="true"] .examly-workspace-main { padding-bottom: 1.5rem; }
+  .examly-action-sheet { bottom: max(0px, calc(100dvh - var(--visible-viewport-height, 100dvh) - var(--visible-viewport-top, 0px))); }
+}
+@media screen and (prefers-reduced-motion: reduce) {
+  .examly-workspace .scroll-smooth { scroll-behavior: auto; }
+}
