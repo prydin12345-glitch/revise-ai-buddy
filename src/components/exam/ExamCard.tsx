@@ -1,3 +1,4 @@
+import { FavouriteControl, type FavouriteProps } from "@/components/shared/FavouriteControl";
 import { useNavigate } from "react-router-dom";
 import { getBoardDisplayName } from "@/lib/board-scrubber";
 import { LEVEL_DISPLAY_NAMES } from "@/lib/board-level-mapping";
@@ -25,6 +26,7 @@ interface Exam {
 }
 
 interface ExamCardProps {
+  favourite?: FavouriteProps;
   exam: Exam;
   progress: ExamProgress;
   subjectColor: string;
@@ -38,6 +40,7 @@ export const ExamCard = ({
   progress,
   subjectColor,
   isArchived = false,
+  favourite,
 }: ExamCardProps) => {
   const navigate = useNavigate();
 
@@ -166,6 +169,7 @@ export const ExamCard = ({
           </div>
         </div>
       </button>
+      {favourite && <FavouriteControl {...favourite} />}
     </div>
   );
 };

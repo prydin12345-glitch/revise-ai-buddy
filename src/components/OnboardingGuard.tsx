@@ -1,7 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PageSkeleton } from "@/components/PageSkeleton";
+import { getSafeRedirectPath } from '@/lib/safe-redirect';
+import { LoadError } from '@/components/shared/ListFeedback';
+import { useWorkspaceSession } from '@/hooks/use-workspace-session';
 
 const BYPASS_PATHS = ["/onboarding", "/auth", "/"];
 
@@ -34,9 +37,14 @@ interface OnboardingGuardProps {
 export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   const [checking, setChecking] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [signedOut, setSignedOut] = useState(false);
+  const [error, setError] = useState(false);
+  const [retry, setRetry] = useState(0);
   const location = useLocation();
+  const { ownerId, ready } = useWorkspaceSession();
 
   useEffect(() => {
+    if (!ready) return;
     initAuthListener();
     let cancelled = false;
 
@@ -49,6 +57,8 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user || cancelled) {
+        if (cancelled) return;
+        setSignedOut(true);
         setChecking(false);
         return;
       }
@@ -66,13 +76,14 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
         return;
       }
 
-      const { data } = await supabase
+      const { data, error: statusError } = await supabase
         .from("user_onboarding_status")
         .select("subjects_completed, goals_completed")
         .eq("user_id", user.id)
         .maybeSingle();
 
       if (cancelled) return;
+      if (statusError) throw statusError;
 
       const requiresOnboarding = !data || !data.subjects_completed;
 
@@ -83,18 +94,21 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
         checkedAt: now,
       };
 
-      if (requiresOnboarding) {
-        setNeedsOnboarding(true);
-      }
+      setNeedsOnboarding(requiresOnboarding);
 
       setChecking(false);
     };
 
-    check();
+    setError(false);
+    setSignedOut(false);
+    void check().catch(() => { if (!cancelled) { setError(true); setChecking(false); } });
     return () => { cancelled = true; };
-  }, [location.pathname]);
+  }, [location.pathname, retry, ownerId, ready]);
 
+  const next = getSafeRedirectPath(location.pathname + location.search + location.hash, '/dashboard');
   if (checking) return <PageSkeleton />;
-  if (needsOnboarding) return <Navigate to="/onboarding" replace />;
-  return <>{children}</>;
+  if (error) return <div className="p-6 max-w-xl mx-auto"><LoadError message="Couldn’t check your account. Retry when your connection is available." onRetry={() => { setChecking(true); setRetry(value => value + 1); }} /></div>;
+  if (signedOut) return <Navigate to={`/auth?mode=login&next=${encodeURIComponent(next)}`} replace />;
+  if (needsOnboarding) return <Navigate to={`/onboarding?next=${encodeURIComponent(next)}`} replace />;
+  return <Fragment key={ownerId ?? 'anonymous'}>{children}</Fragment>;
 };

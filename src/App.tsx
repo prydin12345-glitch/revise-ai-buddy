@@ -6,6 +6,7 @@ import { Suspense, useEffect } from "react";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { DelayedFallback } from "@/components/DelayedFallback";
 import { OnboardingGuard } from "@/components/OnboardingGuard";
+import { WorkspaceSession } from "@/components/WorkspaceSession";
 import { CookieConsent } from "@/components/CookieConsent";
 import { PreferencesApplier } from "@/components/PreferencesApplier";
 import { lazyWithReload } from "@/lib/lazy-with-reload";
@@ -44,6 +45,7 @@ const QuizCover = lazyWithReload(() => import("./pages/QuizCover"));
 const Settings = lazyWithReload(() => import("./pages/Settings"));
 const AdminVerifications = lazyWithReload(() => import("./pages/AdminVerifications"));
 const MyClasses = lazyWithReload(() => import("./pages/MyClasses"));
+const JoinClassLink = lazyWithReload(() => import("./pages/JoinClassLink"));
 const UploadExam = lazyWithReload(() => import("./pages/UploadExam"));
 const PreviewExam = lazyWithReload(() => import("./pages/PreviewExam"));
 const Pricing = lazyWithReload(() => import("./pages/Pricing"));
@@ -87,6 +89,7 @@ const App = () => {
       <TooltipProvider>
         <Sonner />
         <BrowserRouter>
+          <WorkspaceSession>
           <PreferencesApplier />
           <Suspense fallback={<PageLoader />}>
             <Routes>
@@ -110,6 +113,7 @@ const App = () => {
               <Route path="/admin/verifications" element={<OnboardingGuard><AdminVerifications /></OnboardingGuard>} />
               <Route path="/my-exams" element={<OnboardingGuard><MyExams /></OnboardingGuard>} />
               <Route path="/my-classes" element={<OnboardingGuard><MyClasses /></OnboardingGuard>} />
+              <Route path="/join/:inviteCode" element={<OnboardingGuard><JoinClassLink /></OnboardingGuard>} />
               <Route path="/create-practice-questions" element={<OnboardingGuard><CreatePracticeQuestions /></OnboardingGuard>} />
               <Route path="/quizzes" element={<OnboardingGuard><MyQuizzes /></OnboardingGuard>} />
               <Route path="/practice-questions/:setId/preview" element={<OnboardingGuard><PracticeSetPreview /></OnboardingGuard>} />
@@ -145,6 +149,7 @@ const App = () => {
             </Routes>
           </Suspense>
           <CookieConsent />
+          </WorkspaceSession>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

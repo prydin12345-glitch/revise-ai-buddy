@@ -1,3 +1,5 @@
+import { useSetupDraft } from "@/hooks/use-setup-draft";
+import { SetupDraftNotice } from "@/components/shared/SetupDraftNotice";
 import { useEffect, useRef, useState } from "react";
 import { getLevelsForBoard, LEVEL_DISPLAY_NAMES } from "@/lib/board-level-mapping";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -608,9 +610,41 @@ const CreatePracticeQuestions = () => {
     },
   ];
 
+  const setupDraft = useSetupDraft({
+    item: 'create-practice:' + searchParams.toString(),
+    values: { selectedProfileId, profileMaxQuestions, profileTopics, setName, notes, subjectId, subjectColor, selectedSubtopics, questionRange, difficultyMode, difficultyLevel, educationalTier, examBoard, useAIInterpretation, customEducationalTier, customExamBoard, questionFormat, mcqCount, autoExtractedTopics },
+    dirty: !!(setName.trim() || notes.trim() || subjectId),
+    enabled: !generating,
+    restore: values => {
+      setSelectedProfileId(values.selectedProfileId);
+      setProfileMaxQuestions(values.profileMaxQuestions);
+      setProfileTopics(values.profileTopics);
+      setSetName(values.setName);
+      setNotes(values.notes);
+      setSubjectId(values.subjectId);
+      setSubjectColor(values.subjectColor);
+      setSelectedSubtopics(values.selectedSubtopics);
+      setQuestionRange(values.questionRange);
+      setDifficultyMode(values.difficultyMode);
+      setDifficultyLevel(values.difficultyLevel);
+      setEducationalTier(values.educationalTier);
+      setExamBoard(values.examBoard);
+      setUseAIInterpretation(values.useAIInterpretation);
+      setCustomEducationalTier(values.customEducationalTier);
+      setCustomExamBoard(values.customExamBoard);
+      setQuestionFormat(values.questionFormat);
+      setMcqCount(values.mcqCount);
+      setAutoExtractedTopics(values.autoExtractedTopics);
+      nameValidator.checkName(values.setName);
+    },
+  });
+  const clearSetupDraft = setupDraft.clear;
+  useEffect(() => { if (showGenerationComplete) clearSetupDraft(); }, [showGenerationComplete, clearSetupDraft]);
+
   return (
     <DashboardLayout>
       <div className="container max-w-6xl mx-auto p-6 space-y-8">
+        <SetupDraftNotice draft={setupDraft} />
         {/* Weak topics prefill banner */}
         {prefillSource === "weak_topics" && prefillSubtopic && (
           <div className="rounded-lg border border-primary/30 border-l-4 border-l-primary bg-primary/5 p-3 flex items-center justify-between text-sm">

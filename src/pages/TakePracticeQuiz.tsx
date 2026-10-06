@@ -1,3 +1,4 @@
+import { practiceRecoveryKey } from "@/lib/setup-draft";
 import {useResponseDrafts} from '@/hooks/useResponseDrafts';
 import {ResponseEditor} from '@/components/responses/ResponseEditor';
 import {ResponseReview} from '@/components/responses/ResponseReview';
@@ -499,6 +500,8 @@ const TakePracticeQuiz = () => {
   const [resourcesExpanded, setResourcesExpanded] = useState(false);
   const answerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const draftOwner = useRef<string | null>(null);
+  const localDraftKey = useCallback((questionId: string) => draftOwner.current && setId ? practiceRecoveryKey(draftOwner.current, setId, questionId) : null, [setId]);
 
   // Persist protractor state
   useEffect(() => {
@@ -520,14 +523,16 @@ const TakePracticeQuiz = () => {
 
   // Debounced save function for answer changes
   const debouncedSave = useCallback(async (questionId: string, answerData: { answer: string; answerLatex?: string }) => {
+    const saveOwner = draftOwner.current;
+    if (!saveOwner) return;
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
     
     // Always save to sessionStorage as fallback immediately
     try {
-      const draftKey = `practice:${setId}:draft:${questionId}`;
-      sessionStorage.setItem(draftKey, JSON.stringify({
+      const draftKey = localDraftKey(questionId);
+      if (draftKey) sessionStorage.setItem(draftKey, JSON.stringify({
         text: answerData.answer,
         latex: answerData.answerLatex,
         timestamp: Date.now()
@@ -538,7 +543,7 @@ const TakePracticeQuiz = () => {
     
     saveTimeoutRef.current = setTimeout(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user || user.id !== saveOwner) return;
 
       // Build draft answers from current state plus this update
       const draftAnswers: Record<string, { text: string; latex?: string }> = {};
@@ -583,7 +588,11 @@ const TakePracticeQuiz = () => {
       if (!error) {
         // Clear sessionStorage draft on successful save
         try {
-          sessionStorage.removeItem(`practice:${setId}:draft:${questionId}`);
+          const key = localDraftKey(questionId);
+          if (key) {
+            const local = JSON.parse(sessionStorage.getItem(key) || 'null');
+            if (local?.text === answerData.answer && local?.latex === answerData.answerLatex) sessionStorage.removeItem(key);
+          }
         } catch (e) {
           // Ignore
         }
@@ -591,7 +600,9 @@ const TakePracticeQuiz = () => {
 
       console.log("Debounce-saved answer for question:", questionId);
     }, 1500); // 1.5 second debounce
-  }, [userAnswers, timeElapsed, setId]);
+  }, [userAnswers, timeElapsed, setId, localDraftKey]);
+
+  useEffect(() => () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); }, [setId]);
 
   // Auto-save draft answers every 30 seconds
   useEffect(() => {
@@ -712,6 +723,7 @@ const TakePracticeQuiz = () => {
         return;
       }
 
+      draftOwner.current = user.id;
       // 1. Load quiz metadata
       const { data: quizSet } = await supabase.from("practice_question_sets").select("*").eq("id", setId).single();
       if (!quizSet) {
@@ -988,7 +1000,7 @@ const TakePracticeQuiz = () => {
       // 7. Check sessionStorage for any unsaved drafts (fallback for network failures)
       try {
         for (const question of sortedQuestions) {
-          const draftKey = `practice:${setId}:draft:${question.id}`;
+          const draftKey = practiceRecoveryKey(user.id, setId!, question.id);
           const draftStr = sessionStorage.getItem(draftKey);
           if (draftStr) {
             const draft = JSON.parse(draftStr);
@@ -996,7 +1008,9 @@ const TakePracticeQuiz = () => {
             if (initialAnswers[question.id] && !initialAnswers[question.id].submitted) {
               // Check if sessionStorage draft has content and DB has no answer
               const hasDbAnswer = initialAnswers[question.id].answer?.trim();
-              if (!hasDbAnswer) {
+              const savedAt = Date.parse(progress?.updated_at || progress?.created_at || '') || 0;
+              if (typeof draft.text !== 'string' || !Number.isFinite(draft.timestamp)) continue;
+              if (!hasDbAnswer || draft.timestamp > savedAt) {
                 console.log(`[Draft] Restoring unsaved answer for ${question.id} from sessionStorage`);
                 const draftText = draft.text || '';
                 initialAnswers[question.id].answer = draftText;
@@ -1379,7 +1393,7 @@ const TakePracticeQuiz = () => {
 
       // Clear sessionStorage draft
       try {
-        sessionStorage.removeItem(`practice:${setId}:draft:${currentQuestion.id}`);
+        const key = localDraftKey(currentQuestion.id); if (key) sessionStorage.removeItem(key);
       } catch (e) {
         console.warn('[Retry] Failed to clear sessionStorage:', e);
       }
@@ -1557,7 +1571,7 @@ const TakePracticeQuiz = () => {
       // Clear sessionStorage drafts
       try {
         questions.forEach(q => {
-          sessionStorage.removeItem(`practice:${setId}:draft:${q.id}`);
+          const key = localDraftKey(q.id); if (key) sessionStorage.removeItem(key);
         });
       } catch (e) {
         // Ignore

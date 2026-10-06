@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,10 @@ import { Input } from "@/components/ui/input";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EXAM_BOARD_OPTIONS } from "@/lib/board-scrubber";
+import { useRetainedState, useWorkspaceSession } from "@/hooks/use-workspace-session";
+import { RefreshableList } from "@/components/shared/RefreshableList";
+import { ListSkeleton, LoadError } from "@/components/shared/ListFeedback";
+import { useOptimisticFavourites } from "@/hooks/use-optimistic-favourites";
 import { MyWorkTabBar } from "@/components/shared/MyWorkTabBar";
 
 interface PracticeSet {
@@ -53,16 +57,21 @@ const SORT_OPTIONS: { value: SortType; label: string }[] = [
 const MyQuizzes = () => {
   const navigate = useNavigate();
   const { subjects } = useUserSubjects();
-  const [practiceSets, setPracticeSets] = useState<PracticeSet[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>('all');
-  const [filterSubject, setFilterSubject] = useState('all');
-  const [filterBoard, setFilterBoard] = useState('all');
-  const [sortBy, setSortBy] = useState<SortType>('date_created');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [favourites, setFavourites] = useState<Set<string>>(new Set());
-  const [progressMap, setProgressMap] = useState<Record<string, PracticeSetProgress>>({});
+  const [practiceSets, setPracticeSets] = useRetainedState<PracticeSet[]>("quizzes:practiceSets", []);
+  const { ownerId, ready, store } = useWorkspaceSession();
+  const [loaded, setLoaded] = useRetainedState("quizzes:loaded", false);
+  const [loading, setLoading] = useState(!loaded);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const loadRequest = useRef<Promise<void> | null>(null);
+  const listActions = useRef<{ load: () => Promise<void>; favourites: () => Promise<void>; recover: () => Promise<void> }>();
+  const [activeTab, setActiveTab] = useRetainedState<TabType>("quizzes:activeTab", 'all');
+  const [filterSubject, setFilterSubject] = useRetainedState("quizzes:filterSubject", 'all');
+  const [filterBoard, setFilterBoard] = useRetainedState("quizzes:filterBoard", 'all');
+  const [sortBy, setSortBy] = useRetainedState<SortType>("quizzes:sortBy", 'date_created');
+  const [searchQuery, setSearchQuery] = useRetainedState("quizzes:searchQuery", '');
+  const [debouncedSearch, setDebouncedSearch] = useRetainedState("quizzes:debouncedSearch", '');
+  const [favourites, setFavourites] = useRetainedState<Set<string>>("quizzes:favourites", new Set());
+  const [progressMap, setProgressMap] = useRetainedState<Record<string, PracticeSetProgress>>("quizzes:progressMap", {});
   const [recoveredCount, setRecoveredCount] = useState(0);
 
 
@@ -73,13 +82,15 @@ const MyQuizzes = () => {
       setDebouncedSearch(searchQuery);
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, setDebouncedSearch]);
 
   useEffect(() => {
-    loadPracticeSets();
-    loadFavourites();
-    recoverLostSets();
-  }, []);
+    if (!ready) return;
+    setLoading(!store.get("quizzes:loaded", false));
+    void listActions.current?.load();
+    void listActions.current?.favourites();
+    void listActions.current?.recover();
+  }, [ownerId, ready, store]);
 
   const recoverLostSets = async () => {
     try {
@@ -105,7 +116,7 @@ const MyQuizzes = () => {
 
         setRecoveredCount(lostSets.length);
         localStorage.setItem('practice_sets_recovered', 'true');
-        
+
         toast({
           title: "Practice Sets Restored",
           description: `We've restored ${lostSets.length} practice set${lostSets.length > 1 ? 's' : ''} that were previously unsaved. You can find them below.`,
@@ -116,45 +127,57 @@ const MyQuizzes = () => {
     }
   };
 
-  const loadPracticeSets = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+  const loadPracticeSets = (): Promise<void> => {
+    if (loadRequest.current) return loadRequest.current;
+    const request = (async () => {
+      setLoadError(null);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
-       const { data: sets, error } = await supabase
-         .from('practice_question_sets')
-         .select('*')
-         .eq('user_id', user.id)
-         .eq('extraction_status', 'completed')
-         .order('created_at', { ascending: false });
+         const { data: sets, error } = await supabase
+           .from('practice_question_sets')
+           .select('*')
+           .eq('user_id', user.id)
+           .eq('extraction_status', 'completed')
+           .order('created_at', { ascending: false });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      const { data: progressData } = await supabase
-        .from('practice_set_progress')
-        .select('*')
-        .eq('user_id', user.id);
+        const { data: progressData, error: progressError } = await supabase
+          .from('practice_set_progress')
+          .select('*')
+          .eq('user_id', user.id);
 
-      const progressLookup: Record<string, PracticeSetProgress> = {};
-      progressData?.forEach(p => {
-        progressLookup[p.set_id] = {
-          questions_attempted: p.questions_attempted || 0,
-          last_accessed_at: p.last_accessed_at || p.created_at,
-          completed_at: p.completed_at || undefined,
-          time_spent_seconds: p.time_spent_seconds || 0,
-        };
-      });
+        if (progressError) throw progressError;
 
-      setProgressMap(progressLookup);
-      setPracticeSets(sets || []);
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
+        const progressLookup: Record<string, PracticeSetProgress> = {};
+        progressData?.forEach(p => {
+          progressLookup[p.set_id] = {
+            questions_attempted: p.questions_attempted || 0,
+            last_accessed_at: p.last_accessed_at || p.created_at,
+            completed_at: p.completed_at || undefined,
+            time_spent_seconds: p.time_spent_seconds || 0,
+          };
+        });
+
+        setProgressMap(progressLookup);
+        setPracticeSets(sets || []);
+        setLoaded(true);
+      } catch (error: any) {
+        setLoadError(error.message || "Couldn’t load your practice sets.");
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      } finally {
+        setLoading(false);
+        loadRequest.current = null;
+      }
+    })();
+    loadRequest.current = request;
+    return request;
   };
 
   const loadFavourites = async () => {
+    const version = favouriteAction.version();
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -165,40 +188,22 @@ const MyQuizzes = () => {
         .eq('user_id', user.id);
 
       if (error) throw error;
-      setFavourites(new Set(data.map(f => f.set_id)));
+      if (version === favouriteAction.version()) setFavourites(favouriteAction.reconcile(new Set(data.map(f => f.set_id))));
     } catch (error: any) {
-      console.error('Error loading favourites:', error);
+      setLoadError(error.message || 'Couldn’t load your favourites.');
     }
   };
 
-  const handleToggleFavourite = async (setId: string) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+  listActions.current = { load: loadPracticeSets, favourites: loadFavourites, recover: recoverLostSets };
 
-      if (favourites.has(setId)) {
-        await supabase
-          .from('favourite_practice_sets')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('set_id', setId);
-        
-        setFavourites(prev => {
-          const next = new Set(prev);
-          next.delete(setId);
-          return next;
-        });
-      } else {
-        await supabase
-          .from('favourite_practice_sets')
-          .insert({ user_id: user.id, set_id: setId });
-        
-        setFavourites(prev => new Set(prev).add(setId));
-      }
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
-  };
+  const favouriteAction = useOptimisticFavourites(favourites, setFavourites, async (setId, selected) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || (ownerId && user.id !== ownerId)) throw new Error('Sign in to save favourites.');
+    const result = selected
+      ? await supabase.from('favourite_practice_sets').insert({ user_id: user.id, set_id: setId })
+      : await supabase.from('favourite_practice_sets').delete().eq('user_id', user.id).eq('set_id', setId);
+    if (result.error) throw result.error;
+  });
 
   const handleDelete = async (setId: string) => {
     try {
@@ -254,18 +259,10 @@ const MyQuizzes = () => {
     return SORT_OPTIONS.find(o => o.value === sortBy)?.label || 'Sort';
   };
 
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </DashboardLayout>
-    );
-  }
 
   return (
     <DashboardLayout>
+      <RefreshableList onRefresh={() => Promise.all([loadPracticeSets(), loadFavourites()])}>
       <div className="max-w-[1600px] mx-auto space-y-6">
         {/* Unified Tab Bar */}
         <MyWorkTabBar />
@@ -331,7 +328,7 @@ const MyQuizzes = () => {
             </div>
 
             {/* Sort/Filter Controls (Third) */}
-            <div className="flex items-center gap-2 order-3">
+            <div className="flex flex-wrap items-center gap-2 order-3">
               {/* Subject Filter */}
               <Select value={filterSubject} onValueChange={setFilterSubject}>
                 <SelectTrigger className="w-40 h-10">
@@ -379,7 +376,7 @@ const MyQuizzes = () => {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {SORT_OPTIONS.map((option) => (
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       key={option.value}
                       onClick={() => setSortBy(option.value)}
                       className={`cursor-pointer ${sortBy === option.value ? 'bg-accent' : ''}`}
@@ -394,8 +391,9 @@ const MyQuizzes = () => {
         </div>
 
 
+        {loadError && <LoadError message={loadError} onRetry={() => void Promise.all([loadPracticeSets(), loadFavourites()])} />}
         {/* Practice Sets grouped by subject */}
-        {sortedSets.length === 0 ? (
+        {loading && !loaded ? <ListSkeleton /> : !loaded && loadError ? null : sortedSets.length === 0 ? (
           <div className="text-center py-20">
             <h3 className="text-2xl font-semibold mb-2">No practice quizzes found</h3>
             <p className="text-muted-foreground mb-6">Create your first practice set to get started</p>
@@ -435,7 +433,7 @@ const MyQuizzes = () => {
 
                       <div className="relative -mx-4 sm:-mx-6">
                         <div
-                          className="subject-scrollbar flex gap-4 overflow-x-auto px-4 sm:px-6 pb-3 snap-x snap-mandatory scroll-smooth"
+                          data-scroll-restoration={subjectName} className="subject-scrollbar flex gap-4 overflow-x-auto px-4 sm:px-6 pb-3 snap-x snap-mandatory scroll-smooth"
                           style={{ ['--scrollbar-thumb' as any]: subjectColor }}
                         >
 
@@ -448,6 +446,7 @@ const MyQuizzes = () => {
                                 set={set}
                                 progress={progressMap[set.id] || { questions_attempted: 0, last_accessed_at: set.created_at, time_spent_seconds: 0 }}
                                 subjectColor={subjectColor}
+                                favourite={{ selected: favourites.has(set.id), pending: favouriteAction.pending.has(set.id), failed: favouriteAction.failed.has(set.id), onToggle: () => void favouriteAction.toggle(set.id) }}
                               />
                             </div>
                           ))}
@@ -461,6 +460,7 @@ const MyQuizzes = () => {
           })()
         )}
       </div>
+      </RefreshableList>
     </DashboardLayout>
   );
 };

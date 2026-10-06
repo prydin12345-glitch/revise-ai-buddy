@@ -1,3 +1,5 @@
+import { RefreshableList } from "@/components/shared/RefreshableList";
+import { LoadError, ListSkeleton } from "@/components/shared/ListFeedback";
 import { useState } from "react";
 import { Users, Plus, Download, GraduationCap, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,7 +19,7 @@ import {
 
 export default function ManageStudents() {
   const { toast } = useToast();
-  const { groups, loading, deleteGroup, refetch } = useManageGroups();
+  const { groups, loading, error, deleteGroup, refetch } = useManageGroups();
 
   // Fetch subjects for UUID resolution
   const { data: allSubjects } = useQuery({
@@ -123,6 +125,7 @@ export default function ManageStudents() {
   const totalAssignments = groups.reduce((sum, g) => sum + g.assignment_count, 0);
 
   return (
+    <RefreshableList onRefresh={refetch}>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -194,12 +197,9 @@ export default function ManageStudents() {
         </div>
       )}
 
+      {error && <LoadError message={error} onRetry={() => void refetch()} />}
       {/* Classes Grid */}
-      {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      ) : groups.length === 0 ? (
+      {loading && groups.length === 0 ? <ListSkeleton /> : error && groups.length === 0 ? null : groups.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
           <div className="w-[52px] h-[52px] rounded-[14px] bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <Users className="w-6 h-6 text-primary" strokeWidth={1.5} />
@@ -268,5 +268,6 @@ export default function ManageStudents() {
         </>
       )}
     </div>
+    </RefreshableList>
   );
 }

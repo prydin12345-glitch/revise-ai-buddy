@@ -1,3 +1,6 @@
+import { useWorkspaceSession } from "@/hooks/use-workspace-session";
+import { RefreshableList } from "@/components/shared/RefreshableList";
+import { LoadError } from "@/components/shared/ListFeedback";
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -67,6 +70,7 @@ const timeAgo = (dateStr: string): string => {
 
 export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) => {
   const navigate = useNavigate();
+  const { ownerId } = useWorkspaceSession();
   const { studyActivityData } = useExamStats();
   const { subjects: userSubjects, getSubjectColor } = useUserSubjects();
   const drilldown = useStatsDrilldown();
@@ -78,8 +82,8 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     tab: "exams",
   });
 
-  const { data: dash, isLoading: dashLoading, isError } = useQuery({
-    queryKey: ["student-dashboard"],
+  const { data: dash, isLoading: dashLoading, isError, refetch } = useQuery({
+    queryKey: ["student-dashboard", ownerId],
     staleTime: 60_000,
     gcTime: 5 * 60_000,
     refetchOnWindowFocus: false,
@@ -120,6 +124,9 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
           .eq("student_id", uid)
           .eq("is_active", true),
       ]);
+
+      const failure = [profileRes, ownExamsRes, assignmentsRes, practiceSetsRes, membershipsRes].find(result => result.error)?.error;
+      if (failure) throw failure;
 
       // Hide hard-deleted, archived, or otherwise tombstoned exams from Recent Activity
       const isLiveExam = (e: any) =>
@@ -262,7 +269,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     },
   });
 
-  if (isError) toast.error("Failed to load dashboard data");
+
 
   const userName = dash?.userName || "";
   const initials = dash?.initials || "U";
@@ -488,6 +495,8 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
 
   if (isMobile) {
     return (
+      <RefreshableList onRefresh={() => refetch()}>
+      {isError && <LoadError message="Couldn’t load your dashboard. Your existing content is kept below." onRetry={() => void refetch()} />}
       <MobileDashboard
         profile={profile}
         profileStats={profileStats}
@@ -505,11 +514,14 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
         onStartQuiz={handleStartQuiz}
         onOpenAnnouncement={() => navigate("/my-classes")}
       />
+      </RefreshableList>
     );
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
+    <RefreshableList onRefresh={() => refetch()}>
+    {isError && <LoadError message="Couldn’t load your dashboard. Your existing content is kept below." onRetry={() => void refetch()} />}
     <div className="font-sans">
       <main className="mx-auto max-w-[1280px] px-4 py-6 lg:px-6">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_332px] lg:items-start">
@@ -635,5 +647,6 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
         onStudyTimeRangeChange={drilldown.handleStudyTimeRangeChange}
       />
     </div>
+    </RefreshableList>
   );
 };

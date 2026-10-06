@@ -1,5 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { LoadError } from "@/components/shared/ListFeedback";
+import { useRetainedState } from "@/hooks/use-workspace-session";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -7,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Loader2, MessageCircle, Send, CheckCircle, Clock, 
@@ -79,27 +81,34 @@ const formatFeedbackDate = (dateStr: string): string => {
 
 const ManageFeedback = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const linkedThread = searchParams.get("thread");
+  const openedLink = useRef<string | null>(null);
   const { markAsReadByMetadata } = useNotifications();
-  const [threads, setThreads] = useState<FeedbackThread[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [threads, setThreads] = useRetainedState<FeedbackThread[]>("feedback:threads", []);
+  const [loaded, setLoaded] = useRetainedState("feedback:loaded", false);
+  const [loading, setLoading] = useState(!loaded);
+  const [loadError, setLoadError] = useState(false);
   const [selectedThread, setSelectedThread] = useState<FeedbackThread | null>(null);
   const [response, setResponse] = useState("");
+  // Private replies stay in account-scoped memory, never browser storage.
+  const [responseDrafts, setResponseDrafts] = useRetainedState<Record<string, string>>("feedback:response-drafts", {});
   const [submitting, setSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState("pending");
+  const [activeTab, setActiveTab] = useRetainedState("feedback:activeTab", "pending");
   
   // Filter states
-  const [filters, setFilters] = useState<FilterOptions>({ search: "", subject: "all", examId: "all" });
-  const [exams, setExams] = useState<{ id: string; title: string; subject?: string }[]>([]);
-  const [subjects, setSubjects] = useState<string[]>([]);
+  const [filters, setFilters] = useRetainedState<FilterOptions>("feedback:filters", { search: "", subject: "all", examId: "all" });
+  const [exams, setExams] = useRetainedState<{ id: string; title: string; subject?: string }[]>("feedback:exams", []);
+  const [subjects, setSubjects] = useRetainedState<string[]>("feedback:subjects", []);
   
   // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useRetainedState("feedback:currentPage", 1);
   
   // Expandable cards
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [expandedCards, setExpandedCards] = useRetainedState<Set<string>>("feedback:expandedCards", new Set());
   
   // Tags
-  const [threadTags, setThreadTags] = useState<Map<string, FeedbackTag[]>>(new Map());
+  const [threadTags, setThreadTags] = useRetainedState<Map<string, FeedbackTag[]>>("feedback:tags", new Map());
   
   // History modal
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
@@ -109,24 +118,9 @@ const ManageFeedback = () => {
   const [notifyOnReply, setNotifyOnReply] = useState(false);
   const [notifyOnResolve, setNotifyOnResolve] = useState(false);
 
-  useEffect(() => {
-    fetchThreads();
-
-    const channel = supabase
-      .channel("feedback-threads-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "question_feedback_threads" },
-        () => fetchThreads()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const fetchThreads = async () => {
+  const fetchThreads = useCallback(async () => {
+    setLoadError(false);
+    setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -202,13 +196,38 @@ const ManageFeedback = () => {
       }
 
       setThreads(filteredThreads as FeedbackThread[]);
+      setLoaded(true);
     } catch (error) {
+      setLoadError(true);
       console.error("Error fetching threads:", error);
       toast({ title: "Error loading feedback", variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  };
+  }, [setThreads, setThreadTags, setExams, setSubjects, setLoaded]);
+
+  useEffect(() => {
+    fetchThreads();
+
+    const channel = supabase
+      .channel("feedback-threads-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "question_feedback_threads" },
+        () => fetchThreads()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchThreads]);
+
+  useEffect(() => {
+    if (loading || !linkedThread || openedLink.current === linkedThread) return;
+    const match = threads.find(thread => thread.id === linkedThread);
+    if (match) { setSelectedThread(match); setResponse(responseDrafts[match.id] ?? match.tutor_response ?? ''); openedLink.current = linkedThread; }
+  }, [loading, linkedThread, threads, responseDrafts]);
 
   // Filter threads
   const filteredThreads = useMemo(() => {
@@ -245,13 +264,21 @@ const ManageFeedback = () => {
   );
 
   // Reset page when filters or tab changes
+  const previousFilters = useRef({ filters, activeTab });
   useEffect(() => {
+    if (previousFilters.current.filters === filters && previousFilters.current.activeTab === activeTab) return;
+    previousFilters.current = { filters, activeTab };
     setCurrentPage(1);
-  }, [filters, activeTab]);
+  }, [filters, activeTab, setCurrentPage]);
+
+  useEffect(() => {
+    if (!loaded || loading) return;
+    setCurrentPage(page => Math.max(1, Math.min(page, Math.max(1, totalPages))));
+  }, [loaded, loading, totalPages, setCurrentPage]);
 
   const handleRespond = (thread: FeedbackThread) => {
     setSelectedThread(thread);
-    setResponse(thread.tutor_response || "");
+    setResponse(responseDrafts[thread.id] ?? thread.tutor_response ?? "");
     setNotifyOnReply(thread.notify_on_reply || false);
     setNotifyOnResolve(thread.notify_on_resolve || false);
   };
@@ -286,6 +313,7 @@ const ManageFeedback = () => {
 
       // Notification is handled by database trigger
       toast({ title: "Response sent", description: "The student has been notified." });
+      setResponseDrafts(previous => { const next = { ...previous }; delete next[selectedThread.id]; return next; });
       setSelectedThread(null);
       setResponse("");
       fetchThreads();
@@ -339,12 +367,13 @@ const ManageFeedback = () => {
   };
 
   const openStudentSubmission = (thread: FeedbackThread) => {
-    navigate(`/tutor/exam/${thread.exam_id}/review?studentId=${thread.student_id}&questionId=${thread.question_id}`);
+    navigate(`/tutor/exams/${encodeURIComponent(thread.exam_id)}/student/${encodeURIComponent(thread.student_id)}?questionId=${encodeURIComponent(thread.question_id)}`);
   };
 
   const toneResult = checkTone(response);
 
-  if (loading) {
+  if (loadError && !loaded) return <LoadError message="Couldn’t load student feedback. Please retry." onRetry={() => void fetchThreads()} />;
+  if (loading && !loaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -360,7 +389,7 @@ const ManageFeedback = () => {
     
     return (
       <Card key={thread.id} className="p-4">
-        {/* Header Row */}
+      {/* Header Row */}
         <div className="flex flex-wrap items-center gap-2 mb-2">
           <Badge variant="outline" className="font-mono text-xs px-2 py-0.5">
             Q{thread.question?.question_number}
@@ -529,6 +558,9 @@ const ManageFeedback = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {loadError && <LoadError message="Couldn’t refresh student feedback. Your existing list is still available." onRetry={() => void fetchThreads()} />}
+        {linkedThread && !loading && !threads.some(thread => thread.id === linkedThread) && <LoadError message="This feedback thread is unavailable or inaccessible to your account." onRetry={() => void fetchThreads()} />}
+
       <div className="max-w-[1100px] mx-auto px-4 py-4 sm:px-6 sm:py-6">
         {/* Title Row */}
         <div className="mb-4">
@@ -588,6 +620,8 @@ const ManageFeedback = () => {
             <Button
               variant="outline"
               size="sm"
+              aria-label="Previous page"
+              className="h-11 min-w-11"
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
             >
@@ -611,7 +645,9 @@ const ManageFeedback = () => {
                     key={pageNum}
                     variant={currentPage === pageNum ? "default" : "outline"}
                     size="sm"
-                    className="h-8 w-8 p-0"
+                    className="h-11 w-11 p-0"
+                    aria-label={`Go to page ${pageNum}`}
+                    aria-current={currentPage === pageNum ? 'page' : undefined}
                     onClick={() => setCurrentPage(pageNum)}
                   >
                     {pageNum}
@@ -622,6 +658,8 @@ const ManageFeedback = () => {
             <Button
               variant="outline"
               size="sm"
+              aria-label="Next page"
+              className="h-11 min-w-11"
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
             >
@@ -636,6 +674,7 @@ const ManageFeedback = () => {
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Respond to Student</DialogTitle>
+            <DialogDescription>Write an explanation for this question. Choose Send Response when you are ready to send it.</DialogDescription>
           </DialogHeader>
 
           {selectedThread && (
@@ -693,16 +732,22 @@ const ManageFeedback = () => {
 
               {/* Response Input */}
               <div>
-                <label className="text-sm font-semibold mb-2 block">Your Response:</label>
+                <label htmlFor="tutor-feedback-response" className="text-sm font-semibold mb-2 block">Your Response:</label>
                 <Textarea
+                  id="tutor-feedback-response"
                   value={response}
-                  onChange={(e) => setResponse(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setResponse(value);
+                    if (selectedThread) setResponseDrafts(previous => ({ ...previous, [selectedThread.id]: value }));
+                  }}
                   placeholder="Provide a helpful explanation or clarification..."
                   rows={6}
                   disabled={submitting}
                   className="text-sm"
                 />
                 <ToneCheckerDisplay result={toneResult} textLength={response.length} />
+                {selectedThread && Object.prototype.hasOwnProperty.call(responseDrafts, selectedThread.id) && <p role="status" className="text-xs text-muted-foreground">Reply draft kept for this session.</p>}
               </div>
 
               {/* Notification Toggles */}
@@ -732,6 +777,11 @@ const ManageFeedback = () => {
           )}
 
           <DialogFooter>
+            {selectedThread && Object.prototype.hasOwnProperty.call(responseDrafts, selectedThread.id) && <Button variant="ghost" disabled={submitting} onClick={() => {
+              if (!window.confirm('Discard this unfinished reply?')) return;
+              setResponseDrafts(previous => { const next = { ...previous }; delete next[selectedThread.id]; return next; });
+              setResponse(selectedThread.tutor_response ?? '');
+            }}>Discard draft</Button>}
             <Button onClick={handleSubmitResponse} disabled={submitting || !response.trim()}>
               {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               <Send className="w-4 h-4 mr-2" />
