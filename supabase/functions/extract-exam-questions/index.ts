@@ -11,7 +11,8 @@ import { paperPlanForAttempt } from "../_shared/course-selection.ts";
 import { biologyPlanInstructions, biologyBatchInstructions, packForBiologyPlan } from "../_shared/biology-course-packs.ts";
 import { plannedResourceTypeNotes } from "../_shared/planned-resource-types.ts";
 import { AiCallBudget, AiBudgetExhaustedError, usageTokens } from "../_shared/ai-call-budget.ts";
-import { plannedPartKey, salvageTruncatedQuestions, planGroupBatches, mergeBatchRows, missingPlannedParts, describeRejections } from "../_shared/guided-batching.ts";
+import { plannedPartKey, planGroupBatches, mergeBatchRows, missingPlannedParts, describeRejections } from "../_shared/guided-batching.ts";
+import { GenerationResponseError, parseGenerationContent, providerHttpError, generationFailureDetail } from '../_shared/generation-response.ts';
 import { requestQuestionRepair, saveQuestionRepairs, describeRepairDiagnostics } from '../_shared/question-repair.ts';
 import type { RepairDiagnostic } from '../_shared/prepare-group-repair.ts';
 import { normalizeGeneratedQuestion } from '../_shared/model-question-normalization.ts';
@@ -752,13 +753,17 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   // A guided paper is written in bounded batches of whole parent groups from
   // the outset: one response cannot reliably carry 36 planned parts.
   const guidedSystemPrompt = guidedPack?.generation.systemPrompt ?? systemPrompt;
-  const parsedData = (usesContractOnlyGeneration && guidedPlan)
-    ? { questions: await generateGuidedPaper(guidedPlan, lovableApiKey, guidedSystemPrompt, extractionPrompt, guidedPromptSuffix, hasResourcePack, aiBudget), topics: [] }
-    : await callAI(lovableApiKey, guidedSystemPrompt, extractionPrompt, hasResourcePack, aiBudget);
-
-  if (!parsedData.questions?.length) {
-    await supabase.from('exams').update({ extraction_status: 'failed', extraction_error: 'No questions found' }).eq('id', draftId);
-    throw new Error('No questions found');
+  let parsedData: any;
+  try {
+    parsedData = (usesContractOnlyGeneration && guidedPlan)
+      ? { questions: await generateGuidedPaper(guidedPlan, lovableApiKey, guidedSystemPrompt, extractionPrompt, guidedPromptSuffix, hasResourcePack, aiBudget), topics: [] }
+      : await callAI(lovableApiKey, guidedSystemPrompt, extractionPrompt, hasResourcePack, aiBudget);
+    if (!parsedData.questions?.length) throw new GenerationResponseError('no_usable_questions', 'No question rows matched the requested assessment.');
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : 'Unknown generation error';
+    const message = `Generation failed [${aiBudget.summary()}]: ${detail}`;
+    await supabase.from('exams').update({extraction_status: 'failed', extraction_error: message.slice(0, 1000)}).eq('id', draftId);
+    throw new Error(message);
   }
 
   // Guided rows already have canonical numbers from the batch pass. Follow
@@ -2773,14 +2778,15 @@ async function callAI(apiKey: string, systemPrompt: string, userPrompt: string, 
     }
     console.log('Flash returned no questions — upgrading to Pro');
   } catch (flashError: any) {
-    if (flashError instanceof AiBudgetExhaustedError) throw flashError;
-    console.log('Flash failed — upgrading to Pro:', flashError.message);
+    if (flashError instanceof AiBudgetExhaustedError || flashError instanceof GenerationResponseError && flashError.terminal) throw flashError;
+    console.log('Flash failed — upgrading to Pro:', generationFailureDetail(flashError));
   }
 
   // Only reach here if Flash failed
   console.log('Attempting generation with gemini-2.5-pro');
   modelUsed = 'google/gemini-2.5-pro';
-  return await callAIWithModel(apiKey, systemPrompt, userPrompt, hasResourcePack, 'google/gemini-2.5-pro', aiBudget, purpose);
+  const fallbackPrompt = userPrompt + '\nOUTPUT ENVELOPE: Return {"questions":[...]} with one object per requested scored part. Keep the saved numbering, resources, tasks and private keys; do not omit parts or change the plan.';
+  return await callAIWithModel(apiKey, systemPrompt, fallbackPrompt, hasResourcePack, 'google/gemini-2.5-pro', aiBudget, purpose);
 }
 
 async function callAIWithModel(apiKey: string, systemPrompt: string, userPrompt: string, hasResourcePack: boolean, model: string, aiBudget: AiCallBudget, purpose = 'generation') {
@@ -2803,27 +2809,34 @@ async function callAIWithModel(apiKey: string, systemPrompt: string, userPrompt:
     });
   } catch (error) {
     aiBudget.record({ purpose, model, ok: false, promptTokens: 0, completionTokens: 0, ms: Date.now() - started });
-    throw error;
+    throw new GenerationResponseError('provider_transport_error', 'The AI provider request could not complete.');
   }
 
   if (!resp.ok) {
     aiBudget.record({ purpose, model, ok: false, status: resp.status, promptTokens: 0, completionTokens: 0, ms: Date.now() - started });
-    throw new Error('AI extraction failed');
+    throw providerHttpError(resp.status, model);
   }
 
-  const data = await resp.json();
-  const finishReason = data.choices?.[0]?.finish_reason ?? 'unknown';
+  let data: any;
+  try { data = await resp.json(); }
+  catch {
+    aiBudget.record({purpose, model, ok: false, status: resp.status, promptTokens: 0, completionTokens: 0, ms: Date.now() - started});
+    throw new GenerationResponseError('invalid_gateway_response', `${model} returned HTTP ${resp.status} without a valid JSON gateway response.`);
+  }
+  const finishReason = data?.choices?.[0]?.finish_reason ?? 'unknown';
   const tokens = usageTokens(data?.usage);
   aiBudget.record({ purpose, model, ok: true, status: resp.status, finishReason, ...tokens, ms: Date.now() - started });
   if (finishReason === 'length') console.warn(`[ai] ${purpose}: response hit the output limit — recovering complete questions only`);
-  let content = data.choices?.[0]?.message?.content || '{}';
-  content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-
-  try { return JSON.parse(content); }
-  catch {
-    const recovered = salvageTruncatedQuestions(content);
-    console.warn(`[ai] ${purpose}: salvaged ${recovered.length} complete question(s) from a truncated response`);
-    return { questions: recovered, topics: [] };
+  try {
+    if (data?.choices?.[0]?.message?.refusal || finishReason === 'content_filter') {
+      throw new GenerationResponseError('provider_refusal', 'The provider declined to return question content.');
+    }
+    return parseGenerationContent(data?.choices?.[0]?.message?.content, finishReason);
+  } catch (error) {
+    // Include safe transport metadata, never raw output, prompts or keys.
+    const finish = typeof finishReason === 'string' && /^[a-z_]{1,32}$/.test(finishReason) ? finishReason : 'unknown';
+    throw new GenerationResponseError(error instanceof GenerationResponseError ? error.code : 'invalid_provider_response',
+      `${model}, finish_reason=${finish}. ${error instanceof GenerationResponseError ? error.detail : generationFailureDetail(error)}`);
   }
 }
 
@@ -2845,6 +2858,7 @@ async function generateGuidedPaper(
   aiBudget: AiCallBudget,
 ): Promise<any[]> {
   const produced = new Map<string, any>();
+  let lastBatchIssue = 'No response matched the saved part identities.';
   const visualRows=await seededVisualRows(plan);
   for(const row of visualRows)produced.set(plannedPartKey(row.question_number),row);
   const batches = planGroupBatches(plan.parts.filter(p=>!(p as VisualPlannedPart).visualAssignment), MAX_PARTS_PER_BATCH);
@@ -2871,12 +2885,14 @@ async function generateGuidedPaper(
     try {
       data = await callAI(apiKey, systemPrompt, prompt, hasResourcePack, aiBudget, label);
     } catch (error) {
-      if (error instanceof AiBudgetExhaustedError) throw error;
+      if (error instanceof AiBudgetExhaustedError || error instanceof GenerationResponseError && error.terminal) throw error;
+      lastBatchIssue = generationFailureDetail(error);
       console.error(`[plan] ${label} failed: ${(error as Error).message}`);
       return 0;
     }
     const rows = Array.isArray(data?.questions) ? data.questions.map(normalizeGeneratedQuestion) : [];
     const { added, rejections } = mergeBatchRows(produced, rows, batch, plan);
+    if (added === 0) lastBatchIssue = `unmatched_planned_parts: No rows matched this batch's ${batch.length} saved parts; ${rejections.length} row(s) rejected (${[...new Set(rejections.map(r => r.code))].join(', ')}).`;
     if (rejections.length) console.warn(`[plan] ${label} rejected ${rejections.length} row(s): ${describeRejections(rejections)}`);
     console.log(`[plan] ${label} accepted ${added}/${batch.length} planned part(s)`);
     return added;
@@ -2901,11 +2917,13 @@ async function generateGuidedPaper(
     }
   } catch (error) {
     if (!(error instanceof AiBudgetExhaustedError)) throw error;
+    lastBatchIssue += ` ${error.message}`;
     console.error(`[plan] ${error.message}. ${aiBudget.summary()}`);
   }
 
   const stillMissing = missingPlannedParts(plan, produced);
   if (stillMissing.length) console.warn(`[plan] still missing after batching: ${stillMissing.map(p => p.questionNumber).join(', ')} (${aiBudget.summary()})`);
+  if (!produced.size) throw new GenerationResponseError('no_usable_questions', lastBatchIssue);
   return expandComprehensionReferences([...produced.values()]);
 }
 

@@ -20,14 +20,27 @@ export const plannedPartKey = (value: unknown): string => {
  * completion pass only has to request the genuine remainder.
  */
 export function salvageTruncatedQuestions(content: string): any[] {
-  const start = content.indexOf('"questions"');
-  if (start < 0) return [];
-  const arrayStart = content.indexOf('[', start);
-  if (arrayStart < 0) return [];
+  // Only top-level question arrays: never mine nested graph parts, metadata,
+  // marking schemes or a later unrelated array for apparent question objects.
+  const root = content.trimStart();
+  const starts = root.startsWith('[') ? [content.indexOf('[')]
+    : root.startsWith('{') ? topLevelQuestionArrays(content) : [];
+  // Ambiguous aliases in truncated JSON cannot be compared losslessly.
+  if (starts.length !== 1 || starts[0] < 0) return [];
+  const arrayStart = starts[0];
   const recovered: any[] = [];
-  let depth = 0, objStart = -1, inString = false, escaped = false;
-  for (let i = arrayStart; i < content.length; i++) {
+  let depth = 0, objStart = -1, inString = false, escaped = false, expectObject = true;
+  for (let i = arrayStart + 1; i < content.length; i++) {
     const ch = content[i];
+    if (depth === 0) {
+      if (/\s/.test(ch)) continue;
+      if (ch === ']') break;
+      if (ch === ',' && !expectObject) { expectObject = true; continue; }
+      // Do not flatten nested arrays, ignore scalar rows or guess a missing
+      // delimiter. Every recovered element must be a direct object row.
+      if (ch !== '{' || !expectObject) return [];
+      objStart = i; depth = 1; continue;
+    }
     if (inString) {
       if (escaped) escaped = false;
       else if (ch === '\\') escaped = true;
@@ -35,18 +48,42 @@ export function salvageTruncatedQuestions(content: string): any[] {
       continue;
     }
     if (ch === '"') { inString = true; continue; }
-    if (ch === '{') { if (depth === 0) objStart = i; depth++; continue; }
-    if (ch === '}') {
+    if (ch === '{' || ch === '[') { depth++; continue; }
+    if (ch === '}' || ch === ']') {
       depth--;
       if (depth === 0 && objStart >= 0) {
-        try { recovered.push(JSON.parse(content.slice(objStart, i + 1))); } catch { /* partial object */ }
-        objStart = -1;
+        try { recovered.push(JSON.parse(content.slice(objStart, i + 1))); } catch { return []; }
+        objStart = -1; expectObject = false;
       }
       continue;
     }
-    if (ch === ']' && depth === 0) break;
   }
   return recovered;
+}
+
+function topLevelQuestionArrays(content: string): number[] {
+  const starts: number[] = [];
+  let depth = 0, inString = false, escaped = false, stringStart = -1, property = false;
+  for (let i = 0; i < content.length; i++) {
+    const ch = content[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') {
+        inString = false;
+        if (property && depth === 1 && /^(questions|parts)$/.test(content.slice(stringStart, i))) {
+          const tail = content.slice(i + 1).match(/^\s*:\s*\[/);
+          starts.push(tail ? i + tail[0].length : -1);
+        }
+      }
+    } else if (ch === '"') {
+      inString = true; stringStart = i + 1;
+      property = depth === 1 && /[,{]$/.test(content.slice(0, i).trimEnd());
+    }
+    else if (ch === '{' || ch === '[') depth++;
+    else if (ch === '}' || ch === ']') depth--;
+  }
+  return starts;
 }
 
 /**
