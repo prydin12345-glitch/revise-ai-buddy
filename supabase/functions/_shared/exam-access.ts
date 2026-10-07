@@ -1,3 +1,4 @@
+import {parseVisualResource} from './biology-visual-public.ts';
 /** Central access decision; SQL also enforces direct database access. */
 export interface ExamAccess {
   hasAccess: boolean;
@@ -34,6 +35,7 @@ const PRIVATE_KEYS = new Set([
 export function stripSolutionData(value: any): any {
   if (Array.isArray(value)) return value.map(stripSolutionData);
   if (value && typeof value === 'object') {
+    if(value.kind==='biology_visual')return parseVisualResource(value);
     // Explicit nested whitelist: public titles must never carry private guidance.
     if(value.type==='biology_essay_choice')return {type:value.type,version:value.version,titles:Array.isArray(value.titles)?value.titles.map((t:any)=>({id:t?.id,title:t?.title})):[]};
     // Genetics scaffolds and calculation contracts contain GIVEN inputs only.

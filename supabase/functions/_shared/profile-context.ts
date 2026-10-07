@@ -1,3 +1,6 @@
+import {selectVisualAssessment,applyVisualAssessment,seededVisualRows} from './biology-visual-assessment.ts';
+import {buildPaperPlan} from './biology-paper-contract.ts';
+import type {SavedVisualAssessment} from './biology-visual-types.ts';
 // Backend counterpart of src/lib/profile-context.ts.
 //
 // The client may claim a profile, a board, a level and a tier. The backend
@@ -16,6 +19,7 @@ import { profileCourseId, resolvePaperSelection, type ResolvedPaperSelection } f
 export const GENERATION_CONTEXT_VERSION = 2;
 
 export interface ResolvedGenerationContext extends ResolvedPaperSelection {
+  visualAssets?: SavedVisualAssessment;
   contextVersion: number;
   subjectName: string;
   profileId: string | null;
@@ -100,7 +104,14 @@ export const resolveProfileContext = async (
   let selection: ResolvedPaperSelection;
   try { selection = resolvePaperSelection(lookup, tier, profile?.paper_blueprint); }
   catch (error) { throw new ProfileContextError(error instanceof Error ? error.message : 'Invalid course selection'); }
+  let visualAssets:SavedVisualAssessment|undefined;
+  if(selection.visualPolicy){
+    visualAssets=selectVisualAssessment(selection.paperContract!.mode as 'full_mock'|'short_practice');
+    const plan=applyVisualAssessment(buildPaperPlan(selection.paperContract!.mode,tier,selection.courseId!,selection.paperId,selection.paperContract!.contractVersion),visualAssets)!;
+    await seededVisualRows(plan); // Verify shipped bytes before spending any model call.
+  }
   return {
+    ...(visualAssets?{visualAssets}:{}),
     contextVersion: GENERATION_CONTEXT_VERSION,
     subjectName,
     profileId: profile?.id ?? null,
@@ -131,6 +142,7 @@ export const toStoredGenerationContext = (
   component_code: ctx.componentCode,
   paper_contract: ctx.paperContract,
   ...(ctx.responseFormats ? {response_formats:ctx.responseFormats} : {}),
+  ...(ctx.visualAssets?{visual_assets:ctx.visualAssets}:{}),
   ...(ctx.specificationVersion ? {specification_version:ctx.specificationVersion} : {}),
   ...(ctx.curriculum ? {curriculum:ctx.curriculum} : {}),
   resolved_by: SERVER_RESOLVED_MARKER,

@@ -1,0 +1,120 @@
+{
+  "evidenceVersion": 1,
+  "evidenceId": "commons_138367940",
+  "pageId": 138367940,
+  "retrievedAt": "2026-10-06T19:46:03.244Z",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Flax_stem_cross-section_showing_bast_fibers_(modified_from_image_by_Ryan_R._McKenzie).png",
+  "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/c/c2/Flax_stem_cross-section_showing_bast_fibers_%28modified_from_image_by_Ryan_R._McKenzie%29.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+  "creator": "Ryan R. McKenzie",
+  "licence": {
+    "state": "review_queue",
+    "name": "CC0",
+    "version": "1.0",
+    "url": "https://creativecommons.org/publicdomain/zero/1.0",
+    "commercial": true,
+    "modification": true,
+    "reason": "Individual CC0 evidence; approvals still required."
+  },
+  "state": "quarantined",
+  "licenceReview": "pending",
+  "scientificReview": "pending",
+  "checksum": "648c02ae6fa429632eede7f7c0d45555316d7315e30204958e06b12941b85c31",
+  "width": 1300,
+  "height": 1030,
+  "rawEvidence": {
+    "pageid": 138367940,
+    "ns": 6,
+    "title": "File:Flax stem cross-section showing bast fibers (modified from image by Ryan R. McKenzie).png",
+    "imagerepository": "local",
+    "imageinfo": [
+      {
+        "size": 2689624,
+        "width": 1300,
+        "height": 1030,
+        "url": "https://upload.wikimedia.org/wikipedia/commons/c/c2/Flax_stem_cross-section_showing_bast_fibers_%28modified_from_image_by_Ryan_R._McKenzie%29.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "descriptionurl": "https://commons.wikimedia.org/wiki/File:Flax_stem_cross-section_showing_bast_fibers_(modified_from_image_by_Ryan_R._McKenzie).png",
+        "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=138367940",
+        "sha1": "d800e55d332928636054a91809f7b81c98473c12",
+        "extmetadata": {
+          "DateTime": {
+            "value": "2023-10-01 16:47:59",
+            "source": "mediawiki-metadata",
+            "hidden": ""
+          },
+          "ObjectName": {
+            "value": "Flax stem cross-section showing bast fibers (modified from image by Ryan R. McKenzie)",
+            "source": "mediawiki-metadata"
+          },
+          "CommonsMetadataExtension": {
+            "value": 1.2,
+            "source": "extension",
+            "hidden": ""
+          },
+          "Categories": {
+            "value": "CC-Zero|Microscopic images of plants - cross sections of stems|Microscopic images of Linum usitatissimum",
+            "source": "commons-categories",
+            "hidden": ""
+          },
+          "Assessments": {
+            "value": "",
+            "source": "commons-categories",
+            "hidden": ""
+          },
+          "ImageDescription": {
+            "value": "A cross-section of flax showing pith (P), xylem (X), phloem (P), bast fibers (BF, also called phloem fibers or phloem sclerenchyma), cortex (C), and epidermis (Ep). Bast fibers from flax are harvested to produce linen.",
+            "source": "commons-desc-page"
+          },
+          "DateTimeOriginal": {
+            "value": "2006-08-15",
+            "source": "commons-desc-page"
+          },
+          "Credit": {
+            "value": "<a class=\"external free\" href=\"https://commons.wikimedia.org/wiki/File:Labeledstemforposter_copy.jpg\">https://commons.wikimedia.org/wiki/File:Labeledstemforposter_copy.jpg</a>",
+            "source": "commons-desc-page"
+          },
+          "Artist": {
+            "value": "Ryan R. McKenzie",
+            "source": "commons-desc-page"
+          },
+          "LicenseShortName": {
+            "value": "CC0",
+            "source": "commons-desc-page",
+            "hidden": ""
+          },
+          "UsageTerms": {
+            "value": "Creative Commons Zero, Public Domain Dedication",
+            "source": "commons-desc-page"
+          },
+          "AttributionRequired": {
+            "value": "false",
+            "source": "commons-desc-page",
+            "hidden": ""
+          },
+          "LicenseUrl": {
+            "value": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+            "source": "commons-desc-page"
+          },
+          "Copyrighted": {
+            "value": "True",
+            "source": "commons-desc-page",
+            "hidden": ""
+          },
+          "Restrictions": {
+            "value": "",
+            "source": "commons-desc-page",
+            "hidden": ""
+          },
+          "License": {
+            "value": "cc0",
+            "source": "commons-templates",
+            "hidden": ""
+          }
+        }
+      }
+    ]
+  },
+  "attribution": "Ryan R. McKenzie; https://commons.wikimedia.org/wiki/File:Flax_stem_cross-section_showing_bast_fibers_(modified_from_image_by_Ryan_R._McKenzie).png; CC0 (https://creativecommons.org/publicdomain/zero/1.0).",
+  "modifications": [],
+  "mediaType": "image/png",
+  "quarantineFile": "commons_138367940.original"
+}

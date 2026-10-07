@@ -133,7 +133,7 @@ export const usesBiologyPracticeValidation = (context: any): boolean =>
   context?.course_id === OCR_GATEWAY_BIOLOGY_ID || isPaper2(context) || isEdexcel(context) || isOcr21c(context) || isWjec(context) || isAlevel(context) || isOcrAlevel(context);
 
 export const biologyPracticeCacheVersion = (context: any): string | null =>
-  isOcrAlevel(context) ? `ocr-h420-${context.paper_id==='paper_3'?'paper-3':context.paper_id==='paper_2'?'paper-2':'paper-1'}-${OCR_ALEVEL_BIOLOGY_SPECIFICATION}-v${context.paper_id==='paper_2'&&context.paper_contract?.contractVersion===2?2:1}-resources-2` :
+  context?.visual_assets ? 'ocr-h420-paper-3-visual-v1-'+context.paper_contract?.mode+'-'+context.visual_assets.assignments.map((a:any)=>a.resource.panels.map((p:any)=>p.asset.assetId+'v'+p.asset.version+'-'+p.asset.checksum).join('_')).join('_') : isOcrAlevel(context) ? `ocr-h420-${context.paper_id==='paper_3'?'paper-3':context.paper_id==='paper_2'?'paper-2':'paper-1'}-${OCR_ALEVEL_BIOLOGY_SPECIFICATION}-v${context.paper_id==='paper_2'&&context.paper_contract?.contractVersion===2?2:1}-resources-2` :
   isAlevel(context) ? `aqa-7402-${context.paper_id==='paper_3'?'paper-3':context.paper_id==='paper_2'?'paper-2':'paper-1'}-${AQA_ALEVEL_BIOLOGY_SPECIFICATION}-v1-resources-2` : context?.course_id === OCR_GATEWAY_BIOLOGY_ID ? 'ocr-gateway-1' : isPaper2(context) ? 'aqa-8461-paper-2-resources-2' :
     isWjec(context) ? `wjec-3400-${context.paper_id}-${WJEC_BIOLOGY_SPECIFICATION}-v1-resources-2` : isEdexcel(context) ? `edexcel-1bi0-${context.paper_id}-v1-resources-2` : isOcr21c(context) ? `ocr-j257-${context.paper_id}-v1-resources-2` : null;
 

@@ -50,6 +50,7 @@ const UploadExam = lazyWithReload(() => import("./pages/UploadExam"));
 const PreviewExam = lazyWithReload(() => import("./pages/PreviewExam"));
 const Pricing = lazyWithReload(() => import("./pages/Pricing"));
 const Privacy = lazyWithReload(() => import("./pages/Privacy"));
+const ImageCredits = lazyWithReload(() => import("./pages/ImageCredits"));
 const Terms = lazyWithReload(() => import("./pages/Terms"));
 
 // Tutor pages
@@ -101,6 +102,7 @@ const App = () => {
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
+              <Route path="/image-credits" element={<ImageCredits />} />
               <Route path="/onboarding" element={<Onboarding />} />
 
               {/* Protected routes — onboarding guard */}

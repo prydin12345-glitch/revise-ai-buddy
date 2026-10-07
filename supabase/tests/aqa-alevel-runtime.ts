@@ -1,3 +1,4 @@
+import {simulatedApprovedFiles,simulatedPublicLedger,simulatedPrivateAnnotationSecret} from './biology-visual-fixtures';
 import {alevelPaper3Fixture,alevelPaper3Snapshot} from './aqa-alevel-paper3-fixtures';
 // Test-only runtime: actual Edge Function code, fake database and model.
 // Every fetch is intercepted; no credentials, network calls or paid generation.
@@ -12,6 +13,7 @@ import {plannedPartKey} from '../functions/_shared/guided-batching';
 export interface RuntimeFixture { rows:any[]; snapshot:any; }
 interface ExtractionScenario {
   snapshotPatch?: Record<string,unknown>;
+  visualFixtures?: boolean;
   mutate?: (questions: any[]) => void;
   repair?: (request: any, questions: any[]) => any;
   rejectRepairSave?: boolean;
@@ -69,11 +71,12 @@ export async function extract(scenario: boolean | ExtractionScenario = false, mo
     return q;
   }};
   const result=await build({entryPoints:['supabase/functions/extract-exam-questions/index.ts'],bundle:true,write:false,platform:'node',format:'cjs',logLevel:'silent',plugins:[{name:'test-runtime',setup(b){
+    if(config.visualFixtures){b.onLoad({filter:/biology-visual-public\.ts$/},args=>({loader:'ts',contents:readFileSync(args.path,'utf8')+'\nAPPROVED_VISUAL_FILES.push(...'+JSON.stringify(simulatedApprovedFiles())+');SYNTHETIC_VISUAL_FILES.length=0;'}));b.onLoad({filter:/biology-visual-library\.ts$/},args=>({loader:'ts',contents:readFileSync(args.path,'utf8')+'\nBIOLOGY_ASSET_LEDGER.push(...'+JSON.stringify(simulatedPublicLedger())+');'}));}
     b.onLoad({filter:/extract-exam-questions\/index\.ts$/},args=>({loader:'ts',contents:readFileSync(args.path,'utf8')+'\nexport {processExamExtraction};'}));
     b.onResolve({filter:/^https:\/\//},args=>({path:args.path,namespace:'runtime'}));
     b.onLoad({filter:/.*/,namespace:'runtime'},args=>({loader:'js',contents:args.path.includes('supabase-js')?'export const createClient=()=>null;':args.path.includes('server.ts')?'export const serve=()=>{};':''}));
   }}]});
-  const context:any={module:{exports:{}},exports:{},console:{log(){},warn(){},error(){}},Request,Response,Headers,URL,TextEncoder,TextDecoder,setTimeout,clearTimeout,AbortSignal,
+  const context:any={module:{exports:{}},exports:{},console:{log(){},warn(){},error(){}},Request,Response,Headers,URL,TextEncoder,TextDecoder,crypto,structuredClone,atob,setTimeout,clearTimeout,AbortSignal,
     fetch:async(_url:any,options:any)=>{
       const request=JSON.parse(options.body); aiCalls.push(request);
       const prompt=request.messages.map((m:any)=>m.content).join('\n');
@@ -104,13 +107,13 @@ export async function extract(scenario: boolean | ExtractionScenario = false, mo
         return new Response(JSON.stringify({choices:[{finish_reason:'length',message:{content:body}}]}));
       }
       return new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify(content)}}]}));
-    },Deno:{env:{get:()=>undefined}},EdgeRuntime:{waitUntil(){}}};
+    },Deno:{env:{get:(name:string)=>config.visualFixtures&&name==='BIOLOGY_VISUAL_MARKING_ANNOTATIONS'?simulatedPrivateAnnotationSecret():undefined}},EdgeRuntime:{waitUntil(){}}};
   vm.runInNewContext(result.outputFiles[0].text,context);
   let error:unknown;
   try {await context.module.exports.processExamExtraction('exam','owner',client,'test-key',false,null);} catch(e){error=e;}
   return {drafts,responseDrafts,exam,aiCalls,generationCalls,repairCalls,error};
 }
-export async function boundaryHandler(name: string, rows: any[], mode: 'full_mock'|'short_practice' = 'full_mock', paper: 'paper_1'|'paper_2'|'paper_3' = 'paper_1', savedContext?:any, responseDrafts:any[] = []) {
+export async function boundaryHandler(name: string, rows: any[], mode: 'full_mock'|'short_practice' = 'full_mock', paper: 'paper_1'|'paper_2'|'paper_3' = 'paper_1', savedContext?:any, responseDrafts:any[] = [], visualFixtures=false) {
   const writes: Array<{table:string; value:any}>=[];
   const contextSnapshot=savedContext??(paper==='paper_3'?alevelPaper3Snapshot:paper==='paper_2'?alevelPaper2Snapshot:alevelSnapshot)(mode);
   const client={rpc:async(name:string,args:any)=>{if(name!=='commit_generated_responses')throw new Error('Unexpected RPC');writes.push({table:'commit_generated_responses',value:args});return {data:{count:args.p_rows.length,replayed:false},error:null};},auth:{getUser:async()=>({data:{user:{id:'owner'}}})},from(table:string){
@@ -122,10 +125,11 @@ export async function boundaryHandler(name: string, rows: any[], mode: 'full_moc
     return q;
   }};
   const bundle=await build({entryPoints:[`supabase/functions/${name}/index.ts`],bundle:true,write:false,platform:'node',format:'cjs',logLevel:'silent',plugins:[{name:'boundary-runtime',setup(b){
+    if(visualFixtures){b.onLoad({filter:/biology-visual-public\.ts$/},args=>({loader:'ts',contents:readFileSync(args.path,'utf8')+'\nAPPROVED_VISUAL_FILES.push(...'+JSON.stringify(simulatedApprovedFiles())+');SYNTHETIC_VISUAL_FILES.length=0;'}));b.onLoad({filter:/biology-visual-library\.ts$/},args=>({loader:'ts',contents:readFileSync(args.path,'utf8')+'\nBIOLOGY_ASSET_LEDGER.push(...'+JSON.stringify(simulatedPublicLedger())+');'}));}
     b.onResolve({filter:/^https:\/\//},args=>({path:args.path,namespace:'runtime'}));
     b.onLoad({filter:/.*/,namespace:'runtime'},args=>({loader:'js',contents:args.path.includes('supabase-js')?'export const createClient=()=>globalThis.client;':args.path.includes('server.ts')?'export const serve=h=>{globalThis.handler=h;};':''}));
   }}]});
-  const runtime:any={client,Request,Response,Headers,console:{log(){},warn(){},error(){}},Deno:{env:{get:()=> 'test-only'}},fetch:()=>{throw new Error('No AI call is allowed at this boundary');}};
+  const runtime:any={client,Request,Response,Headers,structuredClone,console:{log(){},warn(){},error(){}},Deno:{env:{get:(name:string)=>visualFixtures&&name==='BIOLOGY_VISUAL_MARKING_ANNOTATIONS'?simulatedPrivateAnnotationSecret():'test-only'}},fetch:()=>{throw new Error('No AI call is allowed at this boundary');}};
   vm.runInNewContext(bundle.outputFiles[0].text,runtime);
   return {writes,run:(body:any)=>runtime.handler(new Request('https://example.test',{method:'POST',headers:{Authorization:'Bearer test','Content-Type':'application/json'},body:JSON.stringify(body)}))};
 }

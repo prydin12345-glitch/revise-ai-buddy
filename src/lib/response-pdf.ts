@@ -1,3 +1,4 @@
+import {drawBiologyVisualPDF} from './biology-visual-pdf';
 import type jsPDF from 'jspdf';
 import {parseResponseDefinition} from './response-contract';
 import type {ResponseQuestionView} from './response-view';
@@ -54,7 +55,8 @@ export function drawResponsePDF(doc: jsPDF, question: ResponseQuestionView, layo
     }
   };
   for(const r of resources){
-    if(r.kind==='text'){paragraph(r.title,true);paragraph(r.text);}
+    if(r.kind==='biology_visual'){y=drawBiologyVisualPDF(doc,r,{x,y,width,bottom,nextPage:layout.nextPage});font();}
+    else if(r.kind==='text'){paragraph(r.title,true);paragraph(r.text);}
     else table(r.columns,r.rows,r.title);
   }
   if(d.kind==='choice'){
