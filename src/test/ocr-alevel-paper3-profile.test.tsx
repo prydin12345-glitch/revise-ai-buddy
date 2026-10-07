@@ -79,3 +79,10 @@ it('builds only a blank public plotting response and retains existing save/resto
   expect(unifiedPlottingData(ocrPaper2Snapshot(),q)).toBeNull();expect(unifiedPlottingData(f.snapshot,f.rows[2])).toBeNull();expect(unifiedPlottingData(f.snapshot,{...q,diagram_config:null})).toBeNull();
   const points=[{x:10,y:2},{x:20,y:5}];expect(parseGraphResponse(serializeGraphPlottingResponse(points))).toMatchObject({_type:'graph_plotting',points});
 });
+it.each(['full_mock','short_practice'] as const)('preserves explicit visual policy on %s reopen and permits deliberate removal while reviews are pending',mode=>{
+ const snapshot=ocrPaper3Snapshot(mode);const bp={courseSelection:{courseId:OCR_ALEVEL_BIOLOGY_ID,paperId:'paper_3'},paperContract:snapshot.paper_contract,visualAssessment:'ocr_h420_03_visual_v1',responseFormats:'interactive_v1'};
+ const {save}=editor({...base,assessment_tier:'not_tiered',paper_blueprint:bp});const visual=screen.getByRole('checkbox',{name:/Reviewed Biology visual assessments/});expect(visual).toBeChecked();expect(visual).not.toBeDisabled();
+ fireEvent.click(screen.getByRole('button',{name:'Update Profile'}));expect(save.mock.calls[0][5].paperBlueprint.visualAssessment).toBe(bp.visualAssessment);
+ fireEvent.click(visual);expect(visual).not.toBeChecked();expect(visual).toBeDisabled();fireEvent.click(screen.getByRole('button',{name:'Update Profile'}));expect(save.mock.calls[1][5].paperBlueprint.visualAssessment).toBeUndefined();expect(save.mock.calls[1][5].paperBlueprint.paperContract).toEqual(snapshot.paper_contract);
+});
+it('cannot enable synthetic visual assets on a fresh Paper 3 profile',()=>{editor();apply('short_practice');expect(screen.getByRole('checkbox',{name:/Reviewed Biology visual assessments/})).toBeDisabled();expect(screen.getByRole('checkbox',{name:/Reviewed Biology visual assessments/})).not.toBeChecked();});

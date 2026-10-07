@@ -1,3 +1,5 @@
+import {visualPublicIssue} from './biology-visual-plan.ts';
+import type {VisualAssignment} from './biology-visual-types.ts';
 import type {CandidatePart,QuestionDefect} from './question-contract-validator.ts';
 import type {UnifiedPart} from './ocr-alevel-biology-paper3-contract.ts';
 import {resolveQuestionResources} from './question-resources.ts';
@@ -20,8 +22,10 @@ export function unifiedPartIssues(row:CandidatePart,part:UnifiedPart,shared:Map<
   const add=(code:QuestionDefect['code'],detail:string)=>issues.push({code,detail});
   if((row as any).topic_tag!==part.topic)add('plan_mismatch',`Retain the planned Unified biology topic ${part.topic}.`);
   if([row.diagram_config,row.diagramConfig,row.chart_data,row.table_data,row.options].some(privateField))add('invalid_resource','Public resources/options contain private marking or a completed plotting answer.');
+  const visual=(part as UnifiedPart&{visualAssignment?:VisualAssignment}).visualAssignment;
+  const visualIssue=visualPublicIssue(row,visual);if(visualIssue)add('invalid_resource',visualIssue);
   const r=resolveQuestionResources(row);
-  if(part.resource==='none'&&(row.diagram_config||r.chart||r.passage||r.essay||row.figure_urls&&(row.figure_urls as any).length))add('invalid_resource','An unplanned decorative resource cannot be added to this self-contained part.');
+  if(part.resource==='none'&&!visual&&(row.diagram_config||r.chart||r.passage||r.essay||row.figure_urls&&(row.figure_urls as any).length))add('invalid_resource','An unplanned decorative resource cannot be added to this self-contained part.');
   if(part.sharedDataset&&r.table){
     const t=r.table,fingerprint=JSON.stringify({headers:t.headers,rows:t.rows,units:t.units??[],caption:t.caption??''});
     if(shared.has(part.sharedDataset)&&shared.get(part.sharedDataset)!==fingerprint)add('conflicting_resource_data','Shared investigation observations, headers, units and caption disagree across dependent parts.');

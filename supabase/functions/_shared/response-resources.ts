@@ -1,5 +1,7 @@
+import {parseVisualResource} from './biology-visual-public.ts';
+import type {BiologyVisualResource} from './biology-visual-types.ts';
 import type { ResponseDefinition } from './response-contract.ts';
-export type ResponseResource = { id: string; kind: 'text'; title: string; text: string }
+export type ResponseResource = BiologyVisualResource | { id: string; kind: 'text'; title: string; text: string }
   | { id: string; kind: 'table'; title: string; columns: string[]; rows: string[][] };
 /** Optional shared stimulus lives with the saved question, not in each input. */
 export function responseResources(question: any, definition: ResponseDefinition): ResponseResource[] {
@@ -11,6 +13,7 @@ export function responseResources(question: any, definition: ResponseDefinition)
     const matches = config.resources.filter((r: any) => r?.id === id);
     if (matches.length !== 1) throw new Error(`Missing or duplicate shared resource: ${id}`);
     const r = matches[0];
+    if(r.kind==='biology_visual')return parseVisualResource(r);
     const allowed = r.kind === 'table' ? ['id','kind','title','columns','rows'] : ['id','kind','title','text'];
     if (Object.keys(r).some(k => !allowed.includes(k)) || typeof r.title !== 'string' || r.title.length > 500) throw new Error('Invalid public shared resource');
     if (r.kind === 'text' && typeof r.text === 'string' && r.text.length <= 20000) return { id, kind: 'text', title: r.title, text: r.text } as ResponseResource;

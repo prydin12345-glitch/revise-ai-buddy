@@ -1,3 +1,4 @@
+import {APPROVED_VISUAL_FILES} from '../../../supabase/functions/_shared/biology-visual-public';
 import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -264,6 +265,7 @@ export const ExamProfileModal = ({
   const [includeTables, setIncludeTables] = useState(false);
   // Guided paper mode. "custom" keeps every manual count and media toggle.
   const [interactiveResponses, setInteractiveResponses] = useState(false);
+  const [visualAssessment,setVisualAssessment]=useState(false);
   const [paperMode, setPaperMode] = useState<PaperMode>("custom");
   const [planApplied, setPlanApplied] = useState(false);
   const [savedContractVersion, setSavedContractVersion] = useState<number | undefined>();
@@ -306,6 +308,7 @@ export const ExamProfileModal = ({
       setStudiedTexts(Array.isArray((initialData as any)?.studied_texts) ? (initialData as any).studied_texts : []);
       const bp = (initialData as any)?.paper_blueprint;
       setInteractiveResponses(bp?.responseFormats === 'interactive_v1');
+      setVisualAssessment(bp?.visualAssessment==='ocr_h420_03_visual_v1');
       setSelectedCourseId(profileCourseId(bp));
       setSelectedPaperId(profilePaperId(bp));
       const bpSections = Array.isArray(bp?.sections) ? bp.sections : [];
@@ -443,7 +446,8 @@ export const ExamProfileModal = ({
         const courseSelection = (courseCapability?.id === OCR_GATEWAY_BIOLOGY_ID || selectedPaperId) && paperDefinition
           ? {courseId: courseCapability.id, paperId: paperDefinition.paperId, ...(paperDefinition.specificationVersion?{specificationVersion:paperDefinition.specificationVersion}:{})} : undefined;
         if (!currentPlan) return blueprintActive || courseSelection ? { ...(blueprintActive ? { sections: blueprintSections } : {}), ...(courseSelection ? {courseSelection} : {}) } : null;
-        return {...(interactiveResponses ? {responseFormats:'interactive_v1'} : {}), courseSelection: {courseId: currentPlan.courseId, paperId: currentPlan.paperId, ...(currentPlan.specificationVersion?{specificationVersion:currentPlan.specificationVersion}:{})},
+        const useReviewedVisuals=visualAssessment&&currentPlan.courseId===OCR_ALEVEL_BIOLOGY_ID&&currentPlan.paperId==='paper_3';
+        return {...(useReviewedVisuals?{visualAssessment:'ocr_h420_03_visual_v1'}:{}), ...(interactiveResponses||useReviewedVisuals ? {responseFormats:'interactive_v1'} : {}), courseSelection: {courseId: currentPlan.courseId, paperId: currentPlan.paperId, ...(currentPlan.specificationVersion?{specificationVersion:currentPlan.specificationVersion}:{})},
           paperContract: {courseId: currentPlan.courseId, paperId: currentPlan.paperId,
             mode: currentPlan.mode, contractVersion: currentPlan.contractVersion, ...(currentPlan.specificationVersion?{specificationVersion:currentPlan.specificationVersion}:{})}};
       })(),
@@ -643,6 +647,10 @@ export const ExamProfileModal = ({
             )}
           </SectionCard>
 
+          {guidedActive && currentPlan?.courseId===OCR_ALEVEL_BIOLOGY_ID && currentPlan.paperId==='paper_3' && <label className="flex items-start gap-3 rounded-lg border border-border p-3">
+            <input type="checkbox" className="mt-1" checked={visualAssessment} disabled={!APPROVED_VISUAL_FILES.length&&!visualAssessment} onChange={event=>setVisualAssessment(event.target.checked)}/>
+            <span><span className="font-medium text-sm">Reviewed Biology visual assessments</span><span className="block text-xs text-muted-foreground">Versioned image questions with separately marked labels and evidence. Requires licence and scientific approval. {!APPROVED_VISUAL_FILES.length&&'No production assets are approved yet; synthetic fixtures are excluded. '}Existing Paper 3 templates remain available.</span></span>
+          </label>}
           {guidedActive && <label className="flex items-start gap-3 rounded-lg border border-border p-3">
             <input type="checkbox" className="mt-1" checked={interactiveResponses} onChange={event => setInteractiveResponses(event.target.checked)} />
             <span><span className="font-medium text-sm">Interactive answer formats (preview)</span>

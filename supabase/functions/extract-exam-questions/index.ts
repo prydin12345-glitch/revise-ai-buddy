@@ -1,3 +1,5 @@
+import {seededVisualRows} from '../_shared/biology-visual-assessment.ts';
+import type {VisualPlannedPart} from '../_shared/biology-visual-assessment.ts';
 import { generateResponseFormats, responseProposalCaller, saveGeneratedExamDrafts } from '../_shared/response-generation.ts';
 import { responseFormatsEnabled } from '../_shared/response-format-policy.ts';
 import {OCR_ALEVEL_BIOLOGY_ID} from '../_shared/assessment-tier.ts';
@@ -1433,7 +1435,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       root_question_number: q.root_question_number || String(q.question_number || i + 1).match(/^\d+/)?.[0],
       marks: q.marks || 1,
       options,
-      correct_answer: essayKeyObject(correctAnswer) ? JSON.stringify(essayKeyObject(correctAnswer)) : typeof correctAnswer === 'object' ? JSON.stringify(correctAnswer) : (typeof correctAnswer === 'string' ? sanitiseFeedback(correctAnswer) : correctAnswer),
+      correct_answer: q.diagram_config?.kind==='biology_visual' ? correctAnswer : essayKeyObject(correctAnswer) ? JSON.stringify(essayKeyObject(correctAnswer)) : typeof correctAnswer === 'object' ? JSON.stringify(correctAnswer) : (typeof correctAnswer === 'string' ? sanitiseFeedback(correctAnswer) : correctAnswer),
       has_figures: q.has_figures || false,
       has_tables: q.has_tables || false,
       topic_tag: q.topic_tag || null,
@@ -2843,7 +2845,9 @@ async function generateGuidedPaper(
   aiBudget: AiCallBudget,
 ): Promise<any[]> {
   const produced = new Map<string, any>();
-  const batches = planGroupBatches(plan.parts, MAX_PARTS_PER_BATCH);
+  const visualRows=await seededVisualRows(plan);
+  for(const row of visualRows)produced.set(plannedPartKey(row.question_number),row);
+  const batches = planGroupBatches(plan.parts.filter(p=>!(p as VisualPlannedPart).visualAssignment), MAX_PARTS_PER_BATCH);
 
   const siblingsFor = (batch: { parentId: string }[]) => {
     const parents = new Set(batch.map(part => part.parentId));
@@ -2861,7 +2865,8 @@ async function generateGuidedPaper(
       ? wholePaperPrompt
       : biologyBatchInstructions(plan, batch, { siblings }) + '\n' + promptSuffix;
     const typeNotes = plannedResourceTypeNotes(batch);
-    const prompt = typeNotes ? `${basePrompt}\n${typeNotes}` : basePrompt;
+    const visualContext=visualRows.length?'\nIMMUTABLE VISUAL SIBLINGS (already authored; do not replace or return these rows). All other parts must remain independently answerable using their own supplied resources. Do not add claims about features of these images, invent another image, or require their labels to answer a different scored part:\n'+JSON.stringify(visualRows.map(r=>({question_number:r.question_number,question_text:r.question_text,resource:r.diagram_config}))):'';
+    const prompt = (typeNotes ? `${basePrompt}\n${typeNotes}` : basePrompt)+visualContext;
     let data: any;
     try {
       data = await callAI(apiKey, systemPrompt, prompt, hasResourcePack, aiBudget, label);

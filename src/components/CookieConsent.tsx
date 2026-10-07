@@ -142,7 +142,7 @@ export const CookieConsent = () => {
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     We use cookies to keep you signed in and improve your
                     experience. We never use cookies for advertising.{" "}
-                    <Link to="/privacy" className="text-primary hover:underline">
+                    <Link to="/privacy" className="text-primary underline">
                       Learn more
                     </Link>
                   </p>

@@ -1,3 +1,7 @@
+import {parseVisualResource} from './biology-visual-public.ts';
+import {visualQuestion} from './biology-visual-assessment.ts';
+import {paperPlanForAttempt} from './course-selection.ts';
+import type {VisualPlannedPart} from './biology-visual-assessment.ts';
 import { parseResponseDefinition, parsePrivateResponseKey, type ResponseDefinition, type PrivateResponseKey } from './response-contract.ts';
 import { responseResources, type ResponseResource } from './response-resources.ts';
 import { responseFormatsEnabled } from './response-format-policy.ts';
@@ -28,6 +32,7 @@ export function legacyResponseCandidate(row: any): any {
 
 /** Only already validated text/table stimuli can accompany this pilot. No invented substitute figures. */
 export function sourceResources(row: any): ResponseResource[] {
+  if(row.diagram_config?.kind==='biology_visual')return [parseVisualResource(row.diagram_config)];
   const resource=resolveQuestionResources(row);
   if(resource.issues.length) throw new Error('Interactive source has conflicting or invalid resources');
   const table=resource.table;
@@ -79,7 +84,15 @@ function validateProposal(row:any, raw:any, context:any):GeneratedResponse {
 export function validateGeneratedResponses(rows:any[],context:any):void {
   for(const row of rows) {
     const response=generatedResponse(row);
-    if(!response)continue;
+    if(!response){if(row.diagram_config?.kind==='biology_visual')throw new Error('Visual response requires a complete normalized private marking contract.');continue;}
+    if(row.diagram_config?.kind==='biology_visual'){
+      if(!responseFormatsEnabled(context))throw new Error('Visual responses require protected interactive context.');
+      const part=paperPlanForAttempt(context)?.parts.find(p=>p.questionNumber===row.question_number) as VisualPlannedPart|undefined;
+      if(!part?.visualAssignment)throw new Error('Unplanned visual response.');
+      const expected=visualQuestion(part.visualAssignment,part);
+      if(row.question_text!==expected.question_text||JSON.stringify(row.diagram_config)!==JSON.stringify(expected.resource)||JSON.stringify(response.definition)!==JSON.stringify(expected.definition)||JSON.stringify(response.key)!==JSON.stringify(expected.key))throw new Error('Frozen visual task, asset or private key changed.');
+      continue;
+    }
     if(!responseFormatsEnabled(context) || !eligible(legacyResponseCandidate(row)))throw new Error('Generated response is incompatible with this saved paper or resource');
     validateProposal(legacyResponseCandidate(row),{definition:response.definition,key:response.key},context);
   }
@@ -154,7 +167,7 @@ export function responseWritePayload(row:any):{question:any;sourceDraft?:any;res
   if(!generated)return {question:row,response:null,...(sourceDraft?{sourceDraft}:{})};
   const resources=sourceResources(row);
   const question={...row,question_text:resolveQuestionResources(row).text,correct_answer:null,options:null,diagram_config:resources.length?{type:'response_context',resources}:null,
-    ...(Object.hasOwn(row,'table_data')?{table_data:null}:{}),question_latex:null,...(Object.hasOwn(row,'has_tables')?{has_tables:resources.some(r=>r.kind==='table')}:{}),...(Object.hasOwn(row,'has_figures')?{has_figures:false}:{})};
+    ...(Object.hasOwn(row,'table_data')?{table_data:null}:{}),question_latex:null,...(Object.hasOwn(row,'has_tables')?{has_tables:resources.some(r=>r.kind==='table')}:{}),...(Object.hasOwn(row,'has_figures')?{has_figures:resources.some(r=>r.kind==='biology_visual')}:{})};
   // Only erase columns already present; never introduce a column absent from a question table.
   for(const field of ['rationale','worked_solution','numerical_answer','graph_description','generated_diagram_url'])if(field in question)question[field]=null;
   return {question,response:{definition:generated.definition,key:generated.key},...(sourceDraft?{sourceDraft}:{})};
