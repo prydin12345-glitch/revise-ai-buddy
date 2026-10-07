@@ -23,6 +23,7 @@ interface ExtractionScenario {
   truncateReadingBatch?: boolean;
   truncateEssayBatch?: boolean;
   dropSecondBatch?: boolean;
+  generationResponse?: (request: any, questions: any[], call: number) => Response;
 }
 export async function extract(scenario: boolean | ExtractionScenario = false, mode: 'full_mock'|'short_practice' = 'full_mock', paper: 'paper_1'|'paper_2'|'paper_3' = 'paper_1', fixture?:RuntimeFixture) {
   const {rows}=fixture??(paper==='paper_3'?alevelPaper3Fixture:paper==='paper_2'?alevelPaper2Fixture:alevelFixture)(mode);
@@ -81,12 +82,13 @@ export async function extract(scenario: boolean | ExtractionScenario = false, mo
       const request=JSON.parse(options.body); aiCalls.push(request);
       const prompt=request.messages.map((m:any)=>m.content).join('\n');
       if(prompt.includes('Design validated answer inputs'))return new Response(JSON.stringify({choices:[{finish_reason:'stop',message:{content:JSON.stringify(config.responseProposal?.(request)??{skip:'Not suitable for structured response.'})}}]}));
-      const isGeneration=prompt.includes('Return {"questions":[...]} only.');
+      const isGeneration=prompt.includes('Return {"questions":[...]} only.') || prompt.includes('## OUTPUT FORMAT');
       if(isGeneration) generationCalls.push(request); else repairCalls.push(request);
       const batch=/PARTS IN THIS RESPONSE: (.+)/.exec(prompt)?.[1].split(', ').map(s=>s.trim());
       const content=isGeneration
         ?{questions:batch?questions.filter(q=>batch.some(number=>plannedPartKey(number)===plannedPartKey(q.question_number))):questions}
         :config.repair?.(request,questions)??{parts:[]};
+      if(isGeneration && config.generationResponse) return config.generationResponse(request,content.questions,generationCalls.length);
       if(isGeneration&&config.truncateEssayBatch&&!essayTruncated&&content.questions.some((q:any)=>q.chart_data?.type==='biology_essay_choice')){
         essayTruncated=true;
         const body=JSON.stringify(content);
