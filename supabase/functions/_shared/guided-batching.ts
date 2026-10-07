@@ -8,9 +8,13 @@ import type { PaperPlan, PlannedPart } from './paper-contract-types.ts';
 
 /** Canonical "5(a)" form so plan and model numbering compare reliably. */
 export const plannedPartKey = (value: unknown): string => {
-  const text = String(value ?? '').trim().replace(/^Q\s*/i, '');
+  const text = String(value ?? '').trim().replace(/^(?:Question\s+|Q\s*)/i, '');
+  // Numeric source subparts (1.1, 1.2) mean (a), (b), not question positions.
+  // Only complete explicit labels are adapted; a bare 1 never becomes 1(a).
+  const numeric = text.match(/^(\d+)\s*\.\s*([1-9]|1\d|2[0-6])$/);
+  if (numeric) return `${Number(numeric[1])}(${String.fromCharCode(96 + Number(numeric[2]))})`;
   const match = text.match(/^(\d+)\s*[.\-]?\s*\(?([a-z])\)?$/i);
-  return match ? `${Number(match[1])}(${match[2].toLowerCase()})` : text.toLowerCase();
+  return match ? `${Number(match[1])}(${match[2].toLowerCase()})` : /^\d+$/.test(text) ? String(Number(text)) : text.toLowerCase();
 };
 
 /**
@@ -113,8 +117,60 @@ export function planGroupBatches(parts: readonly PlannedPart[], maxParts: number
 
 export interface MergeRejection {
   questionNumber: string;
-  code: 'duplicate_part' | 'outside_batch' | 'unplanned_part';
+  code: 'duplicate_part' | 'outside_batch' | 'unplanned_part' | 'missing_identity' | 'conflicting_identity' | 'invalid_identity';
   detail: string;
+}
+
+// These are identity aliases, not positional hints. All populated aliases
+// must independently identify the SAME saved part. An unknown number cannot
+// be rescued by another field, marks, topic, response type or array position.
+const NUMBER_FIELDS = ['question_number', 'questionNumber'] as const;
+const ID_FIELDS = ['part_id', 'partId'] as const;
+const identityValue = (value: unknown): string | null => {
+  if (typeof value === 'string' && value.trim().length <= 160) return value.trim();
+  if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) return String(value);
+  return null;
+};
+const safeLabel = (value: string): string => {
+  const label = plannedPartKey(value);
+  return /^\d{1,3}(?:\([a-z]\))?$/.test(label) ? label : '<unrecognized identity>';
+};
+
+function resolveBatchPart(row: any, plan: PaperPlan): {part?: PlannedPart; rejection?: MergeRejection} {
+  const numbers = new Map(plan.parts.map(p => [plannedPartKey(p.questionNumber), p]));
+  const ids = new Map(plan.parts.filter(p => typeof p.partId === 'string' && p.partId.length).map(p => [p.partId, p]));
+  const fields = [...NUMBER_FIELDS, ...ID_FIELDS].filter(field => row?.[field] != null && row[field] !== '');
+  const reject = (code: MergeRejection['code'], detail: string, label = '') => ({rejection:{code,detail,questionNumber:label}});
+  if (!fields.length) return reject('missing_identity', 'No question_number or part_id was returned.');
+  let selected: PlannedPart | undefined;
+  for (const field of fields) {
+    const value = identityValue(row[field]);
+    if (!value) return reject('invalid_identity', `The ${field} field is not an explicit supported identity.`);
+    // Some models put the exact immutable plan ID in question_number. Its
+    // lookup remains exact and case-sensitive, just like a part_id field.
+    const part = ID_FIELDS.some(id => id === field) ? ids.get(value) : numbers.get(plannedPartKey(value)) ?? ids.get(value);
+    if (!part) return reject('unplanned_part', `${field} does not identify any saved part.`, safeLabel(value));
+    if (selected && selected !== part) return reject('conflicting_identity', 'Populated number/part ID fields identify different saved parts.', selected.questionNumber);
+    selected = part;
+  }
+  return {part:selected};
+}
+
+/** Public plan identities only; no text, resources or private keys in feedback. */
+export function batchIdentityInstructions(batch: readonly PlannedPart[], previous: readonly MergeRejection[] = []): string {
+  const mapping = batch.map(p => ({part_id:p.partId,question_number:p.questionNumber,marks:p.marks}));
+  const feedback = [...new Map(previous.map(r => [JSON.stringify(r),r])).values()].slice(0,10);
+  return [
+    'SAVED PART IDENTITY MAP: Return one row for each listed identity with both part_id and question_number copied exactly. Never number subparts as standalone questions or choose a slot by position. These rows still need every task, resource and private key requested above.',
+    JSON.stringify(mapping),
+    ...(feedback.length ? ['PREVIOUS IDENTITY REJECTIONS: The last response did not match the requested identities. Correct the fields using the map; retain the full required tasks, resources and marking material. Do not repeat the rejected numbering.',
+      JSON.stringify(feedback.map(r => ({question_number:r.questionNumber,code:r.code,detail:r.detail})))] : []),
+  ].join('\n');
+}
+
+export function batchIdentityDiagnostic(batch: readonly PlannedPart[], rejections: readonly MergeRejection[]): string {
+  return `Expected question_number: ${batch.map(p => p.questionNumber).join(', ')}. Identity rejections: `+
+    rejections.slice(0,6).map(r => `${r.questionNumber || '<missing>'} ${r.code}: ${r.detail}`).join('; ');
 }
 
 /**
@@ -129,25 +185,26 @@ export function mergeBatchRows(
   plan: PaperPlan,
 ): { added: number; rejections: MergeRejection[] } {
   const wanted = new Set(batch.map(p => plannedPartKey(p.questionNumber)));
-  const planned = new Map(plan.parts.map(p => [plannedPartKey(p.questionNumber), p]));
   const rejections: MergeRejection[] = [];
   let added = 0;
   for (const row of rows) {
-    const number = String(row?.question_number ?? '');
+    const identity = resolveBatchPart(row, plan);
+    if (identity.rejection) {rejections.push(identity.rejection);continue;}
+    const part = identity.part!;
+    const number = part.questionNumber;
     const key = plannedPartKey(number);
     if (produced.has(key)) {
       rejections.push({ questionNumber: number, code: 'duplicate_part', detail: 'An accepted part with this number already exists; the duplicate was discarded.' });
       continue;
     }
-    if (!wanted.has(key) || !planned.has(key)) {
+    if (!wanted.has(key)) {
       rejections.push({
         questionNumber: number,
-        code: planned.has(key) ? 'outside_batch' : 'unplanned_part',
-        detail: planned.has(key) ? 'Part belongs to another batch and was not requested in this response.' : 'Part is not in the saved paper plan.',
+        code: 'outside_batch',
+        detail: 'Part belongs to another batch and was not requested in this response.',
       });
       continue;
     }
-    const part = planned.get(key)!;
     const root = part.questionNumber.match(/^\d+/)?.[0];
     // The explicit model number already matches this authored part. Store its
     // exact plan label before any draft ID exists, so Q1 cannot sort after Q15
