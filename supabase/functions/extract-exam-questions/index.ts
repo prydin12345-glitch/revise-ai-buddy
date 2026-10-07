@@ -11,7 +11,7 @@ import { paperPlanForAttempt } from "../_shared/course-selection.ts";
 import { biologyPlanInstructions, biologyBatchInstructions, packForBiologyPlan } from "../_shared/biology-course-packs.ts";
 import { plannedResourceTypeNotes } from "../_shared/planned-resource-types.ts";
 import { AiCallBudget, AiBudgetExhaustedError, usageTokens } from "../_shared/ai-call-budget.ts";
-import { plannedPartKey, planGroupBatches, mergeBatchRows, missingPlannedParts, describeRejections } from "../_shared/guided-batching.ts";
+import { plannedPartKey, planGroupBatches, mergeBatchRows, missingPlannedParts, describeRejections, batchIdentityInstructions, batchIdentityDiagnostic, type MergeRejection } from "../_shared/guided-batching.ts";
 import { GenerationResponseError, parseGenerationContent, providerHttpError, generationFailureDetail } from '../_shared/generation-response.ts';
 import { requestQuestionRepair, saveQuestionRepairs, describeRepairDiagnostics } from '../_shared/question-repair.ts';
 import type { RepairDiagnostic } from '../_shared/prepare-group-repair.ts';
@@ -2859,6 +2859,7 @@ async function generateGuidedPaper(
 ): Promise<any[]> {
   const produced = new Map<string, any>();
   let lastBatchIssue = 'No response matched the saved part identities.';
+  const identityRejections = new Map<string, MergeRejection[]>();
   const visualRows=await seededVisualRows(plan);
   for(const row of visualRows)produced.set(plannedPartKey(row.question_number),row);
   const batches = planGroupBatches(plan.parts.filter(p=>!(p as VisualPlannedPart).visualAssignment), MAX_PARTS_PER_BATCH);
@@ -2880,7 +2881,8 @@ async function generateGuidedPaper(
       : biologyBatchInstructions(plan, batch, { siblings }) + '\n' + promptSuffix;
     const typeNotes = plannedResourceTypeNotes(batch);
     const visualContext=visualRows.length?'\nIMMUTABLE VISUAL SIBLINGS (already authored; do not replace or return these rows). All other parts must remain independently answerable using their own supplied resources. Do not add claims about features of these images, invent another image, or require their labels to answer a different scored part:\n'+JSON.stringify(visualRows.map(r=>({question_number:r.question_number,question_text:r.question_text,resource:r.diagram_config}))):'';
-    const prompt = (typeNotes ? `${basePrompt}\n${typeNotes}` : basePrompt)+visualContext;
+    const previous = [...new Set(batch.map(p => p.parentId))].flatMap(parent => identityRejections.get(parent) ?? []);
+    const prompt = (typeNotes ? `${basePrompt}\n${typeNotes}` : basePrompt)+visualContext+'\n'+batchIdentityInstructions(batch,previous);
     let data: any;
     try {
       data = await callAI(apiKey, systemPrompt, prompt, hasResourcePack, aiBudget, label);
@@ -2892,7 +2894,11 @@ async function generateGuidedPaper(
     }
     const rows = Array.isArray(data?.questions) ? data.questions.map(normalizeGeneratedQuestion) : [];
     const { added, rejections } = mergeBatchRows(produced, rows, batch, plan);
-    if (added === 0) lastBatchIssue = `unmatched_planned_parts: No rows matched this batch's ${batch.length} saved parts; ${rejections.length} row(s) rejected (${[...new Set(rejections.map(r => r.code))].join(', ')}).`;
+    for (const parent of new Set(batch.map(p => p.parentId))) {
+      if (rejections.length) identityRejections.set(parent,rejections);
+      else identityRejections.delete(parent);
+    }
+    if (added === 0) lastBatchIssue = `unmatched_planned_parts: No rows matched this batch's ${batch.length} saved parts; ${rejections.length} row(s) rejected (${[...new Set(rejections.map(r => r.code))].join(', ')}). ${batchIdentityDiagnostic(batch,rejections)}`;
     if (rejections.length) console.warn(`[plan] ${label} rejected ${rejections.length} row(s): ${describeRejections(rejections)}`);
     console.log(`[plan] ${label} accepted ${added}/${batch.length} planned part(s)`);
     return added;
