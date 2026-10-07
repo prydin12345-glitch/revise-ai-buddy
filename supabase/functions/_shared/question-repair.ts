@@ -7,6 +7,9 @@ import { isMcqType } from './model-question-normalization.ts';
 import { assembleQuestionText, referencesResource, questionLabel } from './question-contract-validator.ts';
 import { questionResourceInstructions } from './question-resource-instructions.ts';
 import { plannedResourceTypeNotes } from './planned-resource-types.ts';
+import { CHI_SQUARED_5_PERCENT } from './chi-squared-givens.ts';
+import { resolveQuestionResources } from './question-resources.ts';
+import type { UnifiedPart } from './ocr-alevel-biology-paper3-contract.ts';
 
 export interface RepairRequest {
   group: any[];
@@ -37,6 +40,16 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
   const plannedParts = plannedRepairParts(input);
   const essay = plannedParts.some(p => p.resource === 'essay_choice');
   const comprehension = plannedParts.some(p => p.resource === 'passage');
+  const statisticalParts = input.plan?.courseId === 'ocr_alevel_biology_a_h420' && input.plan.paperId === 'paper_3'
+    && /missing_required_resource|invalid_resource|answer_mismatch|conflicting_resource_data/.test(input.defects)
+    ? plannedParts.filter(p => (p as UnifiedPart).unifiedSkill === 'statistical_analysis') : [];
+  const statisticalNotes = statisticalParts.map(part => {
+    const row = input.group.find(q => repairNumberKey(q.question_number) === repairNumberKey(part.questionNumber));
+    const categories = resolveQuestionResources(row ?? {}).table?.rows.length;
+    const degrees = categories === undefined ? undefined : categories - 1;
+    const critical = degrees === undefined ? undefined : CHI_SQUARED_5_PERCENT[degrees];
+    return `CHI-SQUARED REPAIR ${questionLabel(part.questionNumber)}: Put every required given in this scored part's context or its rendered table caption, not hidden metadata or another sibling. Example format: "Null hypothesis: [state the fixed-model prediction]. Use χ² = Σ((O − E)²/E), where O = observed count and E = expected count. Significance level = 5%. Degrees of freedom = k − 1 = ${critical ? degrees : '[numeric df]'}. Critical value = ${critical ?? '[matching numeric 5% critical value]'}." k is the number of categories. Equivalent clear wording is valid. Keep observed integer counts, all expected counts at least 5, and equal totals; no fitted model parameters. Check the actual table, rather than copying a number from this example after changing its categories. The PRIVATE correct_answer must include "Final statistic: [calculated numeric value]", complete working, comparison with the critical value and an evidence-based conclusion. Never put calculated answers or completed working in public context/resources.`;
+  });
   const levelScheme = input.plan ? packForBiologyPlan(input.plan).validation.levelSchemeAtMarks : 6;
   const resourceChecklist = input.group.map(row => {
     const planned = plannedParts.find(part => repairNumberKey(part.questionNumber) === repairNumberKey(row.question_number));
@@ -54,6 +67,7 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     `Subject: ${input.subject}. Board: ${input.scope.examBoard ?? 'unchanged'}. Qualification: ${input.scope.educationalLevel ?? 'unchanged'}.`,
     biologyScopeInstructions(input.scope),
     'Blocking defects: ' + input.defects,
+    ...statisticalNotes,
     !taskOnly && /invalid_statements/.test(input.defects) ? 'STATEMENT REPAIR: If numbered propositions are missing, their original truth values and original answer cannot be recovered from combination-only options. Rewrite the complete MCQ as original synthetic material: put each full numbered statement in context, keep the same number/type/marks/topic, return all four distinct combination choices, evaluate every proposition privately and return the one matching correct_answer. Do not expose truth flags, explanations or the answer in context.' : '',
     'Targets: ' + [...input.targetNumbers].join(', '),
     input.previousDiagnostics?.length ? 'Previous response was rejected: ' + describeRepairDiagnostics(input.previousDiagnostics) : '',
