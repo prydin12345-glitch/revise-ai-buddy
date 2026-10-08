@@ -8,7 +8,10 @@ export function SubjectHistoryBars({
   rows: Array<Record<string, string | number>>;
   colour: string;
 }) {
-  if (!rows.some((row) => typeof row[subject] === "number")) return null;
+  if (!rows.some((row) => typeof row[subject] === "number"))
+    return (
+      <p className="stats-mini-chart-empty">No marked results in this range</p>
+    );
   return (
     <>
       <svg
@@ -33,7 +36,9 @@ export function SubjectHistoryBars({
               height={height}
               rx="2"
               fill={colour}
-            />
+            >
+              <title>{`${row.period}: ${Math.round(value as number)}%`}</title>
+            </rect>
           );
         })}
       </svg>

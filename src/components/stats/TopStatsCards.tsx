@@ -72,7 +72,7 @@ export const TopStatsCards = ({
             data-metric={card.type}
             aria-label={`${card.label}: ${card.value}. ${card.detail}. View details`}
           >
-            <span className="flex w-full items-center justify-between gap-2 text-xs font-medium text-muted-foreground sm:text-sm">
+            <span className="stats-summary-label flex w-full items-center justify-between gap-2 text-xs font-medium text-muted-foreground sm:text-sm">
               {card.label}
               <ChevronRight
                 aria-hidden="true"
@@ -80,11 +80,11 @@ export const TopStatsCards = ({
               />
             </span>
             <span
-              className={`mt-3 text-3xl font-semibold tracking-tight tabular-nums ${card.type === "scores" ? "text-primary" : "text-foreground"}`}
+              className={`stats-summary-value mt-3 text-3xl font-semibold tracking-tight tabular-nums ${card.type === "scores" ? "text-primary" : "text-foreground"}`}
             >
               {card.value}
             </span>
-            <span className="mt-auto pt-3 text-xs leading-relaxed text-muted-foreground">
+            <span className="stats-summary-detail mt-auto pt-3 text-xs leading-relaxed text-muted-foreground">
               {card.detail}
             </span>
           </button>
@@ -92,7 +92,7 @@ export const TopStatsCards = ({
     </div>
   );
   return variant === "snapshot" ? (
-    <section className="stats-panel stats-snapshot" aria-label="At a glance">
+    <section className="stats-snapshot" aria-label="At a glance">
       <h2>At a glance</h2>
       {content}
     </section>

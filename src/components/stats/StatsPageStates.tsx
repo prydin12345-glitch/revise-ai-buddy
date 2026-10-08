@@ -4,10 +4,8 @@ import { AlertCircle, RotateCcw } from "lucide-react";
 
 export function StatsPageHeading() {
   return (
-    <header className="mb-6 space-y-1">
-      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-        Your progress
-      </h1>
+    <header className="stats-page-heading space-y-1">
+      <h1 className="text-2xl font-semibold tracking-tight">Your progress</h1>
       <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
         See what’s improving, where to focus and how your revision is taking
         shape.
@@ -38,24 +36,36 @@ export function StatsLoading() {
               <Skeleton className="h-28 rounded-t-full" />
               <Skeleton className="h-28 rounded-t-full" />
             </div>
+            <div className="stats-panel space-y-4 p-5">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-32 w-full" />
+            </div>
           </div>
           <div className="stats-dashboard-column">
             <Skeleton className="h-16" />
             <Skeleton className="h-16" />
-            <div className="stats-panel space-y-4 p-5">
+            <div className="space-y-4 p-2">
               <Skeleton className="h-5 w-32" />
               <Skeleton className="h-44 w-full" />
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Skeleton className="mx-auto h-28 w-28 rounded-full" />
+              <Skeleton className="mx-auto h-28 w-28 rounded-full" />
+            </div>
           </div>
           <div className="stats-dashboard-column stats-dashboard-subjects">
-            <div className="stats-panel p-5">
+            <div className="p-2">
               <Skeleton className="mb-4 h-5 w-32" />
               <div className="grid grid-cols-2 gap-4">
-                <Skeleton className="h-24" />
-                <Skeleton className="h-24" />
-                <Skeleton className="h-24" />
-                <Skeleton className="h-24" />
+                <Skeleton className="h-16" />
+                <Skeleton className="h-16" />
+                <Skeleton className="h-16" />
+                <Skeleton className="h-16" />
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Skeleton className="h-40" />
+              <Skeleton className="h-40" />
             </div>
             <div className="stats-panel space-y-4 p-5">
               <Skeleton className="h-5 w-32" />

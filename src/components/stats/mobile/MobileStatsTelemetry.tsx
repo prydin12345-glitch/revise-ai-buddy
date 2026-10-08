@@ -1,7 +1,14 @@
-
 import { motion, MotionConfig } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronRight, ChevronDown, Radar as RadarIcon, TrendingUp, ArrowUpDown, CheckCircle2, Circle } from "lucide-react";
+import {
+  ChevronRight,
+  ChevronDown,
+  Radar as RadarIcon,
+  TrendingUp,
+  ArrowUpDown,
+  CheckCircle2,
+  Circle,
+} from "lucide-react";
 import { ExamTargetHero } from "./ExamTargetHero";
 import { QuickStatsGrid } from "./QuickStatsGrid";
 import { GradeProjectionPanel } from "./GradeProjectionPanel";
@@ -16,7 +23,12 @@ import { CoveragePanel } from "./CoveragePanel";
 import { RetentionPanel } from "./RetentionPanel";
 import { useGradeSettings } from "@/hooks/useGradeSettings";
 import { useProfileDefaults } from "@/hooks/useProfileDefaults";
-import { getScale, projectGrade, resolveScaleId, targetStatus } from "@/lib/grade-scales";
+import {
+  getScale,
+  projectGrade,
+  resolveScaleId,
+  targetStatus,
+} from "@/lib/grade-scales";
 import { ScoreTrendCard } from "./ScoreTrendCard";
 import { LearningProgressPanel } from "../LearningProgressPanel";
 import { RevisionPrioritiesCard } from "../RevisionPrioritiesCard";
@@ -24,6 +36,12 @@ import { SkillRadarCard } from "./SkillRadarCard";
 import { MobileStatSheet } from "./MobileStatSheet";
 import { useTelemetry, alpha, clampPct, buildSparklinePath } from "./tokens";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TopStatsCards } from "../TopStatsCards";
+import { SubjectScoresChart } from "../SubjectScoresChart";
+import { ScoreTargetChart } from "../ScoreTargetChart";
+import { TopicProgressOverview } from "../TopicProgressOverview";
+import { WeeklyStudyChart } from "../WeeklyStudyChart";
+import { AccuracyTrendChart } from "../AccuracyTrendChart";
 import { supabase } from "@/integrations/supabase/client";
 import type { UnifiedTopicScore } from "@/hooks/useUnifiedTopicPerformance";
 
@@ -31,9 +49,14 @@ interface Props {
   avgScore: number;
   currentStreak: number;
   longestStreak: number;
-  subjectPerformanceData: { name: string; color: string; avgScore: number; count: number }[];
-  examResultsData: Array<Record<string, any>>;
-  studyActivityData: Array<Record<string, any>>;
+  subjectPerformanceData: {
+    name: string;
+    color: string;
+    avgScore: number;
+    count: number;
+  }[];
+  examResultsData: Array<{ period: string; [key: string]: string | number }>;
+  studyActivityData: Array<{ day: string; [key: string]: string | number }>;
   timeRange: "weekly" | "monthly" | "yearly";
   setTimeRange: (v: "weekly" | "monthly" | "yearly") => void;
   topics: UnifiedTopicScore[];
@@ -41,6 +64,21 @@ interface Props {
    *  so the page no longer needs a second tab layer to reach it. */
   weakTopicsLoading?: boolean;
   initialTab?: "overview" | "topics" | "performance";
+  totalExams: number;
+  completedExams: number;
+  inProgressExams: number;
+  totalStudyHours: number;
+  bestSubject: { name: string; avgScore: number; color: string } | null;
+  revisionGoals: Array<{
+    subject: string;
+    targetPercentage: number;
+    deadline: string;
+    currentAverage: number;
+    color: string;
+  }>;
+  viewMode: "score" | "count";
+  onViewModeChange: (mode: "score" | "count") => void;
+  onSummaryClick: (type: "exams" | "scores" | "study-hours" | "streak") => void;
 }
 
 type SheetKey =
@@ -54,7 +92,6 @@ type SheetKey =
   | "streak";
 
 type TabKey = "overview" | "topics" | "performance";
-
 
 const section = (_delay: number) => ({ initial: false as const });
 
@@ -70,6 +107,15 @@ export const MobileStatsTelemetry = ({
   topics,
   weakTopicsLoading = false,
   initialTab = "overview",
+  totalExams,
+  completedExams,
+  inProgressExams,
+  totalStudyHours,
+  bestSubject,
+  revisionGoals,
+  viewMode,
+  onViewModeChange,
+  onSummaryClick,
 }: Props) => {
   const TELEMETRY = useTelemetry();
   const [tab, setTab] = useState<TabKey>(initialTab);
@@ -365,13 +411,78 @@ export const MobileStatsTelemetry = ({
             {/* ───── OVERVIEW ───── */}
             {tab === "overview" && (
               <div className="space-y-4">
+                <TopStatsCards
+                  totalExams={totalExams}
+                  completedExams={completedExams}
+                  inProgressExams={inProgressExams}
+                  totalStudyHours={totalStudyHours}
+                  avgScore={avgScore}
+                  currentStreak={currentStreak}
+                  longestStreak={longestStreak}
+                  bestSubject={bestSubject}
+                  variant="snapshot"
+                  onCardClick={(type) =>
+                    type === "streak"
+                      ? setSheet("streak")
+                      : onSummaryClick(type)
+                  }
+                />
                 <LearningProgressPanel
                   accuracy={accuracy}
                   readiness={readinessScore}
                   loading={weakTopicsLoading}
-                  hasData={attemptedTopics.length > 0 || subjectPerformanceData.some(s => s.count > 0)}
+                  hasData={
+                    attemptedTopics.length > 0 ||
+                    subjectPerformanceData.some((s) => s.count > 0)
+                  }
                   onAccuracy={() => setSheet("accuracy")}
                   onReadiness={() => setSheet("readiness")}
+                />
+                <SubjectScoresChart
+                  data={subjectPerformanceData}
+                  viewMode={viewMode}
+                  onViewModeChange={onViewModeChange}
+                />
+
+                <RevisionPrioritiesCard
+                  topics={priorityTopics}
+                  loading={weakTopicsLoading}
+                  limit={2}
+                  action={
+                    <button
+                      type="button"
+                      onClick={() => setTab("topics")}
+                      className="stats-view-link"
+                    >
+                      View all
+                    </button>
+                  }
+                />
+                <ScoreTargetChart
+                  data={examResultsData}
+                  subjects={subjectPerformanceData}
+                  timeRange={timeRange}
+                  onTimeRangeChange={setTimeRange}
+                  revisionGoals={revisionGoals}
+                  defaultScaleId={defaultScaleId}
+                />
+                <TopicProgressOverview
+                  topics={topics}
+                  loading={weakTopicsLoading}
+                  onMastery={() => setSheet("mastered")}
+                  action={
+                    <button
+                      type="button"
+                      onClick={() => setTab("topics")}
+                      className="stats-view-link"
+                    >
+                      Explore
+                    </button>
+                  }
+                />
+                <WeeklyStudyChart
+                  data={studyActivityData}
+                  subjects={subjectPerformanceData}
                 />
 
                 <motion.div {...section(0.05)}>
@@ -387,6 +498,8 @@ export const MobileStatsTelemetry = ({
                   ) : (
                     <QuickStatsGrid
                       hideAccuracy
+                      hideMastery
+                      hideStreak
                       accuracy={accuracy}
                       accuracySessions={scoreSeries.slice(-7)}
                       subjectStacks={subjectStacks}
@@ -413,25 +526,6 @@ export const MobileStatsTelemetry = ({
                   )}
                 </motion.div>
 
-                <RevisionPrioritiesCard
-                  topics={priorityTopics}
-                  loading={weakTopicsLoading}
-                  limit={2}
-                  action={<button type="button" onClick={() => setTab("topics")} className="stats-view-link">View all</button>}
-                />
-                <ScoreTrendCard
-                  data={examResultsData}
-                  subjects={subjectPerformanceData}
-                  timeRange={timeRange}
-                  onTimeRangeChange={setTimeRange}
-                />
-                <motion.div {...section(0.08)}>
-                  <StudyLoadCard
-                    data={studyActivityData}
-                    subjects={subjectPerformanceData}
-                  />
-                </motion.div>
-
                 <motion.div {...section(0.1)}>
                   <SubjectGaugeCard
                     subjects={subjectPerformanceData}
@@ -439,6 +533,7 @@ export const MobileStatsTelemetry = ({
                     trendData={examResultsData}
                   />
                 </motion.div>
+                <AccuracyTrendChart />
 
                 <section className="space-y-3">
                   <h2 className="text-sm font-semibold">Upcoming exams</h2>
@@ -480,6 +575,10 @@ export const MobileStatsTelemetry = ({
                     defaultScaleId={defaultScaleId}
                   />
                 </motion.div>
+                <StudyLoadCard
+                  data={studyActivityData}
+                  subjects={subjectPerformanceData}
+                />
 
                 <motion.div {...section(0.05)}>
                   <div

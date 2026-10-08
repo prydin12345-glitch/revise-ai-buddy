@@ -80,19 +80,18 @@ export function TopicProgressOverview({
   topics,
   loading,
   action,
+  onMastery,
 }: {
   topics: UnifiedTopicScore[];
   loading: boolean;
   action?: ReactNode;
+  onMastery?: () => void;
 }) {
   const { attempted, coverage, mastered, developing, review } =
     summariseLearningProgress(topics, 0, 0, 0);
   return (
-    <section
-      className="stats-panel stats-topic-progress"
-      aria-label="Topic progress"
-    >
-      <div className="stats-panel-heading flex items-center justify-between gap-2">
+    <section className="stats-topic-progress" aria-label="Topic progress">
+      <div className="stats-section-heading flex items-center justify-between gap-2">
         <h2>Topic progress</h2>
         {action}
       </div>
@@ -104,26 +103,38 @@ export function TopicProgressOverview({
       ) : (
         <>
           <div className="stats-ring-pair">
-            <div>
+            <div className="stats-ring-item">
               <StatsGauge
                 shape="ring"
                 label="Mastered share of marked topics"
                 value={
                   attempted.length ? (mastered / attempted.length) * 100 : null
                 }
-                colour="var(--stats-series-3)"
+                colour="var(--stats-series-2)"
               />
-              <h3>Mastered topics</h3>
+              <h3>
+                {onMastery ? (
+                  <button
+                    type="button"
+                    onClick={onMastery}
+                    aria-label={`Mastered topics: ${mastered} / ${attempted.length}. View details`}
+                  >
+                    Mastered topics <span aria-hidden="true">↗</span>
+                  </button>
+                ) : (
+                  "Mastered topics"
+                )}
+              </h3>
               <p>
                 {mastered} of {attempted.length} marked
               </p>
             </div>
-            <div>
+            <div className="stats-ring-item">
               <StatsGauge
                 shape="ring"
                 label="Tracked-topic coverage"
                 value={topics.length ? coverage : null}
-                colour="var(--stats-series-2)"
+                colour="var(--stats-series-3)"
               />
               <h3>Topic coverage</h3>
               <p>

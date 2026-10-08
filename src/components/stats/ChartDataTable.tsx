@@ -4,12 +4,14 @@ export function ChartDataTable({
   rows,
   series,
   periodKey = "period",
+  periodLabel = "Period",
   unit = "%",
 }: {
   caption: string;
   rows: Array<Record<string, number | string | boolean | null>>;
   series: Array<{ key: string; label: string }>;
   periodKey?: string;
+  periodLabel?: string;
   unit?: string;
 }) {
   return (
@@ -28,7 +30,7 @@ export function ChartDataTable({
           <thead>
             <tr>
               <th scope="col" className="px-3 py-2">
-                Period
+                {periodLabel}
               </th>
               {series.map((s) => (
                 <th key={s.key} scope="col" className="px-3 py-2">
