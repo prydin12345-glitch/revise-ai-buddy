@@ -27,6 +27,8 @@ interface Props {
   onOpenMastered?: () => void;
   onOpenStreak?: () => void;
   hideAccuracy?: boolean;
+  hideMastery?: boolean;
+  hideStreak?: boolean;
 }
 
 export const QuickStatsGrid = ({
@@ -46,6 +48,8 @@ export const QuickStatsGrid = ({
   onOpenMastered,
   onOpenStreak,
   hideAccuracy = false,
+  hideMastery = false,
+  hideStreak = false,
 }: Props) => {
   const p = useTelemetry();
   const cards = [
@@ -92,12 +96,17 @@ export const QuickStatsGrid = ({
       className="stats-panel stats-mobile-snapshot"
       aria-label="At a glance"
     >
-      <h2>At a glance</h2>
+      <h2>{hideMastery && hideStreak ? "Grade targets" : "At a glance"}</h2>
       <div
-        className={`stats-quick-layout ${hideAccuracy ? "stats-quick-without-accuracy" : ""}`}
+        className={`stats-quick-layout ${hideAccuracy && !hideMastery ? "stats-quick-without-accuracy" : ""} ${hideAccuracy && hideMastery && hideStreak ? "stats-quick-grades" : ""}`}
       >
         {cards
-          .filter((card) => !hideAccuracy || card.label !== "Topic accuracy")
+          .filter(
+            (card) =>
+              (!hideAccuracy || card.label !== "Topic accuracy") &&
+              (!hideMastery || card.label !== "Mastered topics") &&
+              (!hideStreak || card.label !== "Revision streak"),
+          )
           .map((card) => (
             <button
               key={card.label}

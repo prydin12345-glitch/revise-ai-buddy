@@ -2,7 +2,8 @@ import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3, AlertTriangle } from "lucide-react";
 import { TopStatsCards } from "@/components/stats/TopStatsCards";
-import { ExamResultsChart } from "@/components/stats/ExamResultsChart";
+import { ScoreTargetChart } from "@/components/stats/ScoreTargetChart";
+import { SubjectScoresChart } from "@/components/stats/SubjectScoresChart";
 import { SubjectPerformanceChart } from "@/components/stats/SubjectPerformanceChart";
 import { WeeklyStudyChart } from "@/components/stats/WeeklyStudyChart";
 import { RecentExamsTable } from "@/components/stats/RecentExamsTable";
@@ -144,6 +145,15 @@ const Stats = () => {
             topics={topics}
             weakTopicsLoading={weakTopicsLoading}
             initialTab={mobileInitialTab}
+            totalExams={totalExams}
+            completedExams={completedExams}
+            inProgressExams={inProgressExams}
+            totalStudyHours={totalStudyHours}
+            bestSubject={bestSubject}
+            revisionGoals={revisionGoals}
+            viewMode={pieChartMode}
+            onViewModeChange={setPieChartMode}
+            onSummaryClick={drilldown.openDrawer}
           />
         ) : (
           <Tabs
@@ -181,12 +191,10 @@ const Stats = () => {
             <TabsContent value="stats" className="mt-0">
               <div className="stats-dashboard">
                 <div className="stats-dashboard-column stats-dashboard-history">
-                  <ExamResultsChart
-                    data={examResultsData}
-                    subjects={subjects}
-                    timeRange={timeRange}
-                    onTimeRangeChange={setTimeRange}
-                    revisionGoals={revisionGoals}
+                  <SubjectScoresChart
+                    data={subjectPerformanceData}
+                    viewMode={pieChartMode}
+                    onViewModeChange={setPieChartMode}
                   />
                   <DesktopLearningGauges
                     topics={topics}
@@ -219,7 +227,13 @@ const Stats = () => {
                       </button>
                     }
                   />
-                  <AccuracyTrendChart />
+                  <ScoreTargetChart
+                    data={examResultsData}
+                    subjects={subjectPerformanceData}
+                    timeRange={timeRange}
+                    onTimeRangeChange={setTimeRange}
+                    revisionGoals={revisionGoals}
+                  />
                   <TopicProgressOverview
                     topics={topics}
                     loading={weakTopicsLoading}
@@ -254,6 +268,7 @@ const Stats = () => {
                     onViewModeChange={setPieChartMode}
                     trendData={examResultsData}
                   />
+                  <AccuracyTrendChart />
                 </div>
               </div>
               <div className="mt-6">

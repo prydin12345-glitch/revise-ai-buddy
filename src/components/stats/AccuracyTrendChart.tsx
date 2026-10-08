@@ -148,7 +148,7 @@ const ChartBody = ({
       <Line
         type="monotone"
         dataKey="score"
-        stroke="hsl(var(--primary))"
+        stroke="var(--stats-series-4)"
         strokeWidth={2.5}
         dot={(props: any) => {
           const { cx, cy, payload, key } = props;
@@ -162,12 +162,12 @@ const ChartBody = ({
               cy={cy}
               r={4}
               fill="hsl(var(--card))"
-              stroke="hsl(var(--primary))"
+              stroke="var(--stats-series-4)"
               strokeWidth={2}
             />
           );
         }}
-        activeDot={{ r: 6, fill: "hsl(var(--primary))" }}
+        activeDot={{ r: 6, fill: "var(--stats-series-4)" }}
         connectNulls={false}
         isAnimationActive={false}
       />
@@ -305,11 +305,11 @@ export const AccuracyTrendChart = () => {
 
   return (
     <>
-      <div className="stats-panel overflow-hidden h-full flex flex-col">
+      <div className="stats-panel stats-overall-trend overflow-hidden h-full flex flex-col">
         {/* Header */}
         <div className="stats-panel-heading flex justify-between items-center gap-2 flex-shrink-0">
           <div className="min-w-0">
-            <h2>Accuracy trend</h2>
+            <h2>Overall exam trend</h2>
             <div className="text-[11px] text-muted-foreground mt-px truncate">
               Average score per week · last 12 weeks
             </div>
@@ -344,7 +344,7 @@ export const AccuracyTrendChart = () => {
 
         {/* Stats row */}
         {trendData && (
-          <div className="px-[18px] pt-3 grid grid-cols-3 gap-2">
+          <div className="stats-trend-summary px-[18px] pt-3 grid grid-cols-3 gap-2">
             {[
               {
                 label: "Recent avg",
@@ -409,7 +409,7 @@ export const AccuracyTrendChart = () => {
               </button>
             </div>
           ) : hasData ? (
-            <ChartBody data={chartData} height={170} />
+            <ChartBody data={chartData} height={125} />
           ) : (
             <div className="h-[200px] flex flex-col items-center justify-center gap-3 px-5 text-center">
               <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">

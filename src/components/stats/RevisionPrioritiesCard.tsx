@@ -44,7 +44,7 @@ export function RevisionPrioritiesCard({
           {priorities.map((topic, index) => (
             <li key={`${topic.subjectId}-${topic.topic}`}>
               <span className="stats-priority-rank" aria-hidden="true">
-                {index + 1}
+                <span>{index + 1}</span>
               </span>
               <div className="min-w-0 flex-1">
                 <h3>{topic.topic}</h3>

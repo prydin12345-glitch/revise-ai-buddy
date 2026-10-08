@@ -30,15 +30,23 @@ export const SubjectPerformanceChart = ({
       ((newIndex % sorted.length) + sorted.length) % sorted.length,
     );
   };
+  // Two compact panels; existing selection controls keep every subject available.
+  const visible =
+    sorted.length > 1
+      ? [
+          sorted[activeIndex % sorted.length],
+          sorted[(activeIndex + 1) % sorted.length],
+        ]
+      : sorted;
   return (
     <section
-      className="stats-panel h-full flex flex-col"
-      aria-label="Subject performance"
+      className="stats-subject-snapshots flex flex-col"
+      aria-label="Subject snapshots"
     >
-      <div className="stats-panel-heading flex items-start justify-between gap-3">
+      <div className="stats-section-heading flex items-start justify-between gap-3">
         <div>
-          <h2>Subject performance</h2>
-          <p>Overall averages · bars follow selected range</p>
+          <h2>Subject snapshots</h2>
+          <p>History follows selected range</p>
         </div>
         {sorted.length > 1 && (
           <div className="flex items-center gap-1 shrink-0">
@@ -85,12 +93,17 @@ export const SubjectPerformanceChart = ({
         </div>
       ) : (
         <div className="stats-subject-tiles">
-          {sorted.map((subject, index) => (
+          {visible.map((subject, index) => (
             <div
               key={subject.name}
               className="stats-subject-tile"
-              aria-current={index === activeIndex ? "true" : undefined}
+              aria-current={index === 0 ? "true" : undefined}
             >
+              <SubjectHistoryBars
+                subject={subject.name}
+                rows={trendData}
+                colour={chartColour(data.indexOf(subject))}
+              />
               <div className="mb-2 flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <h3 className="break-words text-sm font-medium">
@@ -109,11 +122,6 @@ export const SubjectPerformanceChart = ({
                   {Math.round(subject.avgScore)}%
                 </span>
               </div>
-              <SubjectHistoryBars
-                subject={subject.name}
-                rows={trendData}
-                colour={chartColour(data.indexOf(subject))}
-              />
               <div
                 className="h-2 overflow-hidden rounded-full bg-muted"
                 role="meter"
@@ -136,8 +144,8 @@ export const SubjectPerformanceChart = ({
       )}
       {sorted.length > 0 && (
         <p className="stats-selected-subject" aria-live="polite">
-          Selected: {sorted[activeIndex]?.name} ·{" "}
-          {Math.round(sorted[activeIndex]?.avgScore ?? 0)}%
+          Selected: {visible[0]?.name} ·{" "}
+          {Math.round(visible[0]?.avgScore ?? 0)}%
         </p>
       )}
     </section>

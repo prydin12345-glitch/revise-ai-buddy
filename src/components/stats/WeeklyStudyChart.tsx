@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import {
-  BarChart,
-  Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -88,7 +88,7 @@ export const WeeklyStudyChart = ({ data, subjects }: WeeklyStudyChartProps) => {
 
   const ChartBody = ({ height }: { height: number }) => (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart
+      <AreaChart
         data={data}
         accessibilityLayer
         margin={{ top: 8, right: 4, bottom: 0, left: 0 }}
@@ -115,32 +115,42 @@ export const WeeklyStudyChart = ({ data, subjects }: WeeklyStudyChartProps) => {
         />
         <Tooltip content={<CustomTooltip />} />
         {subjects.map((subject, index) => (
-          <Bar
+          <Area
             key={subject.name}
             dataKey={subject.name}
             stackId="study"
+            type="linear"
             fill={chartColour(index)}
+            fillOpacity={0.25}
             isAnimationActive={false}
-            radius={[2, 2, 0, 0]}
-            stroke="hsl(var(--card))"
-            strokeWidth={1}
+            stroke={chartColour(index)}
+            strokeWidth={2}
           />
         ))}
-      </BarChart>
+      </AreaChart>
     </ResponsiveContainer>
   );
 
   return (
     <>
-      <div className="stats-panel overflow-hidden h-full flex flex-col">
+      <div className="stats-panel stats-study-activity overflow-hidden h-full flex flex-col">
         {/* Header */}
         <div className="stats-panel-heading flex-shrink-0 flex flex-col gap-3">
-          <div className="min-w-0">
+          <div className="stats-chart-heading min-w-0">
             <div className="min-w-0">
               <h2>Study activity</h2>
               <div className="text-[11px] text-muted-foreground mt-px">
                 Recorded hours this week
               </div>
+            </div>
+            <div
+              className="stats-study-total"
+              aria-label={`${totalHours.toFixed(1)} recorded study hours this week`}
+            >
+              <strong>
+                {totalHours.toFixed(1)}
+                <small>h</small>
+              </strong>
             </div>
           </div>
           <div className="flex items-center justify-between gap-1">
@@ -180,9 +190,9 @@ export const WeeklyStudyChart = ({ data, subjects }: WeeklyStudyChartProps) => {
           </p>
         )}
         {/* Chart */}
-        <div className="p-4 flex-1 min-h-0">
+        <div className="stats-chart-body flex-1 min-h-0">
           {data.length > 0 && subjects.length > 0 ? (
-            <ChartBody height={170} />
+            <ChartBody height={95} />
           ) : (
             <EmptyChartState
               message="Start tracking your study time"

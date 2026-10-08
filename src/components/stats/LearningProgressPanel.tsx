@@ -28,7 +28,7 @@ export function LearningProgressPanel({
       label: "Exam readiness estimate",
       value: readiness,
       detail: "Scores, coverage & consistency",
-      colour: "var(--stats-series-1)",
+      colour: "var(--stats-series-5)",
       onClick: onReadiness,
     },
   ];

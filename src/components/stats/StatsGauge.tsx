@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 /** A proportion, never a decorative or invented trend. Text remains the primary value. */
 export function StatsGauge({
   value,
@@ -21,6 +23,7 @@ export function StatsGauge({
     <span
       className="stats-gauge"
       data-shape={shape}
+      style={{ "--gauge-colour": colour } as CSSProperties}
       role={pct === null ? "img" : "meter"}
       aria-label={pct === null ? `${label}: no data` : label}
       aria-valuemin={pct === null ? undefined : 0}
@@ -34,12 +37,14 @@ export function StatsGauge({
       >
         {shape === "ring" ? (
           <>
+            <circle cx="80" cy="80" r="73" className="stats-gauge-rim" />
+            <circle cx="80" cy="80" r="52" className="stats-gauge-centre" />
             <circle
               cx="80"
               cy="80"
               r="62"
               className="stats-gauge-track"
-              strokeWidth="13"
+              strokeWidth="18"
               fill="none"
             />
             {pct !== null && pct > 0 && (
@@ -49,7 +54,7 @@ export function StatsGauge({
                 r="62"
                 pathLength="100"
                 stroke={colour}
-                strokeWidth="13"
+                strokeWidth="18"
                 fill="none"
                 strokeDasharray={`${pct} 100`}
                 transform="rotate(-90 80 80)"
@@ -61,7 +66,7 @@ export function StatsGauge({
             <path
               d="M20 90 A70 70 0 0 1 160 90"
               className="stats-gauge-track"
-              strokeWidth="15"
+              strokeWidth="23"
               fill="none"
             />
             {pct !== null && pct > 0 && (
@@ -69,7 +74,7 @@ export function StatsGauge({
                 d="M20 90 A70 70 0 0 1 160 90"
                 pathLength="100"
                 stroke={colour}
-                strokeWidth="15"
+                strokeWidth="23"
                 fill="none"
                 strokeDasharray={`${pct} 100`}
               />

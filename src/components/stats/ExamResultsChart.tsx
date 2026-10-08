@@ -36,7 +36,7 @@ interface ExamResultsChartProps {
   }>;
 }
 
-const ChartContent = ({
+export const ChartContent = ({
   data,
   subjects,
   revisionGoals,
