@@ -1,5 +1,5 @@
 
-import { motion } from "framer-motion";
+import { motion, MotionConfig } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronRight, ChevronDown, Radar as RadarIcon, TrendingUp, ArrowUpDown, CheckCircle2, Circle } from "lucide-react";
 import { ExamTargetHero } from "./ExamTargetHero";
@@ -18,10 +18,12 @@ import { useGradeSettings } from "@/hooks/useGradeSettings";
 import { useProfileDefaults } from "@/hooks/useProfileDefaults";
 import { getScale, projectGrade, resolveScaleId, targetStatus } from "@/lib/grade-scales";
 import { ScoreTrendCard } from "./ScoreTrendCard";
-import { TopicTelemetryRow } from "./TopicTelemetryRow";
+import { LearningProgressPanel } from "../LearningProgressPanel";
+import { RevisionPrioritiesCard } from "../RevisionPrioritiesCard";
 import { SkillRadarCard } from "./SkillRadarCard";
 import { MobileStatSheet } from "./MobileStatSheet";
 import { useTelemetry, alpha, clampPct, buildSparklinePath } from "./tokens";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import type { UnifiedTopicScore } from "@/hooks/useUnifiedTopicPerformance";
 
@@ -54,11 +56,7 @@ type SheetKey =
 type TabKey = "overview" | "topics" | "performance";
 
 
-const section = (delay: number) => ({
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.35, delay, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
-});
+const section = (_delay: number) => ({ initial: false as const });
 
 export const MobileStatsTelemetry = ({
   avgScore,
@@ -307,429 +305,513 @@ export const MobileStatsTelemetry = ({
   );
 
   return (
-    <div
-      className="stats-telemetry -mx-3 px-3 pt-3 pb-32 min-h-screen"
-      style={{ background: TELEMETRY.bg, color: TELEMETRY.text }}
-    >
-      <div className="max-w-md mx-auto">
-        {/* ───── Segmented tab bar ───── */}
-        <div
-          className="sticky top-0 z-30 -mx-3 px-3 pt-1 pb-3 mb-4"
-          style={{
-            background: alpha(TELEMETRY.bg, 0.95),
-            backdropFilter: "blur(10px)",
-            WebkitBackdropFilter: "blur(10px)",
-          }}
-        >
+    <MotionConfig reducedMotion="user">
+      <div
+        className="stats-telemetry -mx-3 px-3 pt-3 pb-32 min-h-screen"
+        style={{ background: TELEMETRY.bg, color: TELEMETRY.text }}
+      >
+        <div className="max-w-xl mx-auto">
+          {/* ───── Segmented tab bar ───── */}
           <div
-            className="grid grid-cols-3 gap-1 p-1 rounded-full"
+            className="mb-5"
             style={{
-              background: TELEMETRY.cardAlt,
-              border: `1px solid ${TELEMETRY.border}`,
+              background: TELEMETRY.bg,
             }}
           >
-            {tabs.map((t) => {
-              const active = t.key === tab;
-              return (
-                <button
-                  key={t.key}
+            <div
+              className="grid grid-cols-3 gap-1 p-1 rounded-lg"
+              style={{
+                background: TELEMETRY.cardAlt,
+                border: `1px solid ${TELEMETRY.border}`,
+              }}
+            >
+              {tabs.map((t) => {
+                const active = t.key === tab;
+                return (
+                  <button
+                    key={t.key}
+                    type="button"
+                    aria-pressed={active}
+                    aria-controls="stats-mobile-content"
+                    onClick={() => setTab(t.key)}
+                    className="min-h-[44px] rounded-md text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+                    style={{
+                      color: active
+                        ? TELEMETRY.onAccent
+                        : TELEMETRY.mutedStrong,
+                      background: active ? TELEMETRY.text : "transparent",
+                    }}
+                  >
+                    {t.label}
+                    {t.count !== undefined && t.count > 0 && (
+                      <span
+                        aria-label={`${t.count} topics need review`}
+                        className="text-[10px] font-bold tabular-nums rounded-full px-1.5 leading-[16px] min-w-[16px] text-center"
+                        style={{
+                          color: active ? TELEMETRY.card : TELEMETRY.onAccent,
+                          background: TELEMETRY.review,
+                        }}
+                      >
+                        {t.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div id="stats-mobile-content">
+            {/* ───── OVERVIEW ───── */}
+            {tab === "overview" && (
+              <div className="space-y-4">
+                <LearningProgressPanel
+                  accuracy={accuracy}
+                  readiness={readinessScore}
+                  loading={weakTopicsLoading}
+                  hasData={attemptedTopics.length > 0 || subjectPerformanceData.some(s => s.count > 0)}
+                  onAccuracy={() => setSheet("accuracy")}
+                  onReadiness={() => setSheet("readiness")}
+                />
+
+                <motion.div {...section(0.05)}>
+                  {weakTopicsLoading ? (
+                    <div
+                      aria-label="Loading topic summaries"
+                      role="status"
+                      className="grid grid-cols-2 gap-3"
+                    >
+                      <Skeleton className="h-40" />
+                      <Skeleton className="h-40" />
+                    </div>
+                  ) : (
+                    <QuickStatsGrid
+                      hideAccuracy
+                      accuracy={accuracy}
+                      accuracySessions={scoreSeries.slice(-7)}
+                      subjectStacks={subjectStacks}
+                      gradeValue={gradeSummary.value}
+                      gradeDelta={gradeSummary.delta}
+                      gradeTone={gradeSummary.tone}
+                      gradeProgress={gradeProgress}
+                      gradeAccent={gradeAccent}
+                      gradeTrajectory={scoreSeries.slice(-8)}
+                      masteredCount={masteryBands.strong.length}
+                      developingCount={masteryBands.developing.length}
+                      reviewCount={masteryBands.review.length}
+                      totalAttempted={attemptedTopics.length}
+                      masteredHistory={scoreSeries.slice(-12)}
+                      streak={currentStreak}
+                      longestStreak={longestStreak}
+                      streakDays={streakGrid}
+                      streakLoads={hoursSeries.slice(0, 7)}
+                      onOpenAccuracy={() => setSheet("accuracy")}
+                      onOpenGrade={() => setSheet("grade")}
+                      onOpenMastered={() => setSheet("mastered")}
+                      onOpenStreak={() => setSheet("streak")}
+                    />
+                  )}
+                </motion.div>
+
+                <RevisionPrioritiesCard
+                  topics={priorityTopics}
+                  loading={weakTopicsLoading}
+                  limit={2}
+                  action={<button type="button" onClick={() => setTab("topics")} className="stats-view-link">View all</button>}
+                />
+                <ScoreTrendCard
+                  data={examResultsData}
+                  subjects={subjectPerformanceData}
+                  timeRange={timeRange}
+                  onTimeRangeChange={setTimeRange}
+                />
+                <motion.div {...section(0.08)}>
+                  <StudyLoadCard
+                    data={studyActivityData}
+                    subjects={subjectPerformanceData}
+                  />
+                </motion.div>
+
+                <motion.div {...section(0.1)}>
+                  <SubjectGaugeCard
+                    subjects={subjectPerformanceData}
+                    topicStats={topicStatsFor}
+                    trendData={examResultsData}
+                  />
+                </motion.div>
+
+                <section className="space-y-3">
+                  <h2 className="text-sm font-semibold">Upcoming exams</h2>
+                  <motion.div {...section(0)}>
+                    <ExamTargetHero
+                      subjects={subjectPerformanceData}
+                      defaultScaleId={defaultScaleId}
+                    />
+                  </motion.div>{" "}
+                </section>
+              </div>
+            )}
+
+            {/* ───── TOPICS & MASTERY ───── */}
+            {tab === "topics" && (
+              <MobileWeakTopics
+                topics={topics}
+                loading={weakTopicsLoading}
+                subjects={subjectPerformanceData}
+              />
+            )}
+
+            {/* ───── PERFORMANCE ───── */}
+            {tab === "performance" && (
+              <div className="space-y-4">
+                <motion.div {...section(0)}>
+                  <ScoreTrendCard
+                    data={examResultsData}
+                    subjects={subjectPerformanceData}
+                    timeRange={timeRange}
+                    onTimeRangeChange={setTimeRange}
+                  />
+                </motion.div>
+
+                <motion.div {...section(0.03)}>
+                  <GradeTrendCard
+                    data={examResultsData}
+                    subjects={subjectPerformanceData}
+                    defaultScaleId={defaultScaleId}
+                  />
+                </motion.div>
+
+                <motion.div {...section(0.05)}>
+                  <div
+                    className="rounded-2xl p-4"
+                    style={{
+                      background: TELEMETRY.card,
+                      border: `1px solid ${TELEMETRY.border}`,
+                    }}
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <TrendingUp
+                        size={14}
+                        style={{ color: TELEMETRY.mastered }}
+                      />
+                      <div
+                        className="text-sm font-semibold"
+                        style={{ color: TELEMETRY.text }}
+                      >
+                        Subject Accuracy
+                      </div>
+                    </div>
+                    {subjectAccuracy.length === 0 ? (
+                      <div
+                        className="py-6 text-center text-xs"
+                        style={{ color: TELEMETRY.muted }}
+                      >
+                        No attempted questions yet
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {subjectAccuracy.map((s) => (
+                          <div key={s.name}>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span
+                                  className="w-2 h-2 rounded-full flex-shrink-0"
+                                  style={{ background: s.color }}
+                                />
+                                <span
+                                  className="text-[13px] font-medium truncate"
+                                  style={{ color: TELEMETRY.text }}
+                                >
+                                  {s.name}
+                                </span>
+                              </div>
+                              <span
+                                className="text-[13px] font-semibold tabular-nums"
+                                style={{ color: TELEMETRY.text }}
+                              >
+                                {Math.round(s.avgScore)}%
+                              </span>
+                            </div>
+                            <div
+                              className="h-1.5 rounded-full overflow-hidden"
+                              style={{ background: TELEMETRY.border }}
+                            >
+                              <div
+                                className="h-full rounded-full"
+                                style={{
+                                  width: `${clampPct(s.avgScore)}%`,
+                                  background: s.color,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+
+                <motion.button
+                  {...section(0.1)}
                   type="button"
-                  onClick={() => setTab(t.key)}
-                  className="min-h-[36px] rounded-full text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+                  onClick={() => setSheet("radar")}
+                  className="w-full text-left rounded-2xl p-4 flex items-center gap-3 active:scale-[0.99] transition-transform"
                   style={{
-                    color: active ? TELEMETRY.onAccent : TELEMETRY.mutedStrong,
-                    background: active ? TELEMETRY.text : "transparent",
+                    background: TELEMETRY.card,
+                    border: `1px solid ${TELEMETRY.border}`,
                   }}
                 >
-                  {t.label}
-                  {t.count !== undefined && t.count > 0 && (
-                    <span
-                      aria-label={`${t.count} topics need review`}
-                      className="text-[10px] font-bold tabular-nums rounded-full px-1.5 leading-[16px] min-w-[16px] text-center"
-                      style={{
-                        color: active ? TELEMETRY.card : TELEMETRY.onAccent,
-                        background: TELEMETRY.review,
-                      }}
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{
+                      background: alpha(TELEMETRY.review, 0.1),
+                      border: `1px solid ${alpha(TELEMETRY.review, 0.2)}`,
+                    }}
+                  >
+                    <RadarIcon size={18} style={{ color: TELEMETRY.review }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div
+                      className="text-[11px]"
+                      style={{ color: TELEMETRY.muted }}
                     >
-                      {t.count}
-                    </span>
+                      Skill Balance
+                    </div>
+                    <div
+                      className="text-sm font-semibold"
+                      style={{ color: TELEMETRY.text }}
+                    >
+                      {subjectPerformanceData.length} subject
+                      {subjectPerformanceData.length === 1 ? "" : "s"} compared
+                    </div>
+                  </div>
+                  {sparkPath && (
+                    <svg
+                      width={64}
+                      height={28}
+                      viewBox="0 0 140 36"
+                      preserveAspectRatio="none"
+                      className="flex-shrink-0"
+                    >
+                      <path
+                        d={sparkPath}
+                        fill="none"
+                        stroke={TELEMETRY.mastered}
+                        strokeWidth={2}
+                      />
+                    </svg>
                   )}
-                </button>
-              );
-            })}
+                  <ChevronRight
+                    size={16}
+                    style={{ color: TELEMETRY.muted }}
+                    className="flex-shrink-0"
+                  />
+                </motion.button>
+              </div>
+            )}
           </div>
         </div>
+        {/* ═══════════ SHEETS ═══════════ */}
 
-        {/* ───── OVERVIEW ───── */}
-        {tab === "overview" && (
-          <div className="space-y-4">
-            <motion.div {...section(0)}>
-              <ExamTargetHero
-                subjects={subjectPerformanceData}
-                defaultScaleId={defaultScaleId}
-              />
-            </motion.div>
-
-            <motion.div {...section(0.03)}>
-              <button
-                type="button"
-                onClick={() => setSheet("readiness")}
-                className="w-full rounded-2xl p-3.5 flex items-center gap-3 active:opacity-80 transition-opacity"
-                style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}` }}
-              >
-                <span className="flex-1 min-w-0 text-left">
-                  <span className="flex items-baseline gap-2">
-                    <span className="text-[13px] font-semibold" style={{ color: TELEMETRY.text }}>
-                      Exam readiness
-                    </span>
-                    <span className="text-[17px] font-bold tabular-nums" style={{ color: TELEMETRY.mastered }}>
-                      {Math.round(readinessScore)}%
-                    </span>
-                  </span>
-                  <span
-                    className="block h-1.5 rounded-full overflow-hidden mt-2"
-                    style={{ background: TELEMETRY.cardAlt }}
-                  >
-                    <span
-                      className="block h-full rounded-full"
-                      style={{ width: `${clampPct(readinessScore)}%`, background: TELEMETRY.mastered }}
-                    />
-                  </span>
-                  <span className="block text-[11px] mt-1.5" style={{ color: TELEMETRY.muted }}>
-                    {Math.round(avgScore)}% accuracy · {Math.round(coverage)}% coverage · {currentStreak}d streak
-                  </span>
-                </span>
-                <ChevronRight size={16} className="shrink-0" style={{ color: TELEMETRY.muted }} />
-              </button>
-            </motion.div>
-
-            <motion.div {...section(0.05)}>
-              <QuickStatsGrid
-                accuracy={accuracy}
-                accuracySessions={scoreSeries.slice(-7)}
-                subjectStacks={subjectStacks}
-                gradeValue={gradeSummary.value}
-                gradeDelta={gradeSummary.delta}
-                gradeTone={gradeSummary.tone}
-                gradeProgress={gradeProgress}
-                gradeAccent={gradeAccent}
-                gradeTrajectory={scoreSeries.slice(-8)}
-                masteredCount={masteryBands.strong.length}
-                developingCount={masteryBands.developing.length}
-                reviewCount={masteryBands.review.length}
-                totalAttempted={attemptedTopics.length}
-                masteredHistory={scoreSeries.slice(-12)}
-                streak={currentStreak}
-                longestStreak={longestStreak}
-                streakDays={streakGrid}
-                streakLoads={hoursSeries.slice(0, 7)}
-                onOpenAccuracy={() => setSheet("accuracy")}
-                onOpenGrade={() => setSheet("grade")}
-                onOpenMastered={() => setSheet("mastered")}
-                onOpenStreak={() => setSheet("streak")}
-              />
-            </motion.div>
-
-            <motion.div {...section(0.08)}>
-              <StudyLoadCard data={studyActivityData} subjects={subjectPerformanceData} />
-            </motion.div>
-
-            <motion.div {...section(0.1)}>
-              <SubjectGaugeCard subjects={subjectPerformanceData} topicStats={topicStatsFor} />
-            </motion.div>
-
-            {/* Top Revision Priorities */}
-            <motion.div {...section(0.1)}>
-              <div
-                className="rounded-2xl p-4"
-                style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}` }}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>
-                    Top Revision Priorities
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setTab("topics")}
-                    className="text-[11px] font-semibold flex items-center gap-0.5"
-                    style={{ color: TELEMETRY.info }}
-                  >
-                    View all <ChevronRight size={12} />
-                  </button>
-                </div>
-                {priorityTopics.length === 0 ? (
-                  <div className="py-6 text-center text-xs" style={{ color: TELEMETRY.muted }}>
-                    Complete a quiz or exam to surface priorities
-                  </div>
-                ) : (
-                  <div>
-                    {priorityTopics.map((t) => (
-                      <TopicTelemetryRow key={t.topic} topic={t} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-        {/* ───── TOPICS & MASTERY ───── */}
-        {tab === "topics" && (
-          <MobileWeakTopics topics={topics} loading={weakTopicsLoading} subjects={subjectPerformanceData} />
-        )}
-
-        {/* ───── PERFORMANCE ───── */}
-        {tab === "performance" && (
-          <div className="space-y-4">
-            <motion.div {...section(0)}>
-              <ScoreTrendCard
-                data={examResultsData}
-                subjects={subjectPerformanceData}
-                timeRange={timeRange}
-                onTimeRangeChange={setTimeRange}
-              />
-            </motion.div>
-
-            <motion.div {...section(0.03)}>
-              <GradeTrendCard
-                data={examResultsData}
-                subjects={subjectPerformanceData}
-                defaultScaleId={defaultScaleId}
-              />
-            </motion.div>
-
-            <motion.div {...section(0.05)}>
-              <div
-                className="rounded-2xl p-4"
-                style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}` }}
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <TrendingUp size={14} style={{ color: TELEMETRY.mastered }} />
-                  <div className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>
-                    Subject Accuracy
-                  </div>
-                </div>
-                {subjectAccuracy.length === 0 ? (
-                  <div className="py-6 text-center text-xs" style={{ color: TELEMETRY.muted }}>
-                    No attempted questions yet
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {subjectAccuracy.map((s) => (
-                      <div key={s.name}>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span
-                              className="w-2 h-2 rounded-full flex-shrink-0"
-                              style={{ background: s.color }}
-                            />
-                            <span
-                              className="text-[13px] font-medium truncate"
-                              style={{ color: TELEMETRY.text }}
-                            >
-                              {s.name}
-                            </span>
-                          </div>
-                          <span
-                            className="text-[13px] font-semibold tabular-nums"
-                            style={{ color: s.color }}
-                          >
-                            {Math.round(s.avgScore)}%
-                          </span>
-                        </div>
-                        <div
-                          className="h-1.5 rounded-full overflow-hidden"
-                          style={{ background: TELEMETRY.border }}
-                        >
-                          <div
-                            className="h-full rounded-full"
-                            style={{ width: `${clampPct(s.avgScore)}%`, background: s.color }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </motion.div>
-
-            <motion.button
-              {...section(0.1)}
-              type="button"
-              onClick={() => setSheet("radar")}
-              className="w-full text-left rounded-2xl p-4 flex items-center gap-3 active:scale-[0.99] transition-transform"
-              style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}` }}
+        {/* Readiness — interactive expandable factor breakdown */}
+        <MobileStatSheet
+          open={sheet === "readiness"}
+          onClose={() => setSheet(null)}
+          title="Exam Readiness"
+          subtitle="A weighted blend of your accuracy, topic coverage, and revision streak."
+        >
+          <div className="space-y-3">
+            <div
+              className="rounded-2xl p-4"
+              style={{
+                background: TELEMETRY.card,
+                border: `1px solid ${TELEMETRY.border}`,
+              }}
             >
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: alpha(TELEMETRY.review, 0.1), border: `1px solid ${alpha(TELEMETRY.review, 0.2)}` }}
+                className="text-sm font-semibold"
+                style={{ color: TELEMETRY.text }}
               >
-                <RadarIcon size={18} style={{ color: TELEMETRY.review }} />
+                Mastery
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[11px]" style={{ color: TELEMETRY.muted }}>
-                  Skill Balance
-                </div>
-                <div className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>
-                  {subjectPerformanceData.length} subject{subjectPerformanceData.length === 1 ? "" : "s"} compared
-                </div>
-              </div>
-              {sparkPath && (
-                <svg width={64} height={28} viewBox="0 0 140 36" preserveAspectRatio="none" className="flex-shrink-0">
-                  <path d={sparkPath} fill="none" stroke={TELEMETRY.mastered} strokeWidth={2} />
-                </svg>
-              )}
-              <ChevronRight size={16} style={{ color: TELEMETRY.muted }} className="flex-shrink-0" />
-            </motion.button>
-          </div>
-        )}
-      </div>
-
-      {/* ═══════════ SHEETS ═══════════ */}
-
-      {/* Readiness — interactive expandable factor breakdown */}
-      <MobileStatSheet
-        open={sheet === "readiness"}
-        onClose={() => setSheet(null)}
-        title="Exam Readiness"
-        subtitle="A weighted blend of your accuracy, topic coverage, and revision streak."
-      >
-        <div className="space-y-3">
-          <div
-            className="rounded-2xl p-4"
-            style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}` }}
-          >
-            <div className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>
-              Mastery
-            </div>
-            <div className="text-[11px] mt-0.5 mb-4" style={{ color: TELEMETRY.muted }}>
-              Average score, and how your topics split across the bands
-            </div>
-            <MasteryRing
-              score={accuracy}
-              bands={[
-                { label: "Mastered ≥70%", count: masteryBands.strong.length, colour: TELEMETRY.mastered },
-                { label: "Developing 40–69%", count: masteryBands.developing.length, colour: TELEMETRY.developing },
-                { label: "Review <40%", count: masteryBands.review.length, colour: TELEMETRY.review },
-              ]}
-            />
-          </div>
-
-          <CoveragePanel topics={topics} subjects={subjectPerformanceData} />
-
-          <div
-            className="rounded-2xl p-4"
-            style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}` }}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>
-                Revision streak
-              </span>
-              <span className="text-lg font-bold tabular-nums" style={{ color: TELEMETRY.review }}>
-                {currentStreak}d
-              </span>
-            </div>
-            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: TELEMETRY.cardAlt }}>
               <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${longestStreak > 0 ? Math.min(100, (currentStreak / longestStreak) * 100) : 0}%`,
-                  background: TELEMETRY.review,
-                }}
+                className="text-[11px] mt-0.5 mb-4"
+                style={{ color: TELEMETRY.muted }}
+              >
+                Average score, and how your topics split across the bands
+              </div>
+              <MasteryRing
+                score={accuracy}
+                bands={[
+                  {
+                    label: "Mastered ≥70%",
+                    count: masteryBands.strong.length,
+                    colour: TELEMETRY.mastered,
+                  },
+                  {
+                    label: "Developing 40–69%",
+                    count: masteryBands.developing.length,
+                    colour: TELEMETRY.developing,
+                  },
+                  {
+                    label: "Review <40%",
+                    count: masteryBands.review.length,
+                    colour: TELEMETRY.review,
+                  },
+                ]}
               />
             </div>
-            <div className="text-[11px] mt-2" style={{ color: TELEMETRY.muted }}>
-              Best run so far: {longestStreak} day{longestStreak === 1 ? "" : "s"}.
-            </div>
-          </div>
-        </div>
-      </MobileStatSheet>
 
-      {/* Radar */}
-      <MobileStatSheet
-        open={sheet === "radar"}
-        onClose={() => setSheet(null)}
-        title="Skill Balance"
-        subtitle="Average score per subject, at a glance."
-      >
-        <SkillRadarCard subjects={subjectPerformanceData} />
-      </MobileStatSheet>
+            <CoveragePanel topics={topics} subjects={subjectPerformanceData} />
 
-      {/* Accuracy Breakdown */}
-      <MobileStatSheet
-        open={sheet === "accuracy"}
-        onClose={() => setSheet(null)}
-        title="Accuracy Breakdown"
-        subtitle="How your marked topics are distributed, not just the average."
-      >
-        <AccuracyBreakdownPanel
-          topics={topics}
-          subjects={subjectPerformanceData}
-          trendData={examResultsData}
-        />
-      </MobileStatSheet>
-
-      {/* Grade Projection */}
-      <MobileStatSheet
-        open={sheet === "grade"}
-        onClose={() => setSheet(null)}
-        title="Grade Projection"
-        subtitle="Predicted grade per subject, on the scale that subject actually uses."
-      >
-        <GradeProjectionPanel
-          subjects={subjectPerformanceData}
-          defaultScaleId={defaultScaleId}
-        />
-      </MobileStatSheet>
-
-      {/* Mastered / Retention */}
-      <MobileStatSheet
-        open={sheet === "mastered"}
-        onClose={() => setSheet(null)}
-        title="Question Retention"
-        subtitle="Topic decay & memory freshness"
-      >
-        <RetentionPanel topics={topics} subjects={subjectPerformanceData} />
-      </MobileStatSheet>
-
-      {/* Streak Calendar */}
-      <MobileStatSheet
-        open={sheet === "streak"}
-        onClose={() => setSheet(null)}
-        title="Study Streak & Activity"
-        subtitle={`Current streak: ${currentStreak}d · Longest: ${longestStreak}d`}
-      >
-        <div className="space-y-3">
-          <div
-            className="rounded-2xl p-4"
-            style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}` }}
-          >
-            <div className="text-[11px] mb-2" style={{ color: TELEMETRY.muted }}>
-              This week
-            </div>
-            <div className="grid grid-cols-7 gap-1.5">
-              {streakGrid.map((active, i) => (
-                <div
-                  key={i}
-                  className="aspect-square rounded-md flex items-center justify-center"
-                  style={{
-                    background: active ? alpha(TELEMETRY.review, 0.13) : TELEMETRY.cardAlt,
-                    border: `1px solid ${active ? TELEMETRY.review : TELEMETRY.border}`,
-                  }}
+            <div
+              className="rounded-2xl p-4"
+              style={{
+                background: TELEMETRY.card,
+                border: `1px solid ${TELEMETRY.border}`,
+              }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span
+                  className="text-sm font-semibold"
+                  style={{ color: TELEMETRY.text }}
                 >
-                  {active && <CheckCircle2 size={12} style={{ color: TELEMETRY.review }} />}
-                </div>
-              ))}
+                  Revision streak
+                </span>
+                <span
+                  className="text-lg font-bold tabular-nums"
+                  style={{ color: TELEMETRY.review }}
+                >
+                  {currentStreak}d
+                </span>
+              </div>
+              <div
+                className="h-1.5 rounded-full overflow-hidden"
+                style={{ background: TELEMETRY.cardAlt }}
+              >
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${longestStreak > 0 ? Math.min(100, (currentStreak / longestStreak) * 100) : 0}%`,
+                    background: TELEMETRY.review,
+                  }}
+                />
+              </div>
+              <div
+                className="text-[11px] mt-2"
+                style={{ color: TELEMETRY.muted }}
+              >
+                Best run so far: {longestStreak} day
+                {longestStreak === 1 ? "" : "s"}.
+              </div>
             </div>
           </div>
-          <div
-            className="rounded-2xl p-4 text-xs leading-relaxed"
-            style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}`, color: TELEMETRY.muted }}
-          >
-            Your streak counts every day you complete at least one question. Miss a day and it resets — your best-ever streak stays saved.
+        </MobileStatSheet>
+
+        {/* Radar */}
+        <MobileStatSheet
+          open={sheet === "radar"}
+          onClose={() => setSheet(null)}
+          title="Skill Balance"
+          subtitle="Average score per subject, at a glance."
+        >
+          <SkillRadarCard subjects={subjectPerformanceData} />
+        </MobileStatSheet>
+
+        {/* Accuracy Breakdown */}
+        <MobileStatSheet
+          open={sheet === "accuracy"}
+          onClose={() => setSheet(null)}
+          title="Accuracy Breakdown"
+          subtitle="How your marked topics are distributed, not just the average."
+        >
+          <AccuracyBreakdownPanel
+            topics={topics}
+            subjects={subjectPerformanceData}
+            trendData={examResultsData}
+          />
+        </MobileStatSheet>
+
+        {/* Grade Projection */}
+        <MobileStatSheet
+          open={sheet === "grade"}
+          onClose={() => setSheet(null)}
+          title="Grade Projection"
+          subtitle="Predicted grade per subject, on the scale that subject actually uses."
+        >
+          <GradeProjectionPanel
+            subjects={subjectPerformanceData}
+            defaultScaleId={defaultScaleId}
+          />
+        </MobileStatSheet>
+
+        {/* Mastered / Retention */}
+        <MobileStatSheet
+          open={sheet === "mastered"}
+          onClose={() => setSheet(null)}
+          title="Question Retention"
+          subtitle="Topic decay & memory freshness"
+        >
+          <RetentionPanel topics={topics} subjects={subjectPerformanceData} />
+        </MobileStatSheet>
+
+        {/* Streak Calendar */}
+        <MobileStatSheet
+          open={sheet === "streak"}
+          onClose={() => setSheet(null)}
+          title="Study Streak & Activity"
+          subtitle={`Current streak: ${currentStreak}d · Longest: ${longestStreak}d`}
+        >
+          <div className="space-y-3">
+            <div
+              className="rounded-2xl p-4"
+              style={{
+                background: TELEMETRY.card,
+                border: `1px solid ${TELEMETRY.border}`,
+              }}
+            >
+              <div
+                className="text-[11px] mb-2"
+                style={{ color: TELEMETRY.muted }}
+              >
+                This week
+              </div>
+              <div className="grid grid-cols-7 gap-1.5">
+                {streakGrid.map((active, i) => (
+                  <div
+                    key={i}
+                    className="aspect-square rounded-md flex items-center justify-center"
+                    style={{
+                      background: active
+                        ? alpha(TELEMETRY.review, 0.13)
+                        : TELEMETRY.cardAlt,
+                      border: `1px solid ${active ? TELEMETRY.review : TELEMETRY.border}`,
+                    }}
+                  >
+                    {active && (
+                      <CheckCircle2
+                        size={12}
+                        style={{ color: TELEMETRY.review }}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div
+              className="rounded-2xl p-4 text-xs leading-relaxed"
+              style={{
+                background: TELEMETRY.card,
+                border: `1px solid ${TELEMETRY.border}`,
+                color: TELEMETRY.muted,
+              }}
+            >
+              Your streak counts every day you complete at least one question.
+              Miss a day and it resets — your best-ever streak stays saved.
+            </div>
           </div>
-        </div>
-      </MobileStatSheet>
-    </div>
+        </MobileStatSheet>
+      </div>
+    </MotionConfig>
   );
 };

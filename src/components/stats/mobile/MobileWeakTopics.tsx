@@ -360,7 +360,7 @@ export const MobileWeakTopics = ({ topics, loading, subjects = [] }: Props) => {
                 key={f.key}
                 type="button"
                 onClick={() => setFilter(f.key)}
-                className="shrink-0 min-h-[38px] px-3.5 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all active:scale-[0.96] flex items-center gap-2"
+                className="shrink-0 min-h-[44px] px-3.5 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all active:scale-[0.96] flex items-center gap-2"
                 style={{
                   color: active ? TELEMETRY.onAccent : TELEMETRY.mutedStrong,
                   background: active ? tone : TELEMETRY.card,
@@ -394,7 +394,7 @@ export const MobileWeakTopics = ({ topics, loading, subjects = [] }: Props) => {
                 key={s.key}
                 type="button"
                 onClick={() => setSort(s.key)}
-                className="shrink-0 min-h-[34px] px-2.5 rounded-lg text-[11px] font-medium whitespace-nowrap transition-colors"
+                className="shrink-0 min-h-[40px] px-2.5 rounded-lg text-[11px] font-medium whitespace-nowrap transition-colors"
                 style={{
                   color: active ? TELEMETRY.text : TELEMETRY.muted,
                   background: active ? TELEMETRY.cardAlt : "transparent",
@@ -437,10 +437,9 @@ export const MobileWeakTopics = ({ topics, loading, subjects = [] }: Props) => {
                 key={`${t.subjectId ?? "x"}-${t.topic}`}
                 type="button"
                 onClick={() => setSelected(t)}
-                initial={{ opacity: 0, y: 8 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: Math.min(i * 0.03, 0.24), duration: 0.2 }}
-                whileTap={{ scale: 0.985 }}
+                transition={{ duration: 0 }}
                 className="w-full text-left rounded-2xl p-3.5"
                 style={{
                   background: TELEMETRY.card,
@@ -466,7 +465,7 @@ export const MobileWeakTopics = ({ topics, loading, subjects = [] }: Props) => {
                       {t.subjectId && (
                         <span
                           className="text-[10px] px-1.5 py-0.5 rounded capitalize"
-                          style={{ color: subjectColour, background: alpha(subjectColour, 0.12) }}
+                          style={{ color: TELEMETRY.text, background: TELEMETRY.cardAlt }}
                         >
                           {t.subjectId}
                         </span>

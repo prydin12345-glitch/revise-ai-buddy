@@ -55,7 +55,7 @@ export const CoveragePanel = ({ topics, subjects }: Props) => {
               {Math.round(overall)}%
             </div>
             <div className="text-[11px] mt-1" style={{ color: TELEMETRY.muted }}>
-              of your syllabus touched
+              of tracked topics attempted
             </div>
           </div>
           <div className="text-right text-[11px] tabular-nums" style={{ color: TELEMETRY.muted }}>
@@ -83,7 +83,7 @@ export const CoveragePanel = ({ topics, subjects }: Props) => {
               className="rounded-xl px-2 py-2.5 text-center"
               style={{ background: TELEMETRY.cardAlt, border: `1px solid ${TELEMETRY.border}` }}
             >
-              <div className="text-lg font-semibold tabular-nums" style={{ color: colour }}>{n}</div>
+              <div className="text-lg font-semibold tabular-nums" style={{ color: TELEMETRY.text }}>{n}</div>
               <div className="text-[10px] mt-0.5" style={{ color: TELEMETRY.muted }}>{label}</div>
             </div>
           ))}

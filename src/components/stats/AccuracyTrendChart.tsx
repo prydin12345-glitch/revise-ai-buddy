@@ -16,8 +16,16 @@ import {
   format,
   isWithinInterval,
 } from "date-fns";
-import { TrendingUp, TrendingDown, Minus, Maximize2, LineChart as LineChartIcon } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Maximize2,
+  LineChart as LineChartIcon,
+} from "lucide-react";
 import { DiagramModal } from "@/components/shared/DiagramModal";
+import { ChartDataTable } from "./ChartDataTable";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 
 interface SubmissionRow {
@@ -31,25 +39,38 @@ const ChartBody = ({
   data,
   height,
 }: {
-  data: Array<{ week: string; score: number | null; examCount: number; isEmpty: boolean }>;
+  data: Array<{
+    week: string;
+    score: number | null;
+    examCount: number;
+    isEmpty: boolean;
+  }>;
   height: number;
 }) => (
   <ResponsiveContainer width="100%" height={height}>
-    <LineChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
-      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+    <LineChart
+      accessibilityLayer
+      data={data}
+      margin={{ top: 8, right: 12, bottom: 4, left: 0 }}
+    >
+      <CartesianGrid
+        strokeDasharray="3 3"
+        stroke="hsl(var(--border))"
+        vertical={false}
+      />
       <XAxis
         dataKey="week"
-        tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+        tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
         axisLine={false}
         tickLine={false}
       />
       <YAxis
         domain={[0, 100]}
-        tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+        tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
         axisLine={false}
         tickLine={false}
         tickFormatter={(v) => `${v}%`}
-        width={32}
+        width={44}
       />
       <Tooltip
         cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1 }}
@@ -68,14 +89,33 @@ const ChartBody = ({
                 boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
               }}
             >
-              <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginBottom: 2 }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "hsl(var(--muted-foreground))",
+                  marginBottom: 2,
+                }}
+              >
                 Week of {label}
               </div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "hsl(var(--foreground))" }}>
+              <div
+                style={{
+                  fontSize: 16,
+                  fontWeight: 700,
+                  color: "hsl(var(--foreground))",
+                }}
+              >
                 {point.score}%
               </div>
-              <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
-                {point.examCount} exam{point.examCount !== 1 ? "s" : ""} completed
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "hsl(var(--muted-foreground))",
+                  marginTop: 2,
+                }}
+              >
+                {point.examCount} exam{point.examCount !== 1 ? "s" : ""}{" "}
+                completed
               </div>
             </div>
           );
@@ -83,17 +123,27 @@ const ChartBody = ({
       />
       <ReferenceLine
         y={70}
-        stroke="hsl(142 71% 45%)"
+        stroke="hsl(var(--muted-foreground))"
         strokeDasharray="4 4"
         strokeWidth={1}
-        label={{ value: "Good", position: "right", fontSize: 9, fill: "hsl(142 71% 45%)" }}
+        label={{
+          value: "70%",
+          position: "insideTopRight",
+          fontSize: 11,
+          fill: "hsl(var(--muted-foreground))",
+        }}
       />
       <ReferenceLine
         y={50}
-        stroke="hsl(25 95% 53%)"
+        stroke="hsl(var(--muted-foreground))"
         strokeDasharray="4 4"
         strokeWidth={1}
-        label={{ value: "Pass", position: "right", fontSize: 9, fill: "hsl(25 95% 53%)" }}
+        label={{
+          value: "50%",
+          position: "insideTopRight",
+          fontSize: 11,
+          fill: "hsl(var(--muted-foreground))",
+        }}
       />
       <Line
         type="monotone"
@@ -119,6 +169,7 @@ const ChartBody = ({
         }}
         activeDot={{ r: 6, fill: "hsl(var(--primary))" }}
         connectNulls={false}
+        isAnimationActive={false}
       />
     </LineChart>
   </ResponsiveContainer>
@@ -128,28 +179,38 @@ export const AccuracyTrendChart = () => {
   const [expanded, setExpanded] = useState(false);
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     const fetch = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
+      setLoading(true);
+      setFailed(false);
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          setLoading(false);
+          return;
+        }
+        const since = subWeeks(new Date(), 12).toISOString();
+        const { data, error } = await supabase
+          .from("exam_submissions")
+          .select("submitted_at, total_score, total_marks, status")
+          .eq("student_id", user.id)
+          .eq("status", "graded")
+          .gte("submitted_at", since);
+        if (error) throw error;
+        setSubmissions(data ?? []);
+      } catch {
+        setFailed(true);
+      } finally {
         setLoading(false);
-        return;
       }
-      const since = subWeeks(new Date(), 12).toISOString();
-      const { data } = await supabase
-        .from("exam_submissions")
-        .select("submitted_at, total_score, total_marks, status")
-        .eq("student_id", user.id)
-        .eq("status", "graded")
-        .gte("submitted_at", since);
-      setSubmissions(data ?? []);
-      setLoading(false);
     };
     fetch();
-  }, []);
+  }, [retry]);
 
   const chartData = useMemo(() => {
     const now = new Date();
@@ -218,10 +279,10 @@ export const AccuracyTrendChart = () => {
         previousAvg === null
           ? "neutral"
           : recentAvg > previousAvg + 2
-          ? "up"
-          : recentAvg < previousAvg - 2
-          ? "down"
-          : "neutral",
+            ? "up"
+            : recentAvg < previousAvg - 2
+              ? "down"
+              : "neutral",
       change: previousAvg !== null ? Math.round(recentAvg - previousAvg) : null,
     };
   }, [chartData]);
@@ -232,28 +293,23 @@ export const AccuracyTrendChart = () => {
     trendData?.direction === "up"
       ? TrendingUp
       : trendData?.direction === "down"
-      ? TrendingDown
-      : Minus;
+        ? TrendingDown
+        : Minus;
 
   const trendColor =
     trendData?.direction === "up"
-      ? "hsl(142 71% 45%)"
+      ? "hsl(var(--success))"
       : trendData?.direction === "down"
-      ? "hsl(0 84% 60%)"
-      : "hsl(var(--muted-foreground))";
+        ? "hsl(var(--destructive))"
+        : "hsl(var(--muted-foreground))";
 
   return (
     <>
-      <div className="bg-card border border-border rounded-xl overflow-hidden h-full flex flex-col">
+      <div className="stats-panel overflow-hidden h-full flex flex-col">
         {/* Header */}
-        <div className="px-[18px] py-3.5 border-b border-border flex justify-between items-center gap-2 flex-shrink-0">
+        <div className="stats-panel-heading flex justify-between items-center gap-2 flex-shrink-0">
           <div className="min-w-0">
-            <div
-              className="text-[13px] font-semibold text-foreground truncate"
-              style={{ letterSpacing: "-0.2px" }}
-            >
-              Accuracy Trend
-            </div>
+            <h2>Accuracy trend</h2>
             <div className="text-[11px] text-muted-foreground mt-px truncate">
               Average score per week · last 12 weeks
             </div>
@@ -263,7 +319,7 @@ export const AccuracyTrendChart = () => {
               <div
                 className="flex items-center gap-1 px-2 py-1 rounded-md"
                 style={{
-                  background: `${trendColor}18`,
+                  background: "hsl(var(--muted))",
                   color: trendColor,
                 }}
               >
@@ -277,7 +333,8 @@ export const AccuracyTrendChart = () => {
             )}
             <button
               onClick={() => setExpanded(true)}
-              className="w-7 h-7 rounded-md bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              className="stats-chart-control rounded-md bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Expand accuracy trend"
               title="Expand chart"
             >
               <Maximize2 size={13} />
@@ -294,13 +351,13 @@ export const AccuracyTrendChart = () => {
                 value: `${trendData.recentAvg}%`,
                 color:
                   trendData.recentAvg >= 70
-                    ? "hsl(142 71% 45%)"
+                    ? "hsl(var(--success))"
                     : trendData.recentAvg >= 50
-                    ? "hsl(25 95% 53%)"
-                    : "hsl(0 84% 60%)",
+                      ? "hsl(var(--warning))"
+                      : "hsl(var(--destructive))",
               },
               {
-                label: "All-time avg",
+                label: "12-week avg",
                 value: `${trendData.overallAvg}%`,
                 color: "hsl(var(--primary))",
               },
@@ -332,14 +389,35 @@ export const AccuracyTrendChart = () => {
         <div className="px-2 pb-3 pt-2 flex-1 min-h-0">
           {loading ? (
             <div className="h-[200px] flex items-center justify-center">
-              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <Skeleton
+                className="mx-5 h-44 w-full"
+                aria-label="Loading accuracy trend"
+              />
+            </div>
+          ) : failed ? (
+            <div
+              role="alert"
+              className="h-[200px] flex flex-col items-center justify-center gap-3 text-sm"
+            >
+              <p>Accuracy trend couldn’t load.</p>
+              <button
+                type="button"
+                className="rounded-md border border-border px-4 py-2.5 text-primary"
+                onClick={() => setRetry((v) => v + 1)}
+              >
+                Retry accuracy trend
+              </button>
             </div>
           ) : hasData ? (
-            <ChartBody data={chartData} height={200} />
+            <ChartBody data={chartData} height={170} />
           ) : (
             <div className="h-[200px] flex flex-col items-center justify-center gap-3 px-5 text-center">
               <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
-                <LineChartIcon size={22} className="text-muted-foreground" strokeWidth={1.5} />
+                <LineChartIcon
+                  size={22}
+                  className="text-muted-foreground"
+                  strokeWidth={1.5}
+                />
               </div>
               <div className="text-xs text-muted-foreground max-w-[220px]">
                 Complete exams to see your accuracy trend
@@ -347,6 +425,14 @@ export const AccuracyTrendChart = () => {
             </div>
           )}
         </div>
+        {!loading && !failed && hasData && (
+          <ChartDataTable
+            caption="Accuracy trend: last 12 weeks"
+            rows={chartData}
+            series={[{ key: "score", label: "Average score" }]}
+            periodKey="week"
+          />
+        )}
       </div>
 
       <DiagramModal

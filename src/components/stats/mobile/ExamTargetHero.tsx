@@ -142,7 +142,7 @@ export const ExamTargetHero = ({ subjects, defaultScaleId }: Props) => {
               <div className="flex items-center gap-2 mb-3">
                 <span
                   className="text-[11px] font-semibold px-2 py-1 rounded-lg capitalize"
-                  style={{ color: TELEMETRY.onAccent, background: c.accent }}
+                  style={{ color: TELEMETRY.text, background: TELEMETRY.cardAlt, border: `1px solid ${TELEMETRY.border}` }}
                 >
                   {c.exam.subject}
                 </span>
@@ -153,7 +153,7 @@ export const ExamTargetHero = ({ subjects, defaultScaleId }: Props) => {
                   type="button"
                   onClick={() => setSetupFor(c.exam)}
                   aria-label={`Edit ${c.exam.subject} ${c.exam.paper}`}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 active:scale-95 transition-transform"
+                  className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 active:scale-95 transition-transform"
                   style={{ color: TELEMETRY.muted, background: TELEMETRY.cardAlt }}
                 >
                   <MoreHorizontal size={15} />
@@ -210,7 +210,7 @@ export const ExamTargetHero = ({ subjects, defaultScaleId }: Props) => {
                 type="button"
                 onClick={() => practise(c.exam)}
                 className="w-full min-h-[48px] rounded-xl font-semibold text-[14px] mt-3 flex items-center justify-center active:scale-[0.99] transition-transform"
-                style={{ background: c.accent, color: TELEMETRY.onAccent }}
+                style={{ background: TELEMETRY.info, color: TELEMETRY.onAccent }}
               >
                 Start {c.exam.paper} practice
               </button>
@@ -238,7 +238,7 @@ export const ExamTargetHero = ({ subjects, defaultScaleId }: Props) => {
         <button
           type="button"
           onClick={() => setSetupFor(null)}
-          className="text-[11px] font-semibold min-h-[32px] px-2"
+          className="text-[11px] font-semibold min-h-[44px] px-2"
           style={{ color: TELEMETRY.muted }}
         >
           Add exam

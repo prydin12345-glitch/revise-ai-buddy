@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { Activity } from "lucide-react";
 import { useTelemetry } from "./tokens";
+import { chartColour } from "../chart-palette";
 
 interface Props {
   /** studyActivityData: [{ day: "Monday", Maths: 1.5, Physics: 0.5 }, ...] */
@@ -17,7 +17,7 @@ export const StudyLoadCard = ({ data, subjects }: Props) => {
   const TELEMETRY = useTelemetry();
 
   const { days, max, total, busiest, present } = useMemo(() => {
-    const colourOf = new Map(subjects.map((s) => [s.name, s.color]));
+    const colourOf = new Map(subjects.map((s, index) => [s.name, chartColour(index)]));
 
     const days = data.map((row) => {
       const segments = Object.entries(row)
@@ -57,10 +57,7 @@ export const StudyLoadCard = ({ data, subjects }: Props) => {
       <div className="flex items-start justify-between mb-4">
         <div>
           <div className="flex items-center gap-1.5">
-            <Activity size={13} style={{ color: TELEMETRY.info }} />
-            <span className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>
-              Study load
-            </span>
+            <h2 className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>Study activity</h2>
           </div>
           <div className="text-[11px] mt-0.5" style={{ color: TELEMETRY.muted }}>
             This week, by subject
@@ -82,7 +79,7 @@ export const StudyLoadCard = ({ data, subjects }: Props) => {
         </p>
       ) : (
         <>
-          <div className="flex items-end justify-between gap-2" style={{ height: 108 }}>
+          <div className="flex items-end justify-between gap-2" style={{ height: 136 }} role="img" aria-label={days.map(d => `${d.day}: ${fmt(d.total)}`).join("; ")}>
             {days.map((d) => {
               const heightPct = max > 0 ? (d.total / max) * 100 : 0;
               return (
@@ -121,7 +118,8 @@ export const StudyLoadCard = ({ data, subjects }: Props) => {
             style={{ borderTop: `1px solid ${TELEMETRY.border}` }}
           >
             {present.map((name) => {
-              const colour = subjects.find((s) => s.name === name)?.color ?? TELEMETRY.idle;
+              const index = subjects.findIndex((s) => s.name === name);
+              const colour = index >= 0 ? chartColour(index) : TELEMETRY.idle;
               return (
                 <span key={name} className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-sm" style={{ background: colour }} />

@@ -45,7 +45,7 @@ export const RecentExamsTable = ({ exams }: RecentExamsTableProps) => {
     return exams.filter(
       (e) =>
         e.examTitle.toLowerCase().includes(q) ||
-        e.subject.toLowerCase().includes(q)
+        e.subject.toLowerCase().includes(q),
     );
   }, [exams, search]);
 
@@ -53,40 +53,49 @@ export const RecentExamsTable = ({ exams }: RecentExamsTableProps) => {
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const getScoreColor = (score: number) => {
-    if (score >= 80) return "text-green-500";
-    if (score >= 60) return "text-orange-400";
-    return "text-red-400";
+    if (score >= 80) return "text-success";
+    if (score >= 60) return "text-warning";
+    return "text-destructive";
   };
 
   const getStatusLabel = (score: number) => {
-    if (score >= 80) return { text: "Excellent", className: "bg-green-500/10 text-green-500 border-green-500/20" };
-    if (score >= 60) return { text: "Good", className: "bg-orange-400/10 text-orange-400 border-orange-400/20" };
-    return { text: "Needs Work", className: "bg-red-400/10 text-red-400 border-red-400/20" };
+    if (score >= 80)
+      return {
+        text: "Excellent",
+        className: "bg-success/10 text-success border-success/30",
+      };
+    if (score >= 60)
+      return {
+        text: "Good",
+        className: "bg-warning/10 text-warning border-warning/30",
+      };
+    return {
+      text: "Needs Work",
+      className: "bg-destructive/10 text-destructive border-destructive/30",
+    };
   };
 
   return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden">
+    <div className="stats-panel overflow-hidden">
       {/* Header */}
-      <div className="px-[18px] py-3.5 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
+      <div className="stats-panel-heading border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
         <div>
           <div className="flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-primary" />
-            <span className="text-[13px] font-semibold text-foreground" style={{ letterSpacing: "-0.2px" }}>
-              Recent Exams
-            </span>
+            <h2>Recent exams</h2>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
+              aria-label="Search exams"
               placeholder="Search exams"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              className="h-8 pl-8 text-xs w-[180px] bg-background"
+              className="h-10 pl-8 text-sm w-full sm:w-[220px] bg-background"
             />
           </div>
         </div>
@@ -96,7 +105,7 @@ export const RecentExamsTable = ({ exams }: RecentExamsTableProps) => {
       {exams.length === 0 ? (
         <div className="p-6">
           <EmptyChartState
-            message="No completed exams yet — start one now!"
+            message="No completed exams yet. Your results will appear here."
             icon={BookOpen}
             action={{
               label: "Go to My Exams",
@@ -107,7 +116,14 @@ export const RecentExamsTable = ({ exams }: RecentExamsTableProps) => {
         </div>
       ) : (
         <>
-          {!isMobile ? (
+          {filtered.length === 0 ? (
+            <p
+              role="status"
+              className="px-5 py-10 text-center text-sm text-muted-foreground"
+            >
+              No exams match your search.
+            </p>
+          ) : !isMobile ? (
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
@@ -139,13 +155,13 @@ export const RecentExamsTable = ({ exams }: RecentExamsTableProps) => {
                             className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
                             style={{
                               background: `${exam.subjectColor}15`,
-                              color: exam.subjectColor,
+                              color: "hsl(var(--foreground))",
                             }}
                           >
                             {exam.subject.charAt(0).toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <div className="text-sm font-medium text-foreground truncate">
+                            <div className="text-sm font-medium text-foreground break-words">
                               {exam.examTitle}
                             </div>
                             <div className="text-[11px] text-muted-foreground">
@@ -155,7 +171,9 @@ export const RecentExamsTable = ({ exams }: RecentExamsTableProps) => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span className={`text-sm font-bold ${getScoreColor(exam.score)}`}>
+                        <span
+                          className={`text-sm font-bold ${getScoreColor(exam.score)}`}
+                        >
                           {Math.round(exam.score)}%
                         </span>
                         <span className="text-[11px] text-muted-foreground ml-1">
@@ -177,7 +195,7 @@ export const RecentExamsTable = ({ exams }: RecentExamsTableProps) => {
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="text-xs h-7 px-3"
+                          className="text-xs min-h-10 px-3"
                           onClick={() => navigate(`/exam/${exam.id}/review`)}
                         >
                           Review
@@ -191,34 +209,35 @@ export const RecentExamsTable = ({ exams }: RecentExamsTableProps) => {
           ) : (
             <div className="divide-y divide-border">
               {paginated.map((exam) => (
-                <div
+                <button
+                  type="button"
                   key={exam.id}
-                  className="px-5 py-3 flex items-center gap-3"
+                  className="w-full px-5 py-3 flex items-center gap-3 text-left"
                   onClick={() => navigate(`/exam/${exam.id}/review`)}
-                  role="button"
-                  tabIndex={0}
                 >
                   <div
                     className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
                     style={{
                       background: `${exam.subjectColor}15`,
-                      color: exam.subjectColor,
+                      color: "hsl(var(--foreground))",
                     }}
                   >
                     {exam.subject.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-foreground truncate">
+                    <div className="text-sm font-medium text-foreground break-words">
                       {exam.examTitle}
                     </div>
                     <div className="text-[11px] text-muted-foreground">
                       {exam.dateTaken}
                     </div>
                   </div>
-                  <span className={`text-sm font-bold ${getScoreColor(exam.score)}`}>
+                  <span
+                    className={`text-sm font-bold ${getScoreColor(exam.score)}`}
+                  >
                     {Math.round(exam.score)}%
                   </span>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -233,9 +252,10 @@ export const RecentExamsTable = ({ exams }: RecentExamsTableProps) => {
               </span>
               <div className="flex items-center gap-1">
                 <button
+                  aria-label="Previous results page"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="w-7 h-7 rounded-md border border-border flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+                  className="stats-chart-control rounded-md border border-border flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
                 >
                   <ChevronLeft size={14} />
                 </button>
@@ -243,8 +263,10 @@ export const RecentExamsTable = ({ exams }: RecentExamsTableProps) => {
                   (p) => (
                     <button
                       key={p}
+                      aria-label={`Results page ${p}`}
+                      aria-current={p === page ? "page" : undefined}
                       onClick={() => setPage(p)}
-                      className={`w-7 h-7 rounded-md text-xs font-medium transition-colors ${
+                      className={`stats-chart-control rounded-md text-xs font-medium transition-colors ${
                         p === page
                           ? "bg-primary text-primary-foreground"
                           : "text-muted-foreground hover:text-foreground"
@@ -252,12 +274,13 @@ export const RecentExamsTable = ({ exams }: RecentExamsTableProps) => {
                     >
                       {p}
                     </button>
-                  )
+                  ),
                 )}
                 <button
+                  aria-label="Next results page"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="w-7 h-7 rounded-md border border-border flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+                  className="stats-chart-control rounded-md border border-border flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
                 >
                   <ChevronRight size={14} />
                 </button>
