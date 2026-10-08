@@ -86,6 +86,10 @@ dashboard frame with the actual workspace content padding; all Supabase browser 
 outside the repository and is not a production route. Every screenshot is
 labelled **Local preview · fixture data**.
 
+Before captures use the original baseline JavaScript and CSS compiled from its
+own source revision. After captures use the redesigned components and current
+Vite styles. Both use the same fixture data and workspace content padding.
+
 Checked **320, 390, 768, 834, 1024, 1194 and 1440 CSS pixels wide**, with a 1,000-pixel viewport
 height, in **light and dark** themes. No horizontal page overflow, JavaScript
 errors, console errors, certificate/request failures or backend requests were
