@@ -36,7 +36,6 @@ import { SkillRadarCard } from "./SkillRadarCard";
 import { MobileStatSheet } from "./MobileStatSheet";
 import { useTelemetry, alpha, clampPct, buildSparklinePath } from "./tokens";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TopStatsCards } from "../TopStatsCards";
 import { SubjectScoresChart } from "../SubjectScoresChart";
 import { ScoreTargetChart } from "../ScoreTargetChart";
 import { TopicProgressOverview } from "../TopicProgressOverview";
@@ -411,22 +410,6 @@ export const MobileStatsTelemetry = ({
             {/* ───── OVERVIEW ───── */}
             {tab === "overview" && (
               <div className="space-y-4">
-                <TopStatsCards
-                  totalExams={totalExams}
-                  completedExams={completedExams}
-                  inProgressExams={inProgressExams}
-                  totalStudyHours={totalStudyHours}
-                  avgScore={avgScore}
-                  currentStreak={currentStreak}
-                  longestStreak={longestStreak}
-                  bestSubject={bestSubject}
-                  variant="snapshot"
-                  onCardClick={(type) =>
-                    type === "streak"
-                      ? setSheet("streak")
-                      : onSummaryClick(type)
-                  }
-                />
                 <LearningProgressPanel
                   accuracy={accuracy}
                   readiness={readinessScore}
@@ -575,10 +558,19 @@ export const MobileStatsTelemetry = ({
                     defaultScaleId={defaultScaleId}
                   />
                 </motion.div>
-                <StudyLoadCard
-                  data={studyActivityData}
-                  subjects={subjectPerformanceData}
-                />
+                <section aria-label="Study activity and streak">
+                  <StudyLoadCard
+                    data={studyActivityData}
+                    subjects={subjectPerformanceData}
+                  />
+                  <button
+                    type="button"
+                    className="stats-view-link mt-1"
+                    onClick={() => setSheet("streak")}
+                  >
+                    View revision streak
+                  </button>
+                </section>
 
                 <motion.div {...section(0.05)}>
                   <div
