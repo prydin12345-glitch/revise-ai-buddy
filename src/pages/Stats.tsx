@@ -1,12 +1,10 @@
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3, AlertTriangle } from "lucide-react";
-import { TopStatsCards } from "@/components/stats/TopStatsCards";
 import { ScoreTargetChart } from "@/components/stats/ScoreTargetChart";
 import { SubjectScoresChart } from "@/components/stats/SubjectScoresChart";
 import { SubjectPerformanceChart } from "@/components/stats/SubjectPerformanceChart";
 import { WeeklyStudyChart } from "@/components/stats/WeeklyStudyChart";
-import { RecentExamsTable } from "@/components/stats/RecentExamsTable";
 import { AccuracyTrendChart } from "@/components/stats/AccuracyTrendChart";
 import {
   DesktopLearningGauges,
@@ -23,6 +21,7 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   StatsPageHeading,
   StatsLoading,
@@ -103,8 +102,12 @@ const Stats = () => {
     return (
       <DashboardLayout>
         <div className="examly-stats mx-auto max-w-[1280px] px-4 py-6 sm:px-6 sm:py-8">
-          <StatsPageHeading />
-          <StatsLoading />
+          <StatsPageHeading
+            actions={
+              !isMobile && <Skeleton className="h-[52px] w-72 max-w-full" />
+            }
+          />
+          <StatsLoading showTabs={isMobile} />
         </div>
       </DashboardLayout>
     );
@@ -128,65 +131,69 @@ const Stats = () => {
   return (
     <DashboardLayout>
       <div className="examly-stats max-w-[1280px] mx-auto px-4 sm:px-6 pb-10 pt-6 sm:pt-8">
-        <StatsPageHeading />
         {isMobile ? (
           /* One tab layer on mobile. The outer Stats / Weak Topics tabs wrapped
              a component that already had its own Overview / Topics / Performance
              control, and the outer "Weak Topics" tab duplicated the inner one. */
-          <MobileStatsTelemetry
-            avgScore={avgScore}
-            currentStreak={currentStreak}
-            longestStreak={longestStreak}
-            subjectPerformanceData={subjectPerformanceData}
-            examResultsData={examResultsData}
-            studyActivityData={studyActivityData}
-            timeRange={timeRange}
-            setTimeRange={setTimeRange}
-            topics={topics}
-            weakTopicsLoading={weakTopicsLoading}
-            initialTab={mobileInitialTab}
-            totalExams={totalExams}
-            completedExams={completedExams}
-            inProgressExams={inProgressExams}
-            totalStudyHours={totalStudyHours}
-            bestSubject={bestSubject}
-            revisionGoals={revisionGoals}
-            viewMode={pieChartMode}
-            onViewModeChange={setPieChartMode}
-            onSummaryClick={drilldown.openDrawer}
-          />
+          <>
+            <StatsPageHeading />
+            <MobileStatsTelemetry
+              avgScore={avgScore}
+              currentStreak={currentStreak}
+              longestStreak={longestStreak}
+              subjectPerformanceData={subjectPerformanceData}
+              examResultsData={examResultsData}
+              studyActivityData={studyActivityData}
+              timeRange={timeRange}
+              setTimeRange={setTimeRange}
+              topics={topics}
+              weakTopicsLoading={weakTopicsLoading}
+              initialTab={mobileInitialTab}
+              totalExams={totalExams}
+              completedExams={completedExams}
+              inProgressExams={inProgressExams}
+              totalStudyHours={totalStudyHours}
+              bestSubject={bestSubject}
+              revisionGoals={revisionGoals}
+              viewMode={pieChartMode}
+              onViewModeChange={setPieChartMode}
+              onSummaryClick={drilldown.openDrawer}
+            />
+          </>
         ) : (
           <Tabs
             value={desktopTab}
             onValueChange={setDesktopTab}
             className="w-full"
           >
-            <div className="mb-5">
-              <TabsList
-                aria-label="Progress views"
-                className="bg-muted rounded-lg p-1 gap-1 h-auto w-auto inline-flex"
-              >
-                <TabsTrigger
-                  value="stats"
-                  className="rounded-md px-4 py-2.5 text-sm gap-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-none transition-colors"
+            <StatsPageHeading
+              actions={
+                <TabsList
+                  aria-label="Progress views"
+                  className="bg-muted rounded-lg p-1 gap-1 h-auto w-auto inline-flex"
                 >
-                  <BarChart3 className="w-3.5 h-3.5" aria-hidden="true" />
-                  Overview
-                </TabsTrigger>
-                <TabsTrigger
-                  value="weak-topics"
-                  className="rounded-md px-4 py-2.5 text-sm gap-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-none transition-colors"
-                >
-                  <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />
-                  Weak Topics
-                  {weakCount > 0 && (
-                    <span className="text-[9px] font-bold bg-destructive text-destructive-foreground rounded-full px-1.5 py-px ml-0.5">
-                      {weakCount}
-                    </span>
-                  )}
-                </TabsTrigger>
-              </TabsList>
-            </div>
+                  <TabsTrigger
+                    value="stats"
+                    className="rounded-md px-4 py-2.5 text-sm gap-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-none transition-colors"
+                  >
+                    <BarChart3 className="w-3.5 h-3.5" aria-hidden="true" />
+                    Overview
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="weak-topics"
+                    className="rounded-md px-4 py-2.5 text-sm gap-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-none transition-colors"
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />
+                    Weak Topics
+                    {weakCount > 0 && (
+                      <span className="text-[9px] font-bold bg-destructive text-destructive-foreground rounded-full px-1.5 py-px ml-0.5">
+                        {weakCount}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+              }
+            />
 
             <TabsContent value="stats" className="mt-0">
               <div className="stats-dashboard">
@@ -195,16 +202,6 @@ const Stats = () => {
                     data={subjectPerformanceData}
                     viewMode={pieChartMode}
                     onViewModeChange={setPieChartMode}
-                  />
-                  <DesktopLearningGauges
-                    topics={topics}
-                    average={avgScore}
-                    streak={currentStreak}
-                    bestStreak={longestStreak}
-                    hasExams={subjectPerformanceData.some(
-                      (subject) => subject.count > 0,
-                    )}
-                    loading={weakTopicsLoading}
                   />
                   <WeeklyStudyChart
                     data={studyActivityData}
@@ -234,6 +231,33 @@ const Stats = () => {
                     onTimeRangeChange={setTimeRange}
                     revisionGoals={revisionGoals}
                   />
+                </div>
+
+                <div className="stats-dashboard-column stats-dashboard-subjects">
+                  <SubjectPerformanceChart
+                    data={subjectPerformanceData}
+                    viewMode={pieChartMode}
+                    onViewModeChange={setPieChartMode}
+                    trendData={examResultsData}
+                  />
+                  <AccuracyTrendChart />
+                </div>
+                <div className="stats-dashboard-progress">
+                  <div>
+                    <div className="stats-section-heading">
+                      <h2>Learning progress</h2>
+                    </div>
+                    <DesktopLearningGauges
+                      topics={topics}
+                      average={avgScore}
+                      streak={currentStreak}
+                      bestStreak={longestStreak}
+                      hasExams={subjectPerformanceData.some(
+                        (subject) => subject.count > 0,
+                      )}
+                      loading={weakTopicsLoading}
+                    />
+                  </div>
                   <TopicProgressOverview
                     topics={topics}
                     loading={weakTopicsLoading}
@@ -248,31 +272,6 @@ const Stats = () => {
                     }
                   />
                 </div>
-
-                <div className="stats-dashboard-column stats-dashboard-subjects">
-                  <TopStatsCards
-                    totalExams={totalExams}
-                    completedExams={completedExams}
-                    inProgressExams={inProgressExams}
-                    currentStreak={currentStreak}
-                    longestStreak={longestStreak}
-                    avgScore={avgScore}
-                    totalStudyHours={totalStudyHours}
-                    bestSubject={bestSubject}
-                    onCardClick={drilldown.openDrawer}
-                    variant="snapshot"
-                  />
-                  <SubjectPerformanceChart
-                    data={subjectPerformanceData}
-                    viewMode={pieChartMode}
-                    onViewModeChange={setPieChartMode}
-                    trendData={examResultsData}
-                  />
-                  <AccuracyTrendChart />
-                </div>
-              </div>
-              <div className="mt-6">
-                <RecentExamsTable exams={recentExams} />
               </div>
             </TabsContent>
 

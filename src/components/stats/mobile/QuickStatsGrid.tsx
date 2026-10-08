@@ -94,7 +94,7 @@ export const QuickStatsGrid = ({
   return (
     <section
       className="stats-panel stats-mobile-snapshot"
-      aria-label="At a glance"
+      aria-label={hideMastery && hideStreak ? "Grade targets" : "At a glance"}
     >
       <h2>{hideMastery && hideStreak ? "Grade targets" : "At a glance"}</h2>
       <div
