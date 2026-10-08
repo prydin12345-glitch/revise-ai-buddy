@@ -17,6 +17,12 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  StatsPageHeading,
+  StatsLoading,
+  StatsError,
+} from "@/components/stats/StatsPageStates";
+import "@/styles/stats.css";
 
 const Stats = () => {
   const isMobile = useIsMobile();
@@ -36,6 +42,8 @@ const Stats = () => {
   const drilldown = useStatsDrilldown();
   const {
     loading,
+    error,
+    refetch,
     totalExams,
     completedExams,
     inProgressExams,
@@ -62,7 +70,7 @@ const Stats = () => {
     if (subjectPerformanceData.length === 0) return 0;
     const total = subjectPerformanceData.reduce(
       (sum, s) => sum + s.avgScore,
-      0
+      0,
     );
     return Math.round(total / subjectPerformanceData.length);
   }, [subjectPerformanceData]);
@@ -87,13 +95,24 @@ const Stats = () => {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-[60vh]">
-          <div className="text-center space-y-4">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-sm text-muted-foreground">
-              Loading your statistics…
-            </p>
-          </div>
+        <div className="examly-stats mx-auto max-w-[1280px] px-4 py-6 sm:px-6 sm:py-8">
+          <StatsPageHeading />
+          <StatsLoading />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="examly-stats mx-auto max-w-[1280px] px-4 py-6 sm:px-6 sm:py-8">
+          <StatsPageHeading />
+          <StatsError
+            onRetry={() => {
+              void refetch();
+            }}
+          />
         </div>
       </DashboardLayout>
     );
@@ -101,7 +120,8 @@ const Stats = () => {
 
   return (
     <DashboardLayout>
-      <div className="max-w-[1200px] mx-auto px-3 sm:px-6 pb-10 pt-4 sm:pt-6">
+      <div className="examly-stats max-w-[1280px] mx-auto px-4 sm:px-6 pb-10 pt-6 sm:pt-8">
+        <StatsPageHeading />
         {isMobile ? (
           /* One tab layer on mobile. The outer Stats / Weak Topics tabs wrapped
              a component that already had its own Overview / Topics / Performance
@@ -122,19 +142,22 @@ const Stats = () => {
         ) : (
           <Tabs defaultValue={defaultTab} className="w-full">
             <div className="mb-5">
-              <TabsList className="bg-card border border-border rounded-[10px] p-1 gap-1 h-auto w-auto inline-flex overflow-x-auto">
+              <TabsList
+                aria-label="Progress views"
+                className="bg-muted rounded-lg p-1 gap-1 h-auto w-auto inline-flex"
+              >
                 <TabsTrigger
                   value="stats"
-                  className="rounded-lg px-4 py-2 text-sm gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
+                  className="rounded-md px-4 py-2.5 text-sm gap-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-none transition-colors"
                 >
-                  <BarChart3 className="w-3.5 h-3.5" />
-                  Stats
+                  <BarChart3 className="w-3.5 h-3.5" aria-hidden="true" />
+                  Overview
                 </TabsTrigger>
                 <TabsTrigger
                   value="weak-topics"
-                  className="rounded-lg px-4 py-2 text-sm gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
+                  className="rounded-md px-4 py-2.5 text-sm gap-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-none transition-colors"
                 >
-                  <AlertTriangle className="w-3.5 h-3.5" />
+                  <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />
                   Weak Topics
                   {weakCount > 0 && (
                     <span className="text-[9px] font-bold bg-destructive text-destructive-foreground rounded-full px-1.5 py-px ml-0.5">
@@ -146,7 +169,10 @@ const Stats = () => {
             </div>
 
             <TabsContent value="stats" className="mt-0">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4" style={{ alignItems: "stretch" }}>
+              <div
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5"
+                style={{ alignItems: "stretch" }}
+              >
                 <div className="md:col-span-2 lg:col-span-12">
                   <TopStatsCards
                     totalExams={totalExams}
@@ -161,10 +187,7 @@ const Stats = () => {
                   />
                 </div>
 
-                <div className="md:col-span-1 lg:col-span-5 flex flex-col">
-                  <WeeklyStudyChart data={studyActivityData} subjects={subjects} />
-                </div>
-                <div className="md:col-span-1 lg:col-span-7 flex flex-col">
+                <div className="min-w-0 md:col-span-2 lg:col-span-8 flex flex-col">
                   <ExamResultsChart
                     data={examResultsData}
                     subjects={subjects}
@@ -173,15 +196,21 @@ const Stats = () => {
                     revisionGoals={revisionGoals}
                   />
                 </div>
+                <div className="min-w-0 md:col-span-1 lg:col-span-4 flex flex-col">
+                  <WeeklyStudyChart
+                    data={studyActivityData}
+                    subjects={subjects}
+                  />
+                </div>
 
-                <div className="md:col-span-1 lg:col-span-7 flex flex-col">
+                <div className="min-w-0 md:col-span-1 lg:col-span-7 flex flex-col">
                   <SubjectPerformanceChart
                     data={subjectPerformanceData}
                     viewMode={pieChartMode}
                     onViewModeChange={setPieChartMode}
                   />
                 </div>
-                <div className="md:col-span-1 lg:col-span-5 flex flex-col">
+                <div className="min-w-0 md:col-span-2 lg:col-span-5 flex flex-col">
                   <AccuracyTrendChart />
                 </div>
 

@@ -1,10 +1,4 @@
-import { FileText, TrendingUp, Clock, Flame, Star, LucideIcon } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { ChevronRight } from "lucide-react";
 
 interface TopStatsCardsProps {
   totalExams: number;
@@ -16,152 +10,80 @@ interface TopStatsCardsProps {
   totalStudyHours?: number;
   bestSubject?: { name: string; avgScore: number; color: string } | null;
   onCardClick?: (type: "exams" | "scores" | "study-hours" | "streak") => void;
-  /**
-   * `wrap` (default) — desktop chip row, flex-wrap.
-   * `grid` — mobile 2-column scoreboard grid with consistent cell heights.
-   * `grid-no-score` — same as `grid` but excludes "Average Score" (used when a hero card already shows it).
-   */
   variant?: "wrap" | "grid" | "grid-no-score";
-}
-
-interface ChipDef {
-  label: string;
-  value: string;
-  icon: LucideIcon;
-  colour: string;
-  clickType?: "exams" | "scores" | "study-hours" | "streak";
 }
 
 export const TopStatsCards = ({
   totalExams,
+  completedExams,
+  inProgressExams,
   avgScore = 0,
   totalStudyHours = 0,
   currentStreak,
+  longestStreak,
   bestSubject,
   onCardClick,
   variant = "wrap",
 }: TopStatsCardsProps) => {
-  const scoreColour =
-    avgScore >= 70 ? "hsl(142 71% 45%)" : avgScore >= 50 ? "hsl(25 95% 53%)" : "hsl(0 84% 60%)";
-
-  const chips: ChipDef[] = [
+  const cards = [
     {
-      label: "Exams Taken",
-      value: String(totalExams),
-      icon: FileText,
-      colour: "hsl(217 91% 60%)",
-      clickType: "exams",
+      label: "Average exam score",
+      value: completedExams > 0 ? `${avgScore}%` : "—",
+      detail: bestSubject
+        ? `Strongest: ${bestSubject.name} · ${Math.round(bestSubject.avgScore)}%`
+        : "From your graded exams",
+      type: "scores" as const,
     },
     {
-      label: "Average Score",
-      value: avgScore > 0 ? `${avgScore}%` : "—",
-      icon: TrendingUp,
-      colour: avgScore > 0 ? scoreColour : "hsl(var(--muted-foreground))",
-      clickType: "scores",
+      label: "Exams completed",
+      value: String(completedExams),
+      detail: `${totalExams} published papers · ${inProgressExams} remaining`,
+      type: "exams" as const,
     },
     {
-      label: "Study Hours",
-      value: totalStudyHours > 0 ? `${totalStudyHours.toFixed(1)}h` : "0h",
-      icon: Clock,
-      colour: "hsl(263 70% 50%)",
-      clickType: "study-hours",
+      label: "Study time this week",
+      value: `${totalStudyHours.toFixed(1)}h`,
+      detail: "Revision, exams and practice",
+      type: "study-hours" as const,
     },
     {
-      label: `Streak · ${currentStreak} days`,
+      label: "Revision streak",
       value: `${currentStreak}`,
-      icon: Flame,
-      colour: "hsl(38 92% 50%)",
-      clickType: "streak",
-    },
-    {
-      label: bestSubject ? `Best: ${bestSubject.name} · ${Math.round(bestSubject.avgScore)}%` : "Best Subject",
-      value: bestSubject ? `${Math.round(bestSubject.avgScore)}%` : "—",
-      icon: Star,
-      colour: bestSubject?.color ?? "hsl(142 71% 45%)",
+      detail: `days · best run ${longestStreak} days`,
+      type: "streak" as const,
     },
   ];
-
-  // Visible chips depending on variant
-  const visibleChips =
-    variant === "grid-no-score"
-      ? chips.filter((c) => c.clickType !== "scores")
-      : chips;
-
-  // Mobile grid: 2-col scoreboard with consistent cell heights
-  if (variant === "grid" || variant === "grid-no-score") {
-    return (
-      <div className="grid grid-cols-2 gap-2">
-        {visibleChips.map((chip) => (
+  return (
+    <div
+      className={`grid grid-cols-2 gap-3 ${variant === "wrap" ? "lg:grid-cols-4" : ""}`}
+    >
+      {cards
+        .filter((c) => variant !== "grid-no-score" || c.type !== "scores")
+        .map((card) => (
           <button
-            key={chip.label}
-            onClick={() => chip.clickType && onCardClick?.(chip.clickType)}
-            className="flex flex-col items-start justify-between gap-1.5 rounded-xl bg-card border border-border p-3 text-left transition-all hover:border-primary/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            style={{
-              cursor: chip.clickType ? "pointer" : "default",
-              borderLeft: `3px solid ${chip.colour}`,
-              minHeight: 84,
-            }}
-            tabIndex={chip.clickType ? 0 : -1}
+            key={card.type}
+            type="button"
+            onClick={() => onCardClick?.(card.type)}
+            className="stats-panel group flex min-h-[145px] flex-col items-start p-4 text-left transition-colors hover:border-primary focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
+            aria-label={`${card.label}: ${card.value}. ${card.detail}. View details`}
           >
-            <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-              style={{ background: `${chip.colour}18` }}
+            <span className="flex w-full items-center justify-between gap-2 text-xs font-medium text-muted-foreground sm:text-sm">
+              {card.label}
+              <ChevronRight
+                aria-hidden="true"
+                className="h-4 w-4 shrink-0 text-muted-foreground"
+              />
+            </span>
+            <span
+              className={`mt-3 text-3xl font-semibold tracking-tight tabular-nums ${card.type === "scores" ? "text-primary" : "text-foreground"}`}
             >
-              <chip.icon size={15} style={{ color: chip.colour }} strokeWidth={2} />
-            </div>
-            <div className="w-full">
-              <div
-                className="font-extrabold tracking-tight"
-                style={{ fontSize: 22, lineHeight: 1, color: chip.colour, letterSpacing: "-0.5px" }}
-              >
-                {chip.value}
-              </div>
-              <div className="text-[10px] text-muted-foreground mt-1 truncate">
-                {chip.label}
-              </div>
-            </div>
+              {card.value}
+            </span>
+            <span className="mt-auto pt-3 text-xs leading-relaxed text-muted-foreground">
+              {card.detail}
+            </span>
           </button>
         ))}
-      </div>
-    );
-  }
-
-  // Desktop wrap variant (unchanged)
-  return (
-    <TooltipProvider delayDuration={200}>
-      <div className="flex gap-2.5 flex-wrap">
-        {visibleChips.map((chip) => (
-          <Tooltip key={chip.label}>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => chip.clickType && onCardClick?.(chip.clickType)}
-                className="flex items-center gap-3 rounded-xl bg-card border border-border px-4 py-3.5 transition-all hover:border-primary/30 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-primary"
-                style={{
-                  cursor: chip.clickType ? "pointer" : "default",
-                  borderLeft: `3px solid ${chip.colour}`,
-                }}
-                tabIndex={chip.clickType ? 0 : -1}
-              >
-                <div
-                  className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center shrink-0"
-                  style={{ background: `${chip.colour}18` }}
-                >
-                  <chip.icon size={18} style={{ color: chip.colour }} strokeWidth={2} />
-                </div>
-                <span
-                  className="font-extrabold tracking-tight whitespace-nowrap"
-                  style={{ fontSize: 24, lineHeight: 1, color: chip.colour, letterSpacing: "-0.5px" }}
-                >
-                  {chip.value}
-                </span>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-xs font-medium">
-              {chip.label}
-            </TooltipContent>
-          </Tooltip>
-        ))}
-      </div>
-    </TooltipProvider>
+    </div>
   );
 };

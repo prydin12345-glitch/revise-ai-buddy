@@ -30,39 +30,39 @@ const MASTERY_CONFIG: Record<
 > = {
   weak: {
     label: "Weak",
-    colour: "hsl(0 84% 60%)",
-    bg: "hsl(0 84% 60% / 0.08)",
-    border: "hsl(0 84% 60% / 0.3)",
-    activeBg: "hsl(0 84% 60% / 0.12)",
-    activeBorder: "hsl(0 84% 60%)",
+    colour: "hsl(var(--destructive))",
+    bg: "hsl(var(--destructive) / 0.08)",
+    border: "hsl(var(--destructive) / 0.3)",
+    activeBg: "hsl(var(--destructive) / 0.12)",
+    activeBorder: "hsl(var(--destructive))",
     description: "Need attention",
   },
   developing: {
     label: "Developing",
-    colour: "hsl(25 95% 53%)",
-    bg: "hsl(25 95% 53% / 0.08)",
-    border: "hsl(25 95% 53% / 0.3)",
-    activeBg: "hsl(25 95% 53% / 0.12)",
-    activeBorder: "hsl(25 95% 53%)",
+    colour: "hsl(var(--warning))",
+    bg: "hsl(var(--warning) / 0.08)",
+    border: "hsl(var(--warning) / 0.3)",
+    activeBg: "hsl(var(--warning) / 0.12)",
+    activeBorder: "hsl(var(--warning))",
     description: "Making progress",
   },
   strong: {
     label: "Strong",
-    colour: "hsl(142 71% 45%)",
-    bg: "hsl(142 71% 45% / 0.08)",
-    border: "hsl(142 71% 45% / 0.3)",
-    activeBg: "hsl(142 71% 45% / 0.12)",
-    activeBorder: "hsl(142 71% 45%)",
+    colour: "hsl(var(--success))",
+    bg: "hsl(var(--success) / 0.08)",
+    border: "hsl(var(--success) / 0.3)",
+    activeBg: "hsl(var(--success) / 0.12)",
+    activeBorder: "hsl(var(--success))",
     description: "Well covered",
   },
 };
 
 const getScoreColour = (score: number) =>
   score >= 70
-    ? "hsl(142 71% 45%)"
+    ? "hsl(var(--success))"
     : score >= 50
-      ? "hsl(25 95% 53%)"
-      : "hsl(0 84% 60%)";
+      ? "hsl(var(--warning))"
+      : "hsl(var(--destructive))";
 
 /* ------------------------------------------------------------------ */
 /*  Wrong Answers Panel                                                */
@@ -188,16 +188,16 @@ const WrongAnswersPanel = ({
               <span style={{ color: "hsl(var(--muted-foreground))", marginRight: 4 }}>Q{answer.questionNumber}:</span>
               <MathRenderer content={answer.questionText} hasMath={/\$[^$]+\$/.test(answer.questionText)} inline />
             </div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: isFullMarks ? "hsl(142 71% 45%)" : "hsl(0 84% 60%)", marginBottom: 6 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: isFullMarks ? "hsl(var(--success))" : "hsl(var(--destructive))", marginBottom: 6 }}>
               Score: {answer.score}/{answer.marks}
             </div>
             {answer.correctAnswer && (
-              <div style={{ background: "hsl(142 71% 45% / 0.06)", border: "1px solid hsl(142 71% 45% / 0.2)", borderRadius: 8, padding: "10px 12px" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "hsl(142 71% 45%)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Model Answer</div>
+              <div style={{ background: "hsl(var(--success) / 0.06)", border: "1px solid hsl(var(--success) / 0.2)", borderRadius: 8, padding: "10px 12px" }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "hsl(var(--success))", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Model Answer</div>
                 <div style={{ fontSize: 13, color: "hsl(var(--foreground))", lineHeight: 1.6 }}>
                   {splitAnswerSteps(answer.correctAnswer).map((step, si, arr) => (
                     <div key={si} style={{ display: "flex", gap: 8, marginBottom: si < arr.length - 1 ? 4 : 0 }}>
-                      {arr.length > 1 && <span style={{ color: "hsl(142 71% 45%)", flexShrink: 0, marginTop: 1 }}>›</span>}
+                      {arr.length > 1 && <span style={{ color: "hsl(var(--success))", flexShrink: 0, marginTop: 1 }}>›</span>}
                       <MathRenderer content={step} hasMath={/\$[^$]+\$/.test(step)} inline />
                     </div>
                   ))}
@@ -238,9 +238,9 @@ const TopicCard = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={false}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.04, duration: 0.3 }}
+      transition={{ duration: 0 }}
       style={{
         background: "hsl(var(--card))",
         border: "1px solid hsl(var(--border))",
@@ -289,7 +289,7 @@ const TopicCard = ({
                   if (topic.subjectId) params.set("subject", topic.subjectId);
                   navigate(`/create-practice-questions?${params.toString()}`);
                 }}
-                style={{ padding: "4px 12px", background: "hsl(0 84% 60%)", border: "none", borderRadius: 6, color: "white", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "opacity 0.15s" }}
+                style={{ padding: "4px 12px", background: "hsl(var(--destructive))", border: "none", borderRadius: 6, color: "white", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "opacity 0.15s" }}
                 onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
                 onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
               >
@@ -302,8 +302,8 @@ const TopicCard = ({
           <div style={{ height: "100%", width: `${topic.unifiedScore}%`, background: config.colour, borderRadius: 3, transition: "width 0.9s ease" }} />
         </div>
         {topic.mastery === "weak" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: topic.practicedSinceLastExam ? "hsl(142 71% 45%)" : "hsl(25 95% 53%)" }}>
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: topic.practicedSinceLastExam ? "hsl(142 71% 45%)" : "hsl(25 95% 53%)", flexShrink: 0 }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: topic.practicedSinceLastExam ? "hsl(var(--success))" : "hsl(var(--warning))" }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: topic.practicedSinceLastExam ? "hsl(var(--success))" : "hsl(var(--warning))", flexShrink: 0 }} />
             {topic.practicedSinceLastExam ? "Practised since last exam" : "Not practised since last exam"}
           </div>
         )}
@@ -327,10 +327,10 @@ const TopicCard = ({
       <AnimatePresence>
         {isExpanded && userId && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
+            initial={false}
             animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
+            exit={{}}
+            transition={{ duration: 0 }}
             style={{ overflow: "hidden" }}
           >
             <div style={{ padding: "clamp(10px, 3vw, 12px) clamp(12px, 3vw, 16px) clamp(12px, 3vw, 16px)", background: "hsl(var(--muted)/0.3)", borderTop: "1px solid hsl(var(--border)/0.5)" }}>
@@ -519,10 +519,10 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
         {!selectedSubject && !singleSubject && (
           <motion.div
             key="subject-overview"
-            initial={{ opacity: 0 }}
+            initial={false}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            exit={{}}
+            transition={{ duration: 0 }}
           >
             {/* Filter clear for overview */}
             {activeFilter && (
@@ -539,9 +539,9 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
                 .map((group, i) => (
                   <motion.button
                     key={group.subjectId}
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={false}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.05, duration: 0.25 }}
+                    transition={{ duration: 0 }}
                     onClick={() => setSelectedSubject(group.subjectId)}
                     style={{
                       width: "100%", background: "hsl(var(--card))",
@@ -559,7 +559,7 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
                       width: "clamp(34px, 8vw, 42px)", height: "clamp(34px, 8vw, 42px)", borderRadius: 10,
                       background: group.color + "18", border: `1px solid ${group.color}30`,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      flexShrink: 0, fontSize: "clamp(13px, 3.5vw, 16px)", fontWeight: 700, color: group.color,
+                      flexShrink: 0, fontSize: "clamp(13px, 3.5vw, 16px)", fontWeight: 700, color: "hsl(var(--foreground))",
                     }}>
                       {group.subjectName.charAt(0).toUpperCase()}
                     </div>
@@ -602,10 +602,10 @@ export const WeakTopicsTab = ({ topics, loading }: WeakTopicsTabProps) => {
         {(selectedSubject || singleSubject) && (
           <motion.div
             key={`detail-${selectedSubject ?? "single"}`}
-            initial={{ opacity: 0, x: 30 }}
+            initial={false}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -30 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
+            exit={{}}
+            transition={{ duration: 0 }}
           >
             {(() => {
               const group = selectedSubjectGroup ?? subjectGroups[0];
@@ -745,7 +745,7 @@ const MasteryChip = ({ level, count }: { level: string; count: number }) => {
     <span style={{
       fontSize: 11, fontWeight: 600,
       padding: "2px 8px", borderRadius: 99,
-      background: config.bg, color: config.colour,
+      background: config.bg, color: "hsl(var(--foreground))",
       border: `1px solid ${config.border}`,
     }}>
       {count} {config.label.toLowerCase()}

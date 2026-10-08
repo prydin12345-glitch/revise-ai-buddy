@@ -33,74 +33,61 @@ export interface TelemetryPalette {
   /** @deprecated use `idle` */ gray: string;
 }
 
-/**
- * Dark surfaces are aligned to the app's own --background / --card / --border
- * values so the telemetry panel sits flush with the rest of the page instead
- * of forming a visible seam. Only the accent hues are telemetry-specific.
- */
+/** Surfaces follow the shared Examly theme; status text is backed by labels and counts. */
 const DARK: TelemetryPalette = {
-  bg: "hsl(220 8% 8%)",
-  card: "hsl(220 8% 13%)",
-  cardAlt: "hsl(220 8% 16%)",
-  border: "hsl(220 6% 20%)",
-  borderSoft: "hsl(220 6% 20% / 0.6)",
-  text: "hsl(210 15% 94%)",
-  muted: "hsl(210 10% 62%)",
-  mutedStrong: "hsl(210 12% 80%)",
-  onAccent: "hsl(220 8% 8%)",
+  bg: "hsl(var(--background))",
+  card: "hsl(var(--card))",
+  cardAlt: "hsl(var(--muted))",
+  border: "hsl(var(--border))",
+  borderSoft: "hsl(var(--border))",
+  text: "hsl(var(--foreground))",
+  muted: "hsl(var(--muted-foreground))",
+  mutedStrong: "hsl(var(--foreground))",
+  onAccent: "hsl(var(--primary-foreground))",
 
-  // Accent roles. Lightness is solved, not picked by eye: every value clears
-  // 4.5:1 on both --card and --background, and the three mastery bands are
-  // spaced on a luminance ladder (worst-case gap 0.068 across normal,
-  // deuteranopic and protanopic vision) so a stacked bar stays readable
-  // without relying on hue alone.
+  // Distinct status accents; hue is never the only status cue.
   mastered: "hsl(152 58% 71.5%)",   // #8ce0b9  mint emerald
   developing: "hsl(38 88% 65.5%)",  // #f4bc5a  warm amber
-  review: "hsl(4 78% 60%)",         // #e95449  coral
-  info: "hsl(232 80% 73%)",         // #8392f1  indigo — informational, pending
+  review: "hsl(4 78% 74%)",         // light coral
+  info: "hsl(var(--primary))",         // #8392f1  indigo — informational, pending
   idle: "hsl(220 10% 54.5%)",       // #7f8797  slate
   danger: "hsl(0 74% 62%)",         // #e65656
 
   // Legacy hue names. Kept so nothing breaks; see the note above the type.
   lime: "hsl(152 58% 71.5%)",
-  cyan: "hsl(232 80% 73%)",
-  magenta: "hsl(4 78% 60%)",
+  cyan: "hsl(var(--primary))",
+  magenta: "hsl(4 78% 74%)",
   amber: "hsl(38 88% 65.5%)",
   red: "hsl(0 74% 62%)",
   gray: "hsl(220 10% 54.5%)",
 };
 
-/**
- * Light variant. The neon accents are darkened hard — lime at 58% lightness is
- * roughly 1.4:1 on white and effectively invisible. These sit at 30-42%
- * lightness so they clear AA as both text and fills, while keeping the same
- * hue relationships so the surface still reads as the same design.
- */
+/** Darker status accents remain readable on light card and inset surfaces. */
 const LIGHT: TelemetryPalette = {
-  bg: "hsl(216 40% 98%)",
-  card: "hsl(0 0% 100%)",
-  cardAlt: "hsl(216 38% 96%)",
-  border: "hsl(216 24% 88%)",
-  borderSoft: "hsl(216 24% 88% / 0.7)",
-  text: "hsl(220 38% 11%)",
-  muted: "hsl(218 14% 45%)",
-  mutedStrong: "hsl(220 25% 25%)",
-  onAccent: "hsl(0 0% 100%)",
+  bg: "hsl(var(--background))",
+  card: "hsl(var(--card))",
+  cardAlt: "hsl(var(--muted))",
+  border: "hsl(var(--border))",
+  borderSoft: "hsl(var(--border))",
+  text: "hsl(var(--foreground))",
+  muted: "hsl(var(--muted-foreground))",
+  mutedStrong: "hsl(var(--foreground))",
+  onAccent: "hsl(var(--primary-foreground))",
 
   // On white, AA compresses every usable colour into a narrow luminance band,
   // so the three mastery hues can only be spaced ~0.04 apart. Colour is never
   // the sole channel here — bands are labelled in every legend, pill and row,
   // and stacked segments always run review -> developing -> mastered in the
   // same order, so position encodes the same information.
-  mastered: "hsl(158 72% 29.5%)",   // #15815a
+  mastered: "hsl(158 72% 25%)",   // dark emerald
   developing: "hsl(34 92% 30%)",    // #935606
   review: "hsl(2 74% 33%)",         // #921a16
-  info: "hsl(232 60% 40%)",         // #2939a3
+  info: "hsl(var(--primary))",         // #2939a3
   idle: "hsl(220 12% 45%)",         // #656e81
   danger: "hsl(0 70% 42%)",         // #b62020
 
-  lime: "hsl(158 72% 29.5%)",
-  cyan: "hsl(232 60% 40%)",
+  lime: "hsl(158 72% 25%)",
+  cyan: "hsl(var(--primary))",
   magenta: "hsl(2 74% 33%)",
   amber: "hsl(34 92% 30%)",
   red: "hsl(0 70% 42%)",

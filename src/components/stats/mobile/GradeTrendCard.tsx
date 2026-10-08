@@ -144,8 +144,9 @@ export const GradeTrendCard = ({ data, subjects, defaultScaleId }: Props) => {
                 <button
                   key={s.name}
                   type="button"
+                  aria-pressed={on}
                   onClick={() => setSelected(s.name)}
-                  className="shrink-0 min-h-[32px] px-2.5 rounded-full text-[11px] font-medium whitespace-nowrap capitalize flex items-center gap-1.5"
+                  className="shrink-0 min-h-[40px] px-2.5 rounded-full text-[11px] font-medium whitespace-nowrap capitalize flex items-center gap-1.5"
                   style={{
                     color: on ? TELEMETRY.text : TELEMETRY.muted,
                     background: on ? TELEMETRY.cardAlt : "transparent",
@@ -166,7 +167,7 @@ export const GradeTrendCard = ({ data, subjects, defaultScaleId }: Props) => {
           No results for {active.name} in this range.
         </p>
       ) : (
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full mt-2" style={{ overflow: "visible" }}>
+        <svg role="img" aria-label={`${active.name} projected grade trend. ${model.points.map(p => `${p.label}: ${p.value ?? "no data"}`).join("; ")}`} viewBox={`0 0 ${W} ${H}`} className="w-full mt-2" style={{ overflow: "visible" }}>
           {model.rows.map((label, i) => {
             const y = model.yFor(i);
             return (
@@ -184,7 +185,7 @@ export const GradeTrendCard = ({ data, subjects, defaultScaleId }: Props) => {
                   x={PAD_L - 7}
                   y={y + 3}
                   textAnchor="end"
-                  fontSize={9}
+                  fontSize={11}
                   fill={TELEMETRY.muted}
                 >
                   {label}
@@ -208,7 +209,7 @@ export const GradeTrendCard = ({ data, subjects, defaultScaleId }: Props) => {
                 x={W - PAD_R}
                 y={model.targetY - 5}
                 textAnchor="end"
-                fontSize={9}
+                fontSize={11}
                 fontWeight={600}
                 fill={TELEMETRY.info}
               >
@@ -249,7 +250,7 @@ export const GradeTrendCard = ({ data, subjects, defaultScaleId }: Props) => {
               x={p.x}
               y={H - 6}
               textAnchor="middle"
-              fontSize={9}
+              fontSize={11}
               fill={TELEMETRY.muted}
             >
               {p.label}

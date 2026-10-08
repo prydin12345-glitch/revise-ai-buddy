@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { RangeChips } from "./RangeChips";
+import { ChartDataTable } from "../ChartDataTable";
 import { useTelemetry } from "./tokens";
 
 /**
@@ -69,7 +70,7 @@ export const ScoreTrendCard = ({ data, timeRange, onTimeRangeChange }: Props) =>
       <div style={{ height: 180 }}>
         {hasData ? (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={flat} margin={{ top: 6, right: 10, left: -18, bottom: 0 }}>
+            <AreaChart accessibilityLayer data={flat} margin={{ top: 6, right: 10, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="scoreFill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={TELEMETRY.mastered} stopOpacity={0.08} />
@@ -79,16 +80,17 @@ export const ScoreTrendCard = ({ data, timeRange, onTimeRangeChange }: Props) =>
               <CartesianGrid stroke={TELEMETRY.border} strokeDasharray="2 4" vertical={false} />
               <XAxis
                 dataKey="period"
-                tick={{ fill: TELEMETRY.muted, fontSize: 10 }}
+                tick={{ fill: TELEMETRY.muted, fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
                 domain={[0, 100]}
-                tick={{ fill: TELEMETRY.muted, fontSize: 10 }}
+                tick={{ fill: TELEMETRY.muted, fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
-                width={28}
+                tickFormatter={(value: number) => `${value}%`}
+                width={44}
               />
               <Tooltip
                 cursor={{ stroke: TELEMETRY.borderSoft, strokeWidth: 1 }}
@@ -101,7 +103,7 @@ export const ScoreTrendCard = ({ data, timeRange, onTimeRangeChange }: Props) =>
                 }}
                 labelStyle={{
                   color: TELEMETRY.muted,
-                  fontSize: 10,
+                  fontSize: 11,
                   textTransform: "uppercase",
                   letterSpacing: 1,
                 }}
@@ -128,6 +130,7 @@ export const ScoreTrendCard = ({ data, timeRange, onTimeRangeChange }: Props) =>
           </div>
         )}
       </div>
+      {hasData && <ChartDataTable caption="Average score per period" rows={flat} series={[{key:"score",label:"Score"}]} />}
     </div>
   );
 };

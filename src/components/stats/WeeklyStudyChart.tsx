@@ -15,7 +15,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
+import { ChartDataTable } from "./ChartDataTable";
+import { chartColour } from "./chart-palette";
 import { format, startOfWeek, addDays, subWeeks } from "date-fns";
 
 interface WeeklyStudyChartProps {
@@ -57,7 +60,7 @@ export const WeeklyStudyChart = ({ data, subjects }: WeeklyStudyChartProps) => {
     if (active && payload && payload.length) {
       const total = payload.reduce(
         (sum: number, entry: any) => sum + (entry.value || 0),
-        0
+        0,
       );
       return (
         <div className="bg-card border border-border rounded-lg p-3 shadow-lg text-xs">
@@ -85,7 +88,11 @@ export const WeeklyStudyChart = ({ data, subjects }: WeeklyStudyChartProps) => {
 
   const ChartBody = ({ height }: { height: number }) => (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data}>
+      <BarChart
+        data={data}
+        accessibilityLayer
+        margin={{ top: 8, right: 4, bottom: 0, left: 0 }}
+      >
         <CartesianGrid
           strokeDasharray="3 3"
           stroke="hsl(var(--border))"
@@ -93,25 +100,30 @@ export const WeeklyStudyChart = ({ data, subjects }: WeeklyStudyChartProps) => {
         />
         <XAxis
           dataKey="day"
-          tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+          tickFormatter={(day: string) => day.slice(0, 3)}
+          interval={0}
+          tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
           axisLine={false}
           tickLine={false}
         />
         <YAxis
-          tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+          tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
           axisLine={false}
           tickLine={false}
           tickFormatter={(v) => `${v}h`}
           width={30}
         />
         <Tooltip content={<CustomTooltip />} />
-        {subjects.map((subject) => (
+        {subjects.map((subject, index) => (
           <Bar
             key={subject.name}
             dataKey={subject.name}
             stackId="study"
-            fill={subject.color}
-            radius={[3, 3, 0, 0]}
+            fill={chartColour(index)}
+            isAnimationActive={false}
+            radius={[2, 2, 0, 0]}
+            stroke="hsl(var(--card))"
+            strokeWidth={1}
           />
         ))}
       </BarChart>
@@ -120,26 +132,22 @@ export const WeeklyStudyChart = ({ data, subjects }: WeeklyStudyChartProps) => {
 
   return (
     <>
-      <div className="bg-card border border-border rounded-xl overflow-hidden h-full flex flex-col">
+      <div className="stats-panel overflow-hidden h-full flex flex-col">
         {/* Header */}
-        <div className="px-[18px] py-3.5 border-b border-border flex-shrink-0 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Clock className="w-4 h-4 text-primary" />
-            </div>
+        <div className="stats-panel-heading flex-shrink-0 flex flex-col gap-3">
+          <div className="min-w-0">
             <div className="min-w-0">
-              <div className="text-[13px] font-semibold text-foreground truncate" style={{ letterSpacing: "-0.2px" }}>
-                Weekly Study
-              </div>
-              <div className="text-[11px] text-muted-foreground mt-px truncate">
-                Total time per day
+              <h2>Study activity</h2>
+              <div className="text-[11px] text-muted-foreground mt-px">
+                Recorded hours this week
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-1 justify-end">
+          <div className="flex items-center justify-between gap-1">
             <button
+              aria-label="Previous week"
               onClick={() => setWeekOffset((o) => o - 1)}
-              className="w-7 h-7 rounded-md bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              className="stats-chart-control rounded-md bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
             >
               <ChevronLeft size={14} />
             </button>
@@ -147,15 +155,17 @@ export const WeeklyStudyChart = ({ data, subjects }: WeeklyStudyChartProps) => {
               {weekLabel}
             </span>
             <button
+              aria-label="Next week"
               onClick={() => setWeekOffset((o) => Math.min(o + 1, 0))}
               disabled={isCurrentWeek}
-              className="w-7 h-7 rounded-md bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="stats-chart-control rounded-md bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <ChevronRight size={14} />
             </button>
             <button
               onClick={() => setExpanded(true)}
-              className="w-7 h-7 rounded-md bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors ml-1"
+              className="stats-chart-control rounded-md bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors ml-1"
+              aria-label="Expand study activity"
               title="Expand chart"
             >
               <Maximize2 size={13} />
@@ -163,23 +173,12 @@ export const WeeklyStudyChart = ({ data, subjects }: WeeklyStudyChartProps) => {
           </div>
         </div>
 
-        {/* Total hours badge */}
-        <div className="px-[18px] pt-3">
-          <div
-            className="inline-flex items-center gap-1.5 rounded-full"
-            style={{
-              padding: "4px 12px",
-              background: "hsl(var(--primary) / 0.1)",
-              border: "1px solid hsl(var(--primary) / 0.2)",
-            }}
-          >
-            <span className="text-base font-bold text-primary">
-              {totalHours.toFixed(1)}h
-            </span>
-            <span className="text-[11px] text-muted-foreground">this week</span>
-          </div>
-        </div>
-
+        {!isCurrentWeek && (
+          <p className="px-5 text-xs text-muted-foreground">
+            Recorded data covers the current week; historical week data is
+            unavailable here.
+          </p>
+        )}
         {/* Chart */}
         <div className="p-4 flex-1 min-h-0">
           {data.length > 0 && subjects.length > 0 ? (
@@ -192,13 +191,36 @@ export const WeeklyStudyChart = ({ data, subjects }: WeeklyStudyChartProps) => {
             />
           )}
         </div>
+        {subjects.length > 0 && (
+          <div className="flex flex-wrap gap-x-3 gap-y-2 px-5 pb-4 text-xs text-muted-foreground">
+            {subjects.map((s, index) => (
+              <span key={s.name} className="flex items-center gap-1.5">
+                <span
+                  className="h-2 w-2 shrink-0 rounded-sm"
+                  style={{ background: chartColour(index) }}
+                />
+                {s.name}
+              </span>
+            ))}
+          </div>
+        )}
+        <ChartDataTable
+          caption="Study activity this week"
+          rows={data}
+          series={subjects.map((s) => ({ key: s.name, label: s.name }))}
+          periodKey="day"
+          unit="h"
+        />
       </div>
 
       {/* Expanded modal */}
       <Dialog open={expanded} onOpenChange={setExpanded}>
-        <DialogContent className="max-w-[800px] w-[90vw]">
+        <DialogContent className="stats-chart-dialog max-w-[800px] w-[90vw]">
           <DialogHeader>
-            <DialogTitle>Weekly Study — {weekLabel}</DialogTitle>
+            <DialogTitle>Study activity · {weekLabel}</DialogTitle>
+            <DialogDescription>
+              Recorded hours from the current week, grouped by subject.
+            </DialogDescription>
           </DialogHeader>
           <div className="mt-2">
             {data.length > 0 && subjects.length > 0 ? (
@@ -212,7 +234,7 @@ export const WeeklyStudyChart = ({ data, subjects }: WeeklyStudyChartProps) => {
             )}
             {subjects.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-4 justify-center">
-                {subjects.map((s) => (
+                {subjects.map((s, index) => (
                   <div key={s.name} className="flex items-center gap-2">
                     <div
                       className="w-3 h-3 rounded-full"

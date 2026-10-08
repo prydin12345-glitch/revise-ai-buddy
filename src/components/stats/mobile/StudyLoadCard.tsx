@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { Activity } from "lucide-react";
 import { useTelemetry } from "./tokens";
 
 interface Props {
@@ -57,10 +56,7 @@ export const StudyLoadCard = ({ data, subjects }: Props) => {
       <div className="flex items-start justify-between mb-4">
         <div>
           <div className="flex items-center gap-1.5">
-            <Activity size={13} style={{ color: TELEMETRY.info }} />
-            <span className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>
-              Study load
-            </span>
+            <h2 className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>Study activity</h2>
           </div>
           <div className="text-[11px] mt-0.5" style={{ color: TELEMETRY.muted }}>
             This week, by subject
@@ -82,7 +78,7 @@ export const StudyLoadCard = ({ data, subjects }: Props) => {
         </p>
       ) : (
         <>
-          <div className="flex items-end justify-between gap-2" style={{ height: 108 }}>
+          <div className="flex items-end justify-between gap-2" style={{ height: 136 }} role="img" aria-label={days.map(d => `${d.day}: ${fmt(d.total)}`).join("; ")}>
             {days.map((d) => {
               const heightPct = max > 0 ? (d.total / max) * 100 : 0;
               return (

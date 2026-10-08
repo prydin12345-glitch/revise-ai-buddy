@@ -149,6 +149,7 @@ export const useExamStats = () => {
 
   const fetchData = useCallback(async () => {
     try {
+      setError(null);
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -159,7 +160,7 @@ export const useExamStats = () => {
       const { data: exams } = await supabase
         .from('exams')
         .select('id, subject_id, title, created_at, status')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id).throwOnError();
 
       const publishedExams = exams?.filter(e => e.status === 'published') || [];
       setTotalExams(publishedExams.length);
@@ -169,7 +170,7 @@ export const useExamStats = () => {
         .select('*, exams!inner(subject_id, title)')
         .eq('student_id', user.id)
         .eq('status', 'graded')
-        .order('submitted_at', { ascending: false });
+        .order('submitted_at', { ascending: false }).throwOnError();
 
       const rows = subs || [];
       setSubmissions(rows);
@@ -179,7 +180,7 @@ export const useExamStats = () => {
       const { data: userSubjects } = await supabase
         .from('user_subjects')
         .select('subject_name, subject_color')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id).throwOnError();
 
       const colorMap: Record<string, string> = {};
       (userSubjects || []).forEach(s => {
@@ -199,21 +200,21 @@ export const useExamStats = () => {
             .select('subject, duration, date')
             .eq('user_id', user.id)
             .gte('date', weekStart.toISOString())
-            .lte('date', weekEnd.toISOString()),
+            .lte('date', weekEnd.toISOString()).throwOnError(),
           supabase
             .from('exam_submissions')
             .select('time_taken_seconds, submitted_at, exams!inner(subject_id)')
             .eq('student_id', user.id)
             .eq('status', 'graded')
             .gte('submitted_at', weekStart.toISOString())
-            .lte('submitted_at', weekEnd.toISOString()),
+            .lte('submitted_at', weekEnd.toISOString()).throwOnError(),
           supabase
             .from('practice_set_progress')
             .select('time_spent_seconds, completed_at, practice_question_sets!inner(subject_id)')
             .eq('user_id', user.id)
             .not('completed_at', 'is', null)
             .gte('completed_at', weekStart.toISOString())
-            .lte('completed_at', weekEnd.toISOString()),
+            .lte('completed_at', weekEnd.toISOString()).throwOnError(),
         ]);
 
       const studyMap = new Map<string, Map<string, number>>();
@@ -255,14 +256,14 @@ export const useExamStats = () => {
       const { data: goals } = await supabase
         .from('revision_goals')
         .select('subject, target_percentage, deadline, subject_color')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id).throwOnError();
       setRevisionGoalRows(goals || []);
 
       const { data: streakData } = await supabase
         .from('user_streaks')
         .select('current_streak, longest_streak, last_exam_submitted_at')
         .eq('user_id', user.id)
-        .maybeSingle();
+        .maybeSingle().throwOnError();
 
       if (streakData?.last_exam_submitted_at) {
         const hoursSince =

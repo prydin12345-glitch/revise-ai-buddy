@@ -28,7 +28,6 @@ export const TopicTelemetryRow = ({ topic, compact = false }: Props) => {
         style={{
           height: 32,
           background: color,
-          boxShadow: attempts > 0 || awaiting ? `0 0 8px ${alpha(color, 0.4)}` : undefined,
         }}
       />
       <div className="flex-1 min-w-0">
