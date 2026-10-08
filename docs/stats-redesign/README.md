@@ -2,24 +2,33 @@
 
 The previous desktop page hid summary labels in tooltips and used a large,
 single-subject gauge. Mobile used a different palette, small typography and
-dense miniature charts. This change uses Examly's existing neutral surfaces and
-navy accent, visible summary labels, compact subject comparisons and readable
-score charts. Revision priorities appear before the upcoming-exam section on
-mobile. The supplied reference informed the modular layout; none of its images
-or example statistics are used in the product.
+dense miniature charts. The new composition uses three staggered dashboard
+columns instead of a row of KPI cards followed by large, uniform chart rows.
+Score-history bars and paired semicircle gauges sit on the left; ranked revision
+strips, the accuracy trend and topic-progress rings sit in the centre; compact
+summary figures and small subject-history charts sit on the right. Tablet widths
+use two columns. Mobile combines the same visual modules with the existing
+grade-target, mastery and streak drilldowns, then shows revision priorities,
+score history, study activity, subject charts and upcoming exams.
+
+Examly's neutral surfaces and navy accent remain, with restrained elevation,
+readable percentages and colours adjusted for both themes. The reference
+informed the layout and visual hierarchy; none of its images or example
+statistics are used in the product.
 
 ## Existing statistics retained
 
 | View | Statistics and controls |
 | --- | --- |
 | Desktop/tablet overview | Average exam score, completed/published/remaining exams, current-week study hours, current/best streak and strongest subject; summary drilldowns |
-| Desktop/tablet analysis | Score trends and existing 7-day/30-day/12-month ranges, subject averages and counts, current-week study activity, 12-week accuracy, graded-exam search/pagination/review |
+| Desktop/tablet analysis | Score trends and existing 7-day/30-day/12-month ranges, subject averages/counts/history, current-week study activity, 12-week accuracy, readiness/topic-accuracy gauges, mastery/coverage rings, revision priorities and graded-exam search/pagination/review |
 | Mobile overview | Existing readiness estimate, marked-topic accuracy, grade targets met, mastered/developing/review counts, streak, revision priorities, study activity, subject accuracy and upcoming exam schedule |
 | Mobile detail views | Existing topic filters, tracked-topic coverage, subject/topic drilldowns, predicted/target grades, grade boundaries, trend range controls and local exam settings |
 | Weak Topics | Existing subject/mastery filters, topic details and review actions |
 
-The average exam score remains the existing mean of subject averages. Mobile
-readiness retains its existing weighting: 60% exam average, 25% tracked-topic
+The average exam score remains the existing mean of subject averages. The
+existing mobile readiness estimate is also displayed on desktop, with the same
+weighting: 60% exam average, 25% tracked-topic
 coverage and 15% streak consistency. No scoring, grade, goal or mastery formula
 changed. Production components contain no fixture data.
 
@@ -29,8 +38,14 @@ errors into its existing catch path, and a retry clears the previous error.
 The accuracy chart also shows a retry when its existing read fails. These client
 error-handling changes prevent failures from looking like empty data.
 
-Chart series use theme-specific blue, amber and teal colours, with line patterns,
-legends and accessible data tables. Status text accompanies colour. Detail
+Chart series use theme-specific blue, amber and teal colours, with subject
+legends and accessible data tables. Small subject charts use the same actual,
+range-filtered buckets as the main score chart: missing periods remain missing
+and true zero scores remain zero. Labels distinguish overall subject averages
+from range-filtered history. Subject-history and study-bar charts share the same palette across desktop and mobile;
+saved subject colours are unchanged. Gauges and rings reflect existing percentages,
+with their denominators shown. The overview highlights two revision priorities;
+the full Topics view remains available through View all. Status text accompanies colour. Detail
 sheets use the existing Radix dialog for titles, close controls, keyboard focus
 and focus restoration. Reduced-motion settings disable decorative animation.
 
@@ -44,16 +59,18 @@ Node **24.19.0**, existing `package-lock.json`:
 | Command | Result |
 | --- | --- |
 | `npm ci --cache /workspace/.npm-cache` | PASS; 863 packages installed |
-| `npm run check` on the final source | PASS; typecheck, critical hook lint, 1,578 tests in 100 files, Edge Function identifier checks, 38 Edge Function bundles and production build (24.02 seconds) |
-| `npx vitest run src/test/stats-data.test.tsx src/test/stats-presentation.test.tsx` | PASS; 16 focused tests in 2 files |
-| Additional `npm run typecheck` and `npm run lint:critical` | PASS; also repeated in the final full check |
-| Standalone `npm run build` | PASS; 18.87 seconds; repeated in the final full check |
+| `npm run check` | PASS; typecheck, critical hook lint, 1,586 tests in 101 files, Edge Function identifier checks, 38 Edge Function bundles and production build |
+| `npx vitest run src/test/stats-data.test.tsx src/test/stats-presentation.test.tsx src/test/stats-modular-dashboard.test.tsx` | PASS; 24 focused tests in 3 files |
+| Additional `npm run typecheck` and `npm run lint:critical` after the final loading/semantic markup adjustments | PASS |
+| Standalone `npm run build` | PASS |
 | `git diff --check` | PASS |
 
 Focused tests cover unchanged score/time/streak/goal calculations, genuine zero
 scores, zero-mark exclusion, range filters, read-error recovery, summary actions,
 subject selection, exam search/pagination/review destinations, loading/error
-states, chart tables and dialog focus restoration.
+states, chart tables and dialog focus restoration. New module tests cover the
+shared readiness formula, pending-work exclusion, correct mastery and coverage
+denominators, missing/zero history, priority ordering and gauge detail actions.
 
 Existing warnings: deprecated/stub packages during installation, an outdated
 Browserslist database, production chunks over 500 kB, and React DOM nesting
@@ -65,11 +82,11 @@ Function deployment is required.
 
 Vite served the existing Stats page/components in a local, auth-free browser
 harness. Data hooks were stubbed with synthetic examples and a simplified local
-dashboard frame; all Supabase browser requests were blocked. This harness is
+dashboard frame with the actual workspace content padding; all Supabase browser requests were blocked. This harness is
 outside the repository and is not a production route. Every screenshot is
 labelled **Local preview · fixture data**.
 
-Checked **390, 768, 1024 and 1440 CSS pixels wide**, with a 1,000-pixel viewport
+Checked **320, 390, 768, 834, 1024, 1194 and 1440 CSS pixels wide**, with a 1,000-pixel viewport
 height, in **light and dark** themes. No horizontal page overflow, JavaScript
 errors, console errors, certificate/request failures or backend requests were
 observed. Google Fonts loaded through normal certificate verification.
@@ -116,9 +133,15 @@ Added:
 - `src/components/stats/ChartDataTable.tsx`
 - `src/components/stats/StatsPageStates.tsx`
 - `src/components/stats/chart-palette.ts`
+- `src/components/stats/LearningProgressPanel.tsx`
+- `src/components/stats/RevisionPrioritiesCard.tsx`
+- `src/components/stats/StatsGauge.tsx`
+- `src/components/stats/SubjectHistoryBars.tsx`
+- `src/components/stats/TopicProgressOverview.tsx`
 - `src/styles/stats.css`
 - `src/test/stats-data.test.tsx`
 - `src/test/stats-presentation.test.tsx`
+- `src/test/stats-modular-dashboard.test.tsx`
 - This report and the 12 before/after PNGs linked above.
 
 Changed:

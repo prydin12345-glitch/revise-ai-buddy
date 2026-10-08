@@ -10,7 +10,7 @@ interface TopStatsCardsProps {
   totalStudyHours?: number;
   bestSubject?: { name: string; avgScore: number; color: string } | null;
   onCardClick?: (type: "exams" | "scores" | "study-hours" | "streak") => void;
-  variant?: "wrap" | "grid" | "grid-no-score";
+  variant?: "wrap" | "grid" | "grid-no-score" | "snapshot";
 }
 
 export const TopStatsCards = ({
@@ -53,9 +53,9 @@ export const TopStatsCards = ({
       type: "streak" as const,
     },
   ];
-  return (
+  const content = (
     <div
-      className={`grid grid-cols-2 gap-3 ${variant === "wrap" ? "lg:grid-cols-4" : ""}`}
+      className={`grid grid-cols-2 gap-3 ${variant === "wrap" ? "lg:grid-cols-4" : ""} ${variant === "snapshot" ? "stats-snapshot-grid" : ""}`}
     >
       {cards
         .filter((c) => variant !== "grid-no-score" || c.type !== "scores")
@@ -64,7 +64,12 @@ export const TopStatsCards = ({
             key={card.type}
             type="button"
             onClick={() => onCardClick?.(card.type)}
-            className="stats-panel group flex min-h-[145px] flex-col items-start p-4 text-left transition-colors hover:border-primary focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
+            className={
+              variant === "snapshot"
+                ? "stats-snapshot-metric"
+                : "stats-panel group flex min-h-[145px] flex-col items-start p-4 text-left transition-colors hover:border-primary focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
+            }
+            data-metric={card.type}
             aria-label={`${card.label}: ${card.value}. ${card.detail}. View details`}
           >
             <span className="flex w-full items-center justify-between gap-2 text-xs font-medium text-muted-foreground sm:text-sm">
@@ -85,5 +90,13 @@ export const TopStatsCards = ({
           </button>
         ))}
     </div>
+  );
+  return variant === "snapshot" ? (
+    <section className="stats-panel stats-snapshot" aria-label="At a glance">
+      <h2>At a glance</h2>
+      {content}
+    </section>
+  ) : (
+    content
   );
 };

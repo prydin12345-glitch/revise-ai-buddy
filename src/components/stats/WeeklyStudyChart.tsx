@@ -182,7 +182,7 @@ export const WeeklyStudyChart = ({ data, subjects }: WeeklyStudyChartProps) => {
         {/* Chart */}
         <div className="p-4 flex-1 min-h-0">
           {data.length > 0 && subjects.length > 0 ? (
-            <ChartBody height={200} />
+            <ChartBody height={170} />
           ) : (
             <EmptyChartState
               message="Start tracking your study time"

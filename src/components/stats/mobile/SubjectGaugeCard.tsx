@@ -1,25 +1,20 @@
 import { useMemo } from "react";
 import { useTelemetry, clampPct, scoreColor } from "./tokens";
+import { SubjectHistoryBars } from "../SubjectHistoryBars";
+import { chartColour } from "../chart-palette";
 
 interface Props {
   subjects: { name: string; color: string; avgScore: number; count: number }[];
   /** Topic counts per subject, for the inline band tally. */
   topicStats?: (subject: string) => { mastered: number; developing: number; review: number };
+  trendData?: Array<Record<string, string | number>>;
 }
 
 const bandLabel = (pct: number) =>
   pct >= 75 ? "Strong" : pct >= 55 ? "On track" : pct >= 35 ? "Needs work" : "At risk";
 
-/**
- * Horizontal, all subjects at once.
- *
- * This was a semicircle gauge with a subject selector, which put a second
- * radial chart directly under the readiness ring — two circles competing for
- * the same glance, and only one subject visible at a time. Linear bars show
- * every subject together, rank them weakest-first, and leave exactly one
- * radial on the Overview.
- */
-export const SubjectGaugeCard = ({ subjects, topicStats }: Props) => {
+/** Subject tiles retain weakest-first ranking and the original mastery tally. */
+export const SubjectGaugeCard = ({ subjects, topicStats, trendData = [] }: Props) => {
   const TELEMETRY = useTelemetry();
 
   const rows = useMemo(
@@ -43,26 +38,26 @@ export const SubjectGaugeCard = ({ subjects, topicStats }: Props) => {
 
   return (
     <div
-      className="rounded-2xl p-4"
+      className="stats-panel stats-mobile-subjects"
       style={{ background: TELEMETRY.card, border: `1px solid ${TELEMETRY.border}` }}
     >
       <div className="flex items-center gap-1.5">
         <h2 className="text-sm font-semibold" style={{ color: TELEMETRY.text }}>Subject accuracy</h2>
       </div>
       <div className="text-[11px] mt-0.5 mb-4" style={{ color: TELEMETRY.muted }}>
-        Weakest first
+        Overall averages · weakest first. Bars follow selected range.
       </div>
 
-      <div className="space-y-4">
+      <div className="stats-subject-tiles">
         {rows.map((s) => {
           const tone = scoreColor(s.pct, TELEMETRY);
           const stats = topicStats?.(s.name);
 
           return (
-            <div key={s.name}>
-              <div className="flex items-start justify-between gap-3 mb-2">
+            <div key={s.name} className="stats-subject-tile">
+              <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
                 <span className="flex items-center gap-2 min-w-0">
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: chartColour(subjects.findIndex(subject => subject.name === s.name)) }} />
                   <span className="text-[13px] font-medium capitalize break-words" style={{ color: TELEMETRY.text }}>
                     {s.name}
                   </span>
@@ -77,6 +72,7 @@ export const SubjectGaugeCard = ({ subjects, topicStats }: Props) => {
                 </span>
               </div>
 
+              <SubjectHistoryBars subject={s.name} rows={trendData} colour={chartColour(subjects.findIndex(subject => subject.name === s.name))} />
               <div className="h-2 overflow-hidden rounded-full" style={{background:TELEMETRY.cardAlt}} role="meter" aria-label={`${s.name} average exam score`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={s.pct}>
                 <div className="h-full rounded-full" style={{width:`${s.pct}%`,background:TELEMETRY.info}} />
               </div>

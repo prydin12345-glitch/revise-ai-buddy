@@ -18,26 +18,50 @@ export function StatsPageHeading() {
 
 export function StatsLoading() {
   return (
-    <div tabIndex={0} role="status" aria-label="Loading your statistics" aria-busy="true">
+    <div
+      tabIndex={0}
+      role="status"
+      aria-label="Loading your statistics"
+      aria-busy="true"
+    >
       <span className="sr-only">Loading your statistics…</span>
       <div aria-hidden="true" className="space-y-5">
         <Skeleton className="h-11 w-64 max-w-full" />
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="stats-panel space-y-4 p-5">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-9 w-20" />
-              <Skeleton className="h-3 w-full" />
+        <div className="stats-dashboard">
+          <div className="stats-dashboard-column">
+            <div className="stats-panel space-y-4 p-5">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-44 w-full" />
             </div>
-          ))}
-        </div>
-        <div className="grid gap-5 lg:grid-cols-2">
-          {[0, 1].map((i) => (
-            <div key={i} className="stats-panel space-y-5 p-5">
-              <Skeleton className="h-5 w-40" />
-              <Skeleton className="h-56 w-full" />
+            <div className="grid grid-cols-2 gap-4">
+              <Skeleton className="h-28 rounded-t-full" />
+              <Skeleton className="h-28 rounded-t-full" />
             </div>
-          ))}
+          </div>
+          <div className="stats-dashboard-column">
+            <Skeleton className="h-16" />
+            <Skeleton className="h-16" />
+            <div className="stats-panel space-y-4 p-5">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-44 w-full" />
+            </div>
+          </div>
+          <div className="stats-dashboard-column stats-dashboard-subjects">
+            <div className="stats-panel p-5">
+              <Skeleton className="mb-4 h-5 w-32" />
+              <div className="grid grid-cols-2 gap-4">
+                <Skeleton className="h-24" />
+                <Skeleton className="h-24" />
+                <Skeleton className="h-24" />
+                <Skeleton className="h-24" />
+              </div>
+            </div>
+            <div className="stats-panel space-y-4 p-5">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-40 w-full" />
+            </div>
+          </div>
         </div>
       </div>
     </div>

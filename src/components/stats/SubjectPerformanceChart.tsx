@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, BarChart2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { chartColour } from "./chart-palette";
+import { SubjectHistoryBars } from "./SubjectHistoryBars";
 
 interface SubjectPerformanceChartProps {
   data: Array<{
@@ -12,10 +14,12 @@ interface SubjectPerformanceChartProps {
   }>;
   viewMode: "score" | "count";
   onViewModeChange: (mode: "score" | "count") => void;
+  trendData?: Array<{ period: string; [key: string]: string | number }>;
 }
 
 export const SubjectPerformanceChart = ({
   data,
+  trendData = [],
 }: SubjectPerformanceChartProps) => {
   const navigate = useNavigate();
   const sorted = [...data].sort((a, b) => b.avgScore - a.avgScore);
@@ -34,7 +38,7 @@ export const SubjectPerformanceChart = ({
       <div className="stats-panel-heading flex items-start justify-between gap-3">
         <div>
           <h2>Subject performance</h2>
-          <p>Average exam scores · all exam profiles</p>
+          <p>Overall averages · bars follow selected range</p>
         </div>
         {sorted.length > 1 && (
           <div className="flex items-center gap-1 shrink-0">
@@ -80,18 +84,18 @@ export const SubjectPerformanceChart = ({
           </button>
         </div>
       ) : (
-        <div className="space-y-5 px-5 pb-5">
+        <div className="stats-subject-tiles">
           {sorted.map((subject, index) => (
             <div
               key={subject.name}
-              className="min-w-0"
+              className="stats-subject-tile"
               aria-current={index === activeIndex ? "true" : undefined}
             >
-              <div className="mb-2 flex items-start justify-between gap-3">
+              <div className="mb-2 flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="break-words text-sm font-medium">
+                  <h3 className="break-words text-sm font-medium">
                     {subject.name}
-                  </p>
+                  </h3>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {subject.count} exam{subject.count === 1 ? "" : "s"} ·{" "}
                     {subject.avgScore >= 70
@@ -101,10 +105,15 @@ export const SubjectPerformanceChart = ({
                         : "Needs Work"}
                   </p>
                 </div>
-                <span className="text-lg font-semibold tabular-nums">
+                <span className="stats-subject-score">
                   {Math.round(subject.avgScore)}%
                 </span>
               </div>
+              <SubjectHistoryBars
+                subject={subject.name}
+                rows={trendData}
+                colour={chartColour(data.indexOf(subject))}
+              />
               <div
                 className="h-2 overflow-hidden rounded-full bg-muted"
                 role="meter"
@@ -114,9 +123,10 @@ export const SubjectPerformanceChart = ({
                 aria-valuenow={subject.avgScore}
               >
                 <div
-                  className="h-full rounded-full bg-primary"
+                  className="h-full rounded-full"
                   style={{
                     width: `${Math.min(Math.max(subject.avgScore, 0), 100)}%`,
+                    background: chartColour(data.indexOf(subject)),
                   }}
                 />
               </div>
@@ -125,10 +135,7 @@ export const SubjectPerformanceChart = ({
         </div>
       )}
       {sorted.length > 0 && (
-        <p
-          className="mt-auto border-t border-border px-5 py-3 text-xs text-muted-foreground"
-          aria-live="polite"
-        >
+        <p className="stats-selected-subject" aria-live="polite">
           Selected: {sorted[activeIndex]?.name} ·{" "}
           {Math.round(sorted[activeIndex]?.avgScore ?? 0)}%
         </p>

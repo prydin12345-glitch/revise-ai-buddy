@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -19,7 +19,7 @@ import {
 import { Maximize2, FileText } from "lucide-react";
 import { EmptyChartState } from "./EmptyChartState";
 import { ChartDataTable } from "./ChartDataTable";
-import { chartColour, chartDash } from "./chart-palette";
+import { chartColour } from "./chart-palette";
 import { useNavigate } from "react-router-dom";
 
 interface ExamResultsChartProps {
@@ -49,7 +49,7 @@ const ChartContent = ({
 }) => {
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <LineChart
+      <BarChart
         accessibilityLayer
         data={data}
         margin={{ top: 8, right: 16, bottom: 8, left: 0 }}
@@ -71,7 +71,7 @@ const ChartContent = ({
           axisLine={false}
           tickLine={false}
           tickFormatter={(v) => `${v}%`}
-          width={35}
+          width={44}
         />
         <Tooltip
           contentStyle={{
@@ -91,17 +91,12 @@ const ChartContent = ({
           }}
         />
         {subjects.map((subject, index) => (
-          <Line
+          <Bar
             key={subject.name}
-            type="monotone"
             dataKey={subject.name}
-            stroke={chartColour(index)}
-            strokeDasharray={chartDash(index)}
-            strokeWidth={2.5}
+            fill={chartColour(index)}
+            radius={[3, 3, 0, 0]}
             isAnimationActive={false}
-            dot={false}
-            activeDot={{ r: 5, fill: chartColour(index), strokeWidth: 0 }}
-            connectNulls
             name={subject.name}
           />
         ))}
@@ -120,7 +115,7 @@ const ChartContent = ({
             }}
           />
         ))}
-      </LineChart>
+      </BarChart>
     </ResponsiveContainer>
   );
 };
@@ -148,7 +143,7 @@ export const ExamResultsChart = ({
     <>
       <div className="stats-panel overflow-hidden h-full flex flex-col">
         {/* Header */}
-        <div className="stats-panel-heading flex-shrink-0 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+        <div className="stats-panel-heading flex-shrink-0 flex flex-col gap-3">
           <div className="flex justify-between items-start sm:items-center gap-2">
             <div className="min-w-0">
               <h2>Score trends</h2>
@@ -165,7 +160,7 @@ export const ExamResultsChart = ({
               <Maximize2 size={13} />
             </button>
           </div>
-          <div className="flex gap-1.5 items-center justify-end">
+          <div className="flex gap-1.5 items-center justify-between">
             {/* Pill time range selector */}
             <div className="flex bg-muted rounded-lg p-[3px] gap-[2px]">
               {timeRangeOptions.map(({ key, label }) => (
@@ -221,7 +216,7 @@ export const ExamResultsChart = ({
               data={data}
               subjects={subjects}
               revisionGoals={revisionGoals}
-              height={220}
+              height={180}
             />
           )}
         </div>

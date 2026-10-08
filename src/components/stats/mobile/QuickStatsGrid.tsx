@@ -1,6 +1,7 @@
 import { ChevronRight } from "lucide-react";
 import { useTelemetry, clampPct } from "./tokens";
 import type { SubjectStack } from "./SubjectStackedBars";
+import { StatsGauge } from "../StatsGauge";
 
 interface Props {
   accuracy: number; // 0..100
@@ -25,6 +26,7 @@ interface Props {
   onOpenGrade?: () => void;
   onOpenMastered?: () => void;
   onOpenStreak?: () => void;
+  hideAccuracy?: boolean;
 }
 
 export const QuickStatsGrid = ({
@@ -43,6 +45,7 @@ export const QuickStatsGrid = ({
   onOpenGrade,
   onOpenMastered,
   onOpenStreak,
+  hideAccuracy = false,
 }: Props) => {
   const p = useTelemetry();
   const cards = [
@@ -85,69 +88,102 @@ export const QuickStatsGrid = ({
     "Sunday",
   ];
   return (
-    <div className="grid grid-cols-2 gap-3">
-      {cards.map((card, index) => (
-        <button
-          key={card.label}
-          type="button"
-          onClick={card.onClick}
-          aria-label={`${card.label}: ${card.value}. ${card.detail}. View details`}
-          className="flex min-h-[156px] min-w-0 flex-col rounded-xl p-4 text-left hover:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-          style={{ background: p.card, border: `1px solid ${p.border}` }}
-        >
-          <span
-            className="flex w-full items-start justify-between gap-1 text-xs font-medium"
-            style={{ color: p.muted }}
-          >
-            {card.label}
-            <ChevronRight size={14} className="shrink-0" aria-hidden="true" />
-          </span>
-          <span
-            className="mt-2 text-[26px] font-semibold leading-tight tabular-nums"
-            style={{ color: index === 0 ? p.info : p.text }}
-          >
-            {card.value}
-          </span>
-          <span
-            className="mt-2 text-xs leading-relaxed"
-            style={{ color: p.muted }}
-          >
-            {card.detail}
-          </span>
-          <span className="mt-auto block w-full pt-3" aria-hidden="true">
-            {index === 3 ? (
-              <span className="flex gap-1">
-                {days.map((day, i) => (
-                  <span
-                    key={day}
-                    title={`${day}: ${streakDays[i] ? "study logged" : "no study logged"}`}
-                    className="flex h-5 min-w-0 flex-1 items-center justify-center rounded text-[10px]"
-                    style={{
-                      background: streakDays[i] ? p.info : p.cardAlt,
-                      color: streakDays[i] ? p.onAccent : p.muted,
-                    }}
-                  >
-                    {day[0]}
-                  </span>
-                ))}
-              </span>
-            ) : (
+    <section
+      className="stats-panel stats-mobile-snapshot"
+      aria-label="At a glance"
+    >
+      <h2>At a glance</h2>
+      <div
+        className={`stats-quick-layout ${hideAccuracy ? "stats-quick-without-accuracy" : ""}`}
+      >
+        {cards
+          .filter((card) => !hideAccuracy || card.label !== "Topic accuracy")
+          .map((card) => (
+            <button
+              key={card.label}
+              type="button"
+              onClick={card.onClick}
+              aria-label={`${card.label}: ${card.value}. ${card.detail}. View details`}
+              className="stats-quick-metric"
+              data-metric={
+                card.label === "Mastered topics"
+                  ? "mastery"
+                  : card.label === "Revision streak"
+                    ? "streak"
+                    : card.label === "Grade targets met"
+                      ? "grade"
+                      : "accuracy"
+              }
+            >
               <span
-                className="block h-1.5 overflow-hidden rounded-full"
-                style={{ background: p.cardAlt }}
+                className="flex w-full items-start justify-between gap-1 text-xs font-medium"
+                style={{ color: p.muted }}
               >
-                <span
-                  className="block h-full rounded-full"
-                  style={{
-                    width: `${clampPct(card.progress ?? 0)}%`,
-                    background: p.info,
-                  }}
+                {card.label}
+                <ChevronRight
+                  size={14}
+                  className="shrink-0"
+                  aria-hidden="true"
                 />
               </span>
-            )}
-          </span>
-        </button>
-      ))}
-    </div>
+              {card.label === "Mastered topics" ? (
+                <StatsGauge
+                  shape="ring"
+                  value={totalAttempted > 0 ? card.progress : null}
+                  label="Mastered topics as a share of marked topics"
+                  valueLabel={card.value}
+                  colour="var(--stats-series-3)"
+                />
+              ) : (
+                <span
+                  className="mt-2 text-[26px] font-semibold leading-tight tabular-nums"
+                  style={{ color: p.text }}
+                >
+                  {card.value}
+                </span>
+              )}
+              <span
+                className="mt-2 text-xs leading-relaxed"
+                style={{ color: p.muted }}
+              >
+                {card.detail}
+              </span>
+              <span className="mt-auto block w-full pt-3" aria-hidden="true">
+                {card.label === "Revision streak" ? (
+                  <span className="flex gap-1">
+                    {days.map((day, i) => (
+                      <span
+                        key={day}
+                        title={`${day}: ${streakDays[i] ? "study logged" : "no study logged"}`}
+                        className="flex h-5 min-w-0 flex-1 items-center justify-center rounded text-[10px]"
+                        style={{
+                          background: streakDays[i] ? p.info : p.cardAlt,
+                          color: streakDays[i] ? p.onAccent : p.muted,
+                        }}
+                      >
+                        {day[0]}
+                      </span>
+                    ))}
+                  </span>
+                ) : card.label !== "Mastered topics" &&
+                  card.progress !== null ? (
+                  <span
+                    className="block h-1.5 overflow-hidden rounded-full"
+                    style={{ background: p.cardAlt }}
+                  >
+                    <span
+                      className="block h-full rounded-full"
+                      style={{
+                        width: `${clampPct(card.progress ?? 0)}%`,
+                        background: p.info,
+                      }}
+                    />
+                  </span>
+                ) : null}
+              </span>
+            </button>
+          ))}
+      </div>
+    </section>
   );
 };

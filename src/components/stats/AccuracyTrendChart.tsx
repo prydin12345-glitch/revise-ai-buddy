@@ -409,7 +409,7 @@ export const AccuracyTrendChart = () => {
               </button>
             </div>
           ) : hasData ? (
-            <ChartBody data={chartData} height={200} />
+            <ChartBody data={chartData} height={170} />
           ) : (
             <div className="h-[200px] flex flex-col items-center justify-center gap-3 px-5 text-center">
               <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">

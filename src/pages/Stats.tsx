@@ -7,6 +7,11 @@ import { SubjectPerformanceChart } from "@/components/stats/SubjectPerformanceCh
 import { WeeklyStudyChart } from "@/components/stats/WeeklyStudyChart";
 import { RecentExamsTable } from "@/components/stats/RecentExamsTable";
 import { AccuracyTrendChart } from "@/components/stats/AccuracyTrendChart";
+import {
+  DesktopLearningGauges,
+  TopicProgressOverview,
+} from "@/components/stats/TopicProgressOverview";
+import { RevisionPrioritiesCard } from "@/components/stats/RevisionPrioritiesCard";
 import { MobileStatsTelemetry } from "@/components/stats/mobile/MobileStatsTelemetry";
 import { useExamStats } from "@/hooks/useExamStats";
 import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
@@ -29,6 +34,7 @@ const Stats = () => {
   const [searchParams] = useSearchParams();
   const defaultTab =
     searchParams.get("tab") === "weak-topics" ? "weak-topics" : "stats";
+  const [desktopTab, setDesktopTab] = useState(defaultTab);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -140,7 +146,11 @@ const Stats = () => {
             initialTab={mobileInitialTab}
           />
         ) : (
-          <Tabs defaultValue={defaultTab} className="w-full">
+          <Tabs
+            value={desktopTab}
+            onValueChange={setDesktopTab}
+            className="w-full"
+          >
             <div className="mb-5">
               <TabsList
                 aria-label="Progress views"
@@ -169,11 +179,63 @@ const Stats = () => {
             </div>
 
             <TabsContent value="stats" className="mt-0">
-              <div
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5"
-                style={{ alignItems: "stretch" }}
-              >
-                <div className="md:col-span-2 lg:col-span-12">
+              <div className="stats-dashboard">
+                <div className="stats-dashboard-column stats-dashboard-history">
+                  <ExamResultsChart
+                    data={examResultsData}
+                    subjects={subjects}
+                    timeRange={timeRange}
+                    onTimeRangeChange={setTimeRange}
+                    revisionGoals={revisionGoals}
+                  />
+                  <DesktopLearningGauges
+                    topics={topics}
+                    average={avgScore}
+                    streak={currentStreak}
+                    bestStreak={longestStreak}
+                    hasExams={subjectPerformanceData.some(
+                      (subject) => subject.count > 0,
+                    )}
+                    loading={weakTopicsLoading}
+                  />
+                  <WeeklyStudyChart
+                    data={studyActivityData}
+                    subjects={subjects}
+                  />
+                </div>
+
+                <div className="stats-dashboard-column stats-dashboard-learning">
+                  <RevisionPrioritiesCard
+                    topics={topics}
+                    loading={weakTopicsLoading}
+                    limit={2}
+                    action={
+                      <button
+                        type="button"
+                        className="stats-view-link"
+                        onClick={() => setDesktopTab("weak-topics")}
+                      >
+                        View all
+                      </button>
+                    }
+                  />
+                  <AccuracyTrendChart />
+                  <TopicProgressOverview
+                    topics={topics}
+                    loading={weakTopicsLoading}
+                    action={
+                      <button
+                        type="button"
+                        className="stats-view-link"
+                        onClick={() => setDesktopTab("weak-topics")}
+                      >
+                        Explore
+                      </button>
+                    }
+                  />
+                </div>
+
+                <div className="stats-dashboard-column stats-dashboard-subjects">
                   <TopStatsCards
                     totalExams={totalExams}
                     completedExams={completedExams}
@@ -184,39 +246,18 @@ const Stats = () => {
                     totalStudyHours={totalStudyHours}
                     bestSubject={bestSubject}
                     onCardClick={drilldown.openDrawer}
+                    variant="snapshot"
                   />
-                </div>
-
-                <div className="min-w-0 md:col-span-2 lg:col-span-8 flex flex-col">
-                  <ExamResultsChart
-                    data={examResultsData}
-                    subjects={subjects}
-                    timeRange={timeRange}
-                    onTimeRangeChange={setTimeRange}
-                    revisionGoals={revisionGoals}
-                  />
-                </div>
-                <div className="min-w-0 md:col-span-1 lg:col-span-4 flex flex-col">
-                  <WeeklyStudyChart
-                    data={studyActivityData}
-                    subjects={subjects}
-                  />
-                </div>
-
-                <div className="min-w-0 md:col-span-1 lg:col-span-7 flex flex-col">
                   <SubjectPerformanceChart
                     data={subjectPerformanceData}
                     viewMode={pieChartMode}
                     onViewModeChange={setPieChartMode}
+                    trendData={examResultsData}
                   />
                 </div>
-                <div className="min-w-0 md:col-span-2 lg:col-span-5 flex flex-col">
-                  <AccuracyTrendChart />
-                </div>
-
-                <div className="md:col-span-2 lg:col-span-12">
-                  <RecentExamsTable exams={recentExams} />
-                </div>
+              </div>
+              <div className="mt-6">
+                <RecentExamsTable exams={recentExams} />
               </div>
             </TabsContent>
 

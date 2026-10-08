@@ -18,7 +18,8 @@ import { useGradeSettings } from "@/hooks/useGradeSettings";
 import { useProfileDefaults } from "@/hooks/useProfileDefaults";
 import { getScale, projectGrade, resolveScaleId, targetStatus } from "@/lib/grade-scales";
 import { ScoreTrendCard } from "./ScoreTrendCard";
-import { TopicTelemetryRow } from "./TopicTelemetryRow";
+import { LearningProgressPanel } from "../LearningProgressPanel";
+import { RevisionPrioritiesCard } from "../RevisionPrioritiesCard";
 import { SkillRadarCard } from "./SkillRadarCard";
 import { MobileStatSheet } from "./MobileStatSheet";
 import { useTelemetry, alpha, clampPct, buildSparklinePath } from "./tokens";
@@ -364,62 +365,14 @@ export const MobileStatsTelemetry = ({
             {/* ───── OVERVIEW ───── */}
             {tab === "overview" && (
               <div className="space-y-4">
-                <motion.div {...section(0.03)}>
-                  <button
-                    type="button"
-                    onClick={() => setSheet("readiness")}
-                    className="w-full rounded-xl p-5 flex items-center gap-4 text-left hover:border-primary"
-                    aria-label={`Exam readiness: ${Math.round(readinessScore)}%. View the calculation`}
-                    style={{
-                      background: TELEMETRY.card,
-                      border: `1px solid ${TELEMETRY.border}`,
-                    }}
-                  >
-                    <span className="flex-1 min-w-0 text-left">
-                      <span className="flex items-baseline gap-2">
-                        <span
-                          className="text-[13px] font-semibold"
-                          style={{ color: TELEMETRY.text }}
-                        >
-                          Exam readiness estimate
-                        </span>
-                        <span
-                          className="text-[17px] font-bold tabular-nums"
-                          style={{ color: TELEMETRY.mastered }}
-                        >
-                          {weakTopicsLoading
-                            ? "…"
-                            : `${Math.round(readinessScore)}%`}
-                        </span>
-                      </span>
-                      <span
-                        className="block h-1.5 rounded-full overflow-hidden mt-2"
-                        style={{ background: TELEMETRY.cardAlt }}
-                      >
-                        <span
-                          className="block h-full rounded-full"
-                          style={{
-                            width: `${clampPct(readinessScore)}%`,
-                            background: TELEMETRY.info,
-                          }}
-                        />
-                      </span>
-                      <span
-                        className="block text-[11px] mt-1.5"
-                        style={{ color: TELEMETRY.muted }}
-                      >
-                        {Math.round(avgScore)}% exam average ·{" "}
-                        {Math.round(coverage)}% tracked-topic coverage ·{" "}
-                        {currentStreak}d streak
-                      </span>
-                    </span>
-                    <ChevronRight
-                      size={16}
-                      className="shrink-0"
-                      style={{ color: TELEMETRY.muted }}
-                    />
-                  </button>
-                </motion.div>
+                <LearningProgressPanel
+                  accuracy={accuracy}
+                  readiness={readinessScore}
+                  loading={weakTopicsLoading}
+                  hasData={attemptedTopics.length > 0 || subjectPerformanceData.some(s => s.count > 0)}
+                  onAccuracy={() => setSheet("accuracy")}
+                  onReadiness={() => setSheet("readiness")}
+                />
 
                 <motion.div {...section(0.05)}>
                   {weakTopicsLoading ? (
@@ -433,6 +386,7 @@ export const MobileStatsTelemetry = ({
                     </div>
                   ) : (
                     <QuickStatsGrid
+                      hideAccuracy
                       accuracy={accuracy}
                       accuracySessions={scoreSeries.slice(-7)}
                       subjectStacks={subjectStacks}
@@ -459,52 +413,18 @@ export const MobileStatsTelemetry = ({
                   )}
                 </motion.div>
 
-                {/* Top Revision Priorities */}
-                <motion.div {...section(0.1)}>
-                  <div
-                    className="rounded-2xl p-4"
-                    style={{
-                      background: TELEMETRY.card,
-                      border: `1px solid ${TELEMETRY.border}`,
-                    }}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div
-                        className="text-sm font-semibold"
-                        style={{ color: TELEMETRY.text }}
-                      >
-                        Top Revision Priorities
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setTab("topics")}
-                        className="min-h-10 text-xs font-semibold flex items-center gap-0.5"
-                        style={{ color: TELEMETRY.info }}
-                      >
-                        View all <ChevronRight size={12} />
-                      </button>
-                    </div>
-                    {weakTopicsLoading ? (
-                      <Skeleton
-                        className="h-32 w-full"
-                        aria-label="Loading revision priorities"
-                      />
-                    ) : priorityTopics.length === 0 ? (
-                      <div
-                        className="py-6 text-center text-xs"
-                        style={{ color: TELEMETRY.muted }}
-                      >
-                        Complete a quiz or exam to surface priorities
-                      </div>
-                    ) : (
-                      <div>
-                        {priorityTopics.map((t) => (
-                          <TopicTelemetryRow key={t.topic} topic={t} />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
+                <RevisionPrioritiesCard
+                  topics={priorityTopics}
+                  loading={weakTopicsLoading}
+                  limit={2}
+                  action={<button type="button" onClick={() => setTab("topics")} className="stats-view-link">View all</button>}
+                />
+                <ScoreTrendCard
+                  data={examResultsData}
+                  subjects={subjectPerformanceData}
+                  timeRange={timeRange}
+                  onTimeRangeChange={setTimeRange}
+                />
                 <motion.div {...section(0.08)}>
                   <StudyLoadCard
                     data={studyActivityData}
@@ -516,6 +436,7 @@ export const MobileStatsTelemetry = ({
                   <SubjectGaugeCard
                     subjects={subjectPerformanceData}
                     topicStats={topicStatsFor}
+                    trendData={examResultsData}
                   />
                 </motion.div>
 
