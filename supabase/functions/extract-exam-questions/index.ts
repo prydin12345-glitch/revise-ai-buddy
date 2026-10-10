@@ -10,6 +10,7 @@ import { isAqaPaper2 } from "../_shared/aqa-biology-paper2.ts";
 import { paperPlanForAttempt } from "../_shared/course-selection.ts";
 import { biologyPlanInstructions, biologyBatchInstructions, packForBiologyPlan } from "../_shared/biology-course-packs.ts";
 import { plannedResourceTypeNotes } from "../_shared/planned-resource-types.ts";
+import {ocrPaper3StatisticsInstructions} from '../_shared/ocr-paper3-statistics-instructions.ts';
 import { AiCallBudget, AiBudgetExhaustedError, usageTokens } from "../_shared/ai-call-budget.ts";
 import { plannedPartKey, planGroupBatches, mergeBatchRows, missingPlannedParts, describeRejections, batchIdentityInstructions, batchIdentityDiagnostic, type MergeRejection } from "../_shared/guided-batching.ts";
 import { GenerationResponseError, parseGenerationContent, providerHttpError, generationFailureDetail } from '../_shared/generation-response.ts';
@@ -2882,7 +2883,8 @@ async function generateGuidedPaper(
     const typeNotes = plannedResourceTypeNotes(batch);
     const visualContext=visualRows.length?'\nIMMUTABLE VISUAL SIBLINGS (already authored; do not replace or return these rows). All other parts must remain independently answerable using their own supplied resources. Do not add claims about features of these images, invent another image, or require their labels to answer a different scored part:\n'+JSON.stringify(visualRows.map(r=>({question_number:r.question_number,question_text:r.question_text,resource:r.diagram_config}))):'';
     const previous = [...new Set(batch.map(p => p.parentId))].flatMap(parent => identityRejections.get(parent) ?? []);
-    const prompt = (typeNotes ? `${basePrompt}\n${typeNotes}` : basePrompt)+visualContext+'\n'+batchIdentityInstructions(batch,previous);
+    const statisticsNotes=ocrPaper3StatisticsInstructions(plan,batch,'chart_data');
+    const prompt = (typeNotes ? `${basePrompt}\n${typeNotes}` : basePrompt)+(statisticsNotes?'\n'+statisticsNotes:'')+visualContext+'\n'+batchIdentityInstructions(batch,previous);
     let data: any;
     try {
       data = await callAI(apiKey, systemPrompt, prompt, hasResourcePack, aiBudget, label);

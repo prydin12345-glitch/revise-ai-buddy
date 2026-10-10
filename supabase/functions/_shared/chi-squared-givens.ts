@@ -49,7 +49,12 @@ export function parseChiSquaredGivens(source:string):ChiSquaredGivens {
   const threshold=String.raw`(?:(?:p|alpha|α)\s*=\s*${NUMBER}|${LEVEL}\s*(?:of|is|=|:)?\s*${NUMBER}\s*%?|${NUMBER}\s*%\s*(?:significance(?: level)?)?)`;
   const dfQualifier=String.raw`(?:${NUMBER}\s*${DF}|${DF}\s*=\s*${NUMBER})`;
   const qualifier=String.raw`(?:${dfQualifier}|${threshold})`;
-  const qualifiers=String.raw`(?:(?:\(\s*${qualifier}\s*\)|(?:at|for|with|and)\s+(?:the\s+)?${qualifier})\s*)*`;
+  // A parenthesis can contain both labelled qualifiers, e.g.
+  // "critical value (for df=1, α=0.05): 3.84". Consume only explicit
+  // df/threshold declarations; the result still follows the closing bracket.
+  const prefixedQualifier=String.raw`(?:(?:at|for|with)\s+(?:the\s+)?)?${qualifier}`;
+  const qualifierList=String.raw`${prefixedQualifier}(?:\s*(?:,|;|\band\b)\s*${prefixedQualifier})*`;
+  const qualifiers=String.raw`(?:(?:\(\s*${qualifierList}\s*\)|(?:at|for|with|and)\s+(?:the\s+)?${qualifier})\s*)*`;
   const criticalValues=unique(values(text,String.raw`\bcritical\s+(?:χ2\s+)?value\s*${qualifiers}(?:(?:of|is|=|:)\s*)?(${NUMBER})${NUMBER_END}(?!%|\s*${DF})`));
   const levels:number[]=[];
   const levelPatterns=[
@@ -70,10 +75,14 @@ export function parseChiSquaredGivens(source:string):ChiSquaredGivens {
   const formula=/Σ\s*(?:[({]\s*)+O\s*-\s*E\s*(?:[)}]\s*)+\^?2\s*(?:[)}]\s*)*\/\s*[(]?\s*E\b/i.test(text);
   const paired=/\bO\s+and\s+E\s+(?:are|represent|denote)\s+(?:the\s+)?observed\s+and\s+expected\s+(?:counts|frequencies|values)(?:\s*,)?\s+respectively\b/i.test(text);
   const definition=(symbol:string,word:string)=>paired||new RegExp(String.raw`(?:\b${symbol}\b\s*(?:(?:=|:|,|-|is|represents|denotes|stands for)\s*)?(?:the\s+)?${word}\b|\b${word}(?:\s+(?:counts?|frequenc(?:y|ies)|values?))?\s*\(?${symbol}\b)`,'i').test(text);
+  const hypothesisLabel=String.raw`(?:\bnull hypothesis(?:\s*\(\s*H\s*_?\s*0\s*\))?|\bH\s*_?\s*0)`;
+  const hypotheses=[...text.matchAll(new RegExp(String.raw`${hypothesisLabel}\s*(?:is|:|=|states(?: that)?|that)\s*([^.;!?]+)`,'gi'))];
+  const suppliedHypothesis=hypotheses.some(m=>/[a-z]{2,}/i.test(m[1])&&
+    !/^(?:use\b|χ2\b|Σ|significance\b|degrees? of freedom\b|critical value\b|[OE]\s*[:=])/i.test(m[1]));
   const checks:[string,boolean][]=[
     ['chi-squared formula',formula],['O = observed definition',definition('O','observed')],
     ['E = expected definition',definition('E','expected')],
-    ['null hypothesis',/(?:\bnull hypothesis|\bH\s*_?\s*0)\s*(?:is|:|=|states(?: that)?|that)\s*\S/i.test(text)],
+    ['null hypothesis',suppliedHypothesis],
     ['numeric significance level',significanceLevels.length>0],
     ['numeric degrees of freedom',degreesOfFreedom.length>0],
     ['numeric critical value',criticalValues.length>0],
@@ -104,7 +113,9 @@ const isCount = (value:unknown):boolean =>
   (typeof value==='number'||typeof value==='string'&&/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value.trim()))&&Number.isFinite(Number(value));
 /** Ratio/percentage/probability columns describe the model, not counts. */
 const NOT_COUNT_HEADER=/\b(?:ratios?|proportions?|percent(?:age)?s?|probabilit(?:y|ies)|fractions?)\b|%/i;
-const header=(word:string,symbol:string)=>new RegExp(String.raw`\b${word}\b|^\s*${symbol}\s*$|\(\s*${symbol}\s*\)`,'i');
+// Column names start with a count label/symbol. A sentence mentioning both
+// observed and expected frequencies (e.g. a hypothesis) is not two columns.
+const header=(word:string,symbol:string)=>new RegExp(String.raw`^\s*(?:${word}\b|(?:numbers?|counts?|frequenc(?:y|ies))\s+(?:of\s+)?${word}\b|${symbol}(?:\s*$|\s*\(\s*${word}\b)|(?:numbers?|counts?|frequenc(?:y|ies))\s*\(\s*${symbol}\s*\)\s*$)`,'i');
 const OBSERVED_HEADER=header('observed','O'),EXPECTED_HEADER=header('expected','E');
 
 export interface ChiSquaredTable {
@@ -120,6 +131,8 @@ export interface ChiSquaredTable {
  * agree exactly with the category sums. */
 export function readChiSquaredTable(t:{headers:string[];rows:unknown[][]}):ChiSquaredTable {
   const issues:string[]=[];
+  if(!t.rows.length)return {observed:[],expected:[],issues:['No category count rows are supplied. Put the statistical givens in context or caption, not in headers; supply at least two rows of labelled categories with separate observed and expected counts.']};
+  if(t.rows.some(row=>!Array.isArray(row)))return {observed:[],expected:[],issues:['Every category count row must be an array of cells in header order. Rebuild the complete count table rather than guessing missing cells.']};
   const totalRow=(row:unknown[])=>row.some(cell=>typeof cell==='string'&&/^\s*(?:grand\s+)?totals?\s*$/i.test(cell));
   const last=t.rows[t.rows.length-1];
   const hasTotal=t.rows.length>2&&!!last&&totalRow(last);
@@ -130,7 +143,7 @@ export function readChiSquaredTable(t:{headers:string[];rows:unknown[][]}):ChiSq
     const counts=matches.filter(({h})=>!NOT_COUNT_HEADER.test(h));
     if(!counts.length){issues.push(matches.length
       ?`The ${name} column header "${matches[0].h}" describes a ratio/proportion, not counts. Add a separate column headed "${name[0].toUpperCase()+name.slice(1)} count (${name==='observed'?'O':'E'})".`
-      :`No column header contains "${name}". Head the counts column "${name[0].toUpperCase()+name.slice(1)} count (${name==='observed'?'O':'E'})".`);return -1;}
+      :`No column header names an ${name} count. Head the counts column "${name[0].toUpperCase()+name.slice(1)} count (${name==='observed'?'O':'E'})".`);return -1;}
     if(counts.length>1){issues.push(`More than one ${name} count column (${counts.map(c=>`"${c.h}"`).join(', ')}). Keep exactly one.`);return -1;}
     return counts[0].i;
   };
