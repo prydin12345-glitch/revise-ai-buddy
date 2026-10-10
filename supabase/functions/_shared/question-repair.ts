@@ -10,6 +10,7 @@ import { plannedResourceTypeNotes } from './planned-resource-types.ts';
 import { CHI_SQUARED_5_PERCENT, readChiSquaredTable } from './chi-squared-givens.ts';
 import { resolveQuestionResources } from './question-resources.ts';
 import type { UnifiedPart } from './ocr-alevel-biology-paper3-contract.ts';
+import {chiSquaredTableShapeExample,ocrPaper3StatisticsInstructions} from './ocr-paper3-statistics-instructions.ts';
 
 export interface RepairRequest {
   group: any[];
@@ -40,7 +41,7 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
   const plannedParts = plannedRepairParts(input);
   const essay = plannedParts.some(p => p.resource === 'essay_choice');
   const comprehension = plannedParts.some(p => p.resource === 'passage');
-  const statisticalParts = input.plan?.courseId === 'ocr_alevel_biology_a_h420' && input.plan.paperId === 'paper_3'
+  const statisticalParts = !taskOnly && input.plan?.courseId === 'ocr_alevel_biology_a_h420' && input.plan.paperId === 'paper_3'
     && /missing_required_resource|invalid_resource|answer_mismatch|conflicting_resource_data/.test(input.defects)
     ? plannedParts.filter(p => (p as UnifiedPart).unifiedSkill === 'statistical_analysis') : [];
   const statisticalNotes = statisticalParts.map(part => {
@@ -50,7 +51,7 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     const categories = read && !read.issues.length ? read.observed.length : undefined;
     const degrees = categories === undefined ? undefined : categories - 1;
     const critical = degrees === undefined ? undefined : CHI_SQUARED_5_PERCENT[degrees];
-    return `CHI-SQUARED REPAIR ${questionLabel(part.questionNumber)}: Put every required given in this scored part's context or its rendered table caption, not hidden metadata or another sibling. Example format: "Null hypothesis: [state the fixed-model prediction]. Use χ² = Σ((O − E)²/E), where O = observed count and E = expected count. Significance level = 5%. Degrees of freedom = k − 1 = ${critical ? degrees : '[numeric df]'}. Critical value = ${critical ?? '[matching numeric 5% critical value]'}." k is the number of categories. Equivalent clear wording is valid. TABLE FORMAT: the data_table needs one category-label column, exactly one column headed "Observed count (O)" and exactly one headed "Expected count (E)". Every cell in those two columns is a plain number with no units or text. Observed counts are whole numbers, and every expected count is at least 5; merge or redesign categories rather than keeping a small expected count. Do not put a ratio, proportion or percentage in a column headed observed/expected. If you show the model ratio, give it a separate column headed "Model ratio". Keep equal totals and use no fitted model parameters. Leave out a Total row, or put one as the final row only if it equals the column sums. Check the actual table, rather than copying a number from this example after changing its categories. The PRIVATE correct_answer must include "Final statistic: [calculated numeric value]", complete working, comparison with the critical value and an evidence-based conclusion. Never put calculated answers or completed working in public context/resources.`;
+    return `CHI-SQUARED REPAIR ${questionLabel(part.questionNumber)}: Put every required given in this scored part's context or its rendered table caption, not hidden metadata or another sibling. Example format: "Null hypothesis: [state the fixed-model prediction]. Use χ² = Σ((O − E)²/E), where O = observed count and E = expected count. Significance level = 5%. Degrees of freedom = k − 1 = ${critical ? degrees : '[numeric df]'}. Critical value = ${critical ?? '[matching numeric 5% critical value]'}." k is the number of categories. Equivalent clear wording is valid. TABLE FORMAT: when rebuilding an invalid or missing table, the data_table needs one category-label column, exactly one column headed "Observed count (O)" and exactly one headed "Expected count (E)". Every cell in those two columns is a plain number with no units or text. Observed counts are whole numbers, and every expected count is at least 5; merge or redesign categories rather than keeping a small expected count. Do not put a ratio, proportion or percentage in a column headed observed/expected. If you show the model ratio, give it a separate column headed "Model ratio". Keep equal totals and use no fitted model parameters. Leave out a Total row, or put one as the final row only if it equals the column sums. Check the actual table, rather than copying a number from this example after changing its categories. The PRIVATE correct_answer must include "Final statistic: [calculated numeric value]", complete working, comparison with the critical value and an evidence-based conclusion. Never put calculated answers or completed working in public context/resources.`;
   });
   const levelScheme = input.plan ? packForBiologyPlan(input.plan).validation.levelSchemeAtMarks : 6;
   const resourceChecklist = input.group.map(row => {
@@ -62,6 +63,25 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     ...(taskOnly ? {} : {context: '...'}), task: '...', correct_answer: '...',
     ...(!taskOnly && isMcqType(sample?.question_type) ? {options: ['Choice A', 'Choice B', 'Choice C', 'Choice D']} : {}),
     ...(taskOnly ? {} : {diagram_config: null})};
+  // Required count resources must not be illustrated as null. Show every
+  // sibling; preserve a recoverable count dataset in the example, otherwise
+  // use a clearly illustrative shape. Actual repairs still pass every gate.
+  const examples=statisticalParts.length?input.group.map(row=>{
+    const statistical=statisticalParts.find(p=>repairNumberKey(p.questionNumber)===repairNumberKey(row.question_number));
+    let resource=row.diagram_config??null;
+    if(statistical){
+      const resolved=resolveQuestionResources(row),table=resolved.table;
+      const counts=table?readChiSquaredTable(table):undefined;
+      const total=(values:number[])=>values.reduce((sum,value)=>sum+value,0);
+      const recoverable=table&&counts&&!resolved.issues.length&&!counts.issues.length&&
+        Number.isFinite(total(counts.observed))&&Number.isFinite(total(counts.expected))&&
+        Math.abs(total(counts.observed)-total(counts.expected))<=1e-6;
+      resource=recoverable?{type:'data_table',id:statistical.resourceId,headers:table.headers,rows:table.rows,
+        ...(table.units?{units:table.units}:{}),...(table.caption?{caption:table.caption}:{})}:chiSquaredTableShapeExample(statistical.resourceId);
+    }
+    return {question_number:row.question_number,context:'...',task:'...',correct_answer:'...',
+      diagram_config:resource};
+  }):[example];
   return [
     taskOnly ? 'Repair the missing assessed tasks for the named parts only. Original context, data and other siblings must remain unchanged.'
       : 'Repair the COMPLETE parent group, including every sibling, resource and private mark scheme.',
@@ -70,6 +90,7 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     biologyScopeInstructions(input.scope),
     'Blocking defects: ' + input.defects,
     ...statisticalNotes,
+    statisticalParts.length?ocrPaper3StatisticsInstructions(input.plan,statisticalParts,'diagram_config'):'',
     !taskOnly && /invalid_statements/.test(input.defects) ? 'STATEMENT REPAIR: If numbered propositions are missing, their original truth values and original answer cannot be recovered from combination-only options. Rewrite the complete MCQ as original synthetic material: put each full numbered statement in context, keep the same number/type/marks/topic, return all four distinct combination choices, evaluate every proposition privately and return the one matching correct_answer. Do not expose truth flags, explanations or the answer in context.' : '',
     'Targets: ' + [...input.targetNumbers].join(', '),
     input.previousDiagnostics?.length ? 'Previous response was rejected: ' + describeRepairDiagnostics(input.previousDiagnostics) : '',
@@ -102,7 +123,7 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     'Current group: ' + JSON.stringify(input.group.map(row => ({ question_number: row.question_number,
       question_type: row.question_type, marks: row.marks, topic_tag: row.topic_tag, question_text: row.question_text,
       correct_answer: row.correct_answer, options: row.options, diagram_config: row.diagram_config, table_data: row.table_data }))),
-    'Return JSON only: ' + JSON.stringify({parts: [example]}),
+    'Return JSON only: ' + JSON.stringify({parts: examples}),
   ].filter(Boolean).join('\n');
 }
 

@@ -38,12 +38,15 @@ export function unifiedPartIssues(row:CandidatePart,part:UnifiedPart,shared:Map<
   }
   if(part.unifiedSkill==='statistical_analysis'&&r.table){
     const t=r.table,counts=readChiSquaredTable(t);
+    // Report absent decision information even when the count table is broken,
+    // so one full-group repair can address both instead of using separate calls.
+    const text=assembledModelText(row)+'\n'+(t.caption??'');
+    const givens=parseChiSquaredGivens(text);
+    if(givens.missing.length)add('missing_required_resource','Missing visible chi-squared givens: '+givens.missing.join('; ')+'. State these in this scored part or its rendered table caption.');
     if(counts.issues.length){add('invalid_resource','Chi-squared requires observed integer counts and expected counts of at least five in labelled columns. '+counts.issues.slice(0,4).join(' ')+` Headers received: ${t.headers.map(h=>`"${h}"`).join(', ')}.`);return issues;}
     const observed=counts.observed.reduce((s,v)=>s+v,0),expected=counts.expected.reduce((s,v)=>s+v,0);
     if(!Number.isFinite(observed)||!Number.isFinite(expected)||Math.abs(observed-expected)>1e-6)add('conflicting_resource_data','Observed and expected totals must agree and remain finite for the planned goodness-of-fit calculation.');
-    const text=assembledModelText(row)+'\n'+(t.caption??'');
-    const givens=parseChiSquaredGivens(text),df=counts.observed.length-1,critical=CHI_SQUARED_5_PERCENT[df];
-    if(givens.missing.length)add('missing_required_resource','Missing visible chi-squared givens: '+givens.missing.join('; ')+'. State these in this scored part or its rendered table caption.');
+    const df=counts.observed.length-1,critical=CHI_SQUARED_5_PERCENT[df];
     if(!critical||!givens.degreesOfFreedom.length||givens.degreesOfFreedom.some(value=>value!==df)||!givens.criticalValues.length||givens.criticalValues.some(value=>!Number.isFinite(value)||Math.abs(value-critical)>0.01)||!givens.significanceLevels.length||givens.significanceLevels.some(value=>value!==0.05))add('invalid_resource','The planned fixed-model goodness-of-fit test needs 5% significance, category count minus one degrees of freedom, and the matching critical value (1–10 df). All stated values must agree; do not substitute a df or significance number for the critical value.');
     const statistic=counts.observed.reduce((s,o,i)=>s+(o-counts.expected[i])**2/counts.expected[i],0);
     const final=chiSquaredFinalStatistics(row.correct_answer);
