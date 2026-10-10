@@ -11,6 +11,7 @@ import { paperPlanForAttempt } from "../_shared/course-selection.ts";
 import { biologyPlanInstructions, biologyBatchInstructions, packForBiologyPlan } from "../_shared/biology-course-packs.ts";
 import { plannedResourceTypeNotes } from "../_shared/planned-resource-types.ts";
 import {ocrPaper3StatisticsInstructions} from '../_shared/ocr-paper3-statistics-instructions.ts';
+import {expandPaper3SharedTables,paper3SharedDataInstructions} from '../_shared/ocr-paper3-shared-data.ts';
 import { AiCallBudget, AiBudgetExhaustedError, usageTokens } from "../_shared/ai-call-budget.ts";
 import { plannedPartKey, planGroupBatches, mergeBatchRows, missingPlannedParts, describeRejections, batchIdentityInstructions, batchIdentityDiagnostic, type MergeRejection } from "../_shared/guided-batching.ts";
 import { GenerationResponseError, parseGenerationContent, providerHttpError, generationFailureDetail } from '../_shared/generation-response.ts';
@@ -2884,7 +2885,8 @@ async function generateGuidedPaper(
     const visualContext=visualRows.length?'\nIMMUTABLE VISUAL SIBLINGS (already authored; do not replace or return these rows). All other parts must remain independently answerable using their own supplied resources. Do not add claims about features of these images, invent another image, or require their labels to answer a different scored part:\n'+JSON.stringify(visualRows.map(r=>({question_number:r.question_number,question_text:r.question_text,resource:r.diagram_config}))):'';
     const previous = [...new Set(batch.map(p => p.parentId))].flatMap(parent => identityRejections.get(parent) ?? []);
     const statisticsNotes=ocrPaper3StatisticsInstructions(plan,batch,'chart_data');
-    const prompt = (typeNotes ? `${basePrompt}\n${typeNotes}` : basePrompt)+(statisticsNotes?'\n'+statisticsNotes:'')+visualContext+'\n'+batchIdentityInstructions(batch,previous);
+    const sharedNotes=paper3SharedDataInstructions(plan,batch,'chart_data');
+    const prompt = (typeNotes ? `${basePrompt}\n${typeNotes}` : basePrompt)+(statisticsNotes?'\n'+statisticsNotes:'')+(sharedNotes?'\n'+sharedNotes:'')+visualContext+'\n'+batchIdentityInstructions(batch,previous);
     let data: any;
     try {
       data = await callAI(apiKey, systemPrompt, prompt, hasResourcePack, aiBudget, label);
@@ -2932,7 +2934,13 @@ async function generateGuidedPaper(
   const stillMissing = missingPlannedParts(plan, produced);
   if (stillMissing.length) console.warn(`[plan] still missing after batching: ${stillMissing.map(p => p.questionNumber).join(', ')} (${aiBudget.summary()})`);
   if (!produced.size) throw new GenerationResponseError('no_usable_questions', lastBatchIssue);
-  return expandComprehensionReferences([...produced.values()]);
+  // Resolve only explicit references after completion, when recovered sibling
+  // tables are available. Reject broken references before alias collapse can
+  // hide them; no missing resource or conflicting cell is filled. Ordinary
+  // complete-table conflicts still go through bounded full-group repair.
+  const shared=expandPaper3SharedTables([...produced.values()],plan);
+  if(shared.diagnostics.length)throw new GenerationResponseError('invalid_shared_dataset_reference',shared.diagnostics.map(d=>`Q${d.partNumber}: ${d.detail}`).join('; '));
+  return expandComprehensionReferences(shared.rows);
 }
 
 // ── OPTIMISATION 2: Quality scoring function ──
