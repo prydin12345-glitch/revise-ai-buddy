@@ -7,7 +7,7 @@ import { isMcqType } from './model-question-normalization.ts';
 import { assembleQuestionText, referencesResource, questionLabel } from './question-contract-validator.ts';
 import { questionResourceInstructions } from './question-resource-instructions.ts';
 import { plannedResourceTypeNotes } from './planned-resource-types.ts';
-import { CHI_SQUARED_5_PERCENT } from './chi-squared-givens.ts';
+import { CHI_SQUARED_5_PERCENT, readChiSquaredTable } from './chi-squared-givens.ts';
 import { resolveQuestionResources } from './question-resources.ts';
 import type { UnifiedPart } from './ocr-alevel-biology-paper3-contract.ts';
 
@@ -45,10 +45,12 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     ? plannedParts.filter(p => (p as UnifiedPart).unifiedSkill === 'statistical_analysis') : [];
   const statisticalNotes = statisticalParts.map(part => {
     const row = input.group.find(q => repairNumberKey(q.question_number) === repairNumberKey(part.questionNumber));
-    const categories = resolveQuestionResources(row ?? {}).table?.rows.length;
+    const table = resolveQuestionResources(row ?? {}).table;
+    const read = table ? readChiSquaredTable(table) : undefined;
+    const categories = read && !read.issues.length ? read.observed.length : undefined;
     const degrees = categories === undefined ? undefined : categories - 1;
     const critical = degrees === undefined ? undefined : CHI_SQUARED_5_PERCENT[degrees];
-    return `CHI-SQUARED REPAIR ${questionLabel(part.questionNumber)}: Put every required given in this scored part's context or its rendered table caption, not hidden metadata or another sibling. Example format: "Null hypothesis: [state the fixed-model prediction]. Use χ² = Σ((O − E)²/E), where O = observed count and E = expected count. Significance level = 5%. Degrees of freedom = k − 1 = ${critical ? degrees : '[numeric df]'}. Critical value = ${critical ?? '[matching numeric 5% critical value]'}." k is the number of categories. Equivalent clear wording is valid. Keep observed integer counts, all expected counts at least 5, and equal totals; no fitted model parameters. Check the actual table, rather than copying a number from this example after changing its categories. The PRIVATE correct_answer must include "Final statistic: [calculated numeric value]", complete working, comparison with the critical value and an evidence-based conclusion. Never put calculated answers or completed working in public context/resources.`;
+    return `CHI-SQUARED REPAIR ${questionLabel(part.questionNumber)}: Put every required given in this scored part's context or its rendered table caption, not hidden metadata or another sibling. Example format: "Null hypothesis: [state the fixed-model prediction]. Use χ² = Σ((O − E)²/E), where O = observed count and E = expected count. Significance level = 5%. Degrees of freedom = k − 1 = ${critical ? degrees : '[numeric df]'}. Critical value = ${critical ?? '[matching numeric 5% critical value]'}." k is the number of categories. Equivalent clear wording is valid. TABLE FORMAT: the data_table needs one category-label column, exactly one column headed "Observed count (O)" and exactly one headed "Expected count (E)". Every cell in those two columns is a plain number with no units or text. Observed counts are whole numbers, and every expected count is at least 5; merge or redesign categories rather than keeping a small expected count. Do not put a ratio, proportion or percentage in a column headed observed/expected. If you show the model ratio, give it a separate column headed "Model ratio". Keep equal totals and use no fitted model parameters. Leave out a Total row, or put one as the final row only if it equals the column sums. Check the actual table, rather than copying a number from this example after changing its categories. The PRIVATE correct_answer must include "Final statistic: [calculated numeric value]", complete working, comparison with the critical value and an evidence-based conclusion. Never put calculated answers or completed working in public context/resources.`;
   });
   const levelScheme = input.plan ? packForBiologyPlan(input.plan).validation.levelSchemeAtMarks : 6;
   const resourceChecklist = input.group.map(row => {

@@ -1,5 +1,5 @@
 // @vitest-environment node
-import {expect,it} from 'vitest';
+import {describe,expect,it} from 'vitest';
 import {ocrPaper3Fixture} from './ocr-alevel-paper3-fixtures';
 import {validateQuestionCandidates} from '../functions/_shared/question-contract-validator';
 import {biologyScopeFromContext} from '../functions/_shared/gcse-biology-scope';
@@ -177,4 +177,37 @@ it('keeps wrong repaired statistics blocked and prevents publication after bound
   expect(String(r.error)).toContain('answer_mismatch');expect(r.exam.extraction_status).not.toBe('completed');expect(r.repairCalls).toHaveLength(3);
   const h=await boundaryHandler('publish-exam',r.drafts,'short_practice','paper_3',f.snapshot);
   expect((await h.run({draftId:'exam'})).status).toBe(422);expect(h.writes.some(w=>w.table==='exam_questions')).toBe(false);
+});
+
+describe('chi-squared table columns',()=>{
+  const ratioTable=(headers:string[],rows:unknown[][])=>{const f=fixture();f.row.diagram_config.headers=headers;f.row.diagram_config.rows=rows;return f;};
+  it('uses the expected count column, not an earlier model ratio column',()=>{
+    const f=ratioTable(['Phenotype','Expected ratio','Observed count','Expected count'],[['Resistant',1,42,40],['Susceptible',1,38,40]]);
+    expect(check(f).defects).toEqual([]);
+  });
+  it('accepts O and E symbol headers and a matching final Total row',()=>{
+    const f=ratioTable(['Phenotype','O','E'],[['Resistant',42,40],['Susceptible',38,40],['Total',80,80]]);
+    expect(check(f).defects).toEqual([]);
+  });
+  it('rejects a Total row that does not equal the column sums',()=>{
+    const f=ratioTable(['Phenotype','Observed count','Expected count'],[['Resistant',42,40],['Susceptible',38,40],['Total',90,80]]);
+    expect(check(f).defects.find(d=>d.code==='invalid_resource')?.detail).toContain('Total row');
+  });
+  it.each([
+    ['expected count below 5',[['Resistant',42,4],['Susceptible',38,76]],'below 5'],
+    ['non-integer observed count',[['Resistant',42.5,40],['Susceptible',37.5,40]],'whole number'],
+    ['units in a cell',[['Resistant','42 plants',40],['Susceptible',38,40]],'whole number'],
+  ])('still rejects %s with a specific reason',(_n,rows,reason)=>{
+    const f=ratioTable(['Phenotype','Observed count','Expected count'],rows as unknown[][]);
+    expect(check(f).defects.find(d=>d.code==='invalid_resource')?.detail).toContain(reason);
+  });
+  it('rejects ratio-only expected columns and names the fix',()=>{
+    const f=ratioTable(['Phenotype','Observed count','Expected ratio'],[['Resistant',42,3],['Susceptible',38,1]]);
+    expect(check(f).defects.find(d=>d.code==='invalid_resource')?.detail).toContain('Expected count (E)');
+  });
+  it('repair guidance states the exact column format',()=>{
+    const f=fixture();
+    const prompt=buildQuestionRepairPrompt({group:f.rows.slice(3),subject:'Biology',scope:biologyScopeFromContext(f.snapshot),plan:f.plan,mode:'full_group',targetNumbers:new Set(['2(b)']),defects:'Q2(b): invalid_resource'});
+    expect(prompt).toContain('"Observed count (O)"');expect(prompt).toContain('"Expected count (E)"');
+  });
 });
