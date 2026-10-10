@@ -99,3 +99,55 @@ export function chiSquaredFinalStatistics(key:unknown):number[] {
   for(const m of text.matchAll(new RegExp(String.raw`${label}\s*(?:=|:)\s*[\d\s.()+*/^ΣOEe-]{1,250}\s*=\s*(${NUMBER})${NUMBER_END}(?!\s*[+*/^]|\s*-\s*\d)`,'gi')))if(!isThreshold(m.index!))results.push(Number(m[1]));
   return unique(results);
 }
+
+const isCount = (value:unknown):boolean =>
+  (typeof value==='number'||typeof value==='string'&&/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value.trim()))&&Number.isFinite(Number(value));
+/** Ratio/percentage/probability columns describe the model, not counts. */
+const NOT_COUNT_HEADER=/\b(?:ratios?|proportions?|percent(?:age)?s?|probabilit(?:y|ies)|fractions?)\b|%/i;
+const header=(word:string,symbol:string)=>new RegExp(String.raw`\b${word}\b|^\s*${symbol}\s*$|\(\s*${symbol}\s*\)`,'i');
+const OBSERVED_HEADER=header('observed','O'),EXPECTED_HEADER=header('expected','E');
+
+export interface ChiSquaredTable {
+  observed:number[];
+  expected:number[];
+  /** Specific, public-safe reasons the table cannot support the test. */
+  issues:string[];
+}
+
+/** Locate the observed/expected count columns without guessing values.
+ * A model ratio column (e.g. "Expected ratio") is never treated as the
+ * expected-count column. One trailing Total row is not a category; it must
+ * agree exactly with the category sums. */
+export function readChiSquaredTable(t:{headers:string[];rows:unknown[][]}):ChiSquaredTable {
+  const issues:string[]=[];
+  const totalRow=(row:unknown[])=>row.some(cell=>typeof cell==='string'&&/^\s*(?:grand\s+)?totals?\s*$/i.test(cell));
+  const last=t.rows[t.rows.length-1];
+  const hasTotal=t.rows.length>2&&!!last&&totalRow(last);
+  const rows=hasTotal?t.rows.slice(0,-1):t.rows;
+  if(rows.some(totalRow))issues.push('Only one Total row is allowed, as the final row.');
+  const pick=(pattern:RegExp,name:string)=>{
+    const matches=t.headers.map((h,i)=>({h:String(h),i})).filter(({h})=>pattern.test(h));
+    const counts=matches.filter(({h})=>!NOT_COUNT_HEADER.test(h));
+    if(!counts.length){issues.push(matches.length
+      ?`The ${name} column header "${matches[0].h}" describes a ratio/proportion, not counts. Add a separate column headed "${name[0].toUpperCase()+name.slice(1)} count (${name==='observed'?'O':'E'})".`
+      :`No column header contains "${name}". Head the counts column "${name[0].toUpperCase()+name.slice(1)} count (${name==='observed'?'O':'E'})".`);return -1;}
+    if(counts.length>1){issues.push(`More than one ${name} count column (${counts.map(c=>`"${c.h}"`).join(', ')}). Keep exactly one.`);return -1;}
+    return counts[0].i;
+  };
+  const oi=pick(OBSERVED_HEADER,'observed'),ei=pick(EXPECTED_HEADER,'expected');
+  if(oi>=0&&oi===ei)issues.push('Observed and expected counts need separate columns.');
+  if(rows.length<2)issues.push('At least two categories are needed.');
+  const observed:number[]=[],expected:number[]=[];
+  if(oi>=0&&ei>=0&&oi!==ei)for(const [i,row] of rows.entries()){
+    const o=row[oi],e=row[ei];
+    if(!isCount(o)||!Number.isInteger(Number(o))||Number(o)<0)issues.push(`Row ${i+1}: observed count must be a non-negative whole number with no units or text in the cell.`);
+    if(!isCount(e))issues.push(`Row ${i+1}: expected count must be a plain number with no units, ratio or text in the cell.`);
+    else if(Number(e)<5)issues.push(`Row ${i+1}: expected count is below 5; merge or redesign categories so every expected count is at least 5.`);
+    observed.push(Number(o));expected.push(Number(e));
+  }
+  if(hasTotal&&!issues.length){
+    const sum=(xs:number[])=>xs.reduce((s,x)=>s+x,0);
+    if(!isCount(last[oi])||!isCount(last[ei])||Number(last[oi])!==sum(observed)||Math.abs(Number(last[ei])-sum(expected))>1e-6)issues.push('The Total row must equal the sum of the category rows.');
+  }
+  return {observed,expected,issues};
+}
