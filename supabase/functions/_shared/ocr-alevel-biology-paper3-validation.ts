@@ -5,6 +5,24 @@ import type {UnifiedPart} from './ocr-alevel-biology-paper3-contract.ts';
 import {resolveQuestionResources} from './question-resources.ts';
 import {assembledModelText} from './model-question-normalization.ts';
 import {CHI_SQUARED_5_PERCENT,chiSquaredFinalStatistics,parseChiSquaredGivens,readChiSquaredTable} from './chi-squared-givens.ts';
+import {isSharedTableReference,sharedTableFingerprint} from './ocr-paper3-shared-data.ts';
+
+function sharedDifferences(before:string,after:string):string {
+  const a=JSON.parse(before),b=JSON.parse(after),differences:string[]=[];
+  if(JSON.stringify(a.headers)!==JSON.stringify(b.headers))differences.push('column headers');
+  if(JSON.stringify(a.units)!==JSON.stringify(b.units))differences.push('units');
+  if(a.caption!==b.caption)differences.push('caption');
+  if(a.rows.length!==b.rows.length)differences.push('number of observations');
+  else {
+    for(let i=0;i<a.rows.length;i++){
+      if(!Array.isArray(a.rows[i])||!Array.isArray(b.rows[i])){if(JSON.stringify(a.rows[i])!==JSON.stringify(b.rows[i]))differences.push(`row ${i+1} shape`);continue;}
+      if(a.rows[i].length!==b.rows[i].length)differences.push(`row ${i+1} column count`);
+      else for(let j=0;j<a.rows[i].length;j++)if(a.rows[i][j]!==b.rows[i][j])differences.push(`row ${i+1}, column ${j+1}`);
+      if(differences.length>=4)break;
+    }
+  }
+  return differences.slice(0,4).join('; ');
+}
 
 function privateField(value:unknown):boolean {
   if(typeof value==='string'){try{return privateField(JSON.parse(value));}catch{return false;}}
@@ -25,11 +43,14 @@ export function unifiedPartIssues(row:CandidatePart,part:UnifiedPart,shared:Map<
   const visual=(part as UnifiedPart&{visualAssignment?:VisualAssignment}).visualAssignment;
   const visualIssue=visualPublicIssue(row,visual);if(visualIssue)add('invalid_resource',visualIssue);
   const r=resolveQuestionResources(row);
+  if([row.diagram_config,row.diagramConfig,row.chart_data,row.table_data].some(isSharedTableReference))add('invalid_resource','An unresolved shared table reference cannot be stored or displayed. Return the complete visible table or an explicit reference to one valid returned sibling in the same planned dataset.');
   if(part.resource==='none'&&!visual&&(row.diagram_config||r.chart||r.passage||r.essay||row.figure_urls&&(row.figure_urls as any).length))add('invalid_resource','An unplanned decorative resource cannot be added to this self-contained part.');
   if(part.sharedDataset&&r.table){
-    const t=r.table,fingerprint=JSON.stringify({headers:t.headers,rows:t.rows,units:t.units??[],caption:t.caption??''});
-    if(shared.has(part.sharedDataset)&&shared.get(part.sharedDataset)!==fingerprint)add('conflicting_resource_data','Shared investigation observations, headers, units and caption disagree across dependent parts.');
-    shared.set(part.sharedDataset,fingerprint);
+    const fingerprint=sharedTableFingerprint(r.table),first=shared.get(part.sharedDataset);
+    if(first!==undefined&&first!==fingerprint)add('conflicting_resource_data','Shared investigation observations, headers, units and caption disagree across dependent parts. Differences: '+sharedDifferences(first,fingerprint)+'. Return the same complete table for every dependent sibling and rewrite all keys against that one dataset.');
+    // Compare every sibling with the first dataset, never move the reference
+    // point to a conflicting row. All four components still match exactly.
+    if(first===undefined)shared.set(part.sharedDataset,fingerprint);
   }
   if(part.unifiedSkill==='plotting'&&r.table){
     const t=r.table;

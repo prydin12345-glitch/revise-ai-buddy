@@ -11,6 +11,7 @@ import { CHI_SQUARED_5_PERCENT, readChiSquaredTable } from './chi-squared-givens
 import { resolveQuestionResources } from './question-resources.ts';
 import type { UnifiedPart } from './ocr-alevel-biology-paper3-contract.ts';
 import {chiSquaredTableShapeExample,ocrPaper3StatisticsInstructions} from './ocr-paper3-statistics-instructions.ts';
+import {expandPaper3SharedTables,paper3SharedDataInstructions,paper3SharedRepairExamples} from './ocr-paper3-shared-data.ts';
 
 export interface RepairRequest {
   group: any[];
@@ -41,6 +42,7 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
   const plannedParts = plannedRepairParts(input);
   const essay = plannedParts.some(p => p.resource === 'essay_choice');
   const comprehension = plannedParts.some(p => p.resource === 'passage');
+  const sharedNotes = taskOnly ? '' : paper3SharedDataInstructions(input.plan,plannedParts,'diagram_config');
   const statisticalParts = !taskOnly && input.plan?.courseId === 'ocr_alevel_biology_a_h420' && input.plan.paperId === 'paper_3'
     && /missing_required_resource|invalid_resource|answer_mismatch|conflicting_resource_data/.test(input.defects)
     ? plannedParts.filter(p => (p as UnifiedPart).unifiedSkill === 'statistical_analysis') : [];
@@ -81,7 +83,7 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     }
     return {question_number:row.question_number,context:'...',task:'...',correct_answer:'...',
       diagram_config:resource};
-  }):[example];
+  }):(!taskOnly?paper3SharedRepairExamples(input.plan,input.group):null)??[example];
   return [
     taskOnly ? 'Repair the missing assessed tasks for the named parts only. Original context, data and other siblings must remain unchanged.'
       : 'Repair the COMPLETE parent group, including every sibling, resource and private mark scheme.',
@@ -91,6 +93,8 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     'Blocking defects: ' + input.defects,
     ...statisticalNotes,
     statisticalParts.length?ocrPaper3StatisticsInstructions(input.plan,statisticalParts,'diagram_config'):'',
+    sharedNotes,
+    sharedNotes ? 'SHARED-TABLE EXAMPLE SAFETY: Preserve all supplied observations when the original dependent tables agree. If they disagree, do not pick one as truth or splice cells. Rewrite the COMPLETE group as one coherent new synthetic investigation and recalculate every dependent private key. Any illustrative table in the final JSON example shows transport shape only; it is not recovered measurements or a ready question. Replace illustrative values, units and caption with suitable complete original data. All scored siblings and required resources must be returned; one source table plus explicit references supplies each dependent table.' : '',
     !taskOnly && /invalid_statements/.test(input.defects) ? 'STATEMENT REPAIR: If numbered propositions are missing, their original truth values and original answer cannot be recovered from combination-only options. Rewrite the complete MCQ as original synthetic material: put each full numbered statement in context, keep the same number/type/marks/topic, return all four distinct combination choices, evaluate every proposition privately and return the one matching correct_answer. Do not expose truth flags, explanations or the answer in context.' : '',
     'Targets: ' + [...input.targetNumbers].join(', '),
     input.previousDiagnostics?.length ? 'Previous response was rejected: ' + describeRepairDiagnostics(input.previousDiagnostics) : '',
@@ -169,7 +173,9 @@ export async function requestQuestionRepair(input: RepairRequest, apiKey: string
     return failure('parse', 'invalid_response_shape', `Expected a non-empty parts array of explicitly numbered repairs, even for one target. Received ${containers.length ? containers[0] + ': ' : ''}${shape}; no numbered repairs found.`);
   }
   const requiredParts = new Set((input.plan?.parts ?? []).filter(p => p.resource !== 'none').map(p => p.questionNumber));
-  const result = analyseGroupRepair(input.group, parts, input.scope, requiredParts, input.targetNumbers, input.mode);
+  const expanded = input.mode === 'full_group' ? expandPaper3SharedTables(parts,input.plan) : {rows:parts,diagnostics:[]};
+  if(expanded.diagnostics.length)return {ok:false,replacements:{},phase:'validation',diagnostics:expanded.diagnostics};
+  const result = analyseGroupRepair(input.group, expanded.rows, input.scope, requiredParts, input.targetNumbers, input.mode);
   if (result.ok && input.plan) {
     const groupPlan = {...input.plan, parts: plannedRepairParts(input)};
     const proposed = input.group.map(row => ({...row, ...result.replacements[String(row.question_number)]}));
