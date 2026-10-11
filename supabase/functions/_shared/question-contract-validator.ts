@@ -1,3 +1,4 @@
+import {isEdexcelAlevelBiologyB,pearsonAdditionalAssessedTask} from './edexcel-alevel-biology-b-scope.ts';
 // Shared answerability gate for generated exam questions.
 //
 // A scored part must contain an ASSESSED TASK, not just experimental context.
@@ -310,7 +311,8 @@ export function validateQuestionCandidates(
     const taskPresent = taskText
       ? hasAssessedTask(taskText)
       : hasAssessedTask(displayed);
-    if (!taskPresent) {
+    const pearsonTask=options.scope&&isEdexcelAlevelBiologyB(options.scope)&&pearsonAdditionalAssessedTask(taskText||displayed);
+    if (!taskPresent && !pearsonTask) {
       push("missing_task", "Scored part contains context but no assessed instruction.");
     }
 

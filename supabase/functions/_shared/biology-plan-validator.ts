@@ -1,3 +1,6 @@
+import {EDEXCEL_ALEVEL_BIOLOGY_B_ID} from './assessment-tier.ts';
+import {edexcelBiologyBPartIssues} from './edexcel-alevel-biology-b-validation.ts';
+import type {EdexcelBPart} from './edexcel-alevel-biology-b-contract.ts';
 import {OCR_ALEVEL_BIOLOGY_ID} from './assessment-tier.ts';
 import {singleChoiceKey} from './single-choice-marking.ts';
 import { statementCombinationIssue } from './numbered-statements.ts';
@@ -38,6 +41,7 @@ export function validateBiologyPlan(rows: CandidatePart[], plan?: PaperPlan | nu
       parentId: row.root_question_number ?? row.parent_question_number ?? null, code, detail});
     if (!expected || seen.has(number)) { push(`Unexpected or duplicate scored row ${number}; do not silently renumber or discard it.`); continue; }
     seen.add(number);
+    if(plan.courseId===EDEXCEL_ALEVEL_BIOLOGY_B_ID)for(const issue of edexcelBiologyBPartIssues(row,expected as EdexcelBPart))push(`Q${number}: ${issue.detail}`,issue.code);
     if(pack.id==='ocr-h420-paper-3-v1')for(const issue of unifiedPartIssues(row,expected as UnifiedPart,unifiedDatasets))push(`Q${number}: ${issue.detail}`,issue.code);
     if (Number(row.marks) !== expected.marks) push(`Q${number} requires ${expected.marks} marks and a matching scheme.`);
     if (pack.id === 'ocr-h420-paper-2-v2') {

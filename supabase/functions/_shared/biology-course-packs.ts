@@ -1,3 +1,6 @@
+import {EDEXCEL_ALEVEL_BIOLOGY_B_ID} from './assessment-tier.ts';
+import {EDEXCEL_B_P1,buildEdexcelBiologyBPlan,assertEdexcelBiologyBPlan,edexcelBiologyBInstructions,edexcelBiologyBPartInstruction} from './edexcel-alevel-biology-b-contract.ts';
+import {EDEXCEL_B_SPEC_URL,EDEXCEL_B_SAM_URL,EDEXCEL_B_P1_RULES} from './edexcel-alevel-biology-b-scope.ts';
 import {OCR_ALEVEL_BIOLOGY_ID} from './assessment-tier.ts';
 import {OCR_ALEVEL_P1,buildOcrAlevelPaper1Plan,assertOcrAlevelPaper1Plan,ocrAlevelPaper1Instructions,ocrAlevelPartInstruction} from './ocr-alevel-biology-contract.ts';
 import {OCR_ALEVEL_SPEC_URL,OCR_ALEVEL_SAM_URL,OCR_ALEVEL_P1_RULES} from './ocr-alevel-biology-scope.ts';
@@ -302,7 +305,24 @@ const HISTORICAL_BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [
 
 // Register a new version without mutating any historical plan or prompt.
 const paper2V1 = HISTORICAL_BIOLOGY_PAPER_PACKS.find(pack => pack.id === 'ocr-h420-paper-2-v1')!;
-export const BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [...HISTORICAL_BIOLOGY_PAPER_PACKS, { ...paper2V1, id: 'ocr-h420-paper-2-v2', contractVersion: 2,
+const edexcelAlevelBPack: BiologyPaperPack = {
+  id:'pearson-9bi0-01-v1',courseId:EDEXCEL_ALEVEL_BIOLOGY_B_ID,paperId:'9bi0_01',contractVersion:1,
+  curriculum:{...curriculum,qualification:'A-level'},examBoard:'Pearson Edexcel',tiers:['not_tiered'],
+  sources:[{url:EDEXCEL_B_SPEC_URL,section:'Issue 4 November 2018: Topics 1–7, Paper 1 assessment; Appendices 5–7',checkedOn:'2026-10-11'},
+    {url:EDEXCEL_B_SAM_URL,section:'Issue 1 December 2014: 9BI0/01 mixed compulsory structured questions and private marking conventions',checkedOn:'2026-10-11'},
+    ...['20230608','20240606','20250606'].map(date=>({url:`https://qualifications.pearson.com/content/dam/pdf/A-Level/Biology/2015/Exam-materials/9bi0-01-que-${date}.pdf`,section:'Official question paper; nine parent questions, embedded choices, structured and extended responses',checkedOn:'2026-10-11'})),
+    ...['20230817','20240815','20250814'].flatMap(date=>['rms','pef'].map(kind=>({url:`https://qualifications.pearson.com/content/dam/pdf/A-Level/Biology/2015/Exam-materials/9bi0-01-${kind}-${date}.pdf`,section:kind==='rms'?'Private point/method/alternative credit and task-specific Pearson levels':'Examiner observations: contextual evidence, precise command use, working and reasoning',checkedOn:'2026-10-11'}))),
+  ],official:{fullMarks:90,durationMinutes:105},
+  layoutChoices:['Untiered Biology B 9BI0/01, Topics 1–7; 30% of the qualification. Biology A is separate and unavailable.',
+    'Nine groups, 36 parts, ten embedded one-mark MCQs and two six-mark levels tasks are Examly v1 development-template choices, not fixed Pearson rules. No OCR Section A/B split.',
+    'Short practice: three groups, nine parts, two MCQs and one levels task, 25 marks/29 minutes. It is an Examly practice template.',
+    'Mathematical/practical annotations guide drafting. The qualification-wide minimum 10% Level 2 maths is not an exact Paper 1 quota.'],
+  validation:{rows:'exact_parts',mcqOptions:4,levelSchemeAtMarks:6},rules:EDEXCEL_B_P1_RULES,
+  generation:{strategy:'contract_only',systemPrompt:'Write an original Pearson Edexcel A Level Biology B 9BI0/01 paper from the saved untiered Topic 1–7 plan, not Biology A or OCR. Preserve complete parent groups, exact parts, assessed Pearson commands, visible resources and private point/method or Pearson levels schemes. Never copy past-paper questions, data or diagrams. Return complete JSON only.'},
+  definition:()=>({...EDEXCEL_B_P1}),build:buildEdexcelBiologyBPlan,instructions:edexcelBiologyBInstructions,
+  repairPartInstructions:edexcelBiologyBPartInstruction,validatePlan:assertEdexcelBiologyBPlan,
+};
+export const BIOLOGY_PAPER_PACKS: readonly BiologyPaperPack[] = [edexcelAlevelBPack, ...HISTORICAL_BIOLOGY_PAPER_PACKS, { ...paper2V1, id: 'ocr-h420-paper-2-v2', contractVersion: 2,
   layoutChoices: [...paper2V1.layoutChoices, 'Examly v2 full-template primary-module marks: Module 2 = 14, Module 4 = 41, Module 6 = 45. Module 1 skills are embedded. These are not official OCR weightings.'],
   rules: OCR_ALEVEL_P2_V2_RULES,
   definition: () => ({...OCR_ALEVEL_P2_V2}), build: buildOcrAlevelPaper2V2Plan,
@@ -341,7 +361,7 @@ export const biologyPaperOptions = (courseId: string | null | undefined) =>
 /** Explicit paper/version lookups never fall back to a different registered paper. */
 export function getBiologyPaperPack(courseId: string | null | undefined, paperId?: string | null, contractVersion?: number): BiologyPaperPack | null {
   const course = canonicalCourseId(courseId);
-  if((course === AQA_ALEVEL_BIOLOGY_ID || course === OCR_ALEVEL_BIOLOGY_ID) && !paperId) return null;
+  if((course === AQA_ALEVEL_BIOLOGY_ID || course === OCR_ALEVEL_BIOLOGY_ID || course === EDEXCEL_ALEVEL_BIOLOGY_B_ID) && !paperId) return null;
   // Before Paper 2 shipped, an absent AQA paper meant Paper 1. Preserve old
   // callers/profiles explicitly; never infer Paper 2 from a display name.
   const selectedPaper = paperId ?? (course === 'aqa_gcse_biology' ? 'paper_1' : null);

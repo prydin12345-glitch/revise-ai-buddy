@@ -2,7 +2,7 @@ import {drawResponsePDF} from './response-pdf';
 import {responseKeyLines, type ResponseQuestionView} from './response-view';
 import {OCR_ALEVEL_BIOLOGY_ID} from '@/lib/assessment-tier';
 import {readBiologyEssay,isBiologyEssayResource,formatBiologyEssayKey} from '@/lib/biology-essay';
-import { gatewaySectionHeading, biologyResponseNotice, biologyPaperDisplay, ocrUnifiedPaperLabel } from "@/lib/biology-paper-display";
+import { gatewaySectionHeading, biologyResponseNotice, biologyPaperDisplay, ocrUnifiedPaperLabel, edexcelBiologyBPaperLabel } from "@/lib/biology-paper-display";
 import { comprehensionInsertFigures, isComprehensionResource } from '@/lib/biology-comprehension';
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -685,7 +685,7 @@ export async function generateExamPDF(
   let figureCount = 1;
 
   const display = biologyPaperDisplay(examData.generation_context);
-  const paperLabel = display && (display.plan.courseId === OCR_ALEVEL_BIOLOGY_ID || (display.plan.courseId === 'aqa_alevel_biology_7402' && ['paper_2','paper_3'].includes(display.plan.paperId))) ? display.label : ocrUnifiedPaperLabel(examData.generation_context);
+  const paperLabel = display && (display.plan.courseId === 'pearson_edexcel_alevel_biology_b_9bi0' || display.plan.courseId === OCR_ALEVEL_BIOLOGY_ID || (display.plan.courseId === 'aqa_alevel_biology_7402' && ['paper_2','paper_3'].includes(display.plan.paperId))) ? display.label : edexcelBiologyBPaperLabel(examData.generation_context)??ocrUnifiedPaperLabel(examData.generation_context);
   const questionGroups = groupQuestionsByMain(examData.questions);
   const totalMarks = examData.questions.reduce((sum, q) => sum + (q.marks || 0), 0);
 
@@ -771,8 +771,14 @@ export async function generateExamPDF(
       doc.setFont("helvetica", "normal");
       setColor(COLORS.secondary);
       const parts = [examData.subject, examData.qualification_level].filter(Boolean);
-      doc.text(paperLabel ?? parts.join('  ·  '), A4_WIDTH / 2, yPosition, { align: "center" });
-      yPosition += 12;
+      if(edexcelBiologyBPaperLabel(examData.generation_context)){
+        const lines=doc.splitTextToSize(paperLabel!,CONTENT_WIDTH);
+        doc.text(lines,A4_WIDTH/2,yPosition,{align:'center'});
+        yPosition+=Math.max(12,lines.length*5+7);
+      }else{
+        doc.text(paperLabel ?? parts.join('  ·  '), A4_WIDTH / 2, yPosition, { align: "center" });
+        yPosition += 12;
+      }
     }
 
     // Separator
@@ -808,6 +814,10 @@ export async function generateExamPDF(
     setColor(COLORS.primary);
     doc.setFontSize(11);
     doc.text(`Total Marks: ${totalMarks}`, MARGIN, yPosition);
+    if(edexcelBiologyBPaperLabel(examData.generation_context)&&display){
+      yPosition+=7;
+      doc.text(`Time Allowed: ${display.plan.durationMinutes} minutes`,MARGIN,yPosition);
+    }
     if (examData.time_allowed) {
       doc.text(`Time: ${examData.time_allowed} minutes`, A4_WIDTH - MARGIN, yPosition, { align: "right" });
     }

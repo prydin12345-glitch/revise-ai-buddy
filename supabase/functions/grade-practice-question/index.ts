@@ -3,7 +3,7 @@ import {responseResources} from '../_shared/response-resources.ts';
 import {responseRubricMarker} from '../_shared/response-rubric.ts';
 import {logAIUsage} from '../_shared/usage-logger.ts';
 import {ExamRequestError} from '../_shared/exam-access.ts';
-import {OCR_ALEVEL_BIOLOGY_ID} from '../_shared/assessment-tier.ts';
+import {OCR_ALEVEL_BIOLOGY_ID,EDEXCEL_ALEVEL_BIOLOGY_B_ID} from '../_shared/assessment-tier.ts';
 import {validatedGrade} from '../_shared/marking-result.ts';
 import {assertBiologyPractice} from '../_shared/biology-practice.ts';
 import {markSingleChoice} from '../_shared/single-choice-marking.ts';
@@ -68,6 +68,7 @@ serve(async (req) => {
       .select('subject_id, generation_context').eq('id', setId).eq('user_id', user.id).maybeSingle();
     if (gradeSetError || !gradeSet) throw new Error('Practice set not found');
     const gradeSubject = String(gradeSet.subject_id ?? '');
+    const isPearsonBiologyB = gradeSet.generation_context?.course_id === EDEXCEL_ALEVEL_BIOLOGY_B_ID;
     const isAlevelBiology = gradeSet.generation_context?.course_id === AQA_ALEVEL_BIOLOGY_ID;
     const isOcrAlevelBiology = gradeSet.generation_context?.course_id === OCR_ALEVEL_BIOLOGY_ID;
     const isHumanitiesMarking = /english|literature|history|religio|sociolog|politics|philosoph/i.test(gradeSubject);
@@ -84,13 +85,13 @@ serve(async (req) => {
       throw new Error('Question not found');
     }
     const isOcrUnifiedBiology=isOcrAlevelBiology&&gradeSet.generation_context?.paper_id==='paper_3';
-    if(isOcrUnifiedBiology)biologyMarkingInstructions(gradeSet.generation_context);
+    if(isOcrUnifiedBiology||isPearsonBiologyB)biologyMarkingInstructions(gradeSet.generation_context);
 
     const contracts = await loadResponseContracts(rateLimitClient, 'practice', [question]);
     const responseContract = contracts.get(questionId);
     // Converted responses deliberately have no legacy answer key. Their
     // separately stored private contract is checked by loadResponseContracts.
-    if(isOcrUnifiedBiology&&!responseContract)assertBiologyPractice([question],gradeSet.generation_context);
+    if((isOcrUnifiedBiology||isPearsonBiologyB)&&!responseContract)assertBiologyPractice([question],gradeSet.generation_context);
     if (responseContract) {
       const paidFetch: typeof fetch = async (url, init) => {
         const quota = await enforceRateLimit(rateLimitClient,user.id,'grade-practice-response-model',{dailyLimit:300,burstLimit:60});
@@ -110,9 +111,9 @@ serve(async (req) => {
 
     // Owned OCR practice questions use their saved choices/key; never spend a
     // model call deciding whether a selected letter is correct.
-    if(gradeSet.generation_context?.course_id===OCR_ALEVEL_BIOLOGY_ID&&question.question_type==='mcq'){
+    if((isOcrAlevelBiology||isPearsonBiologyB)&&question.question_type==='mcq'){
       biologyMarkingInstructions(gradeSet.generation_context);
-      if(Number(question.marks)!==1)throw new Error('OCR A-level MCQ mark allocation is invalid.');
+      if(Number(question.marks)!==1)throw new Error(isPearsonBiologyB?'Pearson Biology B single-select MCQ mark allocation is invalid.':'OCR A-level MCQ mark allocation is invalid.');
       const result=markSingleChoice(question,answerText);
       const {error:saveError}=await supabase.from('practice_question_answers').upsert({
         user_id:user.id,set_id:setId,question_id:questionId,answer_text:answerText||'',working_out:workingOut,
@@ -1531,7 +1532,7 @@ serve(async (req) => {
     const displayAnswer = answerText || '(No answer provided)';
 
     // Prepare grading prompt
-    const systemPrompt = `${isOcrAlevelBiology ? `You are an OCR A-level Biology A ${gradeSet.generation_context?.component_code} examiner. Use the saved task-specific key: OCR best-fit science/communication levels for six-mark extended responses, capped points for other written parts.` : isAlevelBiology ? `You are an AQA A-level Biology examiner grading this saved Paper ${gradeSet.generation_context?.paper_id==='paper_2'?'2':'1'} practice task against its private point-based key.` : isHumanitiesMarking
+    const systemPrompt = `${isPearsonBiologyB ? `You are a Pearson Edexcel A Level Biology B 9BI0/01 examiner. Use saved point/method schemes for ordinary responses and Pearson best-fit contextual knowledge, application and reasoning levels for six-mark extended responses.` : isOcrAlevelBiology ? `You are an OCR A-level Biology A ${gradeSet.generation_context?.component_code} examiner. Use the saved task-specific key: OCR best-fit science/communication levels for six-mark extended responses, capped points for other written parts.` : isAlevelBiology ? `You are an AQA A-level Biology examiner grading this saved Paper ${gradeSet.generation_context?.paper_id==='paper_2'?'2':'1'} practice task against its private point-based key.` : isHumanitiesMarking
       ? `You are an experienced ${gradeSubject || 'humanities'} examiner grading student work with levels-based mark schemes.`
       : 'You are a supportive mathematics tutor grading student work.'} Your role is to:
 - Award partial credit generously for correct methods, even if the final answer is wrong
@@ -1567,8 +1568,8 @@ ${FEEDBACK_FORMATTING_RULE}${MARKING_QUALITY_RULES}`;
     const markingRules = `
 
 MARK-FIRST DISCIPLINE (MANDATORY):
-1. ${isOcrAlevelBiology ? "Decide the mark FIRST using the saved key. For a six-mark extended response, scientific content selects the best-fit level and communication selects the mark within it. Other parts use marking points and caps." : isAlevelBiology ? "Decide the mark FIRST against the task's individual marking points and cap, then justify it. Do not invent level descriptors." : 'Decide the mark FIRST against the level descriptors, THEN write feedback that justifies exactly that mark. Never write feedback and then pick a mark to match its tone.'}
-2. ${isOcrAlevelBiology ? "ALIGNMENT: feedback explains the credited science and reasoning. Do not invent level caps, automatic fact counts or separate writing penalties." : isAlevelBiology ? 'ALIGNMENT: feedback must explain the points credited and missed. Never apply an invented grade or level cap.' : 'ALIGNMENT: mark and feedback must agree mathematically. If your feedback identifies a fundamental misreading of the text or task, the mark MUST fall in the lower half of the levels — never award a top-level mark alongside a critique of core understanding.'}
+1. ${isPearsonBiologyB ? "Decide the capped mark FIRST against the saved task-specific Pearson scheme; do not count isolated facts as automatic top level." : isOcrAlevelBiology ? "Decide the mark FIRST using the saved key. For a six-mark extended response, scientific content selects the best-fit level and communication selects the mark within it. Other parts use marking points and caps." : isAlevelBiology ? "Decide the mark FIRST against the task's individual marking points and cap, then justify it. Do not invent level descriptors." : 'Decide the mark FIRST against the level descriptors, THEN write feedback that justifies exactly that mark. Never write feedback and then pick a mark to match its tone.'}
+2. ${isPearsonBiologyB ? "Explain credited knowledge, contextual evidence and linked reasoning. Do not invent writing penalties or grade caps." : isOcrAlevelBiology ? "ALIGNMENT: feedback explains the credited science and reasoning. Do not invent level caps, automatic fact counts or separate writing penalties." : isAlevelBiology ? 'ALIGNMENT: feedback must explain the points credited and missed. Never apply an invented grade or level cap.' : 'ALIGNMENT: mark and feedback must agree mathematically. If your feedback identifies a fundamental misreading of the text or task, the mark MUST fall in the lower half of the levels — never award a top-level mark alongside a critique of core understanding.'}
 3. RETRIEVAL LENIENCY: for list/identify/retrieval questions, accept any paraphrase that preserves a correct point's meaning. Only demand exact wording when the question explicitly asks for a quotation.${isHumanitiesMarking ? `
 
 ENGLISH/HUMANITIES LEVEL BANDS (levels-based, not point-counting):
@@ -1605,7 +1606,7 @@ Return your grading using the grade_practice_answer function.`;
         model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt + markingRules + '\n' + biologyMarkingInstructions(gradeSet.generation_context) },
-          { role: 'user', content: userPrompt + biologyQuestionResourceContext(gradeSet.generation_context, question, {guided:!isOcrAlevelBiology}) }
+          { role: 'user', content: userPrompt + biologyQuestionResourceContext(gradeSet.generation_context, question, {guided:!isOcrAlevelBiology&&!isPearsonBiologyB}) }
         ],
         tools: [{
           type: 'function',
@@ -1663,7 +1664,7 @@ Return your grading using the grade_practice_answer function.`;
     }
 
     const gradingResult = JSON.parse(toolCall.function.arguments);
-    if(isOcrUnifiedBiology){
+    if(isOcrUnifiedBiology||isPearsonBiologyB){
       const checked=validatedGrade({...gradingResult,isCorrect:gradingResult.is_correct,
         ...(gradingResult.method_marks==null?{}:{methodMarks:gradingResult.method_marks}),
         ...(gradingResult.accuracy_marks==null?{}:{accuracyMarks:gradingResult.accuracy_marks})},Number(question.marks));

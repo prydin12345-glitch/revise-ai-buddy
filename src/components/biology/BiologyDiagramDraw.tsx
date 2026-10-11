@@ -26,6 +26,7 @@ const BiologyDiagramDraw: React.FC<{ config: BiologyDiagramConfig; mode?: 'asses
       showLabels: config.showLabels,
       labelMode: config.labelMode,
       letterLabels: config.letterLabels,
+      hideIntrinsicLabels: config.hideIntrinsicLabels,
       variant: (config as any).variant,
       revealedLabels: config.revealedLabels,
       onLabelClick: config.onLabelClick,

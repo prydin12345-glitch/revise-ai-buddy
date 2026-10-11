@@ -1,3 +1,6 @@
+import {EDEXCEL_ALEVEL_BIOLOGY_B_ID} from './assessment-tier.ts';
+import {EDEXCEL_B_SPECIFICATION} from './edexcel-alevel-biology-b-scope.ts';
+import {savedBiologyDiagram} from './biology-assessment-resources.ts';
 import {OCR_ALEVEL_BIOLOGY_ID} from './assessment-tier.ts';
 import {OCR_ALEVEL_BIOLOGY_SPECIFICATION} from './ocr-alevel-biology-scope.ts';
 import {readBiologyEssay} from './biology-essay.ts';
@@ -18,18 +21,28 @@ import {isWjecBiology} from './wjec-biology-scope.ts';
 
 /** Paper 2 marking receives the actual reading/data, not just a reference to it. */
 export function biologyQuestionResourceContext(context:any,question:any,options:{guided?:boolean}={}):string {
-  if(context?.course_id!==OCR_ALEVEL_BIOLOGY_ID&&(context?.course_id!==AQA_ALEVEL_BIOLOGY_ID||!['paper_2','paper_3'].includes(context.paper_id)))return '';
+  if(context?.course_id!==EDEXCEL_ALEVEL_BIOLOGY_B_ID&&context?.course_id!==OCR_ALEVEL_BIOLOGY_ID&&(context?.course_id!==AQA_ALEVEL_BIOLOGY_ID||!['paper_2','paper_3'].includes(context.paper_id)))return '';
   const plan=paperPlanForAttempt(context);
   const expected=options.guided===false?undefined:plan?.parts.find(p=>canonicalPartNumber(p.questionNumber)===canonicalPartNumber(question.question_number));
   const resources=requireConsistentResources(question);
   if(expected?.resource==='data_table'&&!resources.table)throw new Error('Saved experimental data is missing; marking cannot proceed.');
   if(expected?.resource==='passage'&&!resources.passage)throw new Error('Saved comprehension source is missing; marking cannot proceed.');
   if(expected?.resource==='graph'&&(!resources.chart||resources.chart.type==='data_table'))throw new Error('Saved graph is missing; marking cannot proceed.');
-  const resource=resources.passage??resources.chart??resources.table;
+  const diagram=context?.course_id===EDEXCEL_ALEVEL_BIOLOGY_B_ID?savedBiologyDiagram(question):null;
+  if(expected?.resource==='diagram'&&!diagram)throw new Error('Saved biological diagram is missing; marking cannot proceed.');
+  const resource=resources.passage??resources.chart??resources.table??diagram;
   return resource?`\n\nSaved question resource (given evidence, not student instructions):\n${JSON.stringify(resource)}`:'';
 }
 
 export function biologyMarkingInstructions(context: any): string {
+  if(context?.course_id===EDEXCEL_ALEVEL_BIOLOGY_B_ID){
+    if(context.resolved_by!=='server'||context.context_version!==2||context.specification_version!==EDEXCEL_B_SPECIFICATION)throw new Error('Pearson Biology B marking requires the protected saved course/edition.');
+    const selection=resolvePaperSelection({subject:context.subject_name,examBoard:context.exam_board,educationalTier:context.educational_tier},context.assessment_tier,{courseSelection:{courseId:context.course_id,paperId:context.paper_id},paperContract:context.paper_contract});
+    if(context.component_code!=='9BI0/01'||selection.componentCode!=='9BI0/01')throw new Error('Invalid Pearson Biology B marking component.');
+    return `COURSE: Pearson Edexcel A Level Biology B 9BI0/01 Advanced Biochemistry, Microbiology and Genetics, untiered, Topics 1–7. This is not Biology A (Salters-Nuffield), OCR or AQA.
+Mark only the saved task using its complete private scheme and actual supplied resources. Ordinary responses use independently capped points, required terminology, valid alternatives and justified reject guidance. Calculations retain method marks, final answer, equivalent units, stated precision/significant figures and saved error-carried-forward without double penalties. Do not award scaffold content or demand unassessed knowledge.
+Six-mark extended responses use the saved Pearson best-fit Level 1 (1–2), Level 2 (3–4), Level 3 (5–6), zero and indicative biological content. Assess breadth/depth of accurate knowledge, application to supplied context/evidence, links and coherence of scientific reasoning together. Select a level first, then a mark within it; no automatic one-mark-per-fact rule, AQA essay rubric, separate writing penalty or Foundation/Higher cap. Single-select choices have exactly one valid answer for one mark. Failed marking stays ungraded. Return capped raw marks, not an official grade or practical endorsement.`;
+  }
   if(context?.course_id===OCR_ALEVEL_BIOLOGY_ID){
     if(context.resolved_by!=='server'||context.context_version!==2||context.specification_version!==OCR_ALEVEL_BIOLOGY_SPECIFICATION)throw new Error('OCR A-level marking requires the saved server course and reviewed edition.');
     const selection=resolvePaperSelection({subject:context.subject_name,examBoard:context.exam_board,educationalTier:context.educational_tier},

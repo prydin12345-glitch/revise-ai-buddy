@@ -2,7 +2,7 @@ import {seededVisualRows} from '../_shared/biology-visual-assessment.ts';
 import type {VisualPlannedPart} from '../_shared/biology-visual-assessment.ts';
 import { generateResponseFormats, responseProposalCaller, saveGeneratedExamDrafts } from '../_shared/response-generation.ts';
 import { responseFormatsEnabled } from '../_shared/response-format-policy.ts';
-import {OCR_ALEVEL_BIOLOGY_ID} from '../_shared/assessment-tier.ts';
+import {OCR_ALEVEL_BIOLOGY_ID,EDEXCEL_ALEVEL_BIOLOGY_B_ID} from '../_shared/assessment-tier.ts';
 import {essayKeyObject} from '../_shared/biology-essay-marking.ts';
 import { AQA_ALEVEL_BIOLOGY_ID, OCR_GATEWAY_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID, WJEC_BIOLOGY_ID } from "../_shared/assessment-tier.ts";
 import { expandComprehensionReferences } from '../_shared/biology-comprehension.ts';
@@ -2697,11 +2697,11 @@ Do NOT include chart_data for concept-only questions like "Explain what the medi
     : /gcse|igcse|ks4|secondary_14_16/.test(lvl)
       ? 'medium'
       : 'medium';
-  const dedicatedBiologyScope = params.scope?.courseId === AQA_ALEVEL_BIOLOGY_ID || params.scope?.courseId === OCR_ALEVEL_BIOLOGY_ID || params.scope?.courseId === WJEC_BIOLOGY_ID || params.scope?.courseId === OCR_21C_BIOLOGY_ID || params.scope?.courseId === OCR_GATEWAY_BIOLOGY_ID || params.scope?.courseId === EDEXCEL_BIOLOGY_ID || isAqaPaper2(params.scope ?? {});
+  const dedicatedBiologyScope = params.scope?.courseId === EDEXCEL_ALEVEL_BIOLOGY_B_ID || params.scope?.courseId === AQA_ALEVEL_BIOLOGY_ID || params.scope?.courseId === OCR_ALEVEL_BIOLOGY_ID || params.scope?.courseId === WJEC_BIOLOGY_ID || params.scope?.courseId === OCR_21C_BIOLOGY_ID || params.scope?.courseId === OCR_GATEWAY_BIOLOGY_ID || params.scope?.courseId === EDEXCEL_BIOLOGY_ID || isAqaPaper2(params.scope ?? {});
   let difficultyBlock = dedicatedBiologyScope ? biologyScopeInstructions(params.scope!) : buildExamDifficultyInstructions(examDifficulty, subject, educationalLevel);
   // A-level calibration: match the register and demand of real board papers,
   // not generic quiz questions.
-  if (/a[-_ ]?level|level ?3|16[-_]?18/i.test(String(educationalLevel || ''))) {
+  if (params.scope?.courseId !== EDEXCEL_ALEVEL_BIOLOGY_B_ID && /a[-_ ]?level|level ?3|16[-_]?18/i.test(String(educationalLevel || ''))) {
     difficultyBlock += `\n## A-LEVEL CALIBRATION
 Match genuine AQA/Edexcel/OCR A-level standard:
 - Use board command verbs matched to marks: 1-2 marks = state/identify; 3-4 = explain/analyse with developed points; 6+ = assess/evaluate/"to what extent", expecting a supported judgement.

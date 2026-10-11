@@ -2,7 +2,7 @@ import {loadResponseContracts} from '../_shared/response-service.ts';
 import {markResponse,type ResponseMarkResult} from '../_shared/response-marking.ts';
 import {responseResources} from '../_shared/response-resources.ts';
 import {responseRubricMarker} from '../_shared/response-rubric.ts';
-import {OCR_ALEVEL_BIOLOGY_ID} from '../_shared/assessment-tier.ts';
+import {OCR_ALEVEL_BIOLOGY_ID,EDEXCEL_ALEVEL_BIOLOGY_B_ID} from '../_shared/assessment-tier.ts';
 import {singleChoiceKey,markSingleChoice} from '../_shared/single-choice-marking.ts';
 import {validateBiologyEssayGrade} from '../_shared/biology-essay-marking.ts';
 import { biologyMarkingInstructions, biologyQuestionResourceContext, biologyEssayForMarking } from '../_shared/biology-marking.ts';
@@ -132,9 +132,9 @@ serve(async (req) => {
     const essayMarking = new Map((questions || []).map(question => {
       if (responseContracts.has(question.id)) return [question.id, null] as const;
       biologyQuestionResourceContext(examData.generation_context, question);
-      if(examData.generation_context?.course_id===OCR_ALEVEL_BIOLOGY_ID&&question.question_type==='mcq'){
+      if([OCR_ALEVEL_BIOLOGY_ID,EDEXCEL_ALEVEL_BIOLOGY_B_ID].includes(examData.generation_context?.course_id)&&question.question_type==='mcq'){
         singleChoiceKey(question);
-        if(Number(question.marks)!==1)throw new Error('OCR A-level MCQ mark allocation is invalid.');
+        if(Number(question.marks)!==1)throw new Error(examData.generation_context?.course_id===EDEXCEL_ALEVEL_BIOLOGY_B_ID?'Pearson Biology B single-select MCQ mark allocation is invalid.':'OCR A-level MCQ mark allocation is invalid.');
       }
       return [question.id, biologyEssayForMarking(examData.generation_context, question, answerMap.get(question.id))] as const;
     }));
@@ -454,7 +454,7 @@ serve(async (req) => {
             throw new Error('Marking could not finish. Your answers are saved. Please retry.');
           }
         }
-      } else if (question.question_type === 'mcq' && !hasTableAnswers && examData.generation_context?.course_id===OCR_ALEVEL_BIOLOGY_ID) {
+      } else if (question.question_type === 'mcq' && !hasTableAnswers && [OCR_ALEVEL_BIOLOGY_ID,EDEXCEL_ALEVEL_BIOLOGY_B_ID].includes(examData.generation_context?.course_id)) {
         const marked=markSingleChoice(question,studentAnswer);
         isCorrect=marked.isCorrect;score=marked.score;feedback=marked.feedback;
       } else if (question.question_type === 'mcq' && !hasTableAnswers) {

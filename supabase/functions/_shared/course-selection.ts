@@ -1,3 +1,5 @@
+import {EDEXCEL_ALEVEL_BIOLOGY_B_ID,EDEXCEL_ALEVEL_BIOLOGY_A_ID} from './assessment-tier.ts';
+import {EDEXCEL_B_SPECIFICATION} from './edexcel-alevel-biology-b-scope.ts';
 import {bindPublicVisualPlan,VISUAL_POLICY} from './biology-visual-plan.ts';
 import { parseResponseFormatPolicy, type ResponseFormatPolicy } from './response-format-policy.ts';
 import {OCR_ALEVEL_BIOLOGY_ID} from './assessment-tier.ts';
@@ -45,8 +47,8 @@ export function resolvePaperSelection(lookup: CourseLookup, tier: AssessmentTier
   const selected = profileCourseId(bp);
   const course = getCourseCapability({ ...lookup, courseId: selected });
   if (selected && !course) throw new Error('The saved course does not match this subject, board and qualification.');
-  if (!selected && getCourseOptions(lookup).length > 1) throw new Error('Select your OCR Biology course and paper in an exam profile before generating.');
-  if (course?.generationAvailable === false) throw new Error('This OCR Biology course is not available for generation yet.');
+  if (!selected && getCourseOptions(lookup).length > 1) throw new Error(/edexcel/i.test(lookup.examBoard??'')?'Select Pearson Edexcel Biology A or Biology B explicitly and save its paper before generating.':'Select your OCR Biology course and paper in an exam profile before generating.');
+  if (course?.generationAvailable === false) throw new Error(course.id===EDEXCEL_ALEVEL_BIOLOGY_A_ID?'Pearson Edexcel Biology A (Salters-Nuffield, 9BN0) is not available. Choose Biology B only if that is your qualification.':'This OCR Biology course is not available for generation yet.');
   if (choice.courseId && contract.courseId && canonicalCourseId(choice.courseId) !== canonicalCourseId(contract.courseId)) {
     throw new Error('The saved course selection and paper preset disagree. Reapply the correct preset.');
   }
@@ -82,6 +84,12 @@ export function resolvePaperSelection(lookup: CourseLookup, tier: AssessmentTier
     for(const saved of [choice.specificationVersion,contract.specificationVersion])
       if(saved!=null&&saved!==OCR_ALEVEL_BIOLOGY_SPECIFICATION)throw new Error('Reapply the reviewed OCR A-level specification version.');
   }
+  if(course?.id===EDEXCEL_ALEVEL_BIOLOGY_B_ID){
+    if(paperId!=='9bi0_01')throw new Error('Choose and save Biology B Paper 1 (9BI0/01) in your profile.');
+    if(tier!=='not_tiered')throw new Error('Pearson Edexcel A Level Biology B is untiered.');
+    for(const saved of [choice.specificationVersion,contract.specificationVersion])
+      if(saved!=null&&saved!==EDEXCEL_B_SPECIFICATION)throw new Error('Reapply the reviewed Pearson Biology B specification version.');
+  }
   let resolvedContract: SavedPaperContract | null = null;
   if(course?.id === AQA_ALEVEL_BIOLOGY_ID) {
     if(!paperId)throw new Error('Choose and save AQA A-level Biology Paper 1, Paper 2 or Paper 3 in your profile.');
@@ -111,6 +119,9 @@ export function paperPlanForAttempt(context: any, legacyBlueprint?: unknown) {
     return null;
   }
   const legacy = context.context_version === 1;
+  if(canonicalCourseId(context.course_id??object(object(legacyBlueprint).paperContract).courseId)===EDEXCEL_ALEVEL_BIOLOGY_B_ID&&
+    (legacy||context.specification_version!==EDEXCEL_B_SPECIFICATION||context.paper_id!=='9bi0_01'||context.component_code!=='9BI0/01'||context.assessment_tier!=='not_tiered'))
+    throw new Error('Create a fresh Pearson Biology B attempt with 9BI0/01 and its reviewed untiered identity saved by the server.');
   if(canonicalCourseId(context.course_id??object(object(legacyBlueprint).paperContract).courseId)===OCR_ALEVEL_BIOLOGY_ID &&
     (legacy||context.specification_version!==OCR_ALEVEL_BIOLOGY_SPECIFICATION||!['paper_1','paper_2','paper_3'].includes(context.paper_id)||context.component_code!==(context.paper_id==='paper_3'?'H420/03':context.paper_id==='paper_2'?'H420/02':'H420/01')||context.assessment_tier!=='not_tiered'))
     throw new Error('Create a fresh OCR A-level Biology A attempt with its supported paper, component and reviewed edition saved by the server.');
@@ -140,6 +151,7 @@ export function paperPlanForAttempt(context: any, legacyBlueprint?: unknown) {
 
 export function describeCourseSelection(selection: ResolvedPaperSelection): string {
   return [selection.componentCode, selection.courseId === OCR_GATEWAY_BIOLOGY_ID ? 'Gateway Biology A' :
+    selection.courseId === EDEXCEL_ALEVEL_BIOLOGY_B_ID ? 'Pearson Edexcel A Level Biology B' :
     selection.courseId === AQA_ALEVEL_BIOLOGY_ID ? 'AQA A-level Biology' :
     selection.courseId === OCR_ALEVEL_BIOLOGY_ID ? 'OCR A-level Biology A' :
     selection.courseId === OCR_21C_BIOLOGY_ID ? 'Twenty First Century Biology B' :

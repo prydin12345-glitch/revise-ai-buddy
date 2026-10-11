@@ -1,3 +1,4 @@
+import {edexcelBiologyBPaperLabel} from '@/lib/biology-paper-display';
 import { FavouriteControl, type FavouriteProps } from "@/components/shared/FavouriteControl";
 import { useNavigate } from "react-router-dom";
 import { getBoardDisplayName } from "@/lib/board-scrubber";
@@ -21,6 +22,7 @@ interface Exam {
   type: string;
   display_order?: number;
   exam_board?: string | null;
+  generation_context?:unknown;
   qualification_level?: string | null;
   exam_topics: Array<{ topic_name: string }>;
 }
@@ -44,6 +46,7 @@ export const ExamCard = ({
 }: ExamCardProps) => {
   const navigate = useNavigate();
 
+  const savedPaper=edexcelBiologyBPaperLabel(exam.generation_context);
   const boardLabel = exam.exam_board ? getBoardDisplayName(exam.exam_board) : null;
   const levelLabel = exam.qualification_level
     ? LEVEL_DISPLAY_NAMES[exam.qualification_level] ?? exam.qualification_level
@@ -98,8 +101,8 @@ export const ExamCard = ({
             <h3 className="font-serif text-lg font-bold leading-tight tracking-tight text-foreground mt-1 break-words">
               {exam.title || "Untitled exam"}
             </h3>
-            <p className="font-serif text-xs text-foreground/80 leading-snug mt-1 line-clamp-1">
-              {exam.subject_id || "Subject"}
+            <p className={savedPaper?"font-serif text-xs text-foreground/80 leading-snug mt-1 break-words":"font-serif text-xs text-foreground/80 leading-snug mt-1 line-clamp-1"}>
+              {savedPaper??(exam.subject_id||"Subject")}
             </p>
           </div>
 

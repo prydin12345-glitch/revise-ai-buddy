@@ -21,6 +21,7 @@ import {
   getCourseOptions,
   OCR_GATEWAY_BIOLOGY_ID,
   EDEXCEL_BIOLOGY_ID,
+  EDEXCEL_ALEVEL_BIOLOGY_B_ID,
   OCR_21C_BIOLOGY_ID,
   WJEC_BIOLOGY_ID,
   AQA_ALEVEL_BIOLOGY_ID,
@@ -169,6 +170,13 @@ function getStudiedContentConfig(subjectName: string) {
   };
 }
 
+interface BiologyBCustomSettings {
+  topics:string[]; writtenCount:number; mcqCount:number; timeLimitMinutes:string;
+  advanced:AdvancedSettings; questionStructure:string; parentQuestionCount:number;
+  maxPartsPerQuestion:number; mcqOptionsCount:number; includeGraphs:boolean; includeTables:boolean;
+  blueprintEnabled:boolean; blueprintSections:Array<{title:string; questions:Array<{marks:number;style:string}>;answerCount?:number}>;
+  interactiveResponses:boolean;
+}
 export interface QuestionStructureSettings {
   questionStructure: string;
   parentQuestionCount: number;
@@ -266,6 +274,7 @@ export const ExamProfileModal = ({
   // Guided paper mode. "custom" keeps every manual count and media toggle.
   const [interactiveResponses, setInteractiveResponses] = useState(false);
   const [visualAssessment,setVisualAssessment]=useState(false);
+  const [biologyBCustom,setBiologyBCustom] = useState<BiologyBCustomSettings|null>(null);
   const [paperMode, setPaperMode] = useState<PaperMode>("custom");
   const [planApplied, setPlanApplied] = useState(false);
   const [savedContractVersion, setSavedContractVersion] = useState<number | undefined>();
@@ -307,6 +316,7 @@ export const ExamProfileModal = ({
       setSelectedTopics(initialData?.topics || []);
       setStudiedTexts(Array.isArray((initialData as any)?.studied_texts) ? (initialData as any).studied_texts : []);
       const bp = (initialData as any)?.paper_blueprint;
+      setBiologyBCustom(bp?.biologyBCustomSettings ?? null);
       setInteractiveResponses(bp?.responseFormats === 'interactive_v1');
       setVisualAssessment(bp?.visualAssessment==='ocr_h420_03_visual_v1');
       setSelectedCourseId(profileCourseId(bp));
@@ -411,20 +421,25 @@ export const ExamProfileModal = ({
   const currentPlan = guidedActive ? buildPaperPlan(paperMode, selectedTier, courseCapability?.id, selectedPaperId, savedContractVersion) : null;
   const effectiveTopics = (currentPlan?.parts.some(p=>p.assessmentRole==='synoptic_essay') || currentPlan?.courseId===OCR_ALEVEL_BIOLOGY_ID&&currentPlan.paperId==='paper_3') ? [...(paperDefinition?.topics??[])] : currentPlan ? [...new Set(currentPlan.parts.map(p => p.topic))] : selectedTopics;
   const configurationReady = (!explicitCourseNeeded || (!!courseCapability && courseCapability.generationAvailable !== false && !!selectedTier)) &&
-    (![EDEXCEL_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, WJEC_BIOLOGY_ID, AQA_ALEVEL_BIOLOGY_ID, OCR_ALEVEL_BIOLOGY_ID].includes(courseCapability?.id ?? '') || (!!selectedPaperId && !!selectedTier)) &&
+    (![EDEXCEL_BIOLOGY_ID, EDEXCEL_ALEVEL_BIOLOGY_B_ID, OCR_21C_BIOLOGY_ID, WJEC_BIOLOGY_ID, AQA_ALEVEL_BIOLOGY_ID, OCR_ALEVEL_BIOLOGY_ID].includes(courseCapability?.id ?? '') || (!!selectedPaperId && !!selectedTier)) &&
     (!selectedPaperId || !!paperDefinition) && (selectedPaperId !== 'paper_2' || !!selectedTier) && (paperMode === "custom" || !!currentPlan);
 
   // Explicit conversion only — nothing is overwritten until the user accepts.
   const applyGuidedPlan = (plan: PaperPlan) => {
+    if(plan.courseId===EDEXCEL_ALEVEL_BIOLOGY_B_ID&&!guidedActive&&!biologyBCustom){
+      setBiologyBCustom({topics:[...selectedTopics],writtenCount,mcqCount,timeLimitMinutes,advanced:structuredClone(advanced),
+        questionStructure,parentQuestionCount,maxPartsPerQuestion,mcqOptionsCount,includeGraphs,includeTables,
+        blueprintEnabled,blueprintSections:structuredClone(blueprintSections),interactiveResponses});
+    }
     setSavedContractVersion(plan.contractVersion);
     setMcqCount(plan.parts.filter((p) => p.responseType === "mcq_single").length);
     setWrittenCount(plan.parts.filter((p) => p.responseType !== "mcq_single").length);
     setParentQuestionCount(plan.parentCount);
-    setQuestionStructure([OCR_GATEWAY_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, WJEC_BIOLOGY_ID, AQA_ALEVEL_BIOLOGY_ID, OCR_ALEVEL_BIOLOGY_ID].includes(plan.courseId) ? "mixed" : "sub_questions");
+    setQuestionStructure([OCR_GATEWAY_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID, EDEXCEL_ALEVEL_BIOLOGY_B_ID, OCR_21C_BIOLOGY_ID, WJEC_BIOLOGY_ID, AQA_ALEVEL_BIOLOGY_ID, OCR_ALEVEL_BIOLOGY_ID].includes(plan.courseId) ? "mixed" : "sub_questions");
     setMcqOptionsCount(4);
     setBlueprintEnabled(false);
     setBlueprintSections([]);
-    setAdvanced(prev => ({...prev, mcqPosition: [EDEXCEL_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, WJEC_BIOLOGY_ID].includes(plan.courseId) ? "mixed" : "start", markDistribution: {}, includeExtended: false, extendedMarks: 0, calculatorPolicy: "allowed"}));
+    setAdvanced(prev => ({...prev, mcqPosition: [EDEXCEL_BIOLOGY_ID, EDEXCEL_ALEVEL_BIOLOGY_B_ID, OCR_21C_BIOLOGY_ID, WJEC_BIOLOGY_ID].includes(plan.courseId) ? "mixed" : "start", markDistribution: {}, includeExtended: false, extendedMarks: 0, calculatorPolicy: "allowed"}));
     setMaxPartsPerQuestion(Math.max(...plan.parts.map(p => plan.parts.filter(q => q.parentId === p.parentId).length)));
     setTimeLimitMinutes(String(plan.durationMinutes));
     setIncludeTables(plan.parts.some((p) => p.resource === "data_table"));
@@ -434,6 +449,19 @@ export const ExamProfileModal = ({
     setPlanApplied(true);
   };
 
+  const changePaperMode = (mode:PaperMode) => {
+    if(courseCapability?.id===EDEXCEL_ALEVEL_BIOLOGY_B_ID&&mode==='custom'&&biologyBCustom){
+      const c=biologyBCustom;
+      setSelectedTopics([...c.topics]);setWrittenCount(c.writtenCount);setMcqCount(c.mcqCount);
+      setTimeLimitMinutes(c.timeLimitMinutes);setAdvanced(structuredClone(c.advanced));
+      setQuestionStructure(c.questionStructure);setParentQuestionCount(c.parentQuestionCount);
+      setMaxPartsPerQuestion(c.maxPartsPerQuestion);setMcqOptionsCount(c.mcqOptionsCount);
+      setIncludeGraphs(c.includeGraphs);setIncludeTables(c.includeTables);setBlueprintEnabled(c.blueprintEnabled);
+      setBlueprintSections(structuredClone(c.blueprintSections));setInteractiveResponses(c.interactiveResponses);
+      setBiologyBCustom(null); // A future conversion captures the latest manual settings.
+    }
+    setPaperMode(mode);setPlanApplied(mode==='custom');setSavedContractVersion(undefined);
+  };
   const handleSave = () => {
     if (!profileName.trim() || effectiveTopics.length === 0 || !finalTier || !configurationReady) return;
     const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
@@ -445,9 +473,10 @@ export const ExamProfileModal = ({
       paperBlueprint: (() => {
         const courseSelection = (courseCapability?.id === OCR_GATEWAY_BIOLOGY_ID || selectedPaperId) && paperDefinition
           ? {courseId: courseCapability.id, paperId: paperDefinition.paperId, ...(paperDefinition.specificationVersion?{specificationVersion:paperDefinition.specificationVersion}:{})} : undefined;
-        if (!currentPlan) return blueprintActive || courseSelection ? { ...(blueprintActive ? { sections: blueprintSections } : {}), ...(courseSelection ? {courseSelection} : {}) } : null;
+        const customSnapshot=courseCapability?.id===EDEXCEL_ALEVEL_BIOLOGY_B_ID&&biologyBCustom?{biologyBCustomSettings:biologyBCustom}:{};
+        if (!currentPlan) return blueprintActive || courseSelection ? { ...customSnapshot, ...(blueprintActive ? { sections: blueprintSections } : {}), ...(courseSelection ? {courseSelection} : {}) } : null;
         const useReviewedVisuals=visualAssessment&&currentPlan.courseId===OCR_ALEVEL_BIOLOGY_ID&&currentPlan.paperId==='paper_3';
-        return {...(useReviewedVisuals?{visualAssessment:'ocr_h420_03_visual_v1'}:{}), ...(interactiveResponses||useReviewedVisuals ? {responseFormats:'interactive_v1'} : {}), courseSelection: {courseId: currentPlan.courseId, paperId: currentPlan.paperId, ...(currentPlan.specificationVersion?{specificationVersion:currentPlan.specificationVersion}:{})},
+        return {...customSnapshot, ...(useReviewedVisuals?{visualAssessment:'ocr_h420_03_visual_v1'}:{}), ...(interactiveResponses||useReviewedVisuals ? {responseFormats:'interactive_v1'} : {}), courseSelection: {courseId: currentPlan.courseId, paperId: currentPlan.paperId, ...(currentPlan.specificationVersion?{specificationVersion:currentPlan.specificationVersion}:{})},
           paperContract: {courseId: currentPlan.courseId, paperId: currentPlan.paperId,
             mode: currentPlan.mode, contractVersion: currentPlan.contractVersion, ...(currentPlan.specificationVersion?{specificationVersion:currentPlan.specificationVersion}:{})}};
       })(),
@@ -608,7 +637,7 @@ export const ExamProfileModal = ({
               </div>
             </div>
             <BiologyCourseSelector lookup={courseLookup} value={selectedCourseId} tier={selectedTier}
-              onChange={(id) => { setSelectedCourseId(id); setSelectedPaperId(null); setAssessmentTier(null); setPaperMode("short_practice"); setPlanApplied(false); }} />
+              onChange={(id) => { setBiologyBCustom(null); setSelectedCourseId(id); setSelectedPaperId(null); setAssessmentTier(null); setPaperMode("short_practice"); setPlanApplied(false); }} />
             <BiologyPaperSelector courseId={courseCapability?.id ?? null} value={selectedPaperId} tier={selectedTier}
               onChange={(id) => { setSelectedPaperId(id); setPlanApplied(false); setSavedContractVersion(undefined); }} />
             {assessmentTierOptions.length > 0 && (
@@ -627,7 +656,7 @@ export const ExamProfileModal = ({
                 mode={paperMode}
                 tier={effectiveAssessmentTier}
                 contractVersion={planApplied ? savedContractVersion : undefined}
-                onModeChange={(m) => { setPaperMode(m); setPlanApplied(m === "custom"); setSavedContractVersion(undefined); }}
+                onModeChange={changePaperMode}
                 onApplyPlan={applyGuidedPlan}
                 applied={planApplied}
               />
@@ -658,7 +687,7 @@ export const ExamProfileModal = ({
             </span>
           </label>}
           {guidedActive && <p className="text-xs text-muted-foreground">The guided preset controls the topics, counts, timing and resources. Choose Custom to set your own layout.</p>}
-          {!configurationReady && <p role="status" className="text-xs text-amber-600">{courseCapability?.id === OCR_ALEVEL_BIOLOGY_ID ? 'Choose Paper 1, Paper 2 or Paper 3, then apply the guided settings or choose Custom. OCR A-level Biology A is untiered.' : courseCapability?.id === AQA_ALEVEL_BIOLOGY_ID ? 'Choose Paper 1, Paper 2 or Paper 3, then apply the guided settings or choose Custom. A-level Biology is untiered.' : courseCapability?.id === OCR_21C_BIOLOGY_ID ? 'Choose Breadth or Depth and Foundation or Higher, then apply the guided settings or choose Custom.' : courseCapability?.id === EDEXCEL_BIOLOGY_ID ? 'Choose Paper 1 or Paper 2 and Foundation or Higher. Then apply the guided settings, or choose Custom with your own topics.' : 'Choose a supported course and tier, then use the guided settings, or select Custom.'}</p>}
+          {!configurationReady && <p role="status" className="text-xs text-amber-600">{courseCapability?.id === EDEXCEL_ALEVEL_BIOLOGY_B_ID ? 'Choose Biology B Paper 1 (9BI0/01), then apply guided settings or choose Custom. This qualification is untiered.' : courseCapability?.id === OCR_ALEVEL_BIOLOGY_ID ? 'Choose Paper 1, Paper 2 or Paper 3, then apply the guided settings or choose Custom. OCR A-level Biology A is untiered.' : courseCapability?.id === AQA_ALEVEL_BIOLOGY_ID ? 'Choose Paper 1, Paper 2 or Paper 3, then apply the guided settings or choose Custom. A-level Biology is untiered.' : courseCapability?.id === OCR_21C_BIOLOGY_ID ? 'Choose Breadth or Depth and Foundation or Higher, then apply the guided settings or choose Custom.' : courseCapability?.id === EDEXCEL_BIOLOGY_ID ? 'Choose Paper 1 or Paper 2 and Foundation or Higher. Then apply the guided settings, or choose Custom with your own topics.' : 'Choose a supported course and tier, then use the guided settings, or select Custom.'}</p>}
           {!guidedActive && <fieldset className="space-y-4">
           {/* ── Questions ── */}
           <SectionCard accent={subjectColor} icon={ListChecks} title="Questions" hint={`${totalQuestionCount} total`}>
@@ -929,6 +958,7 @@ export const ExamProfileModal = ({
           {/* ── Timing ── */}
           <SectionCard accent={subjectColor} icon={Clock} title="Time limit" hint={timeLimitMinutes ? `${timeLimitMinutes} min` : "No limit"}>
             <TimeWheelPicker
+              preserveExactValue={getCourseOptions(courseLookup).some(course=>course.id===EDEXCEL_ALEVEL_BIOLOGY_B_ID)}
               value={timeLimitMinutes}
               onChange={setTimeLimitMinutes}
               subjectColor={subjectColor}
