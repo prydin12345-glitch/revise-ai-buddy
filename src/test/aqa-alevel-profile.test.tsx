@@ -1,3 +1,4 @@
+import {renderProfileBasics} from "./profile-test-render";
 import {alevelPaper3Fixture} from '../../supabase/tests/aqa-alevel-paper3-fixtures';
 import {afterEach,expect,it,vi} from 'vitest';
 import {createContext,useContext,cloneElement} from 'react';
@@ -25,7 +26,7 @@ Object.defineProperty(HTMLElement.prototype,'scrollTo',{configurable:true,value:
 afterEach(cleanup);
 const base={profile_name:'My A-level paper',topics:['My enzyme notes'],question_count:8,written_question_count:8,educational_tier:'level3',assessment_tier:null};
 function editor(initial:any=base){
-  const save=vi.fn(),view=render(<ExamProfileModal open onOpenChange={()=>{}} subjectName="Biology Higher" subjectColor="#3388cc" examBoard="AQA" availableTopics={['My enzyme notes']} onSave={save} initialData={initial}/>);
+  const save=vi.fn(),view=renderProfileBasics(<ExamProfileModal open onOpenChange={()=>{}} subjectName="Biology Higher" subjectColor="#3388cc" examBoard="AQA" availableTopics={['My enzyme notes']} onSave={save} initialData={initial}/>);
   return {...view,save};
 }
 function apply(mode:'full_mock'|'short_practice',paper:'paper_1'|'paper_2'|'paper_3'='paper_1'){
@@ -59,8 +60,7 @@ it('requires reapplying an old edition and clears a stale GCSE paper on level ch
   expect(screen.getByRole('button',{name:'Update Profile'})).not.toBeDisabled();view.unmount();
   editor({...base,educational_tier:'level2',assessment_tier:'higher',paper_blueprint:{courseSelection:{courseId:'aqa_gcse_biology',paperId:'paper_2'}}});
   expect(screen.getByLabelText('Biology paper')).toHaveValue('paper_2');
-  fireEvent.click(screen.getByRole('combobox',{name:'Educational level'}));
-  fireEvent.click(screen.getByRole('button',{name:/16–18|16-18/}));
+  fireEvent.change(screen.getByRole('combobox',{name:'Educational level'}), {target:{value:'level3'}});
   expect(screen.getByLabelText('Biology paper')).toHaveValue('');expect(screen.queryByRole('button',{name:'Higher'})).toBeNull();
 });
 it('uses A-level labels and extended-response notices in screen/PDF without the private key',async()=>{

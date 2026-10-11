@@ -1,3 +1,4 @@
+import {renderProfileBasics} from "./profile-test-render";
 import {afterEach,expect,it,vi} from 'vitest';
 import {createContext,useContext,cloneElement} from 'react';
 import {cleanup,fireEvent,render,screen} from '@testing-library/react';
@@ -19,7 +20,7 @@ vi.stubGlobal('ResizeObserver',class {observe(){} unobserve(){} disconnect(){}})
 Object.defineProperty(HTMLElement.prototype,'scrollTo',{configurable:true,value:vi.fn()});
 afterEach(cleanup);
 const base={profile_name:'My OCR paper',topics:['My practical notes'],question_count:8,written_question_count:8,educational_tier:'A-Level',assessment_tier:null};
-function editor(initial:any=base){const save=vi.fn(),view=render(<ExamProfileModal open onOpenChange={()=>{}} subjectName="Biology Higher" subjectColor="#3388cc" examBoard="OCR" availableTopics={base.topics} onSave={save} initialData={initial}/>);return {...view,save};}
+function editor(initial:any=base){const save=vi.fn(),view=renderProfileBasics(<ExamProfileModal open onOpenChange={()=>{}} subjectName="Biology Higher" subjectColor="#3388cc" examBoard="OCR" availableTopics={base.topics} onSave={save} initialData={initial}/>);return {...view,save};}
 function apply(mode:'full_mock'|'short_practice'){
   fireEvent.change(screen.getByLabelText('OCR Biology course'),{target:{value:OCR_ALEVEL_BIOLOGY_ID}});
   fireEvent.change(screen.getByLabelText('Biology paper'),{target:{value:'paper_1'}});

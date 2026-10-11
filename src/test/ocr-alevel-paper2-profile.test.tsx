@@ -1,3 +1,4 @@
+import {renderProfileBasics,openPaperDetails} from "./profile-test-render";
 import {afterEach,expect,it,vi} from 'vitest';
 import {createContext,useContext,cloneElement} from 'react';
 import {cleanup,fireEvent,render,screen} from '@testing-library/react';
@@ -19,12 +20,12 @@ vi.stubGlobal('ResizeObserver',class {observe(){} unobserve(){} disconnect(){}})
 Object.defineProperty(HTMLElement.prototype,'scrollTo',{configurable:true,value:vi.fn()});
 afterEach(cleanup);
 const base={profile_name:'My OCR paper',topics:['My practical notes'],question_count:8,written_question_count:8,educational_tier:'A-Level',assessment_tier:null};
-function editor(initial:any=base){const save=vi.fn(),view=render(<ExamProfileModal open onOpenChange={()=>{}} subjectName="Biology Higher" subjectColor="#3388cc" examBoard="OCR" availableTopics={base.topics} onSave={save} initialData={initial}/>);return {...view,save};}
+function editor(initial:any=base){const save=vi.fn(),view=renderProfileBasics(<ExamProfileModal open onOpenChange={()=>{}} subjectName="Biology Higher" subjectColor="#3388cc" examBoard="OCR" availableTopics={base.topics} onSave={save} initialData={initial}/>);return {...view,save};}
 function apply(mode:'full_mock'|'short_practice'){
   fireEvent.change(screen.getByLabelText('OCR Biology course'),{target:{value:OCR_ALEVEL_BIOLOGY_ID}});
   fireEvent.change(screen.getByLabelText('Biology paper'),{target:{value:'paper_2'}});
   fireEvent.click(screen.getByRole('button',{name:mode==='full_mock'?/^Full mock/:/^Short practice/}));
-  fireEvent.click(screen.getByRole('button',{name:'Use these settings'}));
+  fireEvent.click(screen.getByRole('button',{name:'Use these settings'}));openPaperDetails();
 }
 it.each(['full_mock','short_practice'] as const)('saves and reopens untiered OCR %s with MCQs at the start',mode=>{
   const {save,unmount}=editor({...base,topics:[]}),{plan,snapshot}=ocrAlevelFixture(mode);
@@ -45,7 +46,7 @@ it.each(['full_mock','short_practice'] as const)('saves and reopens untiered OCR
 it('preserves manual topics when leaving a guided OCR mode',()=>{const {save}=editor();apply('full_mock');fireEvent.click(screen.getByRole('button',{name:/^Custom/}));fireEvent.click(screen.getByRole('button',{name:'Update Profile'}));expect(save.mock.calls[0][1]).toEqual(base.topics);});
 it('requires reapplying an obsolete edition',()=>{
   const c=ocrAlevelSnapshot();editor({...base,assessment_tier:'not_tiered',paper_blueprint:{paperContract:{...c.paper_contract,specificationVersion:'old'}}});
-  expect(screen.getByRole('button',{name:'Update Profile'})).toBeDisabled();fireEvent.click(screen.getByRole('button',{name:'Use these settings'}));expect(screen.getByRole('button',{name:'Update Profile'})).not.toBeDisabled();
+  expect(screen.getByRole('button',{name:'Update Profile'})).toBeDisabled();fireEvent.click(screen.getByRole('button',{name:'Use these settings'}));openPaperDetails();expect(screen.getByRole('button',{name:'Update Profile'})).not.toBeDisabled();
 });
 it('displays H420/02 Section A once, Section B at Q16 and OCR extended-response notices',()=>{
   const c=ocrAlevelSnapshot();expect(biologyPaperDisplay(c)?.label).toContain('H420/02');expect(biologyPaperDisplay(c)?.label).not.toMatch(/Higher|Foundation/);
@@ -78,7 +79,7 @@ it('reopens and resaves a v1 Paper 2 profile unchanged, upgrading only after exp
   const {save}=editor({...base,assessment_tier:'not_tiered',paper_blueprint:bp});
   fireEvent.click(screen.getByRole('button',{name:'Update Profile'}));
   expect(save.mock.calls[0][5].paperBlueprint.paperContract.contractVersion).toBe(1);
-  fireEvent.click(screen.getByRole('button',{name:/^Full mock/}));fireEvent.click(screen.getByRole('button',{name:'Use these settings'}));
+  fireEvent.click(screen.getByRole('button',{name:/^Full mock/}));fireEvent.click(screen.getByRole('button',{name:'Use these settings'}));openPaperDetails();
   fireEvent.click(screen.getByRole('button',{name:'Update Profile'}));
   expect(save.mock.calls[1][5].paperBlueprint.paperContract.contractVersion).toBe(2);
 });

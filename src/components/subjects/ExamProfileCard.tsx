@@ -1,95 +1,80 @@
 import { useNavigate } from "react-router-dom";
-import { Pencil, FileText } from "lucide-react";
-import { formatEducationalTier } from "@/lib/level-display";
-import { profileCourseId, profilePaperId } from "../../../supabase/functions/_shared/course-selection";
-import { biologyPaperDefinition } from "@/lib/biology-paper-contract";
-import { formatAssessmentTier } from "@/lib/assessment-tier";
+import { ArrowUpRight, Pencil } from "lucide-react";
+import {
+  examProfileDisplay,
+  type ProfileDisplaySource,
+} from "@/lib/exam-profile-display";
 
 interface ExamProfileCardProps {
-  profile: {
-    id: string;
-    profile_name: string;
-    topics: string[];
-    question_count: number;
-    educational_tier: string | null;
-    exam_board?: string | null;
-    assessment_tier?: string | null;
-    paper_blueprint?: any;
-  };
+  profile: ProfileDisplaySource & { id: string; topics: string[] };
   subjectName: string;
-  /** Subject's own colour, reused as the card's header band so a profile
-   *  visually belongs to its subject at a glance — same colour as the dot
-   *  next to the subject name. */
   subjectColor?: string | null;
   onEdit: () => void;
 }
 
-export const ExamProfileCard = ({ profile, subjectName, subjectColor, onEdit }: ExamProfileCardProps) => {
+export const ExamProfileCard = ({
+  profile,
+  subjectName,
+  subjectColor,
+  onEdit,
+}: ExamProfileCardProps) => {
   const navigate = useNavigate();
-  const biologyB=profileCourseId(profile.paper_blueprint)==='pearson_edexcel_alevel_biology_b_9bi0';
-  const tierLabel = formatEducationalTier(profile.educational_tier);
-  const assessmentLabel = formatAssessmentTier(profile.assessment_tier);
-  const paper = biologyPaperDefinition(profileCourseId(profile.paper_blueprint), profile.assessment_tier === "foundation" || profile.assessment_tier === "higher" ? profile.assessment_tier : null, profilePaperId(profile.paper_blueprint));
-  const hasBlueprint = Array.isArray(profile.paper_blueprint?.sections) && profile.paper_blueprint.sections.length > 0;
-  const mockLabel = profile.paper_blueprint?.paperContract
-    ? profile.paper_blueprint.paperContract.mode === "full_mock" ? "Full mock" : "Short practice"
-    : null;
-
-  // One line of the two most useful facts for deciding "is this the paper I
-  // want" — everything else moves to the small caption below instead of
-  // stacking as its own row of pills.
-  const bandTags = [assessmentLabel || tierLabel, mockLabel].filter(Boolean);
-  const captionParts = [biologyB?'Pearson Edexcel A Level Biology B':null, paper?.componentCode, hasBlueprint ? "Custom layout" : null].filter(Boolean);
-  const accent = subjectColor || "hsl(var(--primary))";
-
+  const display = examProfileDisplay(profile);
+  const view = () =>
+    navigate(`/my-subjects/${encodeURIComponent(subjectName)}/${profile.id}`);
   return (
-    <div className="group relative rounded-lg border border-border bg-card overflow-hidden hover:border-border-strong transition-colors h-full flex flex-col">
+    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-border-strong">
       <button
-        onClick={() => navigate(`/my-subjects/${encodeURIComponent(subjectName)}/${profile.id}`)}
-        className="text-left flex-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+        type="button"
+        onClick={view}
+        className="min-w-0 flex-1 p-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
       >
-        <div
-          className="profile-header relative px-4 pt-4 pb-3.5 border-b border-border"
-          style={{ background: `linear-gradient(135deg, ${accent}, color-mix(in srgb, ${accent} 65%, black))` }}
-        >
-          {profile.topics.length > 0 && (
-            <span className="absolute top-3 right-3 text-11 font-medium px-2 py-0.5 rounded-md bg-card text-foreground border border-border">
-              {profile.topics.length} {profile.topics.length === 1 ? "topic" : "topics"}
-            </span>
-          )}
-          <h3 className="text-base font-semibold text-foreground leading-snug pr-16 line-clamp-2">
-            {profile.profile_name}
-          </h3>
-          {bandTags.length > 0 && (
-            <span className="inline-block mt-2.5 text-11 px-2.5 py-1 rounded-md bg-card text-foreground border border-border">
-              {bandTags.join(" · ")}
-            </span>
-          )}
-        </div>
-
-        <div className="px-4 pt-3 pb-3">
-          {captionParts.length > 0 && (
-            <div className="flex items-center gap-1.5 text-11 text-muted-foreground mb-2.5">
-              <FileText className="w-3 h-3 shrink-0" />
-              <span className={biologyB?"break-words":"truncate"}>{captionParts.join(" · ")}</span>
-            </div>
-          )}
-          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-11 font-medium bg-foreground/[0.04] text-muted-foreground border border-foreground/[0.06]">
-            {profile.question_count} questions
+        <div className="mb-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+          <span className="flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: subjectColor || "hsl(var(--primary))" }}
+            />
+            {display.mode}
           </span>
+          <span className="tabular-nums">{profile.topics.length} topics</span>
+        </div>
+        <h3 className="line-clamp-2 font-serif text-xl font-semibold leading-snug text-foreground">
+          {profile.profile_name}
+        </h3>
+        {display.identity && (
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            {display.identity}
+          </p>
+        )}
+        {display.paper && (
+          <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+            {display.paper}
+          </p>
+        )}
+        <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1 text-xs tabular-nums text-foreground">
+          <span>{display.countLabel}</span>
+          {display.marksLabel && <span>{display.marksLabel}</span>}
+          {display.timeLabel && <span>{display.timeLabel}</span>}
         </div>
       </button>
-
-      <div className="flex items-center justify-between px-4 py-2.5 border-t border-border/60">
-        <span className="text-11 text-muted-foreground">Tap to view exam history</span>
+      <div className="flex items-center justify-between border-t border-border px-4 py-1.5">
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit();
-          }}
-          className="flex min-h-10 items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          type="button"
+          onClick={view}
+          className="flex min-h-10 items-center gap-1.5 text-xs font-medium text-foreground"
         >
-          <Pencil className="w-3 h-3" />
+          View exams
+          <ArrowUpRight className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={onEdit}
+          aria-label={`Edit ${profile.profile_name}`}
+          className="flex min-h-11 items-center gap-1.5 px-1 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <Pencil className="h-3.5 w-3.5" />
           Edit
         </button>
       </div>

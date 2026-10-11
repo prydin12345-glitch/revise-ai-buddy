@@ -1,3 +1,4 @@
+import {renderProfileBasics} from "./profile-test-render";
 import {afterEach,describe,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen} from '@testing-library/react';
 import {ExamProfileModal} from '@/components/stats/ExamProfileModal';
@@ -14,7 +15,7 @@ Object.defineProperty(HTMLElement.prototype,'scrollTo',{configurable:true,value:
 afterEach(cleanup);
 const base={profile_name:'My WJEC Biology paper',topics:['My cell notes'],question_count:8,written_question_count:8,educational_tier:'level2',assessment_tier:null};
 function editor(initial:any=base) {
-  const save=vi.fn();const view=render(<ExamProfileModal open onOpenChange={()=>{}} subjectName="Biology Higher" subjectColor="#3388cc" examBoard="WJEC"
+  const save=vi.fn();const view=renderProfileBasics(<ExamProfileModal open onOpenChange={()=>{}} subjectName="Biology Higher" subjectColor="#3388cc" examBoard="WJEC"
     availableTopics={['My cell notes']} onSave={save} initialData={initial}/>);
   return {save,...view};
 }
