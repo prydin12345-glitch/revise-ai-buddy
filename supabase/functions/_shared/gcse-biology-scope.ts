@@ -1,3 +1,4 @@
+import {isEdexcelAlevelBiologyB,EDEXCEL_B_P1_RULES,edexcelBiologyBContentIssue} from './edexcel-alevel-biology-b-scope.ts';
 import {OCR_ALEVEL_P2_RULES,ocrAlevelPaper2ContentIssue} from './ocr-alevel-biology-paper2-scope.ts';
 import {OCR_ALEVEL_P3_RULES,ocrAlevelPaper3ContentIssue} from './ocr-alevel-biology-paper3-scope.ts';
 import {isOcrAlevelBiology,OCR_ALEVEL_P1_RULES,ocrAlevelPaper1ContentIssue} from './ocr-alevel-biology-scope.ts';
@@ -45,6 +46,7 @@ const isAqaFoundation = (scope: BiologyScope): boolean =>
 // AQA 8461 sections 4.3.2, 4.3.3.1, 4.4.1.2 and 4.4.2.2 mark these
 // requirements as HT only. These rules are deliberately scoped to this course.
 export function biologyScopeInstructions(scope: BiologyScope): string {
+  if(isEdexcelAlevelBiologyB(scope))return `${EDEXCEL_B_P1_RULES}\n${BIOLOGY_RESOURCE_RULES}`;
   if(isOcrAlevelBiology(scope))return `${scope.paperId==='paper_3'?OCR_ALEVEL_P3_RULES:scope.paperId==='paper_2'?OCR_ALEVEL_P2_RULES:OCR_ALEVEL_P1_RULES}\n${BIOLOGY_RESOURCE_RULES}`;
   if(isAqaAlevelBiology(scope)) return `${scope.paperId==='paper_3'?AQA_ALEVEL_P3_RULES:scope.paperId==='paper_2'?AQA_ALEVEL_P2_RULES:AQA_ALEVEL_P1_RULES}\n${BIOLOGY_RESOURCE_RULES}`;
   const gateway = scope.courseId === OCR_GATEWAY_BIOLOGY_ID;
@@ -103,6 +105,7 @@ export function biologyScopeFromContext(context: any, fallback: BiologyScope = {
 
 /** Dispatch by saved course before applying qualification-specific exclusions. */
 export function biologyContentIssue(part: {question_text?:unknown; task?:unknown; correct_answer?:unknown}, scope:BiologyScope):string|null {
+  if(isEdexcelAlevelBiologyB(scope))return edexcelBiologyBContentIssue(part);
   if(isOcrAlevelBiology(scope))return (scope.paperId==='paper_3'?ocrAlevelPaper3ContentIssue:scope.paperId==='paper_2'?ocrAlevelPaper2ContentIssue:ocrAlevelPaper1ContentIssue)([part.question_text,part.task,part.correct_answer].map(v=>typeof v==='string'?v:v?JSON.stringify(v):'').join('\n'));
   if(isAqaAlevelBiology(scope)) return (scope.paperId==='paper_3'?aqaAlevelPaper3ContentIssue:scope.paperId==='paper_2'?aqaAlevelPaper2ContentIssue:aqaAlevelPaper1ContentIssue)([part.question_text,part.task,part.correct_answer].map(v=>typeof v==='string'?v:v?JSON.stringify(v):'').join('\n'));
   return gcseBiologyIssue(part,scope);

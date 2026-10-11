@@ -1,3 +1,4 @@
+import {edexcelBiologyBPaperLabel} from '@/lib/biology-paper-display';
 import { hasAppHistory } from "@/lib/workspace-navigation";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -56,6 +57,7 @@ import {
 } from "lucide-react";
 
 interface Exam {
+  generation_context?:unknown;
   id: string;
   title: string;
   subject_id: string;
@@ -381,6 +383,7 @@ const ExamCover = () => {
                 durationMinutes={progress.durationMinutes}
                 topics={exam.exam_topics.map((t) => t.topic_name)}
               />
+              {edexcelBiologyBPaperLabel(exam.generation_context)&&<p className="mt-3 text-sm text-muted-foreground break-words">{edexcelBiologyBPaperLabel(exam.generation_context)}</p>}
             </div>
 
             {/* Side panel */}

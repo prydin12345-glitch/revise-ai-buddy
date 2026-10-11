@@ -1,27 +1,35 @@
 import type { AssessmentTier } from '@/lib/assessment-tier';
 import {biologyPaperOptions} from '../../../supabase/functions/_shared/biology-course-packs';
-import {canonicalCourseId,AQA_ALEVEL_BIOLOGY_ID,OCR_ALEVEL_BIOLOGY_ID,OCR_21C_BIOLOGY_ID,WJEC_BIOLOGY_ID} from '@/lib/assessment-tier';
+import {canonicalCourseId,EDEXCEL_ALEVEL_BIOLOGY_B_ID,AQA_ALEVEL_BIOLOGY_ID,OCR_ALEVEL_BIOLOGY_ID,OCR_21C_BIOLOGY_ID,WJEC_BIOLOGY_ID} from '@/lib/assessment-tier';
 import {WJEC_GRADE_RANGES,WJEC_UNIT3_VERSIONS} from '../../../supabase/functions/_shared/wjec-biology-specification';
 export function BiologyPaperSelector({courseId,value,tier,onChange}:{
   courseId:string|null;value:string|null;tier:AssessmentTier|null;onChange:(paperId:string)=>void;
 }) {
   const options=biologyPaperOptions(courseId);
+  const pearsonB=courseId===EDEXCEL_ALEVEL_BIOLOGY_B_ID;
   const alevel=courseId===AQA_ALEVEL_BIOLOGY_ID;
   const ocrAlevel=courseId===OCR_ALEVEL_BIOLOGY_ID;
-  if(options.length<2&&!alevel&&!ocrAlevel)return null;
+  if(options.length<2&&!alevel&&!ocrAlevel&&!pearsonB)return null;
   // Only AQA retains its legacy Paper 1 default. All newer courses need a choice.
   const selectedId=value??(canonicalCourseId(courseId)==='aqa_gcse_biology'?'paper_1':'');
   const selected=options.find(pack=>pack.paperId===selectedId),wjec=courseId===WJEC_BIOLOGY_ID;
   return <div className="space-y-2">
     <label htmlFor="biology-paper" className="text-sm font-medium">{wjec?'Biology unit':'Biology paper'}</label>
     <select id="biology-paper" className="min-h-11 w-full rounded-md border border-input bg-card px-3 py-2 text-sm" value={selectedId} onChange={event=>onChange(event.target.value)}>
-      {!selectedId&&<option value="" disabled>{ocrAlevel?'Choose Paper 1, Paper 2 or Paper 3':wjec?'Choose Unit 1 or Unit 2':courseId===OCR_21C_BIOLOGY_ID?'Choose Breadth or Depth':alevel?'Choose Paper 1, Paper 2 or Paper 3':'Choose Paper 1 or Paper 2'}</option>}
+      {!selectedId&&<option value="" disabled>{pearsonB?'Choose Paper 1 (9BI0/01)':ocrAlevel?'Choose Paper 1, Paper 2 or Paper 3':wjec?'Choose Unit 1 or Unit 2':courseId===OCR_21C_BIOLOGY_ID?'Choose Breadth or Depth':alevel?'Choose Paper 1, Paper 2 or Paper 3':'Choose Paper 1 or Paper 2'}</option>}
       {options.map(pack=><option key={pack.id} value={pack.paperId}>{pack.definition(tier).displayName}</option>)}
 
       {wjec&&<option value="unit_3" disabled>Unit 3 — practical assessment (not generated)</option>}
     </select>
     {selected&&<p className="text-xs text-muted-foreground">{selected.definition(tier).topics.join(' · ')}.
       {selected.definition(tier).componentCode?` Component ${selected.definition(tier).componentCode}.`:''}</p>}
+    {pearsonB&&<div className="space-y-1 text-xs text-muted-foreground">
+      <p>Pearson Edexcel A Level Biology B · 9BI0 · Untiered · Paper 1: 9BI0/01.</p>
+      <p>Advanced Biochemistry, Microbiology and Genetics · Topics 1–7 · 90 marks · 105 minutes · 30% of the qualification.</p>
+      <p>Full mock: nine groups, 36 parts, ten embedded MCQs and two six-mark levels responses (Examly development template). Pearson question counts and placements vary by series.</p>
+      <p>Short practice: three groups, nine parts, 25 marks / 29 minutes. Examly practice template. Topics 8–10 and Papers 2/3 are not enabled.</p>
+      <p>Specification Issue 4 (November 2018). Written practice does not award the practical endorsement.</p>
+    </div>}
     {ocrAlevel&&<div className="space-y-1 text-xs text-muted-foreground">
       <p>OCR A-level Biology A H420 · Untiered. AS H020 is a separate qualification.</p>
       {selectedId==='paper_3'?<>

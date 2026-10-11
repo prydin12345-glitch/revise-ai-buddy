@@ -26,6 +26,7 @@ interface ExamProfileCardProps {
 
 export const ExamProfileCard = ({ profile, subjectName, subjectColor, onEdit }: ExamProfileCardProps) => {
   const navigate = useNavigate();
+  const biologyB=profileCourseId(profile.paper_blueprint)==='pearson_edexcel_alevel_biology_b_9bi0';
   const tierLabel = formatEducationalTier(profile.educational_tier);
   const assessmentLabel = formatAssessmentTier(profile.assessment_tier);
   const paper = biologyPaperDefinition(profileCourseId(profile.paper_blueprint), profile.assessment_tier === "foundation" || profile.assessment_tier === "higher" ? profile.assessment_tier : null, profilePaperId(profile.paper_blueprint));
@@ -38,7 +39,7 @@ export const ExamProfileCard = ({ profile, subjectName, subjectColor, onEdit }: 
   // want" — everything else moves to the small caption below instead of
   // stacking as its own row of pills.
   const bandTags = [assessmentLabel || tierLabel, mockLabel].filter(Boolean);
-  const captionParts = [paper?.componentCode, hasBlueprint ? "Custom layout" : null].filter(Boolean);
+  const captionParts = [biologyB?'Pearson Edexcel A Level Biology B':null, paper?.componentCode, hasBlueprint ? "Custom layout" : null].filter(Boolean);
   const accent = subjectColor || "hsl(var(--primary))";
 
   return (
@@ -70,7 +71,7 @@ export const ExamProfileCard = ({ profile, subjectName, subjectColor, onEdit }: 
           {captionParts.length > 0 && (
             <div className="flex items-center gap-1.5 text-11 text-muted-foreground mb-2.5">
               <FileText className="w-3 h-3 shrink-0" />
-              <span className="truncate">{captionParts.join(" · ")}</span>
+              <span className={biologyB?"break-words":"truncate"}>{captionParts.join(" · ")}</span>
             </div>
           )}
           <span className="inline-flex items-center px-2 py-0.5 rounded-md text-11 font-medium bg-foreground/[0.04] text-muted-foreground border border-foreground/[0.06]">

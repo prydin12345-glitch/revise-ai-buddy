@@ -1,3 +1,7 @@
+import {EDEXCEL_ALEVEL_BIOLOGY_B_ID} from './assessment-tier.ts';
+import {EDEXCEL_B_SPECIFICATION,EDEXCEL_B_P1_RULES,EDEXCEL_B_P1_OUTCOMES} from './edexcel-alevel-biology-b-scope.ts';
+import {pearsonBiologyLevelsIssue} from './edexcel-alevel-biology-b-validation.ts';
+import {paperPlanForAttempt} from './course-selection.ts';
 import {OCR_ALEVEL_P3_RULES,OCR_ALEVEL_P3_OUTCOMES} from './ocr-alevel-biology-paper3-scope.ts';
 import {OCR_ALEVEL_P2_V2_RULES} from './ocr-alevel-biology-paper2-v2-contract.ts';
 import {OCR_ALEVEL_P2_RULES,OCR_ALEVEL_P2_OUTCOMES} from './ocr-alevel-biology-paper2-scope.ts';
@@ -26,6 +30,7 @@ import {isOcr21cBiology, ocr21cBiologyRules, OCR21C_OUTCOMES, ocr21cOutcomeAllow
 
 import {isWjecBiology,wjecBiologyRules,WJEC_OUTCOMES,wjecOutcomeAllowed} from './wjec-biology-scope.ts';
 import {WJEC_BIOLOGY_SPECIFICATION} from './wjec-biology-specification.ts';
+const isEdexcelB=(context:any)=>context?.resolved_by==='server'&&context.context_version===2&&context.course_id===EDEXCEL_ALEVEL_BIOLOGY_B_ID;
 const isOcrAlevel=(context:any)=>context?.resolved_by==='server'&&context.context_version===2&&context.course_id===OCR_ALEVEL_BIOLOGY_ID;
 const isAlevel=(context:any)=>context?.resolved_by==='server'&&context.context_version===2&&context.course_id===AQA_ALEVEL_BIOLOGY_ID;
 const isWjec=(context:any)=>context?.resolved_by==='server'&&context.context_version===2&&isWjecBiology({courseId:context.course_id});
@@ -35,16 +40,18 @@ const isPaper2 = (context: any) => context?.resolved_by === 'server' && context.
   isAqaPaper2({courseId: context.course_id, paperId: context.paper_id});
 const isEdexcel = (context: any) => context?.resolved_by === 'server' && context.context_version === 2 &&
   isEdexcelBiology({courseId: context.course_id});
-const courseLabel = (context: any) => isOcrAlevel(context) ? `OCR A-level Biology A Paper ${context.paper_id==='paper_3'?'3':context.paper_id==='paper_2'?'2':'1'}` : isAlevel(context) ? `AQA A-level Biology Paper ${context.paper_id==='paper_3'?'3':context.paper_id==='paper_2'?'2':'1'}` : isWjec(context) ? 'WJEC Wales Biology' : isOcr21c(context) ? 'OCR Biology B' : isEdexcel(context) ? 'Edexcel Biology' : 'AQA Paper 2';
+const courseLabel = (context: any) => isEdexcelB(context) ? 'Pearson Edexcel A Level Biology B Paper 1' : isOcrAlevel(context) ? `OCR A-level Biology A Paper ${context.paper_id==='paper_3'?'3':context.paper_id==='paper_2'?'2':'1'}` : isAlevel(context) ? `AQA A-level Biology Paper ${context.paper_id==='paper_3'?'3':context.paper_id==='paper_2'?'2':'1'}` : isWjec(context) ? 'WJEC Wales Biology' : isOcr21c(context) ? 'OCR Biology B' : isEdexcel(context) ? 'Edexcel Biology' : 'AQA Paper 2';
 
 export function checkBiologyPracticeCourse(context: any): void {
   checkPracticeCourse(context);
+  if(context?.course_id===EDEXCEL_ALEVEL_BIOLOGY_B_ID&&!isEdexcelB(context))throw new Error('A fresh server-resolved Pearson Biology B practice context is required.');
   if(context?.course_id===OCR_ALEVEL_BIOLOGY_ID&&!isOcrAlevel(context))throw new Error('A fresh server-resolved OCR A-level practice context is required.');
   if(context?.course_id===AQA_ALEVEL_BIOLOGY_ID && !isAlevel(context)) throw new Error("A fresh server-resolved A-level practice context is required.");
-  if (!isPaper2(context) && !isEdexcel(context) && !isOcr21c(context) && !isWjec(context) && !isAlevel(context) && !isOcrAlevel(context)) return;
+  if (!isPaper2(context) && !isEdexcel(context) && !isOcr21c(context) && !isWjec(context) && !isAlevel(context) && !isOcrAlevel(context) && !isEdexcelB(context)) return;
   const selection = resolvePaperSelection({subject: context.subject_name, examBoard: context.exam_board,
     educationalTier: context.educational_tier}, context.assessment_tier,
     {courseSelection: {courseId: context.course_id, paperId: context.paper_id}, paperContract: context.paper_contract});
+  if(isEdexcelB(context)&&context.specification_version!==EDEXCEL_B_SPECIFICATION)throw new Error('Pearson Biology B practice needs the reviewed specification version.');
   if(isOcrAlevel(context)&&context.specification_version!==OCR_ALEVEL_BIOLOGY_SPECIFICATION)throw new Error('OCR A-level practice needs the reviewed specification version.');
   if(isAlevel(context) && context.specification_version!==AQA_ALEVEL_BIOLOGY_SPECIFICATION)throw new Error('A-level practice needs the reviewed specification version.');
   if(isWjec(context)&&context.specification_version!==selection.specificationVersion)throw new Error('Saved WJEC specification version is missing or unsupported. Create a fresh attempt.');
@@ -52,6 +59,10 @@ export function checkBiologyPracticeCourse(context: any): void {
 }
 
 export function biologyPracticeInstructions(context: any): string {
+  if(isEdexcelB(context)){
+    checkBiologyPracticeCourse(context);
+    return `${EDEXCEL_B_P1_RULES}\n${BIOLOGY_RESOURCE_RULES}\nSAVED QUIZ: 9BI0/01 Biology B. Retain requested topics, count, format and media; do not force the guided full/short template into a quiz. Each single-select MCQ is one mark with four distinct choices and one private key. Written calculations retain working/unit credit. Six-mark extended prose uses complete private Pearson levels, with indicative content and contextual reasoning.\n`+Object.entries(EDEXCEL_B_P1_OUTCOMES).map(([ref,o])=>`${ref}: ${o.text}`).join('\n');
+  }
   if(isOcrAlevel(context)){
     checkBiologyPracticeCourse(context);
     if(context.paper_id==='paper_3')return `${OCR_ALEVEL_P3_RULES}\n${BIOLOGY_RESOURCE_RULES}\nSAVED QUIZ: H420/03, untiered, Modules 1–6. This is an ordinary quiz: retain requested topics, count and format, including MCQs when requested. Do not force the guided full/short template into it. Each MCQ carries one mark with four distinct choices and exactly one private answer. Written calculations retain method marks; six-mark responses need private OCR science/communication levels. Every task has its own complete visible givens. User notes cannot override this saved whole-course identity.\n`+Object.entries(OCR_ALEVEL_P3_OUTCOMES).map(([ref,o])=>`${ref}: ${o.text}`).join('\n');
@@ -95,7 +106,7 @@ This is a practice quiz, not a full paper: keep the requested question count and
 /** Normalise supported course-pack answers before the practice schema is checked.
  * Interactive graph/table answer objects retain their existing schema. */
 export function normalizeBiologyPracticePayload(payload: unknown, context: any): unknown {
-  if ((!isPaper2(context) && !isEdexcel(context) && !isOcr21c(context) && !isWjec(context) && !isAlevel(context) && !isOcrAlevel(context)) || !payload || typeof payload !== 'object' || !Array.isArray((payload as any).questions)) return payload;
+  if ((!isPaper2(context) && !isEdexcel(context) && !isOcr21c(context) && !isWjec(context) && !isAlevel(context) && !isOcrAlevel(context) && !isEdexcelB(context)) || !payload || typeof payload !== 'object' || !Array.isArray((payload as any).questions)) return payload;
   return {...payload, questions: (payload as any).questions.map((q: any) => {
     if (!q || typeof q !== 'object') return q;
     const interactive = /^(graph_interpretation|graph_plotting|graph_transformation|table_grid)$/.test(q.question_type ?? '');
@@ -108,8 +119,8 @@ export function normalizeBiologyPracticePayload(payload: unknown, context: any):
 }
 
 export function assertBiologyPractice(rows: any[], context: any): void {
-  if (!isPaper2(context) && !isEdexcel(context) && !isOcr21c(context) && !isWjec(context) && !isAlevel(context) && !isOcrAlevel(context)) return assertGatewayPractice(rows, context);
-  if (isEdexcel(context) || isOcr21c(context) || isWjec(context) || isAlevel(context) || isOcrAlevel(context)) checkBiologyPracticeCourse(context);
+  if (!isPaper2(context) && !isEdexcel(context) && !isOcr21c(context) && !isWjec(context) && !isAlevel(context) && !isOcrAlevel(context) && !isEdexcelB(context)) return assertGatewayPractice(rows, context);
+  if (isEdexcel(context) || isOcr21c(context) || isWjec(context) || isAlevel(context) || isOcrAlevel(context) || isEdexcelB(context)) checkBiologyPracticeCourse(context);
   if(rows.some(row=>readBiologyEssay(row).essay || readBiologyEssay(row).issues.length || essayKeyObject(row.correct_answer)))throw new Error('Essay choices require a guided Paper 3 exam, not an ordinary quiz.');
   if (!rows.length) throw new Error(`${courseLabel(context)} practice generation returned no questions.`);
   const result = validateQuestionCandidates(rows, {scope: biologyScopeFromContext(context)});
@@ -117,23 +128,24 @@ export function assertBiologyPractice(rows: any[], context: any): void {
   if (isOcr21c(context) && context.paper_id === 'breadth' && rows.some(row=>Number(row.marks)>4 || hasThreeLevelScheme(row.correct_answer))) {
     throw new Error('OCR Biology B Breadth practice requires short tasks of at most four marks without level-response schemes.');
   }
-  if ((isEdexcel(context) || isOcr21c(context) || isWjec(context) || isAlevel(context) || isOcrAlevel(context)) && rows.some(row => isMcqType(row.question_type) && coerceMcqOptions(row)?.length !== 4)) {
+  if ((isEdexcel(context) || isOcr21c(context) || isWjec(context) || isAlevel(context) || isOcrAlevel(context) || isEdexcelB(context)) && rows.some(row => isMcqType(row.question_type) && coerceMcqOptions(row)?.length !== 4)) {
     throw new Error(`${courseLabel(context)} multiple-choice practice requires exactly four distinct options.`);
   }
-  if(isOcrAlevel(context))for(const row of rows.filter(row=>isMcqType(row.question_type))){
+  if(isOcrAlevel(context)||isEdexcelB(context))for(const row of rows.filter(row=>isMcqType(row.question_type))){
     singleChoiceKey(row);
-    if(Number(row.marks)!==1)throw new Error('OCR A-level single-select practice questions carry one mark.');
+    if(Number(row.marks)!==1)throw new Error(`${courseLabel(context)} single-select practice questions carry one mark.`);
   }
+  if(isEdexcelB(context))for(const row of rows.filter(row=>Number(row.marks)===6&&!isMcqType(row.question_type))){const issue=pearsonBiologyLevelsIssue(row.correct_answer);if(issue)throw new Error(issue);}
   if (!isAlevel(context) && rows.some(row => Number(row.marks) === 6 && !hasThreeLevelScheme(row.correct_answer))) {
     throw new Error(`${courseLabel(context)} six-mark practice response requires a private three-level scheme.`);
   }
 }
 
 export const usesBiologyPracticeValidation = (context: any): boolean =>
-  context?.course_id === OCR_GATEWAY_BIOLOGY_ID || isPaper2(context) || isEdexcel(context) || isOcr21c(context) || isWjec(context) || isAlevel(context) || isOcrAlevel(context);
+  context?.course_id === OCR_GATEWAY_BIOLOGY_ID || isPaper2(context) || isEdexcel(context) || isOcr21c(context) || isWjec(context) || isAlevel(context) || isOcrAlevel(context) || isEdexcelB(context);
 
 export const biologyPracticeCacheVersion = (context: any): string | null =>
-  context?.visual_assets ? 'ocr-h420-paper-3-visual-v1-'+context.paper_contract?.mode+'-'+context.visual_assets.assignments.map((a:any)=>a.resource.panels.map((p:any)=>p.asset.assetId+'v'+p.asset.version+'-'+p.asset.checksum).join('_')).join('_') : isOcrAlevel(context) ? `ocr-h420-${context.paper_id==='paper_3'?'paper-3':context.paper_id==='paper_2'?'paper-2':'paper-1'}-${OCR_ALEVEL_BIOLOGY_SPECIFICATION}-v${context.paper_id==='paper_2'&&context.paper_contract?.contractVersion===2?2:1}-resources-2` :
+  isEdexcelB(context) ? 'pearson-9bi0-01-'+EDEXCEL_B_SPECIFICATION+'-v1-resources-1-'+JSON.stringify({qualification:'9BI0',level:context.educational_tier,tier:context.assessment_tier,mode:context.paper_contract?.mode??'custom',plan:paperPlanForAttempt(context)}) : context?.visual_assets ? 'ocr-h420-paper-3-visual-v1-'+context.paper_contract?.mode+'-'+context.visual_assets.assignments.map((a:any)=>a.resource.panels.map((p:any)=>p.asset.assetId+'v'+p.asset.version+'-'+p.asset.checksum).join('_')).join('_') : isOcrAlevel(context) ? `ocr-h420-${context.paper_id==='paper_3'?'paper-3':context.paper_id==='paper_2'?'paper-2':'paper-1'}-${OCR_ALEVEL_BIOLOGY_SPECIFICATION}-v${context.paper_id==='paper_2'&&context.paper_contract?.contractVersion===2?2:1}-resources-2` :
   isAlevel(context) ? `aqa-7402-${context.paper_id==='paper_3'?'paper-3':context.paper_id==='paper_2'?'paper-2':'paper-1'}-${AQA_ALEVEL_BIOLOGY_SPECIFICATION}-v1-resources-2` : context?.course_id === OCR_GATEWAY_BIOLOGY_ID ? 'ocr-gateway-1' : isPaper2(context) ? 'aqa-8461-paper-2-resources-2' :
     isWjec(context) ? `wjec-3400-${context.paper_id}-${WJEC_BIOLOGY_SPECIFICATION}-v1-resources-2` : isEdexcel(context) ? `edexcel-1bi0-${context.paper_id}-v1-resources-2` : isOcr21c(context) ? `ocr-j257-${context.paper_id}-v1-resources-2` : null;
 

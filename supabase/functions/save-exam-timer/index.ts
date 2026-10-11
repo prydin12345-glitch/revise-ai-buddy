@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { OCR_ALEVEL_BIOLOGY_ID } from "../_shared/assessment-tier.ts";
+import { OCR_ALEVEL_BIOLOGY_ID, EDEXCEL_ALEVEL_BIOLOGY_B_ID } from "../_shared/assessment-tier.ts";
 import { paperPlanForAttempt } from "../_shared/course-selection.ts";
 
 const corsHeaders = {
@@ -55,11 +55,11 @@ serve(async (req) => {
       });
     }
 
-    // Guided Unified biology timing comes from the frozen server contract,
+    // Guided Unified biology and Pearson Biology B timing comes from the frozen server contract,
     // including retries after profile edits. Custom timing and other papers
     // retain their existing behaviour; the user's timer toggle is preserved.
     const context = exam.generation_context;
-    const unifiedPlan = context?.course_id === OCR_ALEVEL_BIOLOGY_ID && context.paper_id === 'paper_3'
+    const unifiedPlan = context?.course_id === EDEXCEL_ALEVEL_BIOLOGY_B_ID || context?.course_id === OCR_ALEVEL_BIOLOGY_ID && context.paper_id === 'paper_3'
       ? paperPlanForAttempt(context) : null;
     const effectiveDuration = unifiedPlan?.durationMinutes ?? duration;
 

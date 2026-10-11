@@ -1,3 +1,4 @@
+import {edexcelBiologyBPaperLabel} from '@/lib/biology-paper-display';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -13,6 +14,7 @@ export interface ExamWithSubmission {
   status: string;
   created_at: string;
   updated_at?: string;
+  generation_context?:unknown;
   assigned_by?: string;
   deadline?: string;
   submission?: {
@@ -95,6 +97,7 @@ export const ExamRowItem = ({ exam, subjectColor = "#3B82F6", showLastAccessed =
           {exam.title}
         </h3>
         
+        {edexcelBiologyBPaperLabel(exam.generation_context)&&<p className="mb-2 text-xs text-muted-foreground break-words">{edexcelBiologyBPaperLabel(exam.generation_context)}</p>}
         <div className="flex items-center gap-2 flex-wrap">
           {/* Subject pill with subtle color accent */}
           <Badge 

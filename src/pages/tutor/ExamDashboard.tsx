@@ -1,3 +1,4 @@
+import {edexcelBiologyBPaperLabel} from '@/lib/biology-paper-display';
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +29,7 @@ interface StudentSubmission {
 }
 
 interface ExamDetails {
+  generationContext?:unknown;
   id: string;
   title: string;
   status: string;
@@ -149,6 +151,7 @@ const ExamDashboard = () => {
       setExamDetails({
         id: exam.id,
         title: exam.title,
+        generationContext:exam.generation_context,
         status: exam.status,
         gradeReleased: exam.grade_released || false,
         deadline,
@@ -229,6 +232,7 @@ const ExamDashboard = () => {
           </Button>
           <div>
             <h1 className="text-2xl font-bold">{examDetails.title}</h1>
+            {edexcelBiologyBPaperLabel(examDetails.generationContext)&&<p className="text-sm text-muted-foreground break-words">{edexcelBiologyBPaperLabel(examDetails.generationContext)}</p>}
             <div className="flex items-center gap-2 mt-1">
               <Badge variant={examDetails.status === "published" ? "default" : "secondary"}>
                 {examDetails.status}

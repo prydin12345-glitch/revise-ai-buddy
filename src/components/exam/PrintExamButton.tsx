@@ -1,5 +1,6 @@
 import type {ResponseQuestionView} from '@/lib/response-view';
 import { biologyPaperDisplay } from "@/lib/biology-paper-display";
+import { EDEXCEL_ALEVEL_BIOLOGY_B_ID } from "@/lib/assessment-tier";
 import { useState } from "react";
 import { Printer, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -119,7 +120,7 @@ export function PrintExamButton({
         title: exam.title,
         subject: paper?.subject ?? exam.detected_subject ?? undefined,
         exam_board: exam.exam_board || undefined,
-        qualification_level: paper ? `GCSE · ${paper.plan.tier} · ${paper.plan.componentCode}` : exam.qualification_level || undefined,
+        qualification_level: paper?.plan.courseId===EDEXCEL_ALEVEL_BIOLOGY_B_ID ? 'A Level · Untiered · 9BI0/01' : paper ? `GCSE · ${paper.plan.tier} · ${paper.plan.componentCode}` : exam.qualification_level || undefined,
         generation_context: exam.generation_context,
         time_allowed: paper?.plan.durationMinutes,
         questions: formattedQuestions,

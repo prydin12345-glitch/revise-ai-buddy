@@ -1,7 +1,7 @@
 // FILE: src/components/stats/TimeWheelPicker.tsx
 // iPhone-timer-style vertical scroll wheel for the exam time limit.
 // Scroll-snap centres a value; the centred value is selected live.
-// Props unchanged from the previous picker: value "" = no limit.
+// value "" = no limit; supported courses can preserve exact saved durations.
 
 import { useRef, useEffect, useMemo, useCallback } from "react";
 
@@ -9,16 +9,21 @@ interface TimeWheelPickerProps {
   value: string;
   onChange: (value: string) => void;
   subjectColor: string;
+  preserveExactValue?:boolean;
 }
 
 const ITEM_H = 36;
 
-export function TimeWheelPicker({ value, onChange, subjectColor }: TimeWheelPickerProps) {
+export function TimeWheelPicker({ value, onChange, subjectColor, preserveExactValue=false }: TimeWheelPickerProps) {
   const options = useMemo(() => {
     const mins: Array<number | null> = [null];
     for (let m = 5; m <= 240; m += 5) mins.push(m);
+    const exact=Number(value);
+    if(preserveExactValue&&value&&Number.isInteger(exact)&&exact>0&&!mins.includes(exact)){
+      mins.push(exact);mins.sort((a,b)=>(a??0)-(b??0));
+    }
     return mins;
-  }, []);
+  }, [preserveExactValue, preserveExactValue?value:null]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppress = useRef(false);
@@ -36,13 +41,14 @@ export function TimeWheelPicker({ value, onChange, subjectColor }: TimeWheelPick
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+    if(preserveExactValue&&settleTimer.current)clearTimeout(settleTimer.current);
     const target = indexOfValue(value) * ITEM_H;
     if (Math.abs(el.scrollTop - target) > 2) {
       suppress.current = true;
       el.scrollTo({ top: target });
       setTimeout(() => { suppress.current = false; }, 80);
     }
-  }, [value, indexOfValue]);
+  }, [value, indexOfValue, preserveExactValue]);
 
   const handleScroll = () => {
     if (suppress.current) return;

@@ -1,3 +1,4 @@
+import {profileCourseId} from '../../../supabase/functions/_shared/course-selection';
 import { useNavigate } from "react-router-dom";
 import { Pencil } from "lucide-react";
 import { formatEducationalTier } from "@/lib/level-display";
@@ -31,7 +32,8 @@ export const ExamProfileRow = ({ profile, subjectName, subjectColor, onEdit }: E
     ? profile.paper_blueprint.paperContract.mode === "full_mock" ? "Full mock" : "Short practice"
     : null;
 
-  const meta = [assessmentLabel || tierLabel, mockLabel, `${profile.question_count} questions`]
+  const biologyB=profileCourseId(profile.paper_blueprint)==='pearson_edexcel_alevel_biology_b_9bi0';
+  const meta = [...(biologyB?['Pearson Edexcel A Level Biology B · 9BI0/01']:[]), assessmentLabel || tierLabel, mockLabel, `${profile.question_count} questions`]
     .filter(Boolean)
     .join(" · ");
 
@@ -50,7 +52,7 @@ export const ExamProfileRow = ({ profile, subjectName, subjectColor, onEdit }: E
           <span className="block text-15 font-semibold text-foreground truncate">
             {profile.profile_name}
           </span>
-          <span className="block text-xs text-muted-foreground mt-0.5 truncate">{meta}</span>
+          <span className={biologyB?"block text-xs text-muted-foreground mt-0.5 break-words":"block text-xs text-muted-foreground mt-0.5 truncate"}>{meta}</span>
         </span>
       </button>
       <button

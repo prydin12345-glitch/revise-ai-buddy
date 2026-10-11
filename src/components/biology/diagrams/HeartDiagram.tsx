@@ -25,6 +25,7 @@ const HeartDiagram: React.FC<DiagramProps> = ({
   showLabels = true,
   labelMode = 'visible',
   letterLabels,
+  hideIntrinsicLabels = false,
   revealedLabels = new Set(),
   onLabelClick,
   scale = 1,
@@ -76,7 +77,7 @@ const HeartDiagram: React.FC<DiagramProps> = ({
       {/* Vena cava (top-right of body = left side of diagram) */}
       <rect x={95} y={40} width={30} height={50} rx={4}
         fill="#93c5fd" stroke="#1a1a1a" strokeWidth={1.5} />
-      <text x={110} y={37} textAnchor="middle" fontSize={8} fill="#64748b">SVC</text>
+      {!hideIntrinsicLabels && <text x={110} y={37} textAnchor="middle" fontSize={8} fill="#64748b">SVC</text>}
 
       {/* Pulmonary artery */}
       <rect x={180} y={40} width={28} height={40} rx={4}

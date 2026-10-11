@@ -1,3 +1,5 @@
+import {EDEXCEL_ALEVEL_BIOLOGY_B_ID} from './assessment-tier.ts';
+import {edexcelBiologyBContentIssue} from './edexcel-alevel-biology-b-scope.ts';
 import {selectVisualAssessment,applyVisualAssessment,seededVisualRows} from './biology-visual-assessment.ts';
 import {buildPaperPlan} from './biology-paper-contract.ts';
 import type {SavedVisualAssessment} from './biology-visual-types.ts';
@@ -104,6 +106,10 @@ export const resolveProfileContext = async (
   let selection: ResolvedPaperSelection;
   try { selection = resolvePaperSelection(lookup, tier, profile?.paper_blueprint); }
   catch (error) { throw new ProfileContextError(error instanceof Error ? error.message : 'Invalid course selection'); }
+  if(selection.courseId===EDEXCEL_ALEVEL_BIOLOGY_B_ID){
+    const issue=edexcelBiologyBContentIssue(profile?.topics??[]);
+    if(issue)throw new ProfileContextError(issue);
+  }
   let visualAssets:SavedVisualAssessment|undefined;
   if(selection.visualPolicy){
     visualAssets=selectVisualAssessment(selection.paperContract!.mode as 'full_mock'|'short_practice');
