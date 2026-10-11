@@ -3,6 +3,8 @@ import {edexcelBiologyBContentIssue} from './edexcel-alevel-biology-b-scope.ts';
 import {selectVisualAssessment,applyVisualAssessment,seededVisualRows} from './biology-visual-assessment.ts';
 import {buildPaperPlan} from './biology-paper-contract.ts';
 import type {SavedVisualAssessment} from './biology-visual-types.ts';
+import { snapshotTemplate } from './profile-template-context.ts';
+import { evaluateApproval } from './preset-approval.ts';
 // Backend counterpart of src/lib/profile-context.ts.
 //
 // The client may claim a profile, a board, a level and a tier. The backend
@@ -21,6 +23,8 @@ import { profileCourseId, resolvePaperSelection, type ResolvedPaperSelection } f
 export const GENERATION_CONTEXT_VERSION = 2;
 
 export interface ResolvedGenerationContext extends ResolvedPaperSelection {
+  profileTemplate?: ReturnType<typeof snapshotTemplate>;
+  profileApproval?: ReturnType<typeof evaluateApproval>;
   visualAssets?: SavedVisualAssessment;
   contextVersion: number;
   subjectName: string;
@@ -87,6 +91,30 @@ export const resolveProfileContext = async (
   const educationalTier =
     clean(profile?.educational_tier) ?? clean(args.educationalTier);
 
+  // Only a row loaded through the ownership filter can supply trusted provenance.
+  const savedTemplate = profile ? snapshotTemplate(profile) : null;
+  const profileApproval = profile ? evaluateApproval(profile, profile.profile_template?.presetId) : undefined;
+  if (savedTemplate?.plan) {
+    const identity = savedTemplate.context.template.identity;
+    return {
+      contextVersion: GENERATION_CONTEXT_VERSION,
+      subjectName: identity.subject,
+      profileId: profile.id,
+      profileName: clean(profile.profile_name),
+      examBoard: identity.organisation,
+      educationalTier: identity.qualification,
+      assessmentTier: identity.tier,
+      assessmentTierSupported: identity.tier === 'foundation' || identity.tier === 'higher',
+      courseId: savedTemplate.plan.courseId,
+      paperId: identity.component,
+      componentCode: identity.component,
+      specificationVersion: identity.specificationVersion,
+      paperContract: null,
+      profileTemplate: savedTemplate,
+      profileApproval,
+    };
+  }
+
   const lookup = { subject: subjectName, examBoard, educationalTier, courseId: profileCourseId(profile?.paper_blueprint) };
   const supported = supportsAssessmentTier(lookup);
 
@@ -117,6 +145,8 @@ export const resolveProfileContext = async (
     await seededVisualRows(plan); // Verify shipped bytes before spending any model call.
   }
   return {
+    ...(savedTemplate ? {profileTemplate: savedTemplate} : {}),
+    ...(profileApproval ? {profileApproval} : {}),
     ...(visualAssets?{visualAssets}:{}),
     contextVersion: GENERATION_CONTEXT_VERSION,
     subjectName,
@@ -147,6 +177,8 @@ export const toStoredGenerationContext = (
   paper_id: ctx.paperId,
   component_code: ctx.componentCode,
   paper_contract: ctx.paperContract,
+  ...(ctx.profileTemplate ? {profile_template:ctx.profileTemplate} : {}),
+  ...(ctx.profileApproval ? {profile_approval:{status:ctx.profileApproval.status,presetId:ctx.profileApproval.entry?.id??null}} : {}),
   ...(ctx.responseFormats ? {response_formats:ctx.responseFormats} : {}),
   ...(ctx.visualAssets?{visual_assets:ctx.visualAssets}:{}),
   ...(ctx.specificationVersion ? {specification_version:ctx.specificationVersion} : {}),

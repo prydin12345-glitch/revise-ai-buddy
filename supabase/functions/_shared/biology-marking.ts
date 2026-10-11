@@ -1,4 +1,5 @@
 import {EDEXCEL_ALEVEL_BIOLOGY_B_ID} from './assessment-tier.ts';
+import {templateSnapshotInstructions} from './profile-template-context.ts';
 import {EDEXCEL_B_SPECIFICATION} from './edexcel-alevel-biology-b-scope.ts';
 import {savedBiologyDiagram} from './biology-assessment-resources.ts';
 import {OCR_ALEVEL_BIOLOGY_ID} from './assessment-tier.ts';
@@ -21,7 +22,7 @@ import {isWjecBiology} from './wjec-biology-scope.ts';
 
 /** Paper 2 marking receives the actual reading/data, not just a reference to it. */
 export function biologyQuestionResourceContext(context:any,question:any,options:{guided?:boolean}={}):string {
-  if(context?.course_id!==EDEXCEL_ALEVEL_BIOLOGY_B_ID&&context?.course_id!==OCR_ALEVEL_BIOLOGY_ID&&(context?.course_id!==AQA_ALEVEL_BIOLOGY_ID||!['paper_2','paper_3'].includes(context.paper_id)))return '';
+  if(!context?.profile_template?.plan&&context?.course_id!==EDEXCEL_ALEVEL_BIOLOGY_B_ID&&context?.course_id!==OCR_ALEVEL_BIOLOGY_ID&&(context?.course_id!==AQA_ALEVEL_BIOLOGY_ID||!['paper_2','paper_3'].includes(context.paper_id)))return '';
   const plan=paperPlanForAttempt(context);
   const expected=options.guided===false?undefined:plan?.parts.find(p=>canonicalPartNumber(p.questionNumber)===canonicalPartNumber(question.question_number));
   const resources=requireConsistentResources(question);
@@ -35,6 +36,7 @@ export function biologyQuestionResourceContext(context:any,question:any,options:
 }
 
 export function biologyMarkingInstructions(context: any): string {
+  if (context?.profile_template?.plan) { paperPlanForAttempt(context); return templateSnapshotInstructions(context) + '\nMark the saved task using its private task-specific key and actual supplied data. Award equivalent valid answers, method/unit credit and capped raw marks. Do not award given scaffold content or invent official grade boundaries. Failed marking remains ungraded.'; }
   if(context?.course_id===EDEXCEL_ALEVEL_BIOLOGY_B_ID){
     if(context.resolved_by!=='server'||context.context_version!==2||context.specification_version!==EDEXCEL_B_SPECIFICATION)throw new Error('Pearson Biology B marking requires the protected saved course/edition.');
     const selection=resolvePaperSelection({subject:context.subject_name,examBoard:context.exam_board,educationalTier:context.educational_tier},context.assessment_tier,{courseSelection:{courseId:context.course_id,paperId:context.paper_id},paperContract:context.paper_contract});

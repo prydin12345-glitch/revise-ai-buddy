@@ -1,4 +1,6 @@
 import {EDEXCEL_ALEVEL_BIOLOGY_B_ID} from './assessment-tier.ts';
+import {isGenericPlan} from './profile-template.ts';
+import {validateGenericPlan} from './profile-template-plan-validator.ts';
 import {edexcelBiologyBPartIssues} from './edexcel-alevel-biology-b-validation.ts';
 import type {EdexcelBPart} from './edexcel-alevel-biology-b-contract.ts';
 import {OCR_ALEVEL_BIOLOGY_ID} from './assessment-tier.ts';
@@ -23,6 +25,7 @@ export const canonicalPartNumber = (value: unknown): string => {
 /** Structural checks only: live scientific accuracy still needs a paper audit. */
 export function validateBiologyPlan(rows: CandidatePart[], plan?: PaperPlan | null): QuestionDefect[] {
   if (!plan) return [];
+  if (isGenericPlan(plan)) return validateGenericPlan(rows, plan);
   const pack = packForBiologyPlan(plan);
   // Preserve the AQA v1 acceptance rules while extracting shared machinery.
   // Its total, task, resource and level checks still run in the common gate.

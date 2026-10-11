@@ -1,4 +1,5 @@
 import {EDEXCEL_ALEVEL_BIOLOGY_B_ID} from './assessment-tier.ts';
+import {isGenericPlan,templateInstructions} from './profile-template.ts';
 import {EDEXCEL_B_P1,buildEdexcelBiologyBPlan,assertEdexcelBiologyBPlan,edexcelBiologyBInstructions,edexcelBiologyBPartInstruction} from './edexcel-alevel-biology-b-contract.ts';
 import {EDEXCEL_B_SPEC_URL,EDEXCEL_B_SAM_URL,EDEXCEL_B_P1_RULES} from './edexcel-alevel-biology-b-scope.ts';
 import {OCR_ALEVEL_BIOLOGY_ID} from './assessment-tier.ts';
@@ -379,7 +380,7 @@ export function packForBiologyPlan(plan: PaperPlan): BiologyPaperPack {
   return pack;
 }
 
-export const biologyPlanInstructions = (plan: PaperPlan): string => packForBiologyPlan(plan).instructions(plan);
+export const biologyPlanInstructions = (plan: PaperPlan): string => isGenericPlan(plan) ? templateInstructions(plan) : packForBiologyPlan(plan).instructions(plan);
 
 export interface BiologyBatchSibling {
   question_number: string;
@@ -398,6 +399,7 @@ export function biologyBatchInstructions(
   batch: readonly PlannedPart[],
   context: { siblings?: readonly BiologyBatchSibling[] } = {},
 ): string {
+  if (isGenericPlan(plan)) return templateInstructions(plan, [...batch]) + (context.siblings?.length ? '\nAlready written sibling data, reference only: ' + JSON.stringify(context.siblings) : '');
   const pack = packForBiologyPlan(plan);
   const numbers = batch.map(part => part.questionNumber);
   const lines: string[] = [
@@ -425,6 +427,7 @@ export function biologyBatchInstructions(
 
 export function biologyRepairInstructions(plan: PaperPlan | null | undefined, numbers: Set<string>, includeOptions: boolean): string {
   if (!plan) return '';
+  if (isGenericPlan(plan)) return templateInstructions(plan, plan.parts.filter(p => numbers.has(p.questionNumber)));
   const instruction = packForBiologyPlan(plan).repairPartInstructions;
   return instruction ? plan.parts.filter(part => numbers.has(part.questionNumber)).map(part => instruction(part, includeOptions)).join('\n') : '';
 }

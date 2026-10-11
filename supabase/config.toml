@@ -89,3 +89,7 @@ verify_jwt = true
 
 [functions.explain-answer]
 verify_jwt = true
+
+[functions.profile-builder]
+# Explicit authenticated getUser check in the handler, matching existing functions.
+verify_jwt = false
