@@ -1,3 +1,4 @@
+import {ProfileApprovalBadge} from "@/components/profiles/ExamlyApprovalBadge";
 import { useNavigate } from "react-router-dom";
 import { Pencil } from "lucide-react";
 import {
@@ -21,7 +22,8 @@ export const ExamProfileRow = ({
   const navigate = useNavigate();
   const display = examProfileDisplay(profile);
   return (
-    <div className="flex items-center gap-1 px-3">
+    <div className="flex flex-wrap items-center gap-1 px-3">
+      <div className="w-full pt-2"><ProfileApprovalBadge profile={profile}/></div>
       <button
         type="button"
         onClick={() =>

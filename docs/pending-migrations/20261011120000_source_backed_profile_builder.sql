@@ -42,7 +42,8 @@ BEGIN UPDATE public.profile_builder_requests SET call_intents=call_intents+1 WHE
 END $$;
 CREATE FUNCTION public.record_profile_builder_usage(p_owner uuid,p_request uuid,p_usage jsonb) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
 BEGIN
- IF jsonb_typeof(p_usage)<>'object' OR NOT(p_usage ? 'promptTokens' AND p_usage ? 'completionTokens' AND p_usage ? 'outcome') OR (p_usage->>'promptTokens')::integer<0 OR (p_usage->>'completionTokens')::integer<0 THEN RAISE EXCEPTION 'Invalid provider accounting'; END IF;
+ IF NOT coalesce(jsonb_typeof(p_usage)='object' AND jsonb_typeof(p_usage->'promptTokens')='number' AND jsonb_typeof(p_usage->'completionTokens')='number' AND (p_usage->>'promptTokens') ~ '^[0-9]+$' AND (p_usage->>'completionTokens') ~ '^[0-9]+$' AND (p_usage->>'outcome') IN ('provider_success','unknown_provider_cost'), false) THEN RAISE EXCEPTION 'Invalid provider accounting'; END IF;
+ IF (p_usage->>'promptTokens')::bigint>10000000 OR (p_usage->>'completionTokens')::bigint>10000000 THEN RAISE EXCEPTION 'Invalid provider accounting'; END IF;
  UPDATE public.profile_builder_requests SET provider_usage=provider_usage||jsonb_build_array(p_usage) WHERE user_id=p_owner AND request_id=p_request AND state='running' AND jsonb_array_length(provider_usage)<call_intents;
  IF NOT FOUND THEN RAISE EXCEPTION 'No unrecorded builder call'; END IF;
 END $$;

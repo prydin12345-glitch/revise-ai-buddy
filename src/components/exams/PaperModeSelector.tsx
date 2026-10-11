@@ -1,3 +1,5 @@
+import {PresetOptionBadge} from "@/components/profiles/ExamlyApprovalBadge";
+import {canonicalCourseId} from "@/lib/assessment-tier";
 import type { AssessmentTier } from "@/lib/assessment-tier";
 import { Button } from "@/components/ui/button";
 import {
@@ -81,7 +83,7 @@ export function PaperModeSelector({
               onClick={() => onModeChange(option.id)}
               className={`min-h-10 flex-1 rounded px-2 text-sm ${mode === option.id ? "bg-card font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
             >
-              {option.label}
+              {option.label}<span className="mt-1 block"><PresetOptionBadge courseId={canonicalCourseId(courseId??"aqa_gcse_biology")} paperId={paperId??"paper_1"} tier={tier} mode={option.id} contractVersion={contractVersion}/></span>
             </button>
           ))}
         </div>
@@ -145,6 +147,7 @@ export function PaperModeSelector({
             }`}
           >
             <span className="block text-sm font-medium">{m.label}</span>
+            <PresetOptionBadge courseId={canonicalCourseId(courseId??"aqa_gcse_biology")} paperId={paperId??"paper_1"} tier={tier} mode={m.id} contractVersion={contractVersion}/>
             <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
               {m.id === "full_mock" && definition
                 ? `${definition.displayName}: ${definition.fullMockMarks} marks, ${definition.fullMockMinutes} minutes.`

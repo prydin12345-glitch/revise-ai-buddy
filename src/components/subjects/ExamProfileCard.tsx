@@ -1,3 +1,4 @@
+import {ProfileApprovalBadge} from "@/components/profiles/ExamlyApprovalBadge";
 import { useNavigate } from "react-router-dom";
 import { ArrowUpRight, Pencil } from "lucide-react";
 import {
@@ -24,6 +25,7 @@ export const ExamProfileCard = ({
     navigate(`/my-subjects/${encodeURIComponent(subjectName)}/${profile.id}`);
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-border-strong">
+      <div className="px-5 pt-4"><ProfileApprovalBadge profile={profile}/></div>
       <button
         type="button"
         onClick={view}

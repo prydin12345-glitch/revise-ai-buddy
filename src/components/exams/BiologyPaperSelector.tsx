@@ -1,3 +1,4 @@
+import {PresetOptionBadge} from "@/components/profiles/ExamlyApprovalBadge";
 import { SelectorDetails } from "./SelectorDetails";
 import type { AssessmentTier } from "@/lib/assessment-tier";
 import { biologyPaperOptions } from "../../../supabase/functions/_shared/biology-course-packs";
@@ -19,8 +20,12 @@ export function BiologyPaperSelector({
   tier,
   onChange,
   compact = false,
+  mode,
+  contractVersion,
 }: {
   compact?: boolean;
+  mode?: string;
+  contractVersion?: number;
   courseId: string | null;
   value: string | null;
   tier: AssessmentTier | null;
@@ -75,6 +80,7 @@ export function BiologyPaperSelector({
           </option>
         )}
       </select>
+      {mode && <PresetOptionBadge courseId={canonicalCourseId(courseId)} paperId={selectedId} tier={tier} mode={mode} contractVersion={contractVersion}/>}
       <SelectorDetails compact={compact} title="Paper details">
         {selected && (
           <p className="text-xs text-muted-foreground">

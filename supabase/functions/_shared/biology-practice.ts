@@ -1,4 +1,5 @@
 import {EDEXCEL_ALEVEL_BIOLOGY_B_ID} from './assessment-tier.ts';
+import {unsupportedTemplateResource} from './profile-template-plan-validator.ts';
 import {templateSnapshotInstructions,templateSnapshotPlan} from './profile-template-context.ts';
 import {EDEXCEL_B_SPECIFICATION,EDEXCEL_B_P1_RULES,EDEXCEL_B_P1_OUTCOMES} from './edexcel-alevel-biology-b-scope.ts';
 import {pearsonBiologyLevelsIssue} from './edexcel-alevel-biology-b-validation.ts';
@@ -128,6 +129,7 @@ export function assertBiologyPractice(rows: any[], context: any): void {
     const result = validateQuestionCandidates(rows);
     if (!result.ok) throw new Error(describeDefects(result.defects));
     for (const row of rows) {
+      if (unsupportedTemplateResource(row)) throw new Error('A reviewed course/asset adapter is required for this practice resource.');
       if (!plan.parts.some(p => p.topic === (row.subtopic ?? row.topic_tag))) throw new Error('Practice part is outside the saved topic scope.');
       if (isMcqType(row.question_type)) { singleChoiceKey(row); if (Number(row.marks)!==1 || coerceMcqOptions(row)?.length!==4) throw new Error('Template MCQs need one mark and four choices.'); }
     }

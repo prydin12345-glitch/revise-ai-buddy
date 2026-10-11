@@ -1,3 +1,6 @@
+import {ExamProfileBuilder} from "@/components/profiles/ExamProfileBuilder";
+import {ProfileApprovalBadge} from "@/components/profiles/ExamlyApprovalBadge";
+import {evaluateApproval,approvedPreset} from "../../../supabase/functions/_shared/preset-approval";
 import { APPROVED_VISUAL_FILES } from "../../../supabase/functions/_shared/biology-visual-public";
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
@@ -237,6 +240,9 @@ interface ExamProfileModalProps {
     structureSettings?: QuestionStructureSettings,
   ) => void;
   initialData?: {
+    id?: string;
+    profile_template?: unknown;
+    paper_blueprint?: unknown;
     profile_name: string;
     topics: string[];
     question_count: number;
@@ -274,6 +280,7 @@ export const ExamProfileModal = ({
   initialData,
 }: ExamProfileModalProps) => {
   const { preferences } = useUserPreferences();
+  const [builderOpen, setBuilderOpen] = useState(false);
   const userRegion = detectRegionKey(preferences?.curriculum_region);
   const [step, setStep] = useState<"basics" | "paper" | "layout" | "review">(
     "basics",
@@ -390,6 +397,7 @@ export const ExamProfileModal = ({
 
   useEffect(() => {
     if (open) {
+      setBuilderOpen(!!initialData?.profile_template);
       setStep(initialData ? "review" : "basics");
       setAdvancedOpen(false);
       setStepError(null);
@@ -686,25 +694,7 @@ export const ExamProfileModal = ({
     setPlanApplied(mode === "custom");
     setSavedContractVersion(undefined);
   };
-  const handleSave = () => {
-    if (
-      !profileName.trim() ||
-      effectiveTopics.length === 0 ||
-      !finalTier ||
-      !configurationReady
-    )
-      return;
-    const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
-    const advancedWithMcq = {
-      ...advanced,
-      mcqCount: currentPlan
-        ? currentPlan.parts.filter((p) => p.responseType === "mcq_single")
-            .length
-        : mcqCount,
-      assessmentTier: effectiveAssessmentTier,
-      examBoard: initialData?.exam_board ?? examBoard ?? null,
-      studiedTexts: isTextBasedSubject ? studiedTexts : undefined,
-      paperBlueprint: (() => {
+  const currentBlueprint = (() => {
         const courseSelection =
           (courseCapability?.id === OCR_GATEWAY_BIOLOGY_ID ||
             selectedPaperId) &&
@@ -761,7 +751,52 @@ export const ExamProfileModal = ({
               : {}),
           },
         };
-      })(),
+        })();
+  const approvalSettings = {
+    ...initialData, subject_name:subjectName, profile_name:profileName,
+    exam_board:initialData?.exam_board ?? examBoard ?? null, educational_tier:finalTier,
+    topics:effectiveTopics,question_count:currentPlan?.partCount??totalQuestionCount,
+    time_limit_minutes:currentPlan?.durationMinutes??(timeLimitMinutes?Number(timeLimitMinutes):null),
+    mcq_count:currentPlan?currentPlan.parts.filter(p=>p.responseType==='mcq_single').length:mcqCount,
+    written_question_count:currentPlan?currentPlan.parts.filter(p=>p.responseType!=='mcq_single').length:writtenCount,
+    mcq_options_count:currentPlan?4:mcqOptionsCount,
+    question_structure:isMcqOnlyProfile?'mcq_only':questionStructure,
+    parent_question_count:currentPlan?.parentCount??parentQuestionCount,
+    max_parts_per_question:currentPlan?Math.max(...currentPlan.parts.map(p=>currentPlan.parts.filter(q=>q.parentId===p.parentId).length)):maxPartsPerQuestion,
+    mcq_position:advanced.mcqPosition,mark_distribution:advanced.markDistribution,
+    include_extended:advanced.includeExtended,extended_marks:advanced.extendedMarks,
+    difficulty_progression:advanced.difficultyProgression,calculator_policy:advanced.calculatorPolicy,
+    include_graphs:currentPlan?currentPlan.parts.some(p=>p.resource==='graph'):includeGraphs,
+    include_tables:currentPlan?currentPlan.parts.some(p=>p.resource==='data_table'):includeTables,
+    assessment_tier:effectiveAssessmentTier,paper_blueprint:currentBlueprint,
+    ...(isTextBasedSubject?{studied_texts:studiedTexts}:{}),
+  };
+  const currentApproval = evaluateApproval(approvalSettings,(initialData?.profile_template as any)?.presetId);
+  const restoreApproval = () => {
+    const id=currentApproval.entry?.id??(initialData?.profile_template as any)?.presetId;
+    if(!id)return;
+    try {const {plan,settings}=approvedPreset(id);setInteractiveResponses(false);setVisualAssessment(false);setSelectedCourseId(plan.courseId);setSelectedPaperId(plan.paperId);setAssessmentTier(plan.tier);setPaperMode(plan.mode);applyGuidedPlan(plan);setSelectedTopics(settings.topics);setAdvanced({...DEFAULT_ADVANCED,mcqCount:settings.mcq_count,mcqPosition:settings.mcq_position});}catch(error){setStepError((error as Error).message);}
+  };
+
+  const handleSave = () => {
+    if (
+      !profileName.trim() ||
+      effectiveTopics.length === 0 ||
+      !finalTier ||
+      !configurationReady
+    )
+      return;
+    const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
+    const advancedWithMcq = {
+      ...advanced,
+      mcqCount: currentPlan
+        ? currentPlan.parts.filter((p) => p.responseType === "mcq_single")
+            .length
+        : mcqCount,
+      assessmentTier: effectiveAssessmentTier,
+      examBoard: initialData?.exam_board ?? examBoard ?? null,
+      studiedTexts: isTextBasedSubject ? studiedTexts : undefined,
+      paperBlueprint: currentBlueprint,
     };
     const resolvedQuestionStructure = isMcqOnlyProfile
       ? "mcq_only"
@@ -920,6 +955,11 @@ export const ExamProfileModal = ({
     checkPaper() ||
     (blueprintHasInvalidMarks ? "Give each question at least one mark." : null);
 
+  if (builderOpen) return <ExamProfileBuilder open={open} onOpenChange={onOpenChange}
+    subjectName={subjectName} examBoard={initialData?.exam_board??examBoard}
+    educationalLevel={initialData?.educational_tier??finalTier} initialProfile={initialData}
+    onManual={()=>setBuilderOpen(false)} />;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -968,6 +1008,11 @@ export const ExamProfileModal = ({
               </DialogClose>
             </div>
           </div>
+          <div className="!mt-3 flex flex-wrap items-center justify-between gap-2">
+            <ProfileApprovalBadge profile={approvalSettings}/>
+            <Button type="button" size="sm" variant="outline" onClick={()=>setBuilderOpen(true)}>Build profile for me</Button>
+          </div>
+          {currentApproval.status==='customised'&&<Button type="button" variant="ghost" size="sm" onClick={restoreApproval}>Restore approved settings</Button>}
           <nav
             aria-label="Profile setup"
             className="!mt-4 flex items-center gap-1 rounded-md bg-muted/50 p-1"
@@ -1113,6 +1158,8 @@ export const ExamProfileModal = ({
                     />
                   )}
                   <BiologyPaperSelector
+                    mode={paperMode}
+                    contractVersion={planApplied?savedContractVersion:undefined}
                     compact
                     courseId={courseCapability?.id ?? null}
                     value={selectedPaperId}

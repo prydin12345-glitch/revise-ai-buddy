@@ -1,3 +1,4 @@
+import {ProfileApprovalBadge} from "@/components/profiles/ExamlyApprovalBadge";
 import { useSetupDraft } from "@/hooks/use-setup-draft";
 import { SetupDraftNotice } from "@/components/shared/SetupDraftNotice";
 import { useState, useEffect, useRef } from "react";
@@ -921,7 +922,7 @@ export default function CreateExam() {
                         ? null
                         : getProfilesForSubject(subjectId).find(p => p.id === selectedProfile);
                       return (
-                        <CurriculumTopicBadge
+                        <div className="space-y-2">{profile&&<ProfileApprovalBadge profile={profile}/>}<CurriculumTopicBadge
                           profileName={profile?.profile_name || 'All Saved Topics'}
                           topics={profileTopics}
                           questionCount={totalQuestions}
@@ -936,7 +937,7 @@ export default function CreateExam() {
                             setSessionTimeLimitOverride(mins);
                             if (mins != null) { setTimerEnabled(true); setDuration(mins); }
                           }}
-                        />
+                        /></div>
                       );
                     })()}
 
