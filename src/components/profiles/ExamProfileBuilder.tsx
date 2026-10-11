@@ -456,7 +456,7 @@ export function ExamProfileBuilder({
     >
       <DialogContent
         hideCloseButton
-        className="flex max-h-[88vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+        className="flex max-h-[88vh] flex-col gap-0 overflow-hidden p-0 text-foreground sm:max-w-2xl"
       >
         <DialogHeader className="border-b border-border px-5 pb-4 pt-5 sm:px-6">
           <div className="flex items-start justify-between gap-3">
@@ -1149,6 +1149,8 @@ export function ExamProfileBuilder({
         <DialogFooter className="flex-row items-center justify-between gap-2 border-t border-border px-5 py-4 sm:px-6">
           <Button
             variant="ghost"
+            aria-label={step === "review" ? "Course details" : "Manual editor"}
+            className="px-3 text-xs sm:px-4 sm:text-sm"
             disabled={busy}
             onClick={() => {
               if (step === "review") setStep("details");
@@ -1159,10 +1161,17 @@ export function ExamProfileBuilder({
             }}
           >
             <ArrowLeft className="mr-1.5 h-4 w-4" />
-            {step === "review" ? "Course details" : "Manual editor"}
+            <span className="sm:hidden">
+              {step === "review" ? "Back" : "Manual"}
+            </span>
+            <span className="hidden sm:inline">
+              {step === "review" ? "Course details" : "Manual editor"}
+            </span>
           </Button>
           {step === "details" ? (
             <Button
+              aria-label={busy ? "Building…" : "Build profile for me"}
+              className="px-3 text-xs sm:px-4 sm:text-sm"
               disabled={
                 busy ||
                 (!presetId &&
@@ -1174,7 +1183,12 @@ export function ExamProfileBuilder({
               }}
             >
               <Sparkles className="mr-1.5 h-4 w-4" />
-              {busy ? "Building…" : "Build profile for me"}
+              <span className="sm:hidden">
+                {busy ? "Building…" : "Build profile"}
+              </span>
+              <span className="hidden sm:inline">
+                {busy ? "Building…" : "Build profile for me"}
+              </span>
             </Button>
           ) : (
             <Button
