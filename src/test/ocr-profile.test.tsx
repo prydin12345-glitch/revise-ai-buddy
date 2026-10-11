@@ -1,3 +1,4 @@
+import {renderProfileBasics} from "./profile-test-render";
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {cleanup, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import {ExamProfileModal} from '@/components/stats/ExamProfileModal';
@@ -19,7 +20,7 @@ describe('OCR profile setup', () => {
   });
   it('converts a stale AQA-style profile to the full OCR Foundation plan and saves all fields', async () => {
     const save = vi.fn();
-    render(<ExamProfileModal open onOpenChange={() => {}} subjectName="Biology Higher" subjectColor="#3388cc" examBoard="OCR" availableTopics={[]}
+    renderProfileBasics(<ExamProfileModal open onOpenChange={() => {}} subjectName="Biology Higher" subjectColor="#3388cc" examBoard="OCR" availableTopics={[]}
       onSave={save} initialData={{profile_name:'First paper', topics:['Infection and response'], question_count:8, written_question_count:8, educational_tier:'level2', assessment_tier:'higher'}} />);
     fireEvent.change(screen.getByLabelText('OCR Biology course'), {target:{value:OCR}});
     expect(screen.queryByRole('button',{name:'Use these settings'})).toBeNull();
@@ -39,7 +40,7 @@ describe('OCR profile setup', () => {
   });
   it('reloads Higher and preserves 26 written parts rather than clamping to 20', async () => {
     const save=vi.fn();
-    render(<ExamProfileModal open onOpenChange={() => {}} subjectName="Biology Higher" subjectColor="#3388cc" examBoard="OCR" availableTopics={[]} onSave={save}
+    renderProfileBasics(<ExamProfileModal open onOpenChange={() => {}} subjectName="Biology Higher" subjectColor="#3388cc" examBoard="OCR" availableTopics={[]} onSave={save}
       initialData={{profile_name:'Paper 3', topics:['B1: Cell level systems','B2: Scaling up','B3: Organism level systems'], question_count:41,
         written_question_count:26, mcq_count:15, question_structure:'sub_questions', parent_question_count:24, max_parts_per_question:3,
         educational_tier:'level2', assessment_tier:'higher', paper_blueprint:blueprint} as any} />);
@@ -50,7 +51,7 @@ describe('OCR profile setup', () => {
   it('keeps the original custom topics after applying a preset and switching back to Custom', () => {
     const save=vi.fn();
     const topics=['B1 - My microscopy notes','B2 - My transport notes','B3 - My reflex notes'];
-    render(<ExamProfileModal open onOpenChange={()=>{}} subjectName="Biology" subjectColor="#3388cc" examBoard="OCR" availableTopics={topics} onSave={save}
+    renderProfileBasics(<ExamProfileModal open onOpenChange={()=>{}} subjectName="Biology" subjectColor="#3388cc" examBoard="OCR" availableTopics={topics} onSave={save}
       initialData={{profile_name:'My custom paper',topics,question_count:8,written_question_count:8,educational_tier:'level2',assessment_tier:'foundation',paper_blueprint:{courseSelection:blueprint.courseSelection}} as any} />);
     fireEvent.click(screen.getByRole('button',{name:/^Full mock/}));
     fireEvent.click(screen.getByRole('button',{name:'Use these settings'}));
@@ -61,7 +62,7 @@ describe('OCR profile setup', () => {
   });
   it('saves a new guided profile without requiring a hidden manual topic selection', () => {
     const save=vi.fn();
-    render(<ExamProfileModal open onOpenChange={()=>{}} subjectName="Biology" subjectColor="#3388cc" examBoard="OCR" availableTopics={[]} onSave={save}
+    renderProfileBasics(<ExamProfileModal open onOpenChange={()=>{}} subjectName="Biology" subjectColor="#3388cc" examBoard="OCR" availableTopics={[]} onSave={save}
       initialData={{profile_name:'New guided paper',topics:[],question_count:8,educational_tier:'level2',assessment_tier:'foundation',paper_blueprint:{courseSelection:blueprint.courseSelection}} as any} />);
     fireEvent.click(screen.getByRole('button',{name:/^Short practice/}));
     fireEvent.click(screen.getByRole('button',{name:'Use these settings'}));

@@ -1,4 +1,4 @@
-import type { AssessmentTier } from '@/lib/assessment-tier';
+import type { AssessmentTier } from "@/lib/assessment-tier";
 import { Button } from "@/components/ui/button";
 import {
   buildPaperPlan,
@@ -8,6 +8,7 @@ import {
 } from "@/lib/biology-paper-contract";
 
 interface PaperModeSelectorProps {
+  compact?: boolean;
   courseId?: string | null;
   paperId?: string | null;
   mode: PaperMode;
@@ -29,7 +30,8 @@ const MODES: Array<{ id: PaperMode; label: string; description: string }> = [
   {
     id: "short_practice",
     label: "Short practice",
-    description: "Same paper scope, shorter session. Shows its real mark total.",
+    description:
+      "Same paper scope, shorter session. Shows its real mark total.",
   },
   {
     id: "custom",
@@ -39,6 +41,7 @@ const MODES: Array<{ id: PaperMode; label: string; description: string }> = [
 ];
 
 export function PaperModeSelector({
+  compact = false,
   mode,
   courseId,
   paperId,
@@ -48,15 +51,85 @@ export function PaperModeSelector({
   applied,
   contractVersion,
 }: PaperModeSelectorProps) {
-  const definition = biologyPaperDefinition(courseId ?? "aqa_gcse_biology", tier, paperId, contractVersion);
-  const plan = tier && definition ? buildPaperPlan(mode, tier, courseId ?? undefined, paperId, contractVersion) : null;
+  const definition = biologyPaperDefinition(
+    courseId ?? "aqa_gcse_biology",
+    tier,
+    paperId,
+    contractVersion,
+  );
+  const plan =
+    tier && definition
+      ? buildPaperPlan(
+          mode,
+          tier,
+          courseId ?? undefined,
+          paperId,
+          contractVersion,
+        )
+      : null;
+
+  if (compact)
+    return (
+      <section className="space-y-3" aria-label="Paper mode">
+        <p className="text-sm font-medium">Paper mode</p>
+        <div className="flex gap-1 rounded-md bg-muted/50 p-1">
+          {MODES.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              aria-pressed={mode === option.id}
+              onClick={() => onModeChange(option.id)}
+              className={`min-h-10 flex-1 rounded px-2 text-sm ${mode === option.id ? "bg-card font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        {mode !== "custom" && !tier && (
+          <p className="text-xs text-muted-foreground">
+            Choose Foundation or Higher before applying a guided preset.
+          </p>
+        )}
+        {plan && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2.5">
+            <div className="min-w-0 text-xs">
+              <p className="font-medium">
+                {plan.totalMarks} marks, {plan.durationMinutes} minutes
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                {plan.partCount} parts ·{" "}
+                {
+                  plan.parts.filter(
+                    (part) => part.responseType === "mcq_single",
+                  ).length
+                }{" "}
+                multiple choice
+              </p>
+            </div>
+            {applied ? (
+              <span className="text-xs text-muted-foreground">Applied</span>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onApplyPlan(plan)}
+              >
+                Use these settings
+              </Button>
+            )}
+          </div>
+        )}
+      </section>
+    );
 
   return (
     <div className="space-y-3 rounded-md border border-border bg-panel-2 p-4">
       <div>
         <p className="text-sm font-medium">Paper mode</p>
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Guided modes plan the question mix for you. Custom never changes on its own.
+          Guided modes plan the question mix for you. Custom never changes on
+          its own.
         </p>
       </div>
       <div className="grid gap-2 sm:grid-cols-3">
@@ -73,29 +146,41 @@ export function PaperModeSelector({
           >
             <span className="block text-sm font-medium">{m.label}</span>
             <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
-              {m.id === "full_mock" && definition ? `${definition.displayName}: ${definition.fullMockMarks} marks, ${definition.fullMockMinutes} minutes.` : m.description}
+              {m.id === "full_mock" && definition
+                ? `${definition.displayName}: ${definition.fullMockMarks} marks, ${definition.fullMockMinutes} minutes.`
+                : m.description}
             </span>
           </button>
         ))}
       </div>
 
-      {mode !== "custom" && !tier && <p className="text-xs text-muted-foreground">Choose Foundation or Higher before applying a guided preset.</p>}
+      {mode !== "custom" && !tier && (
+        <p className="text-xs text-muted-foreground">
+          Choose Foundation or Higher before applying a guided preset.
+        </p>
+      )}
       {plan && (
         <div className="space-y-2 border-t border-border pt-3">
-          <p className="text-xs leading-relaxed text-muted-foreground">{describePlan(plan)}</p>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {describePlan(plan)}
+          </p>
           <ul className="text-xs leading-relaxed text-muted-foreground">
             <li>
-              {plan.parts.filter((p) => p.responseType === "mcq_single").length} single-select
-              multiple choice ·{" "}
-              {plan.parts.filter((p) => p.responseType !== "mcq_single").length} written parts
+              {plan.parts.filter((p) => p.responseType === "mcq_single").length}{" "}
+              single-select multiple choice ·{" "}
+              {plan.parts.filter((p) => p.responseType !== "mcq_single").length}{" "}
+              written parts
             </li>
             <li>
-              {plan.parts.filter((p) => p.resource === "data_table").length} data tables ·{" "}
+              {plan.parts.filter((p) => p.resource === "data_table").length}{" "}
+              data tables ·{" "}
               {plan.parts.filter((p) => p.resource === "graph").length} graphs
             </li>
           </ul>
           {applied ? (
-            <p className="text-xs leading-relaxed text-primary">These settings are applied.</p>
+            <p className="text-xs leading-relaxed text-primary">
+              These settings are applied.
+            </p>
           ) : (
             <Button
               type="button"

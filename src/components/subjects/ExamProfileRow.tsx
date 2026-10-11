@@ -1,66 +1,67 @@
-import {profileCourseId} from '../../../supabase/functions/_shared/course-selection';
 import { useNavigate } from "react-router-dom";
 import { Pencil } from "lucide-react";
-import { formatEducationalTier } from "@/lib/level-display";
-import { formatAssessmentTier } from "@/lib/assessment-tier";
+import {
+  examProfileDisplay,
+  type ProfileDisplaySource,
+} from "@/lib/exam-profile-display";
 
 interface ExamProfileRowProps {
-  profile: {
-    id: string;
-    profile_name: string;
-    question_count: number;
-    educational_tier: string | null;
-    assessment_tier?: string | null;
-    paper_blueprint?: any;
-  };
+  profile: ProfileDisplaySource & { id: string };
   subjectName: string;
   subjectColor?: string | null;
   onEdit: () => void;
 }
 
-/**
- * The phone version of a profile: one slim row instead of a 200px card.
- * The colour bar carries the subject identity that the card's header band
- * does on larger screens. Whole row opens history; the pencil is its own
- * 44px target, so the two never share a tap.
- */
-export const ExamProfileRow = ({ profile, subjectName, subjectColor, onEdit }: ExamProfileRowProps) => {
+export const ExamProfileRow = ({
+  profile,
+  subjectName,
+  subjectColor,
+  onEdit,
+}: ExamProfileRowProps) => {
   const navigate = useNavigate();
-  const tierLabel = formatEducationalTier(profile.educational_tier);
-  const assessmentLabel = formatAssessmentTier(profile.assessment_tier);
-  const mockLabel = profile.paper_blueprint?.paperContract
-    ? profile.paper_blueprint.paperContract.mode === "full_mock" ? "Full mock" : "Short practice"
-    : null;
-
-  const biologyB=profileCourseId(profile.paper_blueprint)==='pearson_edexcel_alevel_biology_b_9bi0';
-  const meta = [...(biologyB?['Pearson Edexcel A Level Biology B · 9BI0/01']:[]), assessmentLabel || tierLabel, mockLabel, `${profile.question_count} questions`]
-    .filter(Boolean)
-    .join(" · ");
-
+  const display = examProfileDisplay(profile);
   return (
-    <div className="flex items-center">
+    <div className="flex items-center gap-1 px-3">
       <button
-        onClick={() => navigate(`/my-subjects/${encodeURIComponent(subjectName)}/${profile.id}`)}
-        className="flex-1 min-w-0 flex items-center gap-3 py-2.5 pl-3.5 text-left active:bg-foreground/[0.03] transition-colors"
+        type="button"
+        onClick={() =>
+          navigate(
+            `/my-subjects/${encodeURIComponent(subjectName)}/${profile.id}`,
+          )
+        }
+        className="min-w-0 flex-1 py-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
       >
-        <span
-          aria-hidden
-          className="w-1 h-9 rounded-full shrink-0"
-          style={{ backgroundColor: subjectColor || "hsl(var(--primary))" }}
-        />
-        <span className="min-w-0 flex-1">
-          <span className="block text-15 font-semibold text-foreground truncate">
+        <span className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="h-1.5 w-1.5 shrink-0 rounded-full"
+            style={{ backgroundColor: subjectColor || "hsl(var(--primary))" }}
+          />
+          <span className="truncate text-sm font-semibold text-foreground">
             {profile.profile_name}
           </span>
-          <span className={biologyB?"block text-xs text-muted-foreground mt-0.5 break-words":"block text-xs text-muted-foreground mt-0.5 truncate"}>{meta}</span>
+        </span>
+        <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+          {display.identity}
+        </span>
+        {display.paper && (
+          <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+            {display.paper}
+          </span>
+        )}
+        <span className="mt-1.5 block text-xs text-muted-foreground">
+          {[display.mode, display.countLabel, display.timeLabel]
+            .filter(Boolean)
+            .join(" · ")}
         </span>
       </button>
       <button
+        type="button"
         onClick={onEdit}
         aria-label={`Edit ${profile.profile_name}`}
-        className="w-11 h-11 shrink-0 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground"
       >
-        <Pencil className="w-4 h-4" />
+        <Pencil className="h-4 w-4" />
       </button>
     </div>
   );

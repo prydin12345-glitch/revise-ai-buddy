@@ -1,3 +1,4 @@
+import {renderProfileBasics,openPaperDetails} from "./profile-test-render";
 import {afterEach,expect,it,vi} from 'vitest';
 import {createContext,useContext,cloneElement} from 'react';
 import {cleanup,fireEvent,render,screen} from '@testing-library/react';
@@ -25,12 +26,12 @@ vi.stubGlobal('ResizeObserver',class {observe(){} unobserve(){} disconnect(){}})
 Object.defineProperty(HTMLElement.prototype,'scrollTo',{configurable:true,value:vi.fn()});
 afterEach(cleanup);
 const base={profile_name:'My OCR paper',topics:['My practical notes'],question_count:8,written_question_count:8,time_limit_minutes:45,educational_tier:'A-Level',assessment_tier:null};
-function editor(initial:any=base){const save=vi.fn(),view=render(<ExamProfileModal open onOpenChange={()=>{}} subjectName="Biology Higher" subjectColor="#3388cc" examBoard="OCR" availableTopics={base.topics} onSave={save} initialData={initial}/>);return {...view,save};}
+function editor(initial:any=base){const save=vi.fn(),view=renderProfileBasics(<ExamProfileModal open onOpenChange={()=>{}} subjectName="Biology Higher" subjectColor="#3388cc" examBoard="OCR" availableTopics={base.topics} onSave={save} initialData={initial}/>);return {...view,save};}
 function apply(mode:'full_mock'|'short_practice'){
   fireEvent.change(screen.getByLabelText('OCR Biology course'),{target:{value:OCR_ALEVEL_BIOLOGY_ID}});
   fireEvent.change(screen.getByLabelText('Biology paper'),{target:{value:'paper_3'}});
   fireEvent.click(screen.getByRole('button',{name:mode==='full_mock'?/^Full mock/:/^Short practice/}));
-  fireEvent.click(screen.getByRole('button',{name:'Use these settings'}));
+  fireEvent.click(screen.getByRole('button',{name:'Use these settings'}));openPaperDetails();
 }
 it.each(['full_mock','short_practice'] as const)('saves and reopens explicit untiered Paper 3 %s with correct totals',mode=>{
   const {save,unmount}=editor(),{plan,snapshot}=ocrPaper3Fixture(mode);apply(mode);
@@ -81,8 +82,8 @@ it('builds only a blank public plotting response and retains existing save/resto
 });
 it.each(['full_mock','short_practice'] as const)('preserves explicit visual policy on %s reopen and permits deliberate removal while reviews are pending',mode=>{
  const snapshot=ocrPaper3Snapshot(mode);const bp={courseSelection:{courseId:OCR_ALEVEL_BIOLOGY_ID,paperId:'paper_3'},paperContract:snapshot.paper_contract,visualAssessment:'ocr_h420_03_visual_v1',responseFormats:'interactive_v1'};
- const {save}=editor({...base,assessment_tier:'not_tiered',paper_blueprint:bp});const visual=screen.getByRole('checkbox',{name:/Reviewed Biology visual assessments/});expect(visual).toBeChecked();expect(visual).not.toBeDisabled();
+ const {save}=editor({...base,assessment_tier:'not_tiered',paper_blueprint:bp});fireEvent.click(screen.getByRole("button",{name:"Your paper"}));const visual=screen.getByRole('checkbox',{name:/Reviewed Biology visual assessments/});expect(visual).toBeChecked();expect(visual).not.toBeDisabled();
  fireEvent.click(screen.getByRole('button',{name:'Update Profile'}));expect(save.mock.calls[0][5].paperBlueprint.visualAssessment).toBe(bp.visualAssessment);
  fireEvent.click(visual);expect(visual).not.toBeChecked();expect(visual).toBeDisabled();fireEvent.click(screen.getByRole('button',{name:'Update Profile'}));expect(save.mock.calls[1][5].paperBlueprint.visualAssessment).toBeUndefined();expect(save.mock.calls[1][5].paperBlueprint.paperContract).toEqual(snapshot.paper_contract);
 });
-it('cannot enable synthetic visual assets on a fresh Paper 3 profile',()=>{editor();apply('short_practice');expect(screen.getByRole('checkbox',{name:/Reviewed Biology visual assessments/})).toBeDisabled();expect(screen.getByRole('checkbox',{name:/Reviewed Biology visual assessments/})).not.toBeChecked();});
+it('cannot enable synthetic visual assets on a fresh Paper 3 profile',()=>{editor();apply('short_practice');fireEvent.click(screen.getByRole("button",{name:"Your paper"}));expect(screen.getByRole('checkbox',{name:/Reviewed Biology visual assessments/})).toBeDisabled();fireEvent.click(screen.getByRole("button",{name:"Your paper"}));expect(screen.getByRole('checkbox',{name:/Reviewed Biology visual assessments/})).not.toBeChecked();});

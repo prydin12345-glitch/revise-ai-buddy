@@ -1,62 +1,220 @@
-import type { AssessmentTier } from '@/lib/assessment-tier';
-import {biologyPaperOptions} from '../../../supabase/functions/_shared/biology-course-packs';
-import {canonicalCourseId,EDEXCEL_ALEVEL_BIOLOGY_B_ID,AQA_ALEVEL_BIOLOGY_ID,OCR_ALEVEL_BIOLOGY_ID,OCR_21C_BIOLOGY_ID,WJEC_BIOLOGY_ID} from '@/lib/assessment-tier';
-import {WJEC_GRADE_RANGES,WJEC_UNIT3_VERSIONS} from '../../../supabase/functions/_shared/wjec-biology-specification';
-export function BiologyPaperSelector({courseId,value,tier,onChange}:{
-  courseId:string|null;value:string|null;tier:AssessmentTier|null;onChange:(paperId:string)=>void;
+import { SelectorDetails } from "./SelectorDetails";
+import type { AssessmentTier } from "@/lib/assessment-tier";
+import { biologyPaperOptions } from "../../../supabase/functions/_shared/biology-course-packs";
+import {
+  canonicalCourseId,
+  EDEXCEL_ALEVEL_BIOLOGY_B_ID,
+  AQA_ALEVEL_BIOLOGY_ID,
+  OCR_ALEVEL_BIOLOGY_ID,
+  OCR_21C_BIOLOGY_ID,
+  WJEC_BIOLOGY_ID,
+} from "@/lib/assessment-tier";
+import {
+  WJEC_GRADE_RANGES,
+  WJEC_UNIT3_VERSIONS,
+} from "../../../supabase/functions/_shared/wjec-biology-specification";
+export function BiologyPaperSelector({
+  courseId,
+  value,
+  tier,
+  onChange,
+  compact = false,
+}: {
+  compact?: boolean;
+  courseId: string | null;
+  value: string | null;
+  tier: AssessmentTier | null;
+  onChange: (paperId: string) => void;
 }) {
-  const options=biologyPaperOptions(courseId);
-  const pearsonB=courseId===EDEXCEL_ALEVEL_BIOLOGY_B_ID;
-  const alevel=courseId===AQA_ALEVEL_BIOLOGY_ID;
-  const ocrAlevel=courseId===OCR_ALEVEL_BIOLOGY_ID;
-  if(options.length<2&&!alevel&&!ocrAlevel&&!pearsonB)return null;
+  const options = biologyPaperOptions(courseId);
+  const pearsonB = courseId === EDEXCEL_ALEVEL_BIOLOGY_B_ID;
+  const alevel = courseId === AQA_ALEVEL_BIOLOGY_ID;
+  const ocrAlevel = courseId === OCR_ALEVEL_BIOLOGY_ID;
+  if (options.length < 2 && !alevel && !ocrAlevel && !pearsonB) return null;
   // Only AQA retains its legacy Paper 1 default. All newer courses need a choice.
-  const selectedId=value??(canonicalCourseId(courseId)==='aqa_gcse_biology'?'paper_1':'');
-  const selected=options.find(pack=>pack.paperId===selectedId),wjec=courseId===WJEC_BIOLOGY_ID;
-  return <div className="space-y-2">
-    <label htmlFor="biology-paper" className="text-sm font-medium">{wjec?'Biology unit':'Biology paper'}</label>
-    <select id="biology-paper" className="min-h-11 w-full rounded-md border border-input bg-card px-3 py-2 text-sm" value={selectedId} onChange={event=>onChange(event.target.value)}>
-      {!selectedId&&<option value="" disabled>{pearsonB?'Choose Paper 1 (9BI0/01)':ocrAlevel?'Choose Paper 1, Paper 2 or Paper 3':wjec?'Choose Unit 1 or Unit 2':courseId===OCR_21C_BIOLOGY_ID?'Choose Breadth or Depth':alevel?'Choose Paper 1, Paper 2 or Paper 3':'Choose Paper 1 or Paper 2'}</option>}
-      {options.map(pack=><option key={pack.id} value={pack.paperId}>{pack.definition(tier).displayName}</option>)}
+  const selectedId =
+    value ??
+    (canonicalCourseId(courseId) === "aqa_gcse_biology" ? "paper_1" : "");
+  const selected = options.find((pack) => pack.paperId === selectedId),
+    wjec = courseId === WJEC_BIOLOGY_ID;
+  return (
+    <div className="space-y-2">
+      <label htmlFor="biology-paper" className="text-sm font-medium">
+        {wjec ? "Biology unit" : "Biology paper"}
+      </label>
+      <select
+        id="biology-paper"
+        className="min-h-11 w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+        value={selectedId}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {!selectedId && (
+          <option value="" disabled>
+            {pearsonB
+              ? "Choose Paper 1 (9BI0/01)"
+              : ocrAlevel
+                ? "Choose Paper 1, Paper 2 or Paper 3"
+                : wjec
+                  ? "Choose Unit 1 or Unit 2"
+                  : courseId === OCR_21C_BIOLOGY_ID
+                    ? "Choose Breadth or Depth"
+                    : alevel
+                      ? "Choose Paper 1, Paper 2 or Paper 3"
+                      : "Choose Paper 1 or Paper 2"}
+          </option>
+        )}
+        {options.map((pack) => (
+          <option key={pack.id} value={pack.paperId}>
+            {pack.definition(tier).displayName}
+          </option>
+        ))}
 
-      {wjec&&<option value="unit_3" disabled>Unit 3 — practical assessment (not generated)</option>}
-    </select>
-    {selected&&<p className="text-xs text-muted-foreground">{selected.definition(tier).topics.join(' · ')}.
-      {selected.definition(tier).componentCode?` Component ${selected.definition(tier).componentCode}.`:''}</p>}
-    {pearsonB&&<div className="space-y-1 text-xs text-muted-foreground">
-      <p>Pearson Edexcel A Level Biology B · 9BI0 · Untiered · Paper 1: 9BI0/01.</p>
-      <p>Advanced Biochemistry, Microbiology and Genetics · Topics 1–7 · 90 marks · 105 minutes · 30% of the qualification.</p>
-      <p>Full mock: nine groups, 36 parts, ten embedded MCQs and two six-mark levels responses (Examly development template). Pearson question counts and placements vary by series.</p>
-      <p>Short practice: three groups, nine parts, 25 marks / 29 minutes. Examly practice template. Topics 8–10 and Papers 2/3 are not enabled.</p>
-      <p>Specification Issue 4 (November 2018). Written practice does not award the practical endorsement.</p>
-    </div>}
-    {ocrAlevel&&<div className="space-y-1 text-xs text-muted-foreground">
-      <p>OCR A-level Biology A H420 · Untiered. AS H020 is a separate qualification.</p>
-      {selectedId==='paper_3'?<>
-        <p>Paper 3: Unified biology · Modules 1–6 · 70 marks · 1 hour 30 minutes. All questions compulsory. Synoptic practical, mathematical and extended responses.</p>
-        <p>Full mock: six linked groups and 24 scored parts (Examly template). Short practice: two linked groups, six written parts, 20 marks / 26 minutes. Examly development template.</p>
-        <p>Specification version 4.1 (April 2026). This written practice does not award the practical endorsement.</p>
-      </>:<>
-        <p>{selectedId==='paper_2'?'Paper 2: Modules 1, 2, 4 and 6':'Paper 1: Modules 1, 2, 3 and 5'} · 100 marks · 2 hours 15 minutes. Section A: 15 one-mark MCQs. Section B: 85 structured marks.</p>
-        <p>Short practice: five MCQs and six written parts, 25 marks / 34 minutes. Examly development template. Specification version 4.1 (April 2026). This written practice does not award the practical endorsement.</p>
-      </>}
-    </div>}
-    {alevel&&<div className="space-y-1 text-xs text-muted-foreground">
-      <p>AQA A-level Biology 7402 · Untiered. AS Biology 7401 is a separate qualification.</p>
-      <p>{selectedId==='paper_3'?'Paper 3: Topics 1–8; 78 marks, 2 hours. 38 structured + 15 experimental analysis + ONE 25-mark essay chosen from two titles. Short practice: 40 marks, 70 minutes, retaining the full essay.':selectedId==='paper_2'?'Paper 2: Topics 5–8 and relevant practical skills; 91 marks, 2 hours. Includes one 15-mark comprehension question.':'Paper 1: Topics 1–4 and relevant practical skills; 91 marks, 2 hours. Includes 15 extended-response marks.'}</p>
-      <p>Specification version 1.6 (July 2026). This written practice does not award the practical endorsement.</p>
-    </div>}
-    {wjec&&<div className="space-y-1 text-xs text-muted-foreground">
-      <p>Wales GCSE · {tier&&tier!=='not_tiered'?`${tier==='foundation'?'Foundation':'Higher'} grades ${WJEC_GRADE_RANGES[tier]}`:'Foundation C–G · Higher A*–D'} · English-medium questions.</p>
-      <p>Units 1 and 2: each 80 marks, 1 hour 45 minutes and 45% of the qualification.</p>
-      <details>
-        <summary className="cursor-pointer">Specification and Unit 3 cohort change</summary>
-        <p>Written units follow the February 2026 specification (version 3); Units 1 and 2 are unchanged.</p>
-        <p>Unit 3 is untiered, worth 10%, and requires a centre-based practical assessment. It is not generated here.</p>
-        <p>Before September 2026 entry: Practical Assessment, {WJEC_UNIT3_VERSIONS.before_september_2026.marks} marks (version 2).</p>
-        <p>From September 2026 entry: Scientific Enquiry, {WJEC_UNIT3_VERSIONS.from_september_2026.marks} marks, first award 2028 (version 3). Choose one enquiry; practical and written tasks each take one hour.</p>
-        <p>Your cohort is not inferred from today's date. Mock raw scores are not official grades or UMS.</p>
-      </details>
-    </div>}
-  </div>;
+        {wjec && (
+          <option value="unit_3" disabled>
+            Unit 3 — practical assessment (not generated)
+          </option>
+        )}
+      </select>
+      <SelectorDetails compact={compact} title="Paper details">
+        {selected && (
+          <p className="text-xs text-muted-foreground">
+            {selected.definition(tier).topics.join(" · ")}.
+            {selected.definition(tier).componentCode
+              ? ` Component ${selected.definition(tier).componentCode}.`
+              : ""}
+          </p>
+        )}
+        {pearsonB && (
+          <div className="space-y-1 text-xs text-muted-foreground">
+            <p>
+              Pearson Edexcel A Level Biology B · 9BI0 · Untiered · Paper 1:
+              9BI0/01.
+            </p>
+            <p>
+              Advanced Biochemistry, Microbiology and Genetics · Topics 1–7 · 90
+              marks · 105 minutes · 30% of the qualification.
+            </p>
+            <p>
+              Full mock: nine groups, 36 parts, ten embedded MCQs and two
+              six-mark levels responses (Examly development template). Pearson
+              question counts and placements vary by series.
+            </p>
+            <p>
+              Short practice: three groups, nine parts, 25 marks / 29 minutes.
+              Examly practice template. Topics 8–10 and Papers 2/3 are not
+              enabled.
+            </p>
+            <p>
+              Specification Issue 4 (November 2018). Written practice does not
+              award the practical endorsement.
+            </p>
+          </div>
+        )}
+        {ocrAlevel && (
+          <div className="space-y-1 text-xs text-muted-foreground">
+            <p>
+              OCR A-level Biology A H420 · Untiered. AS H020 is a separate
+              qualification.
+            </p>
+            {selectedId === "paper_3" ? (
+              <>
+                <p>
+                  Paper 3: Unified biology · Modules 1–6 · 70 marks · 1 hour 30
+                  minutes. All questions compulsory. Synoptic practical,
+                  mathematical and extended responses.
+                </p>
+                <p>
+                  Full mock: six linked groups and 24 scored parts (Examly
+                  template). Short practice: two linked groups, six written
+                  parts, 20 marks / 26 minutes. Examly development template.
+                </p>
+                <p>
+                  Specification version 4.1 (April 2026). This written practice
+                  does not award the practical endorsement.
+                </p>
+              </>
+            ) : (
+              <>
+                <p>
+                  {selectedId === "paper_2"
+                    ? "Paper 2: Modules 1, 2, 4 and 6"
+                    : "Paper 1: Modules 1, 2, 3 and 5"}{" "}
+                  · 100 marks · 2 hours 15 minutes. Section A: 15 one-mark MCQs.
+                  Section B: 85 structured marks.
+                </p>
+                <p>
+                  Short practice: five MCQs and six written parts, 25 marks / 34
+                  minutes. Examly development template. Specification version
+                  4.1 (April 2026). This written practice does not award the
+                  practical endorsement.
+                </p>
+              </>
+            )}
+          </div>
+        )}
+        {alevel && (
+          <div className="space-y-1 text-xs text-muted-foreground">
+            <p>
+              AQA A-level Biology 7402 · Untiered. AS Biology 7401 is a separate
+              qualification.
+            </p>
+            <p>
+              {selectedId === "paper_3"
+                ? "Paper 3: Topics 1–8; 78 marks, 2 hours. 38 structured + 15 experimental analysis + ONE 25-mark essay chosen from two titles. Short practice: 40 marks, 70 minutes, retaining the full essay."
+                : selectedId === "paper_2"
+                  ? "Paper 2: Topics 5–8 and relevant practical skills; 91 marks, 2 hours. Includes one 15-mark comprehension question."
+                  : "Paper 1: Topics 1–4 and relevant practical skills; 91 marks, 2 hours. Includes 15 extended-response marks."}
+            </p>
+            <p>
+              Specification version 1.6 (July 2026). This written practice does
+              not award the practical endorsement.
+            </p>
+          </div>
+        )}
+        {wjec && (
+          <div className="space-y-1 text-xs text-muted-foreground">
+            <p>
+              Wales GCSE ·{" "}
+              {tier && tier !== "not_tiered"
+                ? `${tier === "foundation" ? "Foundation" : "Higher"} grades ${WJEC_GRADE_RANGES[tier]}`
+                : "Foundation C–G · Higher A*–D"}{" "}
+              · English-medium questions.
+            </p>
+            <p>
+              Units 1 and 2: each 80 marks, 1 hour 45 minutes and 45% of the
+              qualification.
+            </p>
+            <details>
+              <summary className="cursor-pointer">
+                Specification and Unit 3 cohort change
+              </summary>
+              <p>
+                Written units follow the February 2026 specification (version
+                3); Units 1 and 2 are unchanged.
+              </p>
+              <p>
+                Unit 3 is untiered, worth 10%, and requires a centre-based
+                practical assessment. It is not generated here.
+              </p>
+              <p>
+                Before September 2026 entry: Practical Assessment,{" "}
+                {WJEC_UNIT3_VERSIONS.before_september_2026.marks} marks (version
+                2).
+              </p>
+              <p>
+                From September 2026 entry: Scientific Enquiry,{" "}
+                {WJEC_UNIT3_VERSIONS.from_september_2026.marks} marks, first
+                award 2028 (version 3). Choose one enquiry; practical and
+                written tasks each take one hour.
+              </p>
+              <p>
+                Your cohort is not inferred from today's date. Mock raw scores
+                are not official grades or UMS.
+              </p>
+            </details>
+          </div>
+        )}
+      </SelectorDetails>
+    </div>
+  );
 }

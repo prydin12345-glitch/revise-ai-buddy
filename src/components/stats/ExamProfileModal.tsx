@@ -1,18 +1,26 @@
-import {APPROVED_VISUAL_FILES} from '../../../supabase/functions/_shared/biology-visual-public';
-import { useState, useEffect, useMemo } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { APPROVED_VISUAL_FILES } from "../../../supabase/functions/_shared/biology-visual-public";
+import { useState, useEffect, useMemo, useRef } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
-import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Check, ChevronsUpDown, Clock, User, ListChecks, BookOpen, Settings2 } from "lucide-react";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Check,
+  ArrowLeft,
+  ArrowRight,
+  Settings2,
+  X,
+  Pencil,
+} from "lucide-react";
 import { getLocalSubtopics } from "@/lib/subtopic-dictionary";
 import {
   type AssessmentTier,
@@ -31,7 +39,10 @@ import {
 import { AssessmentTierSelector } from "@/components/exams/AssessmentTierSelector";
 import { BiologyCourseSelector } from "@/components/exams/BiologyCourseSelector";
 import { BiologyPaperSelector } from "@/components/exams/BiologyPaperSelector";
-import { profileCourseId, profilePaperId } from "../../../supabase/functions/_shared/course-selection";
+import {
+  profileCourseId,
+  profilePaperId,
+} from "../../../supabase/functions/_shared/course-selection";
 import { PaperModeSelector } from "@/components/exams/PaperModeSelector";
 import {
   supportsBiologyPaperContract,
@@ -41,126 +52,135 @@ import {
   type PaperPlan,
 } from "@/lib/biology-paper-contract";
 import { BLUEPRINT_PRESETS } from "@/lib/paperPresets";
-import { getTopicSuggestions, hasTopicSuggestions } from "@/lib/topicSuggestions";
-import { TimeWheelPicker } from "./TimeWheelPicker";
-import { TopicPickerDialog } from "./TopicPickerDialog";
-import { ExamProfileAdvanced, DEFAULT_ADVANCED, type AdvancedSettings } from "./ExamProfileAdvanced";
-import { EDUCATIONAL_LEVELS, ALL_LEVELS, detectRegionKey, isKnownLevel } from "@/lib/educational-levels";
+import {
+  getTopicSuggestions,
+  hasTopicSuggestions,
+} from "@/lib/topicSuggestions";
+import { ProfilePaperPreview } from "./profile/ProfilePaperPreview";
+import { ProfileTopicBrowser } from "./profile/ProfileTopicBrowser";
+import { ProfileTimeLimit } from "./profile/ProfileTimeLimit";
+import { ProfileLayoutEditor } from "./profile/ProfileLayoutEditor";
+import {
+  ExamProfileAdvanced,
+  DEFAULT_ADVANCED,
+  type AdvancedSettings,
+} from "./ExamProfileAdvanced";
+import {
+  EDUCATIONAL_LEVELS,
+  ALL_LEVELS,
+  detectRegionKey,
+  isKnownLevel,
+} from "@/lib/educational-levels";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-
-
-// Module-level so its identity is stable across renders — defining this inside
-// the component re-created the element type on every keystroke, remounting the
-// subtree and dropping input focus after one character.
-const SectionCard = ({ icon: Icon, title, hint, accent, children }: { icon: any; title: string; hint?: string; accent: string; children: React.ReactNode }) => (
-  <section className="rounded-md border border-border bg-card p-4 sm:p-5 space-y-4">
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded-md" style={{ backgroundColor: accent + "1A", color: accent }}>
-        <Icon className="h-3.5 w-3.5" />
-      </span>
-      <h3 className="text-sm font-semibold">{title}</h3>
-      {hint && <span className="text-xs leading-relaxed text-muted-foreground ml-auto">{hint}</span>}
-    </div>
-    {children}
-  </section>
-);
 
 // 1. Humanise tier ids so users never see raw codes like "level3_a_level".
 const humaniseTier = (tier: string): string => {
   const age = tier.match(/(\d{1,2})[_-](\d{1,2})/);
   if (age) return `${age[1]}\u2013${age[2]} years`;
-  return tier
-    .replace(/^(level\d*|college|school)[_-]/i, "")
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (ch) => ch.toUpperCase())
-    .trim() || tier;
+  return (
+    tier
+      .replace(/^(level\d*|college|school)[_-]/i, "")
+      .replace(/[_-]+/g, " ")
+      .replace(/\b\w/g, (ch) => ch.toUpperCase())
+      .trim() || tier
+  );
 };
 
+type ProfileStep = "basics" | "paper" | "layout" | "review";
 
-// Structure choices with a miniature exam-paper preview each.
-const STRUCTURE_PREVIEWS = [
-  {
-    id: "standalone",
-    label: "Standalone",
-    preview: ["Q1  Explain how erosion shapes…", "Q2  Calculate the gradient of…", "Q3  Describe the process of…"],
-  },
-  {
-    id: "sub_questions",
-    label: "Sub-parts",
-    preview: ["Q1 (a) State the definition of…", "     (b) Explain why this occurs…", "     (c) Evaluate the impact of…"],
-  },
-  {
-    id: "mixed",
-    label: "Mixed",
-    preview: ["Q1  Explain how erosion shapes…", "Q2 (a) State the definition of…", "     (b) Evaluate the impact of…"],
-  },
-];
-
-
-// Common board paper layouts — one tap loads the real architecture.
-// Presets live in src/lib/paperPresets.ts — one library, filtered by
-// subject × level × board at render time.
-
-
-const QUESTION_STYLE_OPTIONS = [
-  "List / identify from the text",
-  "Explain / describe",
-  "Compare",
-  "Language analysis",
-  "Structure analysis",
-  "Analyse data / calculation",
-  "Evaluate a statement",
-  "Passage-based question with linked essay",
-  "Essay on two unseen poems",
-  "Essay comparing two studied texts",
-  "Extended writing task",
-];
+function NumberControl({
+  label,
+  value,
+  onChange,
+  min = 0,
+  max,
+  disabled = false,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max: number;
+  disabled?: boolean;
+}) {
+  return (
+    <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2.5">
+      <span className="text-sm">{label}</span>
+      <Input
+        aria-label={label}
+        type="number"
+        min={min}
+        max={max}
+        step={1}
+        value={value}
+        disabled={disabled}
+        onChange={(event) => {
+          const next = Number(event.target.value);
+          if (Number.isInteger(next) && next >= min && next <= max)
+            onChange(next);
+        }}
+        className="h-9 w-20 shrink-0 text-center tabular-nums"
+      />
+    </label>
+  );
+}
 
 function getStudiedContentConfig(subjectName: string) {
   const s = subjectName || "";
-  if (/history/i.test(s)) return {
-    title: "Studied units", hint: "e.g. Germany 1890\u20131945",
-    placeholder: "Unit, e.g. Germany 1890\u20131945",
-    description: "The exact units/periods you study \u2014 sources and questions will be set inside them.",
-    roles: [
-      { id: "period_study", label: "Period study" },
-      { id: "thematic_study", label: "Thematic study" },
-      { id: "british_depth", label: "British depth study" },
-      { id: "world_depth", label: "Wider world depth study" },
-      { id: "historic_environment", label: "Historic environment" },
-      { id: "other", label: "Other studied content" },
-    ],
-  };
-  if (/religio/i.test(s)) return {
-    title: "Studied content", hint: "e.g. Christianity, Islam",
-    placeholder: "e.g. Christianity \u2014 beliefs and practices",
-    description: "The religions and themes you study \u2014 questions will target these.",
-    roles: [
-      { id: "religion_beliefs", label: "Religion \u2014 beliefs" },
-      { id: "religion_practices", label: "Religion \u2014 practices" },
-      { id: "thematic_study", label: "Thematic study" },
-      { id: "textual_study", label: "Textual study" },
-      { id: "other", label: "Other studied content" },
-    ],
-  };
-  if (/english|literature/i.test(s)) return {
-    title: "Studied texts", hint: "e.g. Othello, An Inspector Calls",
-    placeholder: "Title, e.g. Othello",
-    description: "The exact texts you study \u2014 questions will target these. Public-domain texts get real passage questions; in-copyright texts get essay questions.",
-    roles: [
-      { id: "shakespeare", label: "Shakespeare play" },
-      { id: "pre1900_prose", label: "Pre-1900 prose" },
-      { id: "pre1900_poetry", label: "Pre-1900 poetry" },
-      { id: "modern_prose", label: "Modern prose" },
-      { id: "modern_drama", label: "Modern drama" },
-      { id: "poetry_anthology", label: "Poetry anthology" },
-      { id: "other", label: "Other studied content" },
-    ],
-  };
+  if (/history/i.test(s))
+    return {
+      title: "Studied units",
+      hint: "e.g. Germany 1890\u20131945",
+      placeholder: "Unit, e.g. Germany 1890\u20131945",
+      description:
+        "The exact units/periods you study \u2014 sources and questions will be set inside them.",
+      roles: [
+        { id: "period_study", label: "Period study" },
+        { id: "thematic_study", label: "Thematic study" },
+        { id: "british_depth", label: "British depth study" },
+        { id: "world_depth", label: "Wider world depth study" },
+        { id: "historic_environment", label: "Historic environment" },
+        { id: "other", label: "Other studied content" },
+      ],
+    };
+  if (/religio/i.test(s))
+    return {
+      title: "Studied content",
+      hint: "e.g. Christianity, Islam",
+      placeholder: "e.g. Christianity \u2014 beliefs and practices",
+      description:
+        "The religions and themes you study \u2014 questions will target these.",
+      roles: [
+        { id: "religion_beliefs", label: "Religion \u2014 beliefs" },
+        { id: "religion_practices", label: "Religion \u2014 practices" },
+        { id: "thematic_study", label: "Thematic study" },
+        { id: "textual_study", label: "Textual study" },
+        { id: "other", label: "Other studied content" },
+      ],
+    };
+  if (/english|literature/i.test(s))
+    return {
+      title: "Studied texts",
+      hint: "e.g. Othello, An Inspector Calls",
+      placeholder: "Title, e.g. Othello",
+      description:
+        "The exact texts you study \u2014 questions will target these. Public-domain texts get real passage questions; in-copyright texts get essay questions.",
+      roles: [
+        { id: "shakespeare", label: "Shakespeare play" },
+        { id: "pre1900_prose", label: "Pre-1900 prose" },
+        { id: "pre1900_poetry", label: "Pre-1900 poetry" },
+        { id: "modern_prose", label: "Modern prose" },
+        { id: "modern_drama", label: "Modern drama" },
+        { id: "poetry_anthology", label: "Poetry anthology" },
+        { id: "other", label: "Other studied content" },
+      ],
+    };
   return {
-    title: "Studied content", hint: "units, case studies, set works",
+    title: "Studied content",
+    hint: "units, case studies, set works",
     placeholder: "e.g. a unit, case study or set work",
-    description: "The exact content you study \u2014 questions will target these.",
+    description:
+      "The exact content you study \u2014 questions will target these.",
     roles: [
       { id: "studied_unit", label: "Studied unit / topic" },
       { id: "case_study", label: "Case study" },
@@ -171,11 +191,24 @@ function getStudiedContentConfig(subjectName: string) {
 }
 
 interface BiologyBCustomSettings {
-  topics:string[]; writtenCount:number; mcqCount:number; timeLimitMinutes:string;
-  advanced:AdvancedSettings; questionStructure:string; parentQuestionCount:number;
-  maxPartsPerQuestion:number; mcqOptionsCount:number; includeGraphs:boolean; includeTables:boolean;
-  blueprintEnabled:boolean; blueprintSections:Array<{title:string; questions:Array<{marks:number;style:string}>;answerCount?:number}>;
-  interactiveResponses:boolean;
+  topics: string[];
+  writtenCount: number;
+  mcqCount: number;
+  timeLimitMinutes: string;
+  advanced: AdvancedSettings;
+  questionStructure: string;
+  parentQuestionCount: number;
+  maxPartsPerQuestion: number;
+  mcqOptionsCount: number;
+  includeGraphs: boolean;
+  includeTables: boolean;
+  blueprintEnabled: boolean;
+  blueprintSections: Array<{
+    title: string;
+    questions: Array<{ marks: number; style: string }>;
+    answerCount?: number;
+  }>;
+  interactiveResponses: boolean;
 }
 export interface QuestionStructureSettings {
   questionStructure: string;
@@ -201,7 +234,7 @@ interface ExamProfileModalProps {
     timeLimitMinutes?: number | null,
     advanced?: AdvancedSettings,
     writtenQuestionCount?: number,
-    structureSettings?: QuestionStructureSettings
+    structureSettings?: QuestionStructureSettings,
   ) => void;
   initialData?: {
     profile_name: string;
@@ -242,25 +275,42 @@ export const ExamProfileModal = ({
 }: ExamProfileModalProps) => {
   const { preferences } = useUserPreferences();
   const userRegion = detectRegionKey(preferences?.curriculum_region);
-  const [levelPopoverOpen, setLevelPopoverOpen] = useState(false);
+  const [step, setStep] = useState<"basics" | "paper" | "layout" | "review">(
+    "basics",
+  );
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [stepError, setStepError] = useState<string | null>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const [profileName, setProfileName] = useState("");
-  const isTextBasedSubject = /english|literature|history|religio/i.test(subjectName || "");
+  const isTextBasedSubject = /english|literature|history|religio/i.test(
+    subjectName || "",
+  );
   const studiedContentCfg = getStudiedContentConfig(subjectName || "");
-  const [studiedTexts, setStudiedTexts] = useState<Array<{ role: string; title: string }>>([]);
-  const [newTextRole, setNewTextRole] = useState(getStudiedContentConfig(subjectName || "").roles[0].id);
+  const [studiedTexts, setStudiedTexts] = useState<
+    Array<{ role: string; title: string }>
+  >([]);
+  const [newTextRole, setNewTextRole] = useState(
+    getStudiedContentConfig(subjectName || "").roles[0].id,
+  );
   const [newTextTitle, setNewTextTitle] = useState("");
   const [blueprintEnabled, setBlueprintEnabled] = useState(false);
-  const [blueprintSections, setBlueprintSections] = useState<Array<{ title: string; questions: Array<{ marks: number; style: string }>; answerCount?: number }>>([]);
+  const [blueprintSections, setBlueprintSections] = useState<
+    Array<{
+      title: string;
+      questions: Array<{ marks: number; style: string }>;
+      answerCount?: number;
+    }>
+  >([]);
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [writtenCount, setWrittenCount] = useState(10);
   const [mcqCount, setMcqCount] = useState(0);
-  const [topicSearch, setTopicSearch] = useState("");
-  const [topicPopoverOpen, setTopicPopoverOpen] = useState(false);
   const [educationalTier, setEducationalTier] = useState("");
   const [customTier, setCustomTier] = useState("");
   // Assessment tier (Foundation/Higher) — separate from the qualification
   // level above. null means "not recorded"; we never infer one.
-  const [assessmentTier, setAssessmentTier] = useState<AssessmentTier | null>(null);
+  const [assessmentTier, setAssessmentTier] = useState<AssessmentTier | null>(
+    null,
+  );
   const [timeLimitMinutes, setTimeLimitMinutes] = useState<string>("");
   const [advanced, setAdvanced] = useState<AdvancedSettings>(DEFAULT_ADVANCED);
 
@@ -273,11 +323,14 @@ export const ExamProfileModal = ({
   const [includeTables, setIncludeTables] = useState(false);
   // Guided paper mode. "custom" keeps every manual count and media toggle.
   const [interactiveResponses, setInteractiveResponses] = useState(false);
-  const [visualAssessment,setVisualAssessment]=useState(false);
-  const [biologyBCustom,setBiologyBCustom] = useState<BiologyBCustomSettings|null>(null);
+  const [visualAssessment, setVisualAssessment] = useState(false);
+  const [biologyBCustom, setBiologyBCustom] =
+    useState<BiologyBCustomSettings | null>(null);
   const [paperMode, setPaperMode] = useState<PaperMode>("custom");
   const [planApplied, setPlanApplied] = useState(false);
-  const [savedContractVersion, setSavedContractVersion] = useState<number | undefined>();
+  const [savedContractVersion, setSavedContractVersion] = useState<
+    number | undefined
+  >();
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [selectedPaperId, setSelectedPaperId] = useState<string | null>(null);
 
@@ -287,15 +340,28 @@ export const ExamProfileModal = ({
   // Structure sync (single source of truth): with sub-parts, the written
   // count IS parents × parts — the slider locks and derives. With mixed,
   // parents are a subset of the written questions.
-  const blueprintTotalQuestions = blueprintSections.reduce((n, s) => n + s.questions.length, 0);
-  const blueprintTotalMarks = blueprintSections.reduce((n, s) => n + s.questions.reduce((m, q) => m + (Number(q.marks) || 0), 0), 0);
+  const blueprintTotalQuestions = blueprintSections.reduce(
+    (n, s) => n + s.questions.length,
+    0,
+  );
+  const blueprintTotalMarks = blueprintSections.reduce(
+    (n, s) => n + s.questions.reduce((m, q) => m + (Number(q.marks) || 0), 0),
+    0,
+  );
   const blueprintCountedMarks = blueprintSections.reduce((n, s) => {
-    const marks = s.questions.map((q) => Number(q.marks) || 0).sort((a, b) => b - a);
-    const take = s.answerCount && s.answerCount < marks.length ? s.answerCount : marks.length;
+    const marks = s.questions
+      .map((q) => Number(q.marks) || 0)
+      .sort((a, b) => b - a);
+    const take =
+      s.answerCount && s.answerCount < marks.length
+        ? s.answerCount
+        : marks.length;
     return n + marks.slice(0, take).reduce((m, v) => m + v, 0);
   }, 0);
   const blueprintActive = blueprintEnabled && blueprintTotalQuestions > 0;
-  const structureLocksWritten = (!isMcqOnlyProfile && questionStructure === "sub_questions") || blueprintActive;
+  const structureLocksWritten =
+    (!isMcqOnlyProfile && questionStructure === "sub_questions") ||
+    blueprintActive;
   useEffect(() => {
     if (structureLocksWritten && paperMode === "custom") {
       const derived = blueprintActive
@@ -303,38 +369,76 @@ export const ExamProfileModal = ({
         : Math.min(20, parentQuestionCount * maxPartsPerQuestion);
       if (writtenCount !== derived) setWrittenCount(derived);
     }
-  }, [structureLocksWritten, parentQuestionCount, maxPartsPerQuestion, blueprintActive, blueprintTotalQuestions, paperMode]);
+  }, [
+    structureLocksWritten,
+    parentQuestionCount,
+    maxPartsPerQuestion,
+    blueprintActive,
+    blueprintTotalQuestions,
+    paperMode,
+  ]);
   useEffect(() => {
-    if (paperMode === "custom" && !isMcqOnlyProfile && questionStructure === "mixed" && parentQuestionCount > writtenCount) {
+    if (
+      paperMode === "custom" &&
+      !isMcqOnlyProfile &&
+      questionStructure === "mixed" &&
+      parentQuestionCount > writtenCount
+    ) {
       setParentQuestionCount(Math.max(1, writtenCount));
     }
   }, [questionStructure, writtenCount, paperMode]);
 
   useEffect(() => {
     if (open) {
+      setStep(initialData ? "review" : "basics");
+      setAdvancedOpen(false);
+      setStepError(null);
       setProfileName(initialData?.profile_name || "");
       setSelectedTopics(initialData?.topics || []);
-      setStudiedTexts(Array.isArray((initialData as any)?.studied_texts) ? (initialData as any).studied_texts : []);
+      setStudiedTexts(
+        Array.isArray((initialData as any)?.studied_texts)
+          ? (initialData as any).studied_texts
+          : [],
+      );
       const bp = (initialData as any)?.paper_blueprint;
       setBiologyBCustom(bp?.biologyBCustomSettings ?? null);
-      setInteractiveResponses(bp?.responseFormats === 'interactive_v1');
-      setVisualAssessment(bp?.visualAssessment==='ocr_h420_03_visual_v1');
+      setInteractiveResponses(bp?.responseFormats === "interactive_v1");
+      setVisualAssessment(bp?.visualAssessment === "ocr_h420_03_visual_v1");
       setSelectedCourseId(profileCourseId(bp));
       setSelectedPaperId(profilePaperId(bp));
       const bpSections = Array.isArray(bp?.sections) ? bp.sections : [];
       setBlueprintSections(bpSections);
       setBlueprintEnabled(bpSections.length > 0);
-      const initWritten = initialData?.written_question_count ?? (initialData?.question_count ? Math.max(initialData.question_count - (initialData.mcq_count ?? 0), 5) : 10);
+      const initWritten =
+        initialData?.written_question_count ??
+        (initialData?.question_count
+          ? Math.max(
+              initialData.question_count - (initialData.mcq_count ?? 0),
+              5,
+            )
+          : 10);
       setWrittenCount(initWritten);
       setMcqCount(initialData?.mcq_count ?? 0);
       // Pre-fill educational tier from profile if no initial data.
       // Only accept known level ids — legacy/raw codes like "level3_a_level"
       // are ignored so the field shows "Select level..." rather than an ugly
       // pre-populated "Other qualification" with a raw code in the text box.
-      const rawTier = initialData?.educational_tier || preferences?.preferred_educational_level || "";
-      const knownAlevel = getCourseOptions({subject:subjectName, examBoard:initialData?.exam_board ?? examBoard, educationalTier:rawTier}).some(course=>course.tierMode==='untiered'&&course.curriculum?.qualification==='A-level');
+      const rawTier =
+        initialData?.educational_tier ||
+        preferences?.preferred_educational_level ||
+        "";
+      const knownAlevel = getCourseOptions({
+        subject: subjectName,
+        examBoard: initialData?.exam_board ?? examBoard,
+        educationalTier: rawTier,
+      }).some(
+        (course) =>
+          course.tierMode === "untiered" &&
+          course.curriculum?.qualification === "A-level",
+      );
       if (knownAlevel) {
-        setEducationalTier("level3"); setCustomTier("");
+        setEducationalTier("level3");
+        setCustomTier("");
       } else if (rawTier && isKnownLevel(rawTier)) {
         setEducationalTier(rawTier);
         setCustomTier("");
@@ -345,17 +449,20 @@ export const ExamProfileModal = ({
       // Legacy profiles have no stored assessment tier — stay unknown.
       setAssessmentTier(normaliseAssessmentTier(initialData?.assessment_tier));
       setTimeLimitMinutes(
-        initialData?.time_limit_minutes != null ? String(initialData.time_limit_minutes) : ""
+        initialData?.time_limit_minutes != null
+          ? String(initialData.time_limit_minutes)
+          : "",
       );
-      setTopicSearch("");
       setAdvanced({
         structurePreset: initialData?.structure_preset || "custom",
         mcqCount: initialData?.mcq_count ?? 0,
         mcqPosition: initialData?.mcq_position || "start",
-        markDistribution: (initialData?.mark_distribution as Record<number, number>) || {},
+        markDistribution:
+          (initialData?.mark_distribution as Record<number, number>) || {},
         includeExtended: initialData?.include_extended ?? false,
         extendedMarks: initialData?.extended_marks ?? 0,
-        difficultyProgression: initialData?.difficulty_progression || "ascending",
+        difficultyProgression:
+          initialData?.difficulty_progression || "ascending",
         calculatorPolicy: initialData?.calculator_policy || "allowed",
       });
       setQuestionStructure(initialData?.question_structure || "standalone");
@@ -364,18 +471,32 @@ export const ExamProfileModal = ({
       setMcqOptionsCount(initialData?.mcq_options_count ?? 4);
       setIncludeGraphs(initialData?.include_graphs ?? false);
       setIncludeTables(initialData?.include_tables ?? false);
-      const storedContract = (initialData as any)?.paper_blueprint?.paperContract;
+      const storedContract = (initialData as any)?.paper_blueprint
+        ?.paperContract;
       setPaperMode((storedContract?.mode as PaperMode) ?? "custom");
       setSavedContractVersion(storedContract?.contractVersion);
-      const storedDefinition = storedContract ? biologyPaperDefinition(storedContract.courseId, normaliseAssessmentTier(initialData?.assessment_tier), storedContract.paperId, storedContract.contractVersion) : null;
-      setPlanApplied(!!storedDefinition && storedContract.mode !== "custom" && (!storedDefinition.specificationVersion || storedContract.specificationVersion === storedDefinition.specificationVersion));
+      const storedDefinition = storedContract
+        ? biologyPaperDefinition(
+            storedContract.courseId,
+            normaliseAssessmentTier(initialData?.assessment_tier),
+            storedContract.paperId,
+            storedContract.contractVersion,
+          )
+        : null;
+      setPlanApplied(
+        !!storedDefinition &&
+          storedContract.mode !== "custom" &&
+          (!storedDefinition.specificationVersion ||
+            storedContract.specificationVersion ===
+              storedDefinition.specificationVersion),
+      );
     }
   }, [open, initialData]);
 
   // Sync MCQ count between main slider and advanced settings
   useEffect(() => {
     if (advanced.mcqCount !== mcqCount) {
-      setAdvanced(prev => ({ ...prev, mcqCount }));
+      setAdvanced((prev) => ({ ...prev, mcqCount }));
     }
   }, [mcqCount]);
 
@@ -384,15 +505,8 @@ export const ExamProfileModal = ({
     return [...new Set([...availableTopics, ...dictTopics])];
   }, [subjectName, availableTopics]);
 
-  const toggleTopic = (topic: string) => {
-    setSelectedTopics((prev) =>
-      prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic]
-    );
-  };
-
-  // filtering handled inside InlineTopicPicker
-
-  const finalTier = educationalTier === "other" ? customTier.trim() : educationalTier;
+  const finalTier =
+    educationalTier === "other" ? customTier.trim() : educationalTier;
   const courseLookup = {
     subject: subjectName,
     examBoard: initialData?.exam_board ?? examBoard ?? null,
@@ -402,11 +516,17 @@ export const ExamProfileModal = ({
   const assessmentTierOptions = getAssessmentTierOptions(courseLookup);
   const courseCapability = getCourseCapability(courseLookup);
   const effectiveAssessmentTier =
-    courseCapability?.tierMode === "untiered" ? "not_tiered" : assessmentTierOptions.length > 0 ? assessmentTier : null;
-  const availablePresets = BLUEPRINT_PRESETS.filter((pr) =>
-    pr.subjects.test(subjectName || "") &&
-    (!finalTier || pr.levels.test(finalTier)) &&
-    (!examBoard || pr.boards.test(examBoard) || pr.boards.source === "."));
+    courseCapability?.tierMode === "untiered"
+      ? "not_tiered"
+      : assessmentTierOptions.length > 0
+        ? assessmentTier
+        : null;
+  const availablePresets = BLUEPRINT_PRESETS.filter(
+    (pr) =>
+      pr.subjects.test(subjectName || "") &&
+      (!finalTier || pr.levels.test(finalTier)) &&
+      (!examBoard || pr.boards.test(examBoard) || pr.boards.source === "."),
+  );
   const supportsGuidedPaper = supportsBiologyPaperContract({
     subject: subjectName,
     examBoard: initialData?.exam_board ?? examBoard ?? null,
@@ -416,31 +536,121 @@ export const ExamProfileModal = ({
   });
   const explicitCourseNeeded = getCourseOptions(courseLookup).length > 1;
   const selectedTier = effectiveAssessmentTier;
-  const guidedActive = paperMode !== "custom" && planApplied && supportsGuidedPaper && !!selectedTier;
-  const paperDefinition = biologyPaperDefinition(courseCapability?.id ?? null, selectedTier, selectedPaperId);
-  const currentPlan = guidedActive ? buildPaperPlan(paperMode, selectedTier, courseCapability?.id, selectedPaperId, savedContractVersion) : null;
-  const effectiveTopics = (currentPlan?.parts.some(p=>p.assessmentRole==='synoptic_essay') || currentPlan?.courseId===OCR_ALEVEL_BIOLOGY_ID&&currentPlan.paperId==='paper_3') ? [...(paperDefinition?.topics??[])] : currentPlan ? [...new Set(currentPlan.parts.map(p => p.topic))] : selectedTopics;
-  const configurationReady = (!explicitCourseNeeded || (!!courseCapability && courseCapability.generationAvailable !== false && !!selectedTier)) &&
-    (![EDEXCEL_BIOLOGY_ID, EDEXCEL_ALEVEL_BIOLOGY_B_ID, OCR_21C_BIOLOGY_ID, WJEC_BIOLOGY_ID, AQA_ALEVEL_BIOLOGY_ID, OCR_ALEVEL_BIOLOGY_ID].includes(courseCapability?.id ?? '') || (!!selectedPaperId && !!selectedTier)) &&
-    (!selectedPaperId || !!paperDefinition) && (selectedPaperId !== 'paper_2' || !!selectedTier) && (paperMode === "custom" || !!currentPlan);
+  const guidedActive =
+    paperMode !== "custom" &&
+    planApplied &&
+    supportsGuidedPaper &&
+    !!selectedTier;
+  const paperDefinition = biologyPaperDefinition(
+    courseCapability?.id ?? null,
+    selectedTier,
+    selectedPaperId,
+  );
+  const currentPlan = guidedActive
+    ? buildPaperPlan(
+        paperMode,
+        selectedTier,
+        courseCapability?.id,
+        selectedPaperId,
+        savedContractVersion,
+      )
+    : null;
+  const effectiveTopics =
+    currentPlan?.parts.some((p) => p.assessmentRole === "synoptic_essay") ||
+    (currentPlan?.courseId === OCR_ALEVEL_BIOLOGY_ID &&
+      currentPlan.paperId === "paper_3")
+      ? [...(paperDefinition?.topics ?? [])]
+      : currentPlan
+        ? [...new Set(currentPlan.parts.map((p) => p.topic))]
+        : selectedTopics;
+  const configurationReady =
+    (!explicitCourseNeeded ||
+      (!!courseCapability &&
+        courseCapability.generationAvailable !== false &&
+        !!selectedTier)) &&
+    (![
+      EDEXCEL_BIOLOGY_ID,
+      EDEXCEL_ALEVEL_BIOLOGY_B_ID,
+      OCR_21C_BIOLOGY_ID,
+      WJEC_BIOLOGY_ID,
+      AQA_ALEVEL_BIOLOGY_ID,
+      OCR_ALEVEL_BIOLOGY_ID,
+    ].includes(courseCapability?.id ?? "") ||
+      (!!selectedPaperId && !!selectedTier)) &&
+    (!selectedPaperId || !!paperDefinition) &&
+    (selectedPaperId !== "paper_2" || !!selectedTier) &&
+    (paperMode === "custom" || !!currentPlan);
 
   // Explicit conversion only — nothing is overwritten until the user accepts.
   const applyGuidedPlan = (plan: PaperPlan) => {
-    if(plan.courseId===EDEXCEL_ALEVEL_BIOLOGY_B_ID&&!guidedActive&&!biologyBCustom){
-      setBiologyBCustom({topics:[...selectedTopics],writtenCount,mcqCount,timeLimitMinutes,advanced:structuredClone(advanced),
-        questionStructure,parentQuestionCount,maxPartsPerQuestion,mcqOptionsCount,includeGraphs,includeTables,
-        blueprintEnabled,blueprintSections:structuredClone(blueprintSections),interactiveResponses});
+    if (
+      plan.courseId === EDEXCEL_ALEVEL_BIOLOGY_B_ID &&
+      !guidedActive &&
+      !biologyBCustom
+    ) {
+      setBiologyBCustom({
+        topics: [...selectedTopics],
+        writtenCount,
+        mcqCount,
+        timeLimitMinutes,
+        advanced: structuredClone(advanced),
+        questionStructure,
+        parentQuestionCount,
+        maxPartsPerQuestion,
+        mcqOptionsCount,
+        includeGraphs,
+        includeTables,
+        blueprintEnabled,
+        blueprintSections: structuredClone(blueprintSections),
+        interactiveResponses,
+      });
     }
     setSavedContractVersion(plan.contractVersion);
-    setMcqCount(plan.parts.filter((p) => p.responseType === "mcq_single").length);
-    setWrittenCount(plan.parts.filter((p) => p.responseType !== "mcq_single").length);
+    setMcqCount(
+      plan.parts.filter((p) => p.responseType === "mcq_single").length,
+    );
+    setWrittenCount(
+      plan.parts.filter((p) => p.responseType !== "mcq_single").length,
+    );
     setParentQuestionCount(plan.parentCount);
-    setQuestionStructure([OCR_GATEWAY_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID, EDEXCEL_ALEVEL_BIOLOGY_B_ID, OCR_21C_BIOLOGY_ID, WJEC_BIOLOGY_ID, AQA_ALEVEL_BIOLOGY_ID, OCR_ALEVEL_BIOLOGY_ID].includes(plan.courseId) ? "mixed" : "sub_questions");
+    setQuestionStructure(
+      [
+        OCR_GATEWAY_BIOLOGY_ID,
+        EDEXCEL_BIOLOGY_ID,
+        EDEXCEL_ALEVEL_BIOLOGY_B_ID,
+        OCR_21C_BIOLOGY_ID,
+        WJEC_BIOLOGY_ID,
+        AQA_ALEVEL_BIOLOGY_ID,
+        OCR_ALEVEL_BIOLOGY_ID,
+      ].includes(plan.courseId)
+        ? "mixed"
+        : "sub_questions",
+    );
     setMcqOptionsCount(4);
     setBlueprintEnabled(false);
     setBlueprintSections([]);
-    setAdvanced(prev => ({...prev, mcqPosition: [EDEXCEL_BIOLOGY_ID, EDEXCEL_ALEVEL_BIOLOGY_B_ID, OCR_21C_BIOLOGY_ID, WJEC_BIOLOGY_ID].includes(plan.courseId) ? "mixed" : "start", markDistribution: {}, includeExtended: false, extendedMarks: 0, calculatorPolicy: "allowed"}));
-    setMaxPartsPerQuestion(Math.max(...plan.parts.map(p => plan.parts.filter(q => q.parentId === p.parentId).length)));
+    setAdvanced((prev) => ({
+      ...prev,
+      mcqPosition: [
+        EDEXCEL_BIOLOGY_ID,
+        EDEXCEL_ALEVEL_BIOLOGY_B_ID,
+        OCR_21C_BIOLOGY_ID,
+        WJEC_BIOLOGY_ID,
+      ].includes(plan.courseId)
+        ? "mixed"
+        : "start",
+      markDistribution: {},
+      includeExtended: false,
+      extendedMarks: 0,
+      calculatorPolicy: "allowed",
+    }));
+    setMaxPartsPerQuestion(
+      Math.max(
+        ...plan.parts.map(
+          (p) => plan.parts.filter((q) => q.parentId === p.parentId).length,
+        ),
+      ),
+    );
     setTimeLimitMinutes(String(plan.durationMinutes));
     setIncludeTables(plan.parts.some((p) => p.resource === "data_table"));
     setIncludeGraphs(plan.parts.some((p) => p.resource === "graph"));
@@ -449,39 +659,113 @@ export const ExamProfileModal = ({
     setPlanApplied(true);
   };
 
-  const changePaperMode = (mode:PaperMode) => {
-    if(courseCapability?.id===EDEXCEL_ALEVEL_BIOLOGY_B_ID&&mode==='custom'&&biologyBCustom){
-      const c=biologyBCustom;
-      setSelectedTopics([...c.topics]);setWrittenCount(c.writtenCount);setMcqCount(c.mcqCount);
-      setTimeLimitMinutes(c.timeLimitMinutes);setAdvanced(structuredClone(c.advanced));
-      setQuestionStructure(c.questionStructure);setParentQuestionCount(c.parentQuestionCount);
-      setMaxPartsPerQuestion(c.maxPartsPerQuestion);setMcqOptionsCount(c.mcqOptionsCount);
-      setIncludeGraphs(c.includeGraphs);setIncludeTables(c.includeTables);setBlueprintEnabled(c.blueprintEnabled);
-      setBlueprintSections(structuredClone(c.blueprintSections));setInteractiveResponses(c.interactiveResponses);
+  const changePaperMode = (mode: PaperMode) => {
+    if (
+      courseCapability?.id === EDEXCEL_ALEVEL_BIOLOGY_B_ID &&
+      mode === "custom" &&
+      biologyBCustom
+    ) {
+      const c = biologyBCustom;
+      setSelectedTopics([...c.topics]);
+      setWrittenCount(c.writtenCount);
+      setMcqCount(c.mcqCount);
+      setTimeLimitMinutes(c.timeLimitMinutes);
+      setAdvanced(structuredClone(c.advanced));
+      setQuestionStructure(c.questionStructure);
+      setParentQuestionCount(c.parentQuestionCount);
+      setMaxPartsPerQuestion(c.maxPartsPerQuestion);
+      setMcqOptionsCount(c.mcqOptionsCount);
+      setIncludeGraphs(c.includeGraphs);
+      setIncludeTables(c.includeTables);
+      setBlueprintEnabled(c.blueprintEnabled);
+      setBlueprintSections(structuredClone(c.blueprintSections));
+      setInteractiveResponses(c.interactiveResponses);
       setBiologyBCustom(null); // A future conversion captures the latest manual settings.
     }
-    setPaperMode(mode);setPlanApplied(mode==='custom');setSavedContractVersion(undefined);
+    setPaperMode(mode);
+    setPlanApplied(mode === "custom");
+    setSavedContractVersion(undefined);
   };
   const handleSave = () => {
-    if (!profileName.trim() || effectiveTopics.length === 0 || !finalTier || !configurationReady) return;
+    if (
+      !profileName.trim() ||
+      effectiveTopics.length === 0 ||
+      !finalTier ||
+      !configurationReady
+    )
+      return;
     const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
     const advancedWithMcq = {
-      ...advanced, mcqCount: currentPlan ? currentPlan.parts.filter(p => p.responseType === "mcq_single").length : mcqCount,
+      ...advanced,
+      mcqCount: currentPlan
+        ? currentPlan.parts.filter((p) => p.responseType === "mcq_single")
+            .length
+        : mcqCount,
       assessmentTier: effectiveAssessmentTier,
       examBoard: initialData?.exam_board ?? examBoard ?? null,
       studiedTexts: isTextBasedSubject ? studiedTexts : undefined,
       paperBlueprint: (() => {
-        const courseSelection = (courseCapability?.id === OCR_GATEWAY_BIOLOGY_ID || selectedPaperId) && paperDefinition
-          ? {courseId: courseCapability.id, paperId: paperDefinition.paperId, ...(paperDefinition.specificationVersion?{specificationVersion:paperDefinition.specificationVersion}:{})} : undefined;
-        const customSnapshot=courseCapability?.id===EDEXCEL_ALEVEL_BIOLOGY_B_ID&&biologyBCustom?{biologyBCustomSettings:biologyBCustom}:{};
-        if (!currentPlan) return blueprintActive || courseSelection ? { ...customSnapshot, ...(blueprintActive ? { sections: blueprintSections } : {}), ...(courseSelection ? {courseSelection} : {}) } : null;
-        const useReviewedVisuals=visualAssessment&&currentPlan.courseId===OCR_ALEVEL_BIOLOGY_ID&&currentPlan.paperId==='paper_3';
-        return {...customSnapshot, ...(useReviewedVisuals?{visualAssessment:'ocr_h420_03_visual_v1'}:{}), ...(interactiveResponses||useReviewedVisuals ? {responseFormats:'interactive_v1'} : {}), courseSelection: {courseId: currentPlan.courseId, paperId: currentPlan.paperId, ...(currentPlan.specificationVersion?{specificationVersion:currentPlan.specificationVersion}:{})},
-          paperContract: {courseId: currentPlan.courseId, paperId: currentPlan.paperId,
-            mode: currentPlan.mode, contractVersion: currentPlan.contractVersion, ...(currentPlan.specificationVersion?{specificationVersion:currentPlan.specificationVersion}:{})}};
+        const courseSelection =
+          (courseCapability?.id === OCR_GATEWAY_BIOLOGY_ID ||
+            selectedPaperId) &&
+          paperDefinition
+            ? {
+                courseId: courseCapability.id,
+                paperId: paperDefinition.paperId,
+                ...(paperDefinition.specificationVersion
+                  ? {
+                      specificationVersion:
+                        paperDefinition.specificationVersion,
+                    }
+                  : {}),
+              }
+            : undefined;
+        const customSnapshot =
+          courseCapability?.id === EDEXCEL_ALEVEL_BIOLOGY_B_ID && biologyBCustom
+            ? { biologyBCustomSettings: biologyBCustom }
+            : {};
+        if (!currentPlan)
+          return blueprintActive || courseSelection
+            ? {
+                ...customSnapshot,
+                ...(blueprintActive ? { sections: blueprintSections } : {}),
+                ...(courseSelection ? { courseSelection } : {}),
+              }
+            : null;
+        const useReviewedVisuals =
+          visualAssessment &&
+          currentPlan.courseId === OCR_ALEVEL_BIOLOGY_ID &&
+          currentPlan.paperId === "paper_3";
+        return {
+          ...customSnapshot,
+          ...(useReviewedVisuals
+            ? { visualAssessment: "ocr_h420_03_visual_v1" }
+            : {}),
+          ...(interactiveResponses || useReviewedVisuals
+            ? { responseFormats: "interactive_v1" }
+            : {}),
+          courseSelection: {
+            courseId: currentPlan.courseId,
+            paperId: currentPlan.paperId,
+            ...(currentPlan.specificationVersion
+              ? { specificationVersion: currentPlan.specificationVersion }
+              : {}),
+          },
+          paperContract: {
+            courseId: currentPlan.courseId,
+            paperId: currentPlan.paperId,
+            mode: currentPlan.mode,
+            contractVersion: currentPlan.contractVersion,
+            ...(currentPlan.specificationVersion
+              ? { specificationVersion: currentPlan.specificationVersion }
+              : {}),
+          },
+        };
       })(),
     };
-    const resolvedQuestionStructure = isMcqOnlyProfile ? "mcq_only" : questionStructure;
+    const resolvedQuestionStructure = isMcqOnlyProfile
+      ? "mcq_only"
+      : questionStructure;
     onSave(
       profileName.trim(),
       effectiveTopics,
@@ -489,653 +773,924 @@ export const ExamProfileModal = ({
       finalTier || undefined,
       currentPlan?.durationMinutes ?? timeVal,
       advancedWithMcq,
-      currentPlan ? currentPlan.parts.filter(p => p.responseType !== "mcq_single").length : writtenCount,
+      currentPlan
+        ? currentPlan.parts.filter((p) => p.responseType !== "mcq_single")
+            .length
+        : writtenCount,
       {
         questionStructure: resolvedQuestionStructure,
         parentQuestionCount: currentPlan?.parentCount ?? parentQuestionCount,
-        maxPartsPerQuestion: currentPlan ? Math.max(...currentPlan.parts.map(p => currentPlan.parts.filter(q => q.parentId === p.parentId).length)) : maxPartsPerQuestion,
+        maxPartsPerQuestion: currentPlan
+          ? Math.max(
+              ...currentPlan.parts.map(
+                (p) =>
+                  currentPlan.parts.filter((q) => q.parentId === p.parentId)
+                    .length,
+              ),
+            )
+          : maxPartsPerQuestion,
         mcqOptionsCount: currentPlan ? 4 : mcqOptionsCount,
-        includeGraphs: currentPlan ? currentPlan.parts.some(p => p.resource === "graph") : includeGraphs,
-        includeTables: currentPlan ? currentPlan.parts.some(p => p.resource === "data_table") : includeTables,
-      }
+        includeGraphs: currentPlan
+          ? currentPlan.parts.some((p) => p.resource === "graph")
+          : includeGraphs,
+        includeTables: currentPlan
+          ? currentPlan.parts.some((p) => p.resource === "data_table")
+          : includeTables,
+      },
     );
     onOpenChange(false);
   };
 
-  const STRUCTURE_OPTIONS = [
-    {
-      id: "standalone",
-      label: "Standalone questions",
-      example: "Q1, Q2, Q3, Q4...",
-      icon: "1️⃣",
-    },
-    {
-      id: "sub_questions",
-      label: "Questions with sub-parts",
-      example: "Q1a, Q1b, Q1c — Q2a, Q2b...",
-      icon: "🔢",
-    },
-    {
-      id: "mixed",
-      label: "Mixed structure",
-      example: "Some standalone, some with parts",
-      icon: "🔀",
-    },
+  const blueprintHasInvalidMarks =
+    blueprintActive &&
+    blueprintSections.some((section) =>
+      section.questions.some(
+        (question) => !question.marks || question.marks < 1,
+      ),
+    );
+  const validTime =
+    !timeLimitMinutes ||
+    (Number.isInteger(Number(timeLimitMinutes)) &&
+      Number(timeLimitMinutes) >= 1);
+  const canSave =
+    configurationReady &&
+    !!profileName.trim() &&
+    effectiveTopics.length > 0 &&
+    !!finalTier &&
+    !blueprintHasInvalidMarks &&
+    validTime;
+  const navigation: Array<{ id: ProfileStep; label: string }> = [
+    { id: "basics", label: "Basics" },
+    { id: "paper", label: "Your paper" },
+    ...(!guidedActive && blueprintEnabled
+      ? [{ id: "layout" as const, label: "Sections & marks" }]
+      : []),
+    { id: "review", label: "Review" },
   ];
-
-  const MCQ_STRUCTURE_OPTIONS = [
-    { id: 3, label: "3 options", example: "A, B, C", detail: "Compact MCQs with three choices." },
-    { id: 4, label: "4 options", example: "A, B, C, D", detail: "Standard board-style MCQs with four choices." },
-  ];
-
-  const blueprintHasInvalidMarks = blueprintActive && blueprintSections.some((s) => s.questions.some((q) => !q.marks || q.marks < 1));
-  const canSave = configurationReady && !!profileName.trim() && effectiveTopics.length > 0 && !!finalTier && !blueprintHasInvalidMarks;
-  const missingLevel = !finalTier;
-  const summaryParts = [
-    `${totalQuestionCount} question${totalQuestionCount === 1 ? "" : "s"}`,
-    effectiveTopics.length ? `${effectiveTopics.length} topic${effectiveTopics.length === 1 ? "" : "s"}` : null,
-    timeLimitMinutes ? `${timeLimitMinutes} min` : "no time limit",
-  ].filter(Boolean).join(" · ");
+  const goTo = (next: ProfileStep) => {
+    setAdvancedOpen(false);
+    setStepError(null);
+    setStep(next);
+    bodyRef.current?.scrollTo({ top: 0 });
+  };
+  const checkBasics = () =>
+    !profileName.trim()
+      ? "Give your profile a name."
+      : !finalTier
+        ? "Choose an educational level."
+        : !configurationReady
+          ? "Choose your course and paper, then apply the preset or choose Custom."
+          : null;
+  const checkPaper = () =>
+    !effectiveTopics.length
+      ? "Choose at least one topic."
+      : !validTime
+        ? "Enter a whole number of minutes above zero."
+        : null;
+  const continueStep = () => {
+    const error =
+      step === "basics"
+        ? checkBasics()
+        : step === "paper"
+          ? checkPaper()
+          : blueprintHasInvalidMarks
+            ? "Give each question at least one mark."
+            : !blueprintActive
+              ? "Add a question or use simple structure."
+              : null;
+    if (error) {
+      setStepError(error);
+      return;
+    }
+    goTo(
+      step === "basics"
+        ? "paper"
+        : step === "paper" && !guidedActive && blueprintEnabled
+          ? "layout"
+          : "review",
+    );
+  };
+  const saveProfile = () => {
+    const error =
+      checkBasics() ||
+      checkPaper() ||
+      (blueprintHasInvalidMarks
+        ? "Give each question at least one mark."
+        : null);
+    if (error) {
+      setStepError(error);
+      return;
+    }
+    handleSave();
+  };
+  const startLayout = () => {
+    setBlueprintEnabled(true);
+    if (!blueprintSections.length)
+      setBlueprintSections([
+        {
+          title: "Section A",
+          questions: [{ marks: 4, style: "Explain / describe" }],
+        },
+      ]);
+    goTo("layout");
+  };
+  const preview = (expanded = false) => (
+    <ProfilePaperPreview
+      plan={currentPlan}
+      sections={
+        blueprintActive && !guidedActive ? blueprintSections : undefined
+      }
+      structure={questionStructure}
+      writtenCount={writtenCount}
+      mcqCount={mcqCount}
+      mcqOptionsCount={mcqOptionsCount}
+      parentCount={parentQuestionCount}
+      maxParts={maxPartsPerQuestion}
+      subjectName={subjectName}
+      expanded={expanded}
+    />
+  );
+  const presetCount = currentPlan?.partCount ?? totalQuestionCount;
+  const topicSuggestions =
+    finalTier && hasTopicSuggestions(subjectName)
+      ? getTopicSuggestions(subjectName, finalTier)
+      : [];
+  const missingSaveReason =
+    checkBasics() ||
+    checkPaper() ||
+    (blueprintHasInvalidMarks ? "Give each question at least one mark." : null);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="exam-profile-settings sm:max-w-2xl max-h-[88vh] flex flex-col p-0 gap-0 bg-card border-border">
-        <DialogHeader className="px-5 sm:px-6 pt-5 pb-4 pr-14 border-b border-border">
-          <div className="flex items-center gap-2.5">
-            <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: subjectColor }} />
-            <div>
-              <DialogTitle className="text-lg">
-                {initialData ? "Edit" : "Create"} Exam Profile
-              </DialogTitle>
-              <DialogDescription className="text-xs">
-                {subjectName} · Saved settings for your practice papers
+      <DialogContent
+        hideCloseButton
+        onEscapeKeyDown={(event) => {
+          if (advancedOpen) {
+            event.preventDefault();
+            setAdvancedOpen(false);
+          }
+        }}
+        className="exam-profile-settings sm:max-w-2xl h-[88vh] max-h-[88vh] flex flex-col p-0 gap-0 bg-card border-border overflow-hidden"
+      >
+        <DialogHeader className="shrink-0 px-5 sm:px-6 pt-5 pb-4 border-b border-border text-left">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <DialogDescription
+                className="mb-1 text-xs font-medium"
+                style={{ color: subjectColor }}
+              >
+                {subjectName}
+                {(initialData?.exam_board ?? examBoard)
+                  ? ` · ${initialData?.exam_board ?? examBoard}`
+                  : ""}
               </DialogDescription>
+              <DialogTitle className="font-serif text-[25px] font-semibold leading-tight">
+                {initialData ? "Edit exam profile" : "Create exam profile"}
+              </DialogTitle>
+            </div>
+            <div className="flex shrink-0 gap-1">
+              <button
+                type="button"
+                aria-label="Advanced settings"
+                title="Advanced settings"
+                aria-expanded={advancedOpen}
+                aria-controls="profile-advanced-panel"
+                onClick={() => setAdvancedOpen((value) => !value)}
+                className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+              >
+                <Settings2 className="h-4 w-4" />
+              </button>
+              <DialogClose
+                className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </DialogClose>
             </div>
           </div>
+          <nav
+            aria-label="Profile setup"
+            className="!mt-4 flex items-center gap-1 rounded-md bg-muted/50 p-1"
+          >
+            {navigation.map((item, i) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => goTo(item.id)}
+                aria-label={item.label}
+                aria-current={step === item.id ? "step" : undefined}
+                className={`min-h-9 min-w-0 flex-1 rounded px-1.5 text-xs transition-colors ${step === item.id ? "bg-card font-semibold text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <span className="mr-1.5 hidden sm:inline tabular-nums opacity-60">
+                  {i + 1}
+                </span>
+                {item.label}
+              </button>
+            ))}
+          </nav>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-5 space-y-5 accent-scroll" style={{ "--scroll-accent": subjectColor } as React.CSSProperties}>
-          {/* ── Basics ── */}
-          <SectionCard accent={subjectColor} icon={User} title="Basics">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="profile-name" className="text-xs text-muted-foreground">Profile name</Label>
-                <Input
-                  id="profile-name"
-                  placeholder="e.g. Paper 1, Unit Test 3"
-                  value={profileName}
-                  onChange={(e) => setProfileName(e.target.value)}
-                  className="h-10"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">
-                  Educational level <span className="text-destructive">*</span>
-                </Label>
-                <Popover open={levelPopoverOpen} onOpenChange={setLevelPopoverOpen} modal>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-label="Educational level"
-                      className={`w-full justify-between h-10 text-sm font-normal ${
-                        missingLevel ? "border-amber-500/60" : ""
-                      }`}
-                    >
-                      <span className={educationalTier ? "text-foreground" : "text-muted-foreground"}>
-                        {educationalTier
-                          ? (educationalTier === "other"
-                              ? "Other qualification"
-                              : ALL_LEVELS.find(l => l.id === educationalTier)?.label || humaniseTier(educationalTier))
-                          : "Select level..."}
-                      </span>
-                      <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 max-h-80 overflow-y-auto accent-scroll" style={{ "--scroll-accent": subjectColor } as React.CSSProperties} align="start">
-                    {EDUCATIONAL_LEVELS.map((group) => (
-                      <div key={group.group}>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 pt-2.5 pb-1">
-                          {group.group}
-                        </p>
-                        {group.levels.map((level) => {
-                          const alias = userRegion ? level.aliases[userRegion] : null;
-                          return (
-                            <button
-                              key={level.id}
-                              type="button"
-                              onClick={() => {
-                                setEducationalTier(level.id);
-                                setSelectedCourseId(null); setSelectedPaperId(null); setAssessmentTier(null); setPaperMode("custom"); setPlanApplied(false);
-                                if (level.id !== "other") setCustomTier("");
-                                setLevelPopoverOpen(false);
-                              }}
-                              className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                                educationalTier === level.id
-                                  ? "bg-primary/10 text-primary font-medium"
-                                  : "hover:bg-muted text-foreground"
-                              }`}
-                            >
-                              <div className="text-[13px]">{level.label}</div>
-                              {alias && (
-                                <div className="text-xs leading-relaxed text-muted-foreground mt-0.5">
-                                  {userRegion}: {alias}
-                                </div>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </PopoverContent>
-                </Popover>
-                {missingLevel && (
-                  <p className="text-[11px] text-warning flex items-center gap-1">
-                    Please select a level so questions match your standard.
-                  </p>
-                )}
-              </div>
-            </div>
-            <BiologyCourseSelector lookup={courseLookup} value={selectedCourseId} tier={selectedTier}
-              onChange={(id) => { setBiologyBCustom(null); setSelectedCourseId(id); setSelectedPaperId(null); setAssessmentTier(null); setPaperMode("short_practice"); setPlanApplied(false); }} />
-            <BiologyPaperSelector courseId={courseCapability?.id ?? null} value={selectedPaperId} tier={selectedTier}
-              onChange={(id) => { setSelectedPaperId(id); setPlanApplied(false); setSavedContractVersion(undefined); }} />
-            {assessmentTierOptions.length > 0 && (
-              <AssessmentTierSelector
-                options={assessmentTierOptions}
-                value={effectiveAssessmentTier}
-                onChange={(tier) => { setAssessmentTier(tier); setPlanApplied(false); }}
-                accentColor={subjectColor}
-                courseLabel={courseCapability?.label ?? null}
-              />
-            )}
-            {supportsGuidedPaper && (
-              <PaperModeSelector
-                courseId={courseCapability?.id}
-                paperId={selectedPaperId}
-                mode={paperMode}
-                tier={effectiveAssessmentTier}
-                contractVersion={planApplied ? savedContractVersion : undefined}
-                onModeChange={changePaperMode}
-                onApplyPlan={applyGuidedPlan}
-                applied={planApplied}
-              />
-            )}
-            {educationalTier === "other" && (
-              <div className="space-y-1">
-                <Input
-                  value={customTier}
-                  onChange={(e) => setCustomTier(e.target.value)}
-                  placeholder="e.g. HNC/HND, NVQ Level 3, AWS Certification..."
-                  className="h-9 border-primary/50"
-                />
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  The AI will interpret your qualification level when generating questions
+        <div
+          ref={bodyRef}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 sm:px-6 py-4"
+          style={{ "--scroll-accent": subjectColor } as React.CSSProperties}
+        >
+          {advancedOpen ? (
+            <section
+              id="profile-advanced-panel"
+              className="mx-auto max-w-md space-y-5"
+            >
+              <h2 className="font-serif text-xl">Advanced settings</h2>
+              {guidedActive ? (
+                <p className="text-sm text-muted-foreground">
+                  The preset sets these options. Choose Custom in Basics to
+                  change them.
                 </p>
-              </div>
-            )}
-          </SectionCard>
-
-          {guidedActive && currentPlan?.courseId===OCR_ALEVEL_BIOLOGY_ID && currentPlan.paperId==='paper_3' && <label className="flex items-start gap-3 rounded-lg border border-border p-3">
-            <input type="checkbox" className="mt-1" checked={visualAssessment} disabled={!APPROVED_VISUAL_FILES.length&&!visualAssessment} onChange={event=>setVisualAssessment(event.target.checked)}/>
-            <span><span className="font-medium text-sm">Reviewed Biology visual assessments</span><span className="block text-xs text-muted-foreground">Versioned image questions with separately marked labels and evidence. Requires licence and scientific approval. {!APPROVED_VISUAL_FILES.length&&'No production assets are approved yet; synthetic fixtures are excluded. '}Existing Paper 3 templates remain available.</span></span>
-          </label>}
-          {guidedActive && <label className="flex items-start gap-3 rounded-lg border border-border p-3">
-            <input type="checkbox" className="mt-1" checked={interactiveResponses} onChange={event => setInteractiveResponses(event.target.checked)} />
-            <span><span className="font-medium text-sm">Interactive answer formats (preview)</span>
-              <span className="block text-xs text-muted-foreground">Use tick boxes and, where suitable, grids, inline blanks and labelled fields in new exams and quizzes from this profile. Keeps the paper's marks and topics. May take longer to generate. Existing attempts stay unchanged.</span>
-            </span>
-          </label>}
-          {guidedActive && <p className="text-xs text-muted-foreground">The guided preset controls the topics, counts, timing and resources. Choose Custom to set your own layout.</p>}
-          {!configurationReady && <p role="status" className="text-xs text-amber-600">{courseCapability?.id === EDEXCEL_ALEVEL_BIOLOGY_B_ID ? 'Choose Biology B Paper 1 (9BI0/01), then apply guided settings or choose Custom. This qualification is untiered.' : courseCapability?.id === OCR_ALEVEL_BIOLOGY_ID ? 'Choose Paper 1, Paper 2 or Paper 3, then apply the guided settings or choose Custom. OCR A-level Biology A is untiered.' : courseCapability?.id === AQA_ALEVEL_BIOLOGY_ID ? 'Choose Paper 1, Paper 2 or Paper 3, then apply the guided settings or choose Custom. A-level Biology is untiered.' : courseCapability?.id === OCR_21C_BIOLOGY_ID ? 'Choose Breadth or Depth and Foundation or Higher, then apply the guided settings or choose Custom.' : courseCapability?.id === EDEXCEL_BIOLOGY_ID ? 'Choose Paper 1 or Paper 2 and Foundation or Higher. Then apply the guided settings, or choose Custom with your own topics.' : 'Choose a supported course and tier, then use the guided settings, or select Custom.'}</p>}
-          {!guidedActive && <fieldset className="space-y-4">
-          {/* ── Questions ── */}
-          <SectionCard accent={subjectColor} icon={ListChecks} title="Questions" hint={`${totalQuestionCount} total`}>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">Written</Label>
-                  <span className="text-sm font-bold tabular-nums text-foreground">{writtenCount}</span>
-                </div>
-                <Slider
-                  min={0} max={20} step={1}
-                  value={[writtenCount]}
-                  disabled={structureLocksWritten}
-                  onValueChange={(v) => {
-                    const newVal = v[0];
-                    if (newVal === 0 && mcqCount === 0) return;
-                    setWrittenCount(newVal);
-                  }}
-                  style={{ "--slider-track": "hsl(var(--muted))", "--slider-range": subjectColor } as React.CSSProperties}
+              ) : (
+                <ExamProfileAdvanced
+                  settings={advanced}
+                  onChange={setAdvanced}
+                  questionLimit={writtenCount}
+                  subjectColor={subjectColor}
+                  curriculumRegion={preferences?.curriculum_region}
+                  embedded
                 />
-                {structureLocksWritten && (
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    {blueprintActive ? `Set by your paper structure: ${blueprintTotalQuestions} questions · ${blueprintTotalMarks} marks` : `Set by your structure: ${parentQuestionCount} question${parentQuestionCount === 1 ? "" : "s"} × ${maxPartsPerQuestion} parts = ${writtenCount} written parts`}
-                  </p>
-                )}
-                {writtenCount >= 15 && (
-                  <p className="text-[11px] text-warning">⚠ {writtenCount} written questions may reduce quality</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">Multiple choice</Label>
-                  <span className="text-sm font-bold tabular-nums text-foreground">{mcqCount}</span>
-                </div>
-                <Slider
-                  min={0} max={30} step={1}
-                  disabled={blueprintActive}
-                  value={[mcqCount]}
-                  onValueChange={(v) => {
-                    const newVal = v[0];
-                    if (newVal === 0 && writtenCount === 0) return;
-                    setMcqCount(newVal);
-                  }}
-                  style={{ "--slider-track": "hsl(var(--muted))", "--slider-range": "hsl(160 84% 39%)" } as React.CSSProperties}
-                />
-                {blueprintActive && (
-                  <p className="text-xs leading-relaxed text-muted-foreground">Locked by Exact paper layout — add MCQs as a section there instead.</p>
-                )}
-                {mcqCount >= 25 && (
-                  <p className="text-[11px] text-warning">⚠ {mcqCount} MCQ — consider splitting into two sessions</p>
-                )}
-              </div>
-            </div>
-
-          </SectionCard>
-
-          {/* ── Structure ── */}
-          <SectionCard accent={subjectColor} icon={ListChecks} title={isMcqOnlyProfile ? "Answer options" : "Structure"} hint={blueprintActive ? "locked by Exact paper layout" : (isMcqOnlyProfile ? undefined : "how written questions are organised")}>
-            {blueprintActive && (
-              <p className="text-xs leading-relaxed text-muted-foreground -mt-1">Locked — your Exact paper layout defines the structure. Turn it off below to edit these.</p>
-            )}
-            <div className={blueprintActive ? "opacity-50 pointer-events-none" : ""}>
-            {isMcqOnlyProfile ? (
-              <>
-                <div className="grid grid-cols-2 gap-2">
-                  {MCQ_STRUCTURE_OPTIONS.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setMcqOptionsCount(option.id)}
-                      className={`rounded-lg border p-3 text-left transition-all ${
-                        mcqOptionsCount === option.id
-                          ? "border-primary bg-primary/10"
-                          : "border-border/50 bg-card/60 hover:bg-card"
-                      }`}
-                    >
-                      <div className="text-xs font-semibold text-foreground">{option.label}</div>
-                      <div className="text-xs leading-relaxed text-muted-foreground mt-0.5">{option.example}</div>
-                    </button>
-                  ))}
-                </div>
-                <div className="rounded-lg border border-border/40 bg-muted/30 p-3 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-medium">Include graph-based questions</p>
-                      <p className="text-xs leading-relaxed text-muted-foreground">Allow chart/graph MCQs where relevant.</p>
-                    </div>
-                    <Switch checked={includeGraphs} onCheckedChange={setIncludeGraphs} />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-medium">Include table/data questions</p>
-                      <p className="text-xs leading-relaxed text-muted-foreground">Allow table interpretation and data MCQs.</p>
-                    </div>
-                    <Switch checked={includeTables} onCheckedChange={setIncludeTables} />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {STRUCTURE_PREVIEWS.map((option) => {
-                    const active = questionStructure === option.id;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setQuestionStructure(option.id)}
-                        className={`group rounded-xl border-2 p-3.5 text-left transition-all duration-200 hover:scale-[1.03] ${
-                          active ? "scale-[1.03] shadow-lg" : "border-border/50 bg-card/60 hover:shadow-md"
-                        }`}
-                        style={active ? { borderColor: subjectColor, backgroundColor: subjectColor + "0D" } : undefined}
+              )}
+            </section>
+          ) : (
+            <>
+              {step === "basics" && (
+                <div className="space-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-[1.15fr_1fr] gap-4">
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="profile-name"
+                        className="text-xs text-muted-foreground"
                       >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-semibold text-foreground">{option.label}</span>
-                          {active && (
-                            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full" style={{ backgroundColor: subjectColor }}>
-                              <Check className="h-2.5 w-2.5 text-white" />
-                            </span>
+                        Profile name
+                      </Label>
+                      <Input
+                        id="profile-name"
+                        placeholder="e.g. Paper 1 revision"
+                        value={profileName}
+                        onChange={(event) => setProfileName(event.target.value)}
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">
+                        Educational level
+                      </Label>
+                      <select
+                        aria-label="Educational level"
+                        value={educationalTier}
+                        onChange={(event) => {
+                          setEducationalTier(event.target.value);
+                          setSelectedCourseId(null);
+                          setSelectedPaperId(null);
+                          setAssessmentTier(null);
+                          setPaperMode("custom");
+                          setPlanApplied(false);
+                          if (event.target.value !== "other") setCustomTier("");
+                        }}
+                        className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      >
+                        <option value="" disabled>
+                          Select level
+                        </option>
+                        {EDUCATIONAL_LEVELS.map((group) => (
+                          <optgroup key={group.group} label={group.group}>
+                            {group.levels.map((level) => (
+                              <option key={level.id} value={level.id}>
+                                {level.label}
+                                {userRegion && level.aliases[userRegion]
+                                  ? ` · ${level.aliases[userRegion]}`
+                                  : ""}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  {educationalTier === "other" && (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="profile-custom-level">
+                        Qualification
+                      </Label>
+                      <Input
+                        id="profile-custom-level"
+                        value={customTier}
+                        onChange={(event) => setCustomTier(event.target.value)}
+                        placeholder="e.g. HNC, degree module or certification"
+                      />
+                    </div>
+                  )}
+                  <BiologyCourseSelector
+                    compact
+                    lookup={courseLookup}
+                    value={selectedCourseId}
+                    tier={selectedTier}
+                    onChange={(id) => {
+                      setBiologyBCustom(null);
+                      setSelectedCourseId(id);
+                      setSelectedPaperId(null);
+                      setAssessmentTier(null);
+                      setPaperMode("short_practice");
+                      setPlanApplied(false);
+                    }}
+                  />
+                  {assessmentTierOptions.length > 0 && (
+                    <AssessmentTierSelector
+                      options={assessmentTierOptions}
+                      value={effectiveAssessmentTier}
+                      onChange={(tier) => {
+                        setAssessmentTier(tier);
+                        setPlanApplied(false);
+                      }}
+                      accentColor={subjectColor}
+                      courseLabel={courseCapability?.label ?? null}
+                    />
+                  )}
+                  <BiologyPaperSelector
+                    compact
+                    courseId={courseCapability?.id ?? null}
+                    value={selectedPaperId}
+                    tier={selectedTier}
+                    onChange={(id) => {
+                      setSelectedPaperId(id);
+                      setPlanApplied(false);
+                      setSavedContractVersion(undefined);
+                    }}
+                  />
+                  {supportsGuidedPaper && (
+                    <PaperModeSelector
+                      compact
+                      courseId={courseCapability?.id}
+                      paperId={selectedPaperId}
+                      mode={paperMode}
+                      tier={effectiveAssessmentTier}
+                      contractVersion={
+                        planApplied ? savedContractVersion : undefined
+                      }
+                      onModeChange={changePaperMode}
+                      onApplyPlan={applyGuidedPlan}
+                      applied={planApplied}
+                    />
+                  )}
+                  <section
+                    className="space-y-3 border-t border-border pt-4"
+                    aria-label="Question mix"
+                  >
+                    <div className="flex justify-between">
+                      <h3 className="text-sm font-semibold">Questions</h3>
+                      {(guidedActive || structureLocksWritten) && (
+                        <span className="text-xs text-muted-foreground">
+                          {guidedActive ? "Preset" : "From your layout"}
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <NumberControl
+                        label={
+                          guidedActive || questionStructure === "sub_questions"
+                            ? "Written parts"
+                            : "Written questions"
+                        }
+                        value={writtenCount}
+                        max={20}
+                        disabled={guidedActive || structureLocksWritten}
+                        onChange={(value) => {
+                          if (value || mcqCount) setWrittenCount(value);
+                        }}
+                      />
+                      <NumberControl
+                        label="Multiple choice"
+                        value={mcqCount}
+                        max={30}
+                        disabled={guidedActive || blueprintActive}
+                        onChange={(value) => {
+                          if (value || writtenCount) setMcqCount(value);
+                        }}
+                      />
+                    </div>
+                  </section>
+                </div>
+              )}
+
+              {step === "paper" && (
+                <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] items-start gap-5">
+                  <section
+                    aria-label="Question structure"
+                    className="space-y-3"
+                  >
+                    <div className="flex flex-wrap justify-between items-center gap-2">
+                      <h3 className="text-sm font-semibold">Structure</h3>
+                      {guidedActive ? (
+                        <span className="text-xs text-muted-foreground">
+                          Preset
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={startLayout}
+                          className="min-h-9 text-xs font-medium text-foreground underline decoration-border-strong underline-offset-4"
+                        >
+                          {blueprintEnabled
+                            ? "Edit sections & marks"
+                            : "Customise sections & marks"}
+                        </button>
+                      )}
+                    </div>
+                    {guidedActive || blueprintActive ? (
+                      preview()
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          {!isMcqOnlyProfile && (
+                            <div
+                              role="group"
+                              aria-label="Question organisation"
+                              className="flex gap-1.5"
+                            >
+                              {[
+                                { id: "standalone", label: "Standalone" },
+                                { id: "sub_questions", label: "Sub-parts" },
+                                { id: "mixed", label: "Mixed" },
+                              ].map((option) => (
+                                <button
+                                  type="button"
+                                  key={option.id}
+                                  aria-pressed={questionStructure === option.id}
+                                  onClick={() =>
+                                    setQuestionStructure(option.id)
+                                  }
+                                  className={`flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-md border px-1.5 text-xs ${questionStructure === option.id ? "border-border-strong bg-muted font-medium" : "border-border bg-background text-muted-foreground hover:text-foreground"}`}
+                                >
+                                  <span>{option.label}</span>
+                                  {questionStructure === option.id && (
+                                    <Check
+                                      className="h-3.5 w-3.5"
+                                      style={{ color: subjectColor }}
+                                    />
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {isMcqOnlyProfile && (
+                            <div>
+                              <label
+                                htmlFor="profile-options"
+                                className="mb-1.5 block text-xs text-muted-foreground"
+                              >
+                                Options per question
+                              </label>
+                              <select
+                                id="profile-options"
+                                value={mcqOptionsCount}
+                                onChange={(event) =>
+                                  setMcqOptionsCount(Number(event.target.value))
+                                }
+                                className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
+                              >
+                                <option value={3}>3 options</option>
+                                <option value={4}>4 options</option>
+                              </select>
+                            </div>
                           )}
                         </div>
-                        {/* Mini exam-paper preview */}
-                        <div className="rounded-md border border-border/60 bg-background px-2.5 py-2 space-y-1">
-                          {option.preview.map((line, i) => (
-                            <p key={i} className="text-[10px] leading-snug font-serif text-foreground/75 truncate">
-                              {line}
-                            </p>
-                          ))}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {(questionStructure === "sub_questions" || questionStructure === "mixed") && (
-                  <div className="rounded-lg border border-border/40 bg-muted/30 p-3 space-y-3">
-                    <p className="text-xs leading-relaxed text-muted-foreground">
-                      {questionStructure === "sub_questions"
-                        ? `${parentQuestionCount} question${parentQuestionCount === 1 ? "" : "s"}, each with up to ${maxPartsPerQuestion} parts — ${parentQuestionCount * maxPartsPerQuestion} written parts in total.`
-                        : `${parentQuestionCount} of your ${writtenCount} written questions will have sub-parts; the other ${Math.max(0, writtenCount - parentQuestionCount)} are standalone.`}
-                    </p>
-                    <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs leading-relaxed text-muted-foreground">Questions with parts</Label>
-                        <span className="text-xs font-bold tabular-nums text-foreground">{parentQuestionCount}</span>
-                      </div>
-                      <Slider min={1} max={10} step={1} value={[parentQuestionCount]}
-                        onValueChange={(v) => setParentQuestionCount(v[0])}
-                        style={{ "--slider-track": "hsl(var(--muted))", "--slider-range": subjectColor } as React.CSSProperties} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs leading-relaxed text-muted-foreground">Parts per question (a, b, c…)</Label>
-                        <span className="text-xs font-bold tabular-nums text-foreground">{maxPartsPerQuestion}</span>
-                      </div>
-                      <Slider min={2} max={6} step={1} value={[maxPartsPerQuestion]}
-                        onValueChange={(v) => setMaxPartsPerQuestion(v[0])}
-                        style={{ "--slider-track": "hsl(var(--muted))", "--slider-range": subjectColor } as React.CSSProperties} />
-                    </div>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-            </div>
-          </SectionCard>
-
-          {/* ── Topics ── */}
-          <SectionCard
-            accent={subjectColor}
-            icon={BookOpen}
-            title="Topics"
-            hint={selectedTopics.length ? `${selectedTopics.length} selected` : "pick at least one"}
-          >
-            {(() => {
-              if (!hasTopicSuggestions(subjectName || "")) return null;
-              if (!finalTier) {
-                return (
-                  <p className="text-xs leading-relaxed text-muted-foreground rounded-md bg-muted/40 px-2.5 py-1.5">
-                    Choose your level in Basics above and suggested areas for {subjectName} will appear here.
-                  </p>
-                );
-              }
-              const isAdvanced = /a[-\s_]?level|level[\s_]*3|\bas\b|\ba2\b|year[\s_]*1[23]|sixth/i.test(finalTier);
-              const suggestions = getTopicSuggestions(subjectName || "", finalTier).filter((t) => !selectedTopics.includes(t));
-              if (suggestions.length === 0) return null;
-              return (
-                <div className="space-y-1.5">
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    Quick add — common {isAdvanced ? "A-level" : "GCSE"} areas for {subjectName}:
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {suggestions.map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setSelectedTopics([...selectedTopics, t])}
-                        className="rounded-full border border-border/60 bg-card/60 px-2.5 py-1 text-[11.5px] text-muted-foreground hover:text-foreground hover:border-border transition-colors"
-                      >
-                        + {t}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
-            <TopicPickerDialog
-              allTopics={allTopics}
-              selectedTopics={selectedTopics}
-              onChange={setSelectedTopics}
-              subjectColor={subjectColor}
-              subjectName={subjectName}
-            />
-          </SectionCard>
-
-          {/* ── Studied texts (text-based subjects) ── */}
-          {isTextBasedSubject && (
-            <SectionCard accent={subjectColor} icon={BookOpen} title={studiedContentCfg.title} hint={studiedTexts.length ? `${studiedTexts.length} added` : studiedContentCfg.hint}>
-              <p className="text-xs leading-relaxed text-muted-foreground -mt-1">
-                {studiedContentCfg.description}
-              </p>
-              <div className="space-y-1.5">
-                {studiedTexts.map((t, i) => (
-                  <div key={i} className="flex items-center gap-2 rounded-lg border border-border/50 bg-card/60 px-3 py-2">
-                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0 w-28">
-                      {studiedContentCfg.roles.find((r) => r.id === t.role)?.label ?? t.role}
-                    </span>
-                    <span className="text-xs flex-1 truncate">{t.title}</span>
-                    <button type="button" aria-label={`Remove ${t.title}`} onClick={() => setStudiedTexts(studiedTexts.filter((_, j) => j !== i))}>
-                      <span className="text-muted-foreground hover:text-destructive text-sm">×</span>
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <select
-                  value={newTextRole}
-                  onChange={(e) => setNewTextRole(e.target.value)}
-                  className="h-9 rounded-md border border-input bg-background px-2 text-xs w-40 shrink-0"
-                >
-                  {studiedContentCfg.roles.map((r) => (
-                    <option key={r.id} value={r.id}>{r.label}</option>
-                  ))}
-                </select>
-                <Input
-                  value={newTextTitle}
-                  onChange={(e) => setNewTextTitle(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && newTextTitle.trim()) {
-                      e.preventDefault();
-                      setStudiedTexts([...studiedTexts, { role: newTextRole, title: newTextTitle.trim() }]);
-                      setNewTextTitle("");
-                    }
-                  }}
-                  placeholder={studiedContentCfg.placeholder}
-                  className="h-9 text-xs"
-                />
-                <Button type="button" size="sm" variant="outline" className="shrink-0"
-                  disabled={!newTextTitle.trim()}
-                  onClick={() => { setStudiedTexts([...studiedTexts, { role: newTextRole, title: newTextTitle.trim() }]); setNewTextTitle(""); }}>
-                  Add
-                </Button>
-              </div>
-            </SectionCard>
-          )}
-
-          {/* ── Timing ── */}
-          <SectionCard accent={subjectColor} icon={Clock} title="Time limit" hint={timeLimitMinutes ? `${timeLimitMinutes} min` : "No limit"}>
-            <TimeWheelPicker
-              preserveExactValue={getCourseOptions(courseLookup).some(course=>course.id===EDEXCEL_ALEVEL_BIOLOGY_B_ID)}
-              value={timeLimitMinutes}
-              onChange={setTimeLimitMinutes}
-              subjectColor={subjectColor}
-            />
-          </SectionCard>
-
-          {/* ── Paper structure (optional blueprint) ── */}
-          <SectionCard accent={subjectColor} icon={ListChecks} title="Exact paper layout" hint={blueprintActive ? `${blueprintTotalQuestions} questions · ${blueprintTotalMarks} marks` : "optional"}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium">Define the exact paper layout</p>
-                <p className="text-xs leading-relaxed text-muted-foreground">Recreate a real paper's layout question by question — every question's marks and purpose, organised into sections. While this is on, it sets the question counts (the sliders above lock).</p>
-              </div>
-              <Switch checked={blueprintEnabled} onCheckedChange={(v) => {
-                setBlueprintEnabled(v);
-                if (v && blueprintSections.length === 0) {
-                  setBlueprintSections([{ title: "Section A", questions: [{ marks: 4, style: "" }] }]);
-                }
-              }} />
-            </div>
-            {blueprintEnabled && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Label className="text-xs leading-relaxed text-muted-foreground shrink-0">Start from a preset</Label>
-                  <select
-                    className="h-8 rounded-md border border-input bg-background px-2 text-xs flex-1"
-                    value={advanced.structurePreset && advanced.structurePreset !== "custom" ? advanced.structurePreset : ""}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      const preset = availablePresets.find((pr) => pr.id === id);
-                      if (preset) {
-                        setBlueprintSections(JSON.parse(JSON.stringify(preset.sections)));
-                        setAdvanced((prev) => ({ ...prev, structurePreset: id }));
-                      } else {
-                        setAdvanced((prev) => ({ ...prev, structurePreset: "custom" }));
-                      }
-                    }}
-                  >
-                    <option value="">Choose a board paper (or build your own below)…</option>
-                    {availablePresets.map((pr) => (
-                      <option key={pr.id} value={pr.id}>{pr.label}</option>
-                    ))}
-                  </select>
-                </div>
-                {availablePresets.length === 1 && availablePresets[0].id === "universal_mixed" && (
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    No exact preset exists yet for this subject, board and level combination — the standard paper is a safe starting shape, and every question below stays fully editable.
-                  </p>
-                )}
-                {blueprintSections.map((sec, si) => (
-                  <div key={si} className="rounded-lg border border-border/40 bg-muted/30 p-3 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Input value={sec.title} placeholder={`Section ${String.fromCharCode(65 + si)}: Reading`}
-                        onChange={(e) => setBlueprintSections(blueprintSections.map((s, j) => j === si ? { ...s, title: e.target.value } : s))}
-                        className="h-8 text-xs font-medium" />
-                      <button type="button" aria-label="Remove section"
-                        onClick={() => setBlueprintSections(blueprintSections.filter((_, j) => j !== si))}
-                        className="text-muted-foreground hover:text-destructive text-sm shrink-0">×</button>
-                    </div>
-                    {sec.questions.map((q, qi) => (
-                      <div key={qi} className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs leading-relaxed text-muted-foreground w-7 shrink-0 tabular-nums">
-                          Q{blueprintSections.slice(0, si).reduce((n, s) => n + s.questions.length, 0) + qi + 1}
-                        </span>
-                        <Input type="number" min={1} max={60} value={q.marks || ""}
-                          onChange={(e) => setBlueprintSections(blueprintSections.map((s, j) => j === si ? { ...s, questions: s.questions.map((qq, k) => k === qi ? { ...qq, marks: parseInt(e.target.value) || 0 } : qq) } : s))}
-                          className="h-8 w-16 text-xs text-center" aria-label="Marks" />
-                        <span className="text-xs leading-relaxed text-muted-foreground shrink-0">marks</span>
-                        <select
-                          value={QUESTION_STYLE_OPTIONS.includes(q.style) ? q.style : "__other"}
-                          onChange={(e) => {
-                            const v = e.target.value === "__other" ? "" : e.target.value;
-                            setBlueprintSections(blueprintSections.map((s, j) => j === si ? { ...s, questions: s.questions.map((qq, k) => k === qi ? { ...qq, style: v } : qq) } : s));
-                          }}
-                          className="h-8 rounded-md border border-input bg-background px-2 text-xs flex-1 min-w-[150px]"
-                          aria-label="Question style"
-                        >
-                          {QUESTION_STYLE_OPTIONS.map((opt) => (
-                            <option key={opt} value={opt}>{opt}</option>
-                          ))}
-                          <option value="__other">Other (describe it)…</option>
-                        </select>
-                        {!QUESTION_STYLE_OPTIONS.includes(q.style) && (
-                          <Input value={q.style} placeholder="Describe this question's purpose"
-                            onChange={(e) => setBlueprintSections(blueprintSections.map((s, j) => j === si ? { ...s, questions: s.questions.map((qq, k) => k === qi ? { ...qq, style: e.target.value } : qq) } : s))}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                setBlueprintSections(blueprintSections.map((s, j) => j === si ? { ...s, questions: [...s.questions, { marks: 6, style: "" }] } : s));
-                              }
-                            }}
-                            className="h-8 text-xs flex-1 basis-full sm:basis-auto min-w-[150px]" />
-                        )}
-                        <button type="button" aria-label="Remove question"
-                          onClick={() => setBlueprintSections(blueprintSections.map((s, j) => j === si ? { ...s, questions: s.questions.filter((_, k) => k !== qi) } : s))}
-                          className="text-muted-foreground hover:text-destructive text-sm shrink-0">×</button>
-                      </div>
-                    ))}
-                    <Button type="button" variant="ghost" size="sm" className="h-7 text-[11px]"
-                      onClick={() => setBlueprintSections(blueprintSections.map((s, j) => j === si ? { ...s, questions: [...s.questions, { marks: 6, style: "" }] } : s))}>
-                      + Add question
-                    </Button>
-                    {sec.questions.length > 1 && (
-                      <div className="flex items-center gap-2 pt-1">
-                        <Label className="text-xs leading-relaxed text-muted-foreground">Students answer</Label>
-                        <Input type="number" min={1} max={sec.questions.length}
-                          value={sec.answerCount ?? sec.questions.length}
-                          onChange={(e) => {
-                            const v = parseInt(e.target.value);
-                            setBlueprintSections(blueprintSections.map((s, j) => j === si
-                              ? { ...s, answerCount: Number.isFinite(v) && v >= 1 && v < s.questions.length ? v : undefined }
-                              : s));
-                          }}
-                          className="h-7 w-14 text-xs text-center" aria-label="Number of questions students answer in this section" />
-                        <span className="text-xs leading-relaxed text-muted-foreground">of {sec.questions.length} question{sec.questions.length === 1 ? "" : "s"}{sec.answerCount && sec.answerCount < sec.questions.length ? " (their choice)" : " (all)"}</span>
+                        {preview()}
                       </div>
                     )}
+                    {!guidedActive &&
+                      !blueprintActive &&
+                      !isMcqOnlyProfile &&
+                      (questionStructure === "sub_questions" ||
+                        questionStructure === "mixed") && (
+                        <div className="space-y-2">
+                          <NumberControl
+                            label="Questions with parts"
+                            value={parentQuestionCount}
+                            min={1}
+                            max={10}
+                            onChange={setParentQuestionCount}
+                          />
+                          <NumberControl
+                            label="Parts per question"
+                            value={maxPartsPerQuestion}
+                            min={2}
+                            max={6}
+                            onChange={setMaxPartsPerQuestion}
+                          />
+                        </div>
+                      )}
+                    {!guidedActive && isMcqOnlyProfile && (
+                      <div className="flex flex-wrap gap-x-6 gap-y-2">
+                        {[
+                          {
+                            label: "Graph questions",
+                            value: includeGraphs,
+                            change: setIncludeGraphs,
+                          },
+                          {
+                            label: "Data tables",
+                            value: includeTables,
+                            change: setIncludeTables,
+                          },
+                        ].map((option) => (
+                          <label
+                            key={option.label}
+                            className="flex min-h-10 items-center gap-2 text-xs"
+                          >
+                            <Switch
+                              checked={option.value}
+                              onCheckedChange={option.change}
+                            />
+                            {option.label}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    {guidedActive && (
+                      <label className="flex items-start gap-2.5 text-xs">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5"
+                          checked={interactiveResponses}
+                          onChange={(event) =>
+                            setInteractiveResponses(event.target.checked)
+                          }
+                        />
+                        <span>
+                          Interactive answer formats{" "}
+                          <span className="text-muted-foreground">
+                            (preview)
+                          </span>
+                        </span>
+                      </label>
+                    )}
+                    {guidedActive &&
+                      currentPlan?.courseId === OCR_ALEVEL_BIOLOGY_ID &&
+                      currentPlan.paperId === "paper_3" && (
+                        <label className="flex items-start gap-2.5 text-xs">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={visualAssessment}
+                            disabled={
+                              !APPROVED_VISUAL_FILES.length && !visualAssessment
+                            }
+                            onChange={(event) =>
+                              setVisualAssessment(event.target.checked)
+                            }
+                          />
+                          <span>
+                            Reviewed Biology visual assessments
+                            {!APPROVED_VISUAL_FILES.length && (
+                              <span className="block text-muted-foreground">
+                                No approved images available yet.
+                              </span>
+                            )}
+                          </span>
+                        </label>
+                      )}
+                  </section>
+                  <div className="min-w-0 border-t border-border pt-4 sm:border-t-0 sm:pt-0">
+                    <ProfileTopicBrowser
+                      allTopics={
+                        guidedActive
+                          ? effectiveTopics
+                          : [...new Set([...allTopics, ...topicSuggestions])]
+                      }
+                      selectedTopics={effectiveTopics}
+                      onChange={setSelectedTopics}
+                      subjectName={subjectName}
+                      accent={subjectColor}
+                      locked={guidedActive}
+                    />
                   </div>
-                ))}
-                <div className="flex items-center justify-between">
-                  <Button type="button" variant="outline" size="sm" className="h-7 text-[11px]"
-                    onClick={() => setBlueprintSections([...blueprintSections, { title: "", questions: [{ marks: 4, style: "" }] }])}>
-                    + Add section
-                  </Button>
-                  <p className="text-xs leading-relaxed text-muted-foreground tabular-nums">{blueprintTotalQuestions} questions · {blueprintCountedMarks < blueprintTotalMarks ? `${blueprintCountedMarks} marks counted (of ${blueprintTotalMarks} printed)` : `${blueprintTotalMarks} marks`}</p>
+                  {isTextBasedSubject && !guidedActive && (
+                    <section className="space-y-3 border-t border-border pt-4 sm:col-span-2">
+                      <h3 className="text-sm font-semibold">
+                        {studiedContentCfg.title}
+                      </h3>
+                      {studiedTexts.map((text, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center gap-3 rounded-md border border-border bg-background px-3 py-2"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <span className="block text-[11px] text-muted-foreground">
+                              {studiedContentCfg.roles.find(
+                                (role) => role.id === text.role,
+                              )?.label ?? text.role}
+                            </span>
+                            <span className="text-sm">{text.title}</span>
+                          </div>
+                          <button
+                            type="button"
+                            aria-label={`Remove ${text.title}`}
+                            onClick={() =>
+                              setStudiedTexts(
+                                studiedTexts.filter((_, j) => j !== i),
+                              )
+                            }
+                            className="flex h-9 w-9 shrink-0 items-center justify-center text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                      <div className="flex flex-wrap gap-2">
+                        <select
+                          aria-label="Studied content type"
+                          value={newTextRole}
+                          onChange={(event) =>
+                            setNewTextRole(event.target.value)
+                          }
+                          className="h-10 rounded-md border border-input bg-background px-2 text-xs"
+                        >
+                          {studiedContentCfg.roles.map((role) => (
+                            <option key={role.id} value={role.id}>
+                              {role.label}
+                            </option>
+                          ))}
+                        </select>
+                        <Input
+                          aria-label={studiedContentCfg.title}
+                          value={newTextTitle}
+                          onChange={(event) =>
+                            setNewTextTitle(event.target.value)
+                          }
+                          placeholder={studiedContentCfg.placeholder}
+                          className="min-w-[140px] flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={!newTextTitle.trim()}
+                          onClick={() => {
+                            setStudiedTexts([
+                              ...studiedTexts,
+                              { role: newTextRole, title: newTextTitle.trim() },
+                            ]);
+                            setNewTextTitle("");
+                          }}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                    </section>
+                  )}
+                  <div className="sm:col-span-2">
+                    <ProfileTimeLimit
+                      value={
+                        currentPlan
+                          ? String(currentPlan.durationMinutes)
+                          : timeLimitMinutes
+                      }
+                      onChange={setTimeLimitMinutes}
+                      locked={guidedActive}
+                    />
+                  </div>
                 </div>
-                {blueprintTotalQuestions > 0 && (
-                  <p className="text-xs leading-relaxed text-muted-foreground tabular-nums rounded-md bg-muted/40 px-2.5 py-1.5">
-                    Preview: {(() => { let n = 0; return blueprintSections.flatMap((s) => s.questions).map((q) => { n++; return `Q${n} [${q.marks || "?"}]`; }).join(" · "); })()}
-                  </p>
-                )}
-                {blueprintSections.some((s) => s.questions.some((q) => !q.marks || q.marks < 1)) && (
-                  <p className="text-[11px] text-destructive">⚠ Some questions have no marks set — fix or remove them to save this profile.</p>
-                )}
-                {blueprintSections.some((s) => s.questions.some((q) => q.marks > 40)) && (
-                  <p className="text-[11px] text-warning">⚠ Questions above 40 marks are rare on real papers — double-check this is intended.</p>
-                )}
-                {blueprintActive && mcqCount > 0 && (
-                  <p className="text-[11px] text-warning">⚠ Your paper structure and MCQ count ({mcqCount}) are both set — MCQs will be generated as an additional section.</p>
-                )}
-              </div>
-            )}
-          </SectionCard>
+              )}
 
-          {/* ── Advanced ── */}
-          <SectionCard accent={subjectColor} icon={Settings2} title="Advanced" hint="optional">
-            <ExamProfileAdvanced
-              settings={advanced}
-              onChange={setAdvanced}
-              questionLimit={writtenCount}
-              subjectColor={subjectColor}
-              curriculumRegion={preferences?.curriculum_region}
-            />
-          </SectionCard>
-          </fieldset>}
+              {step === "layout" && (
+                <ProfileLayoutEditor
+                  sections={blueprintSections}
+                  onChange={setBlueprintSections}
+                  presets={availablePresets}
+                  presetId={advanced.structurePreset}
+                  subjectName={subjectName}
+                  onRemove={() => {
+                    setBlueprintEnabled(false);
+                    goTo("paper");
+                  }}
+                  onPresetChange={(id) => {
+                    const preset = availablePresets.find(
+                      (value) => value.id === id,
+                    );
+                    if (preset)
+                      setBlueprintSections(structuredClone(preset.sections));
+                    setAdvanced((previous) => ({
+                      ...previous,
+                      structurePreset: id || "custom",
+                    }));
+                  }}
+                />
+              )}
+
+              {step === "review" && (
+                <div className="space-y-5">
+                  <div className="flex justify-between items-start gap-3">
+                    <div>
+                      <h2 className="font-serif text-xl leading-snug">
+                        {profileName.trim() || "Your exam profile"}
+                      </h2>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {paperDefinition && (guidedActive || selectedPaperId)
+                          ? paperDefinition.displayName
+                          : ALL_LEVELS.find((value) => value.id === finalTier)
+                              ?.label || humaniseTier(finalTier)}
+                        {effectiveAssessmentTier &&
+                        effectiveAssessmentTier !== "not_tiered"
+                          ? ` · ${effectiveAssessmentTier === "higher" ? "Higher" : "Foundation"}`
+                          : ""}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => goTo("basics")}
+                      className="flex min-h-9 items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <Pencil className="h-3 w-3" />
+                      Edit basics
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-x-6 gap-y-2 border-y border-border py-3 text-xs">
+                    <span>
+                      <strong className="font-semibold tabular-nums">
+                        {presetCount}
+                      </strong>{" "}
+                      {currentPlan || questionStructure === "sub_questions"
+                        ? "parts"
+                        : "questions"}
+                    </span>
+                    {currentPlan && (
+                      <span>
+                        <strong className="font-semibold tabular-nums">
+                          {currentPlan.totalMarks}
+                        </strong>{" "}
+                        marks
+                      </span>
+                    )}
+                    {blueprintActive && !currentPlan && (
+                      <span>
+                        <strong className="font-semibold tabular-nums">
+                          {blueprintCountedMarks}
+                        </strong>{" "}
+                        marks counted
+                      </span>
+                    )}
+                    <span>
+                      <strong className="font-semibold tabular-nums">
+                        {currentPlan?.durationMinutes ?? timeLimitMinutes}
+                      </strong>{" "}
+                      {timeLimitMinutes || currentPlan
+                        ? "minutes"
+                        : "No time limit"}
+                    </span>
+                    <span>
+                      <strong className="font-semibold tabular-nums">
+                        {effectiveTopics.length}
+                      </strong>{" "}
+                      topics
+                    </span>
+                  </div>
+                  {preview(true)}
+                  <section className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-sm font-semibold">Topics</h3>
+                      <button
+                        type="button"
+                        onClick={() => goTo("paper")}
+                        className="min-h-9 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        {guidedActive ? "View paper" : "Edit paper"}
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {effectiveTopics.map((topic) => (
+                        <span
+                          key={topic}
+                          className="rounded-md bg-muted px-2.5 py-1.5 text-xs"
+                        >
+                          {topic}
+                        </span>
+                      ))}
+                    </div>
+                  </section>
+                  {isTextBasedSubject && studiedTexts.length > 0 && (
+                    <section>
+                      <h3 className="mb-2 text-sm font-semibold">
+                        {studiedContentCfg.title}
+                      </h3>
+                      <div className="space-y-1.5">
+                        {studiedTexts.map((text, i) => (
+                          <p key={i} className="text-sm text-muted-foreground">
+                            {text.title}
+                          </p>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                  {blueprintActive && !guidedActive && (
+                    <button
+                      type="button"
+                      onClick={() => goTo("layout")}
+                      className="min-h-9 text-xs font-medium underline decoration-border-strong underline-offset-4"
+                    >
+                      Edit sections & marks
+                    </button>
+                  )}
+                  {missingSaveReason && (
+                    <p role="status" className="text-sm text-muted-foreground">
+                      {missingSaveReason}
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
+          )}
         </div>
 
-        {/* ── Sticky footer with live summary + disabled reason ── */}
-        <DialogFooter className="flex-col sm:flex-row px-4 sm:px-6 py-4 border-t border-border bg-card sm:justify-between gap-3">
-          <div className="text-left self-center min-w-0">
-            <p className="text-xs font-medium truncate">{profileName.trim() || "Untitled profile"}</p>
-            <p className="text-xs leading-relaxed text-muted-foreground truncate">
-              {!configurationReady ? "Choose the course, tier and apply the preset" : canSave ? summaryParts : (!profileName.trim() ? "Add a profile name" : effectiveTopics.length === 0 ? "Pick at least one topic" : "Select an educational level") + " to continue"}
-            </p>
-          </div>
-          <div className="flex gap-2 shrink-0">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
+        {stepError && (
+          <p
+            role="alert"
+            className="shrink-0 border-t border-border px-5 sm:px-6 py-2.5 text-xs text-destructive"
+          >
+            {stepError}
+          </p>
+        )}
+        <DialogFooter className="shrink-0 flex-row items-center justify-between border-t border-border bg-card px-3 sm:px-6 py-3 gap-2">
+          {advancedOpen ? (
             <Button
-              onClick={handleSave}
-              disabled={!canSave}
-              style={{ backgroundColor: subjectColor, opacity: 1 }}
-              className="text-white hover:opacity-90 disabled:cursor-not-allowed disabled:saturate-50"
+              type="button"
+              variant="ghost"
+              onClick={() => setAdvancedOpen(false)}
             >
-              {initialData ? "Update" : "Create"} Profile
+              <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+              Back
             </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() =>
+                step === "basics"
+                  ? onOpenChange(false)
+                  : goTo(
+                      step === "review"
+                        ? !guidedActive && blueprintEnabled
+                          ? "layout"
+                          : "paper"
+                        : step === "layout"
+                          ? "paper"
+                          : "basics",
+                    )
+              }
+              className="px-2 text-muted-foreground"
+            >
+              {step !== "basics" && (
+                <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              {step === "basics" ? "Cancel" : "Back"}
+            </Button>
+          )}
+          <div className="flex min-w-0 items-center gap-2">
+            {!advancedOpen && step !== "review" && (
+              <Button
+                type="button"
+                className="px-3 sm:px-4"
+                variant={initialData ? "outline" : "default"}
+                onClick={continueStep}
+              >
+                {step === "basics"
+                  ? "Continue"
+                  : step === "paper" && !guidedActive && blueprintEnabled
+                    ? "Sections & marks"
+                    : "Review"}
+                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+              </Button>
+            )}
+            {advancedOpen && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAdvancedOpen(false)}
+              >
+                Done
+              </Button>
+            )}
+            {((!advancedOpen && step === "review") || initialData) && (
+              <Button
+                type="button"
+                aria-label={initialData ? "Update Profile" : "Create Profile"}
+                onClick={saveProfile}
+                disabled={!canSave}
+                style={{ backgroundColor: subjectColor }}
+                className="px-3 sm:px-4 text-white disabled:opacity-50"
+              >
+                <span className="sm:hidden">
+                  {initialData ? "Save" : "Create"}
+                </span>
+                <span className="hidden sm:inline">
+                  {initialData ? "Update Profile" : "Create Profile"}
+                </span>
+              </Button>
+            )}
           </div>
         </DialogFooter>
       </DialogContent>

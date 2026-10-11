@@ -1,3 +1,4 @@
+import {renderProfileBasics} from "./profile-test-render";
 import {afterEach,expect,it,vi} from 'vitest';
 import {createContext,useContext,cloneElement} from 'react';
 import {cleanup,fireEvent,render,screen} from '@testing-library/react';
@@ -32,7 +33,7 @@ it.each(['full_mock','short_practice'] as const)('renders the %s saved diagram w
   expect(container.textContent).not.toMatch(/Left atrium|Ventricle|SVC|Nucleus|Chloroplast/i);
 });
 const base={profile_name:'Biology B mock',topics:['Biological Molecules'],question_count:9,written_question_count:7,mcq_count:2,time_limit_minutes:42,educational_tier:'level3',assessment_tier:null,question_structure:'standalone',include_tables:true,include_graphs:false,mcq_options_count:4,mcq_position:'end',mark_distribution:{2:3,4:4},calculator_policy:'not_allowed'};
-function editor(initial:any=base){const save=vi.fn(),view=render(<ExamProfileModal open onOpenChange={()=>{}} subjectName="Biology" subjectColor="#246746" examBoard="Pearson Edexcel" availableTopics={base.topics} onSave={save} initialData={initial}/>);return {...view,save};}
+function editor(initial:any=base){const save=vi.fn(),view=renderProfileBasics(<ExamProfileModal open onOpenChange={()=>{}} subjectName="Biology" subjectColor="#246746" examBoard="Pearson Edexcel" availableTopics={base.topics} onSave={save} initialData={initial}/>);return {...view,save};}
 function select(){fireEvent.change(screen.getByLabelText('Pearson Edexcel Biology qualification'),{target:{value:B}});fireEvent.change(screen.getByLabelText('Biology paper'),{target:{value:'9bi0_01'}});}
 function apply(mode='full_mock'){select();fireEvent.click(screen.getByRole('button',{name:mode==='full_mock'?/^Full mock/:/^Short practice/}));fireEvent.click(screen.getByRole('button',{name:'Use these settings'}));}
 function stored(args:any[]){return {...base,topics:args[1],question_count:args[2],time_limit_minutes:args[4],assessment_tier:args[5].assessmentTier,mcq_count:args[5].mcqCount,mcq_position:args[5].mcqPosition,mark_distribution:args[5].markDistribution,calculator_policy:args[5].calculatorPolicy,written_question_count:args[6],paper_blueprint:args[5].paperBlueprint,question_structure:args[7].questionStructure,parent_question_count:args[7].parentQuestionCount,max_parts_per_question:args[7].maxPartsPerQuestion,include_graphs:args[7].includeGraphs,include_tables:args[7].includeTables};}
