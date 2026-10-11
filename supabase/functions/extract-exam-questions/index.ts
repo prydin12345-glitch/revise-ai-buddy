@@ -8,6 +8,8 @@ import { AQA_ALEVEL_BIOLOGY_ID, OCR_GATEWAY_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, EDEX
 import { expandComprehensionReferences } from '../_shared/biology-comprehension.ts';
 import { isAqaPaper2 } from "../_shared/aqa-biology-paper2.ts";
 import { paperPlanForAttempt } from "../_shared/course-selection.ts";
+import {isGenericPlan} from '../_shared/profile-template.ts';
+import {templateSnapshotInstructions} from '../_shared/profile-template-context.ts';
 import { biologyPlanInstructions, biologyBatchInstructions, packForBiologyPlan } from "../_shared/biology-course-packs.ts";
 import { plannedResourceTypeNotes } from "../_shared/planned-resource-types.ts";
 import {ocrPaper3StatisticsInstructions} from '../_shared/ocr-paper3-statistics-instructions.ts';
@@ -419,8 +421,8 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   const authoritativeTier = storedAssessmentTier(storedContext);
   const generationScope = biologyScopeFromContext(storedContext, {subject: exam.subject_id, educationalLevel: exam.qualification_level, examBoard: exam.exam_board});
   const guidedPlan = paperPlanForAttempt(storedContext, formatData?.profile_metadata?.paperBlueprint);
-  const guidedPack = guidedPlan ? packForBiologyPlan(guidedPlan) : null;
-  const usesContractOnlyGeneration = guidedPack?.generation.strategy === 'contract_only';
+  const guidedPack = guidedPlan && !isGenericPlan(guidedPlan) ? packForBiologyPlan(guidedPlan) : null;
+  const usesContractOnlyGeneration = isGenericPlan(guidedPlan) || guidedPack?.generation.strategy === 'contract_only';
   const useOriginalStructure = !usesContractOnlyGeneration && (formatData?.use_original_structure ?? true);
 
   // Download and extract PDF text early so original structure can guide inserts and prompting.
@@ -445,7 +447,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   const stimulusMandatory = /english/i.test(String(exam.subject_id || ''));
   const effectiveIncludeInsert = includeInsert || stimulusMandatory;
   console.log(`[insert] includeInsert=${includeInsert} effective=${effectiveIncludeInsert} subject="${exam.subject_id}" capable=${INSERT_CAPABLE.test(String(exam.subject_id || ''))}`);
-  if (effectiveIncludeInsert && INSERT_CAPABLE.test(String(exam.subject_id || ''))) {
+  if (!isGenericPlan(guidedPlan) && effectiveIncludeInsert && INSERT_CAPABLE.test(String(exam.subject_id || ''))) {
     try {
       const topicsForFigures: string[] = (Array.isArray(bodyTopics) && bodyTopics.length > 0)
         ? bodyTopics
@@ -749,6 +751,8 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   }
   guidedPromptTail.push(buildExtractSafetyInstruction(examBoard, exam.subject_id || ''));
   extractionPrompt += '\n' + buildExtractSafetyInstruction(examBoard, exam.subject_id || '');
+  const savedTemplateScope = templateSnapshotInstructions(storedContext);
+  if (savedTemplateScope) { guidedPromptTail.push(savedTemplateScope); extractionPrompt += '\n' + savedTemplateScope; }
   const guidedPromptSuffix = GUIDED_JSON_ENVELOPE + '\n\n' + guidedPromptTail.filter(Boolean).join('\n\n');
 
   const startTime = Date.now();
@@ -3134,7 +3138,7 @@ async function enforceAnswerability(
   // count or total, so trim and re-mark BEFORE validating instead of burning
   // repair calls on an unrepairable defect.
   const reconcileToPlan = async (rows: any[]): Promise<boolean> => {
-    if (!plan || packForBiologyPlan(plan).generation.strategy === 'contract_only') return false;
+    if (!plan || isGenericPlan(plan) || packForBiologyPlan(plan).generation.strategy === 'contract_only') return false;
     const parentOf = (n: string) => String(n || '').match(/^\d+/)?.[0] ?? '0';
     const byParent = new Map<string, any[]>();
     for (const r of rows) {

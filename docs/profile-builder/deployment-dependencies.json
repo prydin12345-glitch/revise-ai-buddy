@@ -1,0 +1,160 @@
+[
+  {
+    "function": "extract-exam-questions",
+    "changedImports": [
+      "supabase/functions/_shared/profile-template.ts",
+      "supabase/functions/_shared/profile-fingerprint.ts",
+      "supabase/functions/_shared/biology-course-packs.ts",
+      "supabase/functions/_shared/preset-approval-records.ts",
+      "supabase/functions/_shared/preset-approval.ts",
+      "supabase/functions/_shared/profile-evidence.ts",
+      "supabase/functions/_shared/profile-template-context.ts",
+      "supabase/functions/_shared/course-selection.ts",
+      "supabase/functions/_shared/profile-template-plan-validator.ts",
+      "supabase/functions/_shared/biology-plan-validator.ts",
+      "supabase/functions/_shared/profile-context.ts",
+      "supabase/functions/extract-exam-questions/index.ts"
+    ]
+  },
+  {
+    "function": "generate-practice-questions",
+    "changedImports": [
+      "supabase/functions/_shared/profile-template.ts",
+      "supabase/functions/_shared/profile-fingerprint.ts",
+      "supabase/functions/_shared/biology-course-packs.ts",
+      "supabase/functions/_shared/preset-approval-records.ts",
+      "supabase/functions/_shared/preset-approval.ts",
+      "supabase/functions/_shared/profile-evidence.ts",
+      "supabase/functions/_shared/profile-template-context.ts",
+      "supabase/functions/_shared/course-selection.ts",
+      "supabase/functions/_shared/profile-template-plan-validator.ts",
+      "supabase/functions/_shared/biology-plan-validator.ts",
+      "supabase/functions/_shared/biology-practice.ts",
+      "supabase/functions/_shared/profile-context.ts",
+      "supabase/functions/generate-practice-questions/index.ts"
+    ]
+  },
+  {
+    "function": "get-practice-questions",
+    "changedImports": [
+      "supabase/functions/_shared/profile-template.ts",
+      "supabase/functions/_shared/profile-fingerprint.ts",
+      "supabase/functions/_shared/biology-course-packs.ts",
+      "supabase/functions/_shared/preset-approval-records.ts",
+      "supabase/functions/_shared/preset-approval.ts",
+      "supabase/functions/_shared/profile-evidence.ts",
+      "supabase/functions/_shared/profile-template-context.ts",
+      "supabase/functions/_shared/course-selection.ts",
+      "supabase/functions/_shared/profile-template-plan-validator.ts",
+      "supabase/functions/_shared/biology-plan-validator.ts",
+      "supabase/functions/_shared/biology-practice.ts",
+      "supabase/functions/_shared/profile-context.ts",
+      "supabase/functions/get-practice-questions/index.ts"
+    ]
+  },
+  {
+    "function": "grade-practice-question",
+    "changedImports": [
+      "supabase/functions/_shared/profile-template-plan-validator.ts",
+      "supabase/functions/_shared/profile-template.ts",
+      "supabase/functions/_shared/profile-fingerprint.ts",
+      "supabase/functions/_shared/biology-course-packs.ts",
+      "supabase/functions/_shared/preset-approval-records.ts",
+      "supabase/functions/_shared/preset-approval.ts",
+      "supabase/functions/_shared/profile-evidence.ts",
+      "supabase/functions/_shared/profile-template-context.ts",
+      "supabase/functions/_shared/course-selection.ts",
+      "supabase/functions/_shared/biology-plan-validator.ts",
+      "supabase/functions/_shared/biology-practice.ts",
+      "supabase/functions/_shared/biology-marking.ts"
+    ]
+  },
+  {
+    "function": "profile-builder",
+    "changedImports": [
+      "supabase/functions/_shared/profile-fingerprint.ts",
+      "supabase/functions/_shared/profile-template.ts",
+      "supabase/functions/_shared/biology-course-packs.ts",
+      "supabase/functions/_shared/preset-approval-records.ts",
+      "supabase/functions/_shared/preset-approval.ts",
+      "supabase/functions/_shared/profile-evidence.ts",
+      "supabase/functions/_shared/profile-source-registry.ts",
+      "supabase/functions/_shared/profile-builder-service.ts",
+      "supabase/functions/_shared/profile-document-io.ts",
+      "supabase/functions/_shared/profile-template-context.ts",
+      "supabase/functions/profile-builder/index.ts"
+    ]
+  },
+  {
+    "function": "publish-exam",
+    "changedImports": [
+      "supabase/functions/_shared/profile-template.ts",
+      "supabase/functions/_shared/profile-fingerprint.ts",
+      "supabase/functions/_shared/biology-course-packs.ts",
+      "supabase/functions/_shared/preset-approval-records.ts",
+      "supabase/functions/_shared/preset-approval.ts",
+      "supabase/functions/_shared/profile-evidence.ts",
+      "supabase/functions/_shared/profile-template-context.ts",
+      "supabase/functions/_shared/course-selection.ts",
+      "supabase/functions/_shared/profile-template-plan-validator.ts",
+      "supabase/functions/_shared/biology-plan-validator.ts"
+    ]
+  },
+  {
+    "function": "save-exam-format",
+    "changedImports": [
+      "supabase/functions/_shared/profile-template.ts",
+      "supabase/functions/_shared/biology-course-packs.ts",
+      "supabase/functions/_shared/profile-fingerprint.ts",
+      "supabase/functions/_shared/preset-approval-records.ts",
+      "supabase/functions/_shared/preset-approval.ts",
+      "supabase/functions/_shared/profile-evidence.ts",
+      "supabase/functions/_shared/profile-template-context.ts",
+      "supabase/functions/_shared/course-selection.ts",
+      "supabase/functions/_shared/profile-context.ts"
+    ]
+  },
+  {
+    "function": "save-exam-timer",
+    "changedImports": [
+      "supabase/functions/_shared/profile-template.ts",
+      "supabase/functions/_shared/profile-fingerprint.ts",
+      "supabase/functions/_shared/biology-course-packs.ts",
+      "supabase/functions/_shared/preset-approval-records.ts",
+      "supabase/functions/_shared/preset-approval.ts",
+      "supabase/functions/_shared/profile-evidence.ts",
+      "supabase/functions/_shared/profile-template-context.ts",
+      "supabase/functions/_shared/course-selection.ts"
+    ]
+  },
+  {
+    "function": "submit-exam",
+    "changedImports": [
+      "supabase/functions/_shared/profile-template.ts",
+      "supabase/functions/_shared/profile-fingerprint.ts",
+      "supabase/functions/_shared/biology-course-packs.ts",
+      "supabase/functions/_shared/preset-approval-records.ts",
+      "supabase/functions/_shared/preset-approval.ts",
+      "supabase/functions/_shared/profile-evidence.ts",
+      "supabase/functions/_shared/profile-template-context.ts",
+      "supabase/functions/_shared/course-selection.ts",
+      "supabase/functions/_shared/profile-template-plan-validator.ts",
+      "supabase/functions/_shared/biology-plan-validator.ts",
+      "supabase/functions/_shared/biology-marking.ts"
+    ]
+  },
+  {
+    "function": "upload-exam",
+    "changedImports": [
+      "supabase/functions/_shared/profile-template.ts",
+      "supabase/functions/_shared/biology-course-packs.ts",
+      "supabase/functions/_shared/profile-fingerprint.ts",
+      "supabase/functions/_shared/preset-approval-records.ts",
+      "supabase/functions/_shared/preset-approval.ts",
+      "supabase/functions/_shared/profile-evidence.ts",
+      "supabase/functions/_shared/profile-template-context.ts",
+      "supabase/functions/_shared/course-selection.ts",
+      "supabase/functions/_shared/profile-context.ts"
+    ]
+  }
+]

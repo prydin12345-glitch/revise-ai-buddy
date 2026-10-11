@@ -16,6 +16,8 @@ import {
 } from "./assessment-tier";
 import { profileCourseId, resolvePaperSelection, type ResolvedPaperSelection } from '../../supabase/functions/_shared/course-selection.ts';
 
+import {snapshotTemplate} from '../../supabase/functions/_shared/profile-template-context.ts';
+
 export const GENERATION_CONTEXT_VERSION = 2;
 
 export interface ProfileContextProfile {
@@ -25,6 +27,7 @@ export interface ProfileContextProfile {
   educational_tier?: string | null;
   assessment_tier?: string | null;
   paper_blueprint?: unknown;
+  profile_template?: unknown;
 }
 
 export interface ProfileContextInput {
@@ -55,6 +58,7 @@ export interface ResolvedGenerationContext extends ResolvedPaperSelection {
   assessmentTier: AssessmentTier | null;
   assessmentTierSupported: boolean;
   courseId: string | null;
+  profileTemplate?: ReturnType<typeof snapshotTemplate>;
   configurationError: string | null;
   sources: { examBoard: ContextSource; educationalTier: ContextSource };
 }
@@ -86,6 +90,28 @@ export const resolveProfileContext = (
     ["manual", clean(input.manualEducationalTier)],
     ["preference", clean(input.preferredEducationalLevel)],
   ]);
+
+  if (profile?.profile_template) {
+    try {
+      const saved = snapshotTemplate(profile as unknown as Record<string, any>);
+      if (saved?.plan) {
+        const i = saved.context.template.identity;
+        return {contextVersion: GENERATION_CONTEXT_VERSION, subjectName:i.subject,
+          profileId:profile.id, profileName:clean(profile.profile_name), examBoard:i.organisation,
+          educationalTier:i.qualification, assessmentTier:i.tier,
+          assessmentTierSupported:i.tier==='foundation'||i.tier==='higher',
+          courseId:saved.plan.courseId,paperId:i.component,componentCode:i.component,
+          specificationVersion:i.specificationVersion,paperContract:null,profileTemplate:saved,
+          configurationError:null,sources:{examBoard:'profile',educationalTier:'profile'}};
+      }
+    } catch (error) {
+      return {contextVersion:GENERATION_CONTEXT_VERSION,subjectName:input.subjectName,
+        profileId:profile.id,profileName:clean(profile.profile_name),examBoard,educationalTier,
+        assessmentTier:null,assessmentTierSupported:false,courseId:null,paperId:null,
+        componentCode:null,paperContract:null,configurationError:error instanceof Error?error.message:'Review your saved template.',
+        sources:{examBoard:boardSource,educationalTier:levelSource}};
+    }
+  }
 
   const lookup = {
     subject: input.subjectName,

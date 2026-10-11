@@ -9,7 +9,7 @@ interface MasterTopic {
   topic: string;
 }
 
-interface ExamProfile {
+export interface ExamProfile {
   id: string;
   subject_name: string;
   profile_name: string;
@@ -35,6 +35,7 @@ interface ExamProfile {
   exam_board: string | null;
   /** Foundation / Higher / not_tiered. null = unknown (legacy profile). */
   assessment_tier: string | null;
+  profile_template?: unknown;
   paper_blueprint?: import("@/integrations/supabase/types").Json;
   created_at: string;
   updated_at: string;
@@ -132,6 +133,9 @@ export const useSubjectProfiles = () => {
 
   useEffect(() => {
     fetchAll();
+    const refresh = () => { void fetchAll(); };
+    window.addEventListener('examly-profiles-updated', refresh);
+    return () => window.removeEventListener('examly-profiles-updated', refresh);
   }, [fetchAll]);
 
   const getTopicsForSubject = useCallback(

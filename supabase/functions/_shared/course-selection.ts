@@ -1,4 +1,5 @@
 import {EDEXCEL_ALEVEL_BIOLOGY_B_ID,EDEXCEL_ALEVEL_BIOLOGY_A_ID} from './assessment-tier.ts';
+import {templateSnapshotPlan} from './profile-template-context.ts';
 import {EDEXCEL_B_SPECIFICATION} from './edexcel-alevel-biology-b-scope.ts';
 import {bindPublicVisualPlan,VISUAL_POLICY} from './biology-visual-plan.ts';
 import { parseResponseFormatPolicy, type ResponseFormatPolicy } from './response-format-policy.ts';
@@ -118,6 +119,7 @@ export function paperPlanForAttempt(context: any, legacyBlueprint?: unknown) {
     if (Object.keys(object(object(legacyBlueprint).paperContract)).length) throw new Error('A saved server course context is required for guided generation.');
     return null;
   }
+  if (context.profile_template?.plan) return templateSnapshotPlan(context.profile_template);
   const legacy = context.context_version === 1;
   if(canonicalCourseId(context.course_id??object(object(legacyBlueprint).paperContract).courseId)===EDEXCEL_ALEVEL_BIOLOGY_B_ID&&
     (legacy||context.specification_version!==EDEXCEL_B_SPECIFICATION||context.paper_id!=='9bi0_01'||context.component_code!=='9BI0/01'||context.assessment_tier!=='not_tiered'))

@@ -19,10 +19,13 @@ export interface ProfileDisplaySource {
   time_limit_minutes?: number | null;
   question_structure?: string | null;
   paper_blueprint?: unknown;
+  profile_template?: unknown;
 }
 
 /** Display derived from the saved identity/version; it does not award approval. */
 export function examProfileDisplay(profile: ProfileDisplaySource) {
+  const saved=profile.profile_template as {template?:{mode:string;identity:{organisation:string;qualification:string;component:string};marks:number;durationMinutes:number;sections:{groups:{parts:unknown[]}[]}[]}}|undefined;
+  if(saved?.template){const t=saved.template;return {mode:t.mode==='full_mock'?'Full mock':t.mode==='short_practice'?'Short practice':'Custom',identity:[t.identity.organisation,t.identity.qualification,formatAssessmentTier(profile.assessment_tier)].filter(Boolean).join(' · '),paper:t.identity.component,countLabel:`${t.sections.flatMap(s=>s.groups.flatMap(g=>g.parts)).length} parts`,timeLabel:`${t.durationMinutes} min`,marksLabel:`${t.marks} marks`};}
   const blueprint = profile.paper_blueprint as
     | {
         paperContract?: { mode?: string; contractVersion?: number };

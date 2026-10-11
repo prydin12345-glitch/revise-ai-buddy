@@ -1,3 +1,4 @@
+import {isGenericPlan} from '../../supabase/functions/_shared/profile-template';
 import { paperPlanForAttempt } from '../../supabase/functions/_shared/course-selection';
 import { EDEXCEL_ALEVEL_BIOLOGY_B_ID, AQA_ALEVEL_BIOLOGY_ID, OCR_ALEVEL_BIOLOGY_ID, OCR_GATEWAY_BIOLOGY_ID, OCR_21C_BIOLOGY_ID, EDEXCEL_BIOLOGY_ID, WJEC_BIOLOGY_ID } from '@/lib/assessment-tier';
 import { canonicalPartNumber } from '../../supabase/functions/_shared/ocr-plan-validator';
@@ -8,6 +9,7 @@ export function biologyPaperDisplay(context: unknown) {
   if (gateway) return {...gateway, subject: 'Gateway Biology A'};
   try {
     const plan = paperPlanForAttempt(context);
+    if (plan && isGenericPlan(plan)) { const c=context as any; return {plan,subject:c.subject_name,label:plan.label + ' · ' + (c.profile_template.context.origin==='source_backed_ai'?'Source-backed AI draft':c.profile_template.context.origin==='model_knowledge_ai'?'Unverified general practice':'Custom profile')}; }
     if(plan?.courseId===EDEXCEL_ALEVEL_BIOLOGY_B_ID)return {plan,subject:'Pearson Edexcel A Level Biology B',label:'Pearson Edexcel A Level Biology B · 9BI0/01 · Advanced Biochemistry, Microbiology and Genetics'};
     if(plan?.courseId===OCR_ALEVEL_BIOLOGY_ID)return {plan,subject:'A-level Biology A',label:`OCR A-level Biology A · ${plan.componentCode} · ${plan.paperId==='paper_3'?'Unified biology':plan.paperId==='paper_2'?'Biological diversity':'Biological processes'}`};
     if(plan?.courseId===AQA_ALEVEL_BIOLOGY_ID)return {plan,subject:'A-level Biology',label:`AQA A-level Biology Paper ${plan.paperId==='paper_3'?'3':plan.paperId==='paper_2'?'2':'1'} · ${plan.componentCode}`};

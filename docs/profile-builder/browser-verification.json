@@ -1,0 +1,29 @@
+{
+  "checks": [
+    "Approved H420/03 real preset and gold star",
+    "Approval meaning is keyboard-focusable and available to screen readers",
+    "Approved catalogue made zero AI calls and zero quota reservations",
+    "Customised settings lost star; explicit restore recovered it",
+    "Rename, confirm and reopen using browser-memory save",
+    "Invalid totals block saving",
+    "1440px light mode: dialog fits",
+    "1440px dark mode: dialog fits",
+    "768px light mode: dialog fits",
+    "768px dark mode: dialog fits",
+    "390px light mode: dialog fits",
+    "390px dark mode: dialog fits",
+    "Registered Pearson source produced an editable simulated AI draft without a star",
+    "Institution-scoped upload, editable source-backed draft, browser-memory save and reopen; injection text did not award approval",
+    "Explicit general practice is labelled; full mock blocked",
+    "Unverified draft remains unstarred; cancelling writes no profile",
+    "Manual editor remains available"
+  ],
+  "issues": [],
+  "fonts": {
+    "manrope": true,
+    "serif": true
+  },
+  "savedMode": "browser-memory only",
+  "realBackendWrites": 0,
+  "fontNetwork": "actual Google font files served from a test-only local cache; direct Chromium font requests are blocked by environment networking"
+}

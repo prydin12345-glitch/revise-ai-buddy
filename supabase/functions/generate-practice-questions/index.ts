@@ -125,6 +125,8 @@ async function generateQuestionsInBackground(
     );
 
     const interactiveResponses = responseFormatsEnabled(generationContext);
+    // Uploaded/institution evidence and builder drafts never enter shared caches.
+    const privateEvidence = !!generationContext.profile_template;
     checkBiologyPracticeCourse(generationContext);
     const coursePracticeInstructions = biologyPracticeInstructions(generationContext);
     const resolvedAssessmentTier = (generationContext?.assessment_tier as string | null) ?? null;
@@ -148,7 +150,7 @@ async function generateQuestionsInBackground(
     // Determine variation slot for this student
     const MAX_VARIATION_SLOTS = 5;
     let variationSlot = 0;
-    const baseCacheKey = (!interactiveResponses && !isCustomNicheForCache && cacheParams.examBoard && cacheParams.educationalLevel)
+    const baseCacheKey = (!interactiveResponses && !privateEvidence && !isCustomNicheForCache && cacheParams.examBoard && cacheParams.educationalLevel)
       ? await buildBaseCacheKey(cacheParams)
       : null;
 
@@ -188,13 +190,13 @@ async function generateQuestionsInBackground(
       console.log(`Variation slot ${variationSlot} for user ${userId}, base key ${baseCacheKey}`);
     }
 
-    const cacheKey = await buildCacheKey({
+    const cacheKey = privateEvidence ? null : await buildCacheKey({
       ...cacheParams,
       isCustomNiche: isCustomNicheForCache,
       variationSlot,
     });
 
-    if (!interactiveResponses && cacheKey && !forceRefresh) {
+    if (!interactiveResponses && !privateEvidence && cacheKey && !forceRefresh) {
       const { data: cached } = await supabaseClient
         .from('question_generation_cache')
         .select('questions, hit_count, subject, exam_board, educational_level')
@@ -4801,7 +4803,7 @@ Generate questions that are meaningfully different from all of the above.`;
     console.log('Questions generated successfully');
 
     // ── OPTIMISATION 1: SAVE TO CACHE after successful generation ──
-    if (!interactiveResponses && cacheKey && questionsToInsert.length > 0) {
+    if (!interactiveResponses && !privateEvidence && cacheKey && questionsToInsert.length > 0) {
       try {
         await supabaseClient.from('question_generation_cache').upsert({
           cache_key: cacheKey,
