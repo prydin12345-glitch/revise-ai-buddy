@@ -104,11 +104,18 @@ function memoryApi() {
 }
 async function approvedReview(api: BuilderApi) {
   render(<ExamProfileBuilder {...props} api={api} />);
-  fireEvent.change(screen.getByLabelText("Approved preset"), {
-    target: { value: entry.id },
+  fireEvent.change(screen.getByLabelText("Course variant"), {
+    target: { value: "ocr_alevel_biology_a_h420" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Build profile for me" }));
+  fireEvent.change(screen.getByLabelText("Paper"), {
+    target: { value: "paper_3" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  fireEvent.click(screen.getByRole("button", { name: "Yes, build it" }));
   await screen.findByLabelText("Profile name");
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Save profile" })).toBeEnabled(),
+  );
 }
 it("uses the existing editor container and keeps the manual route available", () => {
   render(
@@ -137,7 +144,7 @@ it("approved OCR Paper 3 previews its actual marks, parts and an accessible star
   ).toBeInTheDocument();
   expect(screen.getByText("20", { selector: "strong" })).toBeInTheDocument();
   expect(r.calls[0].presetId).toBe(entry.id);
-  expect(screen.getByRole("button", { name: "Confirm & save" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Save profile" })).toBeEnabled();
 });
 it("editing generation settings removes active approval, and explicit restore recovers it", async () => {
   const r = memoryApi();
@@ -167,7 +174,7 @@ it("rename, confirmation and reopening preserve approval and saved provenance", 
   expect(
     screen.getByRole("img", { name: "Examly-approved preset" }),
   ).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Confirm & save" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
   await waitFor(() => expect(r.profiles.size).toBe(1));
   const profile = [...r.profiles.values()][0];
   cleanup();
@@ -185,7 +192,7 @@ it("invalid edited mark totals block confirmation rather than becoming generatio
   fireEvent.change(screen.getByLabelText("Total marks"), {
     target: { value: "21" },
   });
-  expect(screen.getByRole("button", { name: "Confirm & save" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Save profile" })).toBeDisabled();
   expect(screen.getByRole("alert")).toHaveTextContent(/Achievable marks/);
 });
 it("a source-backed unsupported course produces an editable draft with no star", async () => {
@@ -194,7 +201,8 @@ it("a source-backed unsupported course produces an editable draft with no star",
   fireEvent.change(screen.getByLabelText("Registered source"), {
     target: { value: "pearson-9bi0-01-issue4" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Build profile for me" }));
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  fireEvent.click(screen.getByRole("button", { name: "Yes, build it" }));
   await screen.findByLabelText("Profile name");
   expect(screen.getByText("Source-backed AI draft")).toBeInTheDocument();
   expect(
@@ -202,35 +210,54 @@ it("a source-backed unsupported course produces an editable draft with no star",
   ).not.toBeInTheDocument();
   expect(screen.getByLabelText("Topics — one per line")).toBeEnabled();
 });
-it("missing source requires explicit choice and never starts a model-backed proposal", async () => {
+it("missing source requires explicit choice and never starts a model-backed proposal", () => {
   const r = memoryApi();
-  render(<ExamProfileBuilder {...props} api={r.api} />);
-  for (const [label, value] of [
-    ["Country", "US"],
-    ["Education system", "Institution"],
-    ["Qualification", "Module"],
-    ["Course / specification code", "BIO101"],
-    ["Paper / unit / module", "Final"],
-    ["Specification / cohort version", "2026"],
-  ])
-    fireEvent.change(screen.getByLabelText(label), { target: { value } });
-  fireEvent.click(screen.getByRole("button", { name: "Build profile for me" }));
-  expect(screen.getByRole("alert")).toHaveTextContent(/registered source/);
+  render(
+    <ExamProfileBuilder
+      {...props}
+      curriculumRegion="US"
+      educationalLevel="undergrad"
+      examBoard="Example University"
+      api={r.api}
+    />,
+  );
+  fireEvent.change(screen.getByLabelText("Paper or assessment"), {
+    target: { value: "Final" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByRole("button", { name: "Yes, build it" })).toBeDisabled();
+  expect(screen.getByText(/needs your syllabus/)).toBeInTheDocument();
   expect(r.calls).toHaveLength(0);
 });
 it("general practice opt-in is labelled honestly and full mock is disabled", () => {
   const r = memoryApi();
-  render(<ExamProfileBuilder {...props} api={r.api} />);
-  fireEvent.click(screen.getByRole("button", { name: "General practice" }));
+  render(
+    <ExamProfileBuilder
+      {...props}
+      subjectName="Physics"
+      curriculumRegion="GB"
+      educationalLevel="level2"
+      examBoard="AQA"
+      api={r.api}
+    />,
+  );
+  fireEvent.change(screen.getByLabelText("Paper or assessment"), {
+    target: { value: "Paper 1" },
+  });
+  fireEvent.change(screen.getByLabelText("Tier"), {
+    target: { value: "higher" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "General practice without a syllabus" }),
+  );
   expect(
     screen.getByText(/may not match your real assessment/),
   ).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText("Assessment mode"), {
     target: { value: "full_mock" },
   });
-  expect(
-    screen.getByRole("button", { name: "Build profile for me" }),
-  ).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByRole("button", { name: "Yes, build it" })).toBeDisabled();
 });
 it("a cancelled in-flight response cannot reopen preview or save a profile", async () => {
   let resolve: any;
@@ -239,13 +266,27 @@ it("a cancelled in-flight response cannot reopen preview or save a profile", asy
       resolve = r;
     });
   const closed = vi.fn();
-  render(<ExamProfileBuilder {...props} onOpenChange={closed} api={api} />);
-  fireEvent.change(screen.getByLabelText("Approved preset"), {
-    target: { value: entry.id },
+  const view = render(
+    <ExamProfileBuilder {...props} onOpenChange={closed} api={api} />,
+  );
+  fireEvent.change(screen.getByLabelText("Course variant"), {
+    target: { value: "ocr_alevel_biology_a_h420" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Build profile for me" }));
+  fireEvent.change(screen.getByLabelText("Paper"), {
+    target: { value: "paper_3" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  fireEvent.click(screen.getByRole("button", { name: "Yes, build it" }));
   fireEvent.click(
     screen.getByRole("button", { name: "Close profile builder" }),
+  );
+  view.rerender(
+    <ExamProfileBuilder
+      {...props}
+      open={false}
+      onOpenChange={closed}
+      api={api}
+    />,
   );
   resolve({
     proposalId: crypto.randomUUID(),
@@ -261,12 +302,18 @@ it("a transport retry preserves its idempotency key instead of creating another 
       throw Error("Transport interrupted");
     };
   render(<ExamProfileBuilder {...props} api={api} />);
-  fireEvent.change(screen.getByLabelText("Approved preset"), {
-    target: { value: entry.id },
+  fireEvent.change(screen.getByLabelText("Course variant"), {
+    target: { value: "ocr_alevel_biology_a_h420" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Build profile for me" }));
+  fireEvent.change(screen.getByLabelText("Paper"), {
+    target: { value: "paper_3" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  fireEvent.click(screen.getByRole("button", { name: "Yes, build it" }));
   await screen.findByText("Transport interrupted");
-  fireEvent.click(screen.getByRole("button", { name: "Build profile for me" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Retry preparing profile" }),
+  );
   await waitFor(() => expect(calls).toHaveLength(2));
   expect(calls[1].requestId).toBe(calls[0].requestId);
 });

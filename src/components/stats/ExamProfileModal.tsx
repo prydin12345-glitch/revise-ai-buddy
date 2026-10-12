@@ -956,8 +956,10 @@ export const ExamProfileModal = ({
     (blueprintHasInvalidMarks ? "Give each question at least one mark." : null);
 
   if (builderOpen) return <ExamProfileBuilder open={open} onOpenChange={onOpenChange}
-    subjectName={subjectName} examBoard={initialData?.exam_board??examBoard}
-    educationalLevel={initialData?.educational_tier??finalTier} initialProfile={initialData}
+    subjectName={subjectName} examBoard={initialData?.exam_board||examBoard||preferences?.preferred_exam_board}
+    educationalLevel={initialData?.educational_tier||finalTier||preferences?.preferred_educational_level}
+    curriculumRegion={preferences?.curriculum_region} courseId={selectedCourseId} paperId={selectedPaperId}
+    assessmentTier={assessmentTier} initialMode={paperMode} initialProfile={initialData}
     onManual={()=>setBuilderOpen(false)} />;
 
   return (

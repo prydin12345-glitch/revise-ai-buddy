@@ -51,6 +51,17 @@ import {
   resolveRegisteredSource,
 } from "../../../supabase/functions/_shared/profile-source-registry";
 import { ExamlyApprovalBadge } from "./ExamlyApprovalBadge";
+import {
+  builderInitialIdentity,
+  builderCourses,
+  builderSelectedCourse,
+  builderPapers,
+  builderNeedsTier,
+  resolveBuilderChoice,
+  builderAssessmentLabel,
+  BUILDER_BOARDS,
+} from "@/lib/profile-builder-resolution";
+import { ALL_LEVELS } from "@/lib/educational-levels";
 
 interface Props {
   open: boolean;
@@ -59,6 +70,11 @@ interface Props {
   examBoard?: string | null;
   educationalLevel?: string | null;
   onManual: () => void;
+  curriculumRegion?: string | null;
+  courseId?: string | null;
+  paperId?: string | null;
+  assessmentTier?: string | null;
+  initialMode?: ProfileTemplate["mode"];
   initialProfile?: {
     id?: string;
     profile_name: string;
@@ -84,27 +100,6 @@ function Field({
   );
 }
 const uuid = () => crypto.randomUUID();
-const initialIdentity = (
-  subject: string,
-  board?: string | null,
-  level?: string | null,
-): TemplateIdentity => ({
-  country: "",
-  educationSystem: "",
-  stage: "Secondary",
-  qualification:
-    level === "level3"
-      ? "A-level"
-      : level === "level2"
-        ? "GCSE"
-        : (level ?? ""),
-  subject,
-  organisation: board ?? "",
-  course: "",
-  component: "",
-  specificationVersion: "",
-  tier: null,
-});
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 const proposalFromContext = (ctx: SavedTemplateContext): BuilderProposal => ({
   proposalVersion: 1,
@@ -123,16 +118,30 @@ export function ExamProfileBuilder({
   subjectName,
   examBoard,
   educationalLevel,
+  curriculumRegion,
+  courseId,
+  paperId,
+  assessmentTier,
+  initialMode,
   onManual,
   initialProfile,
   api = invokeProfileBuilder,
 }: Props) {
   const catalogue = approvalCatalogue();
-  const [step, setStep] = useState<"details" | "review">("details");
+  const [step, setStep] = useState<"details" | "confirm" | "review">("details");
   const [identity, setIdentity] = useState<TemplateIdentity>(() =>
-    initialIdentity(subjectName, examBoard, educationalLevel),
+    builderInitialIdentity({
+      subject: subjectName,
+      board: examBoard,
+      level: educationalLevel,
+      region: curriculumRegion,
+      courseId,
+      paperId,
+      tier: assessmentTier,
+    }),
   );
   const [mode, setMode] = useState<ProfileTemplate["mode"]>("short_practice");
+  const [changeKnown, setChangeKnown] = useState(false);
   const [presetId, setPresetId] = useState("");
   const [sourceId, setSourceId] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
@@ -161,6 +170,7 @@ export function ExamProfileBuilder({
     request.current = null;
     duplicateId.current = null;
     if (!open) return;
+    setSourceId("");
     const ctx = initialProfile?.profile_template as
       | SavedTemplateContext
       | undefined;
@@ -174,23 +184,66 @@ export function ExamProfileBuilder({
       setName(initialProfile!.profile_name);
       setStep("review");
     } else {
-      setIdentity(initialIdentity(subjectName, examBoard, educationalLevel));
-      setMode("short_practice");
+      setIdentity(
+        builderInitialIdentity({
+          subject: subjectName,
+          board: examBoard,
+          level: educationalLevel,
+          region: curriculumRegion,
+          courseId,
+          paperId,
+          tier: assessmentTier,
+        }),
+      );
+      setMode(initialMode === "full_mock" ? "full_mock" : "short_practice");
+      setChangeKnown(false);
       setPresetId("");
       setProposal(null);
       setProposalId("");
       setTemplate(null);
       setName(initialProfile?.profile_name ?? "");
-      setStep("details");
+      const seed = builderInitialIdentity({
+        subject: subjectName,
+        board: examBoard,
+        level: educationalLevel,
+        region: curriculumRegion,
+        courseId,
+        paperId,
+        tier: assessmentTier,
+      });
+      try {
+        const resolved = resolveBuilderChoice(
+          seed,
+          initialMode === "full_mock" ? "full_mock" : "short_practice",
+        );
+        setIdentity(resolved.identity);
+        setPresetId(resolved.presetId);
+        setSourceId(resolved.sourceId);
+        setStep(resolved.presetId || resolved.sourceId ? "confirm" : "details");
+      } catch {
+        setStep("details");
+      }
     }
-    setSourceId("");
+    // Preserve source identity resolved from saved selections.
+    if (ctx?.version === 1 && ctx.resolved_by === "server") setSourceId("");
     setSourceUrl("");
     setUpload(null);
     setSourceChoice("source");
     return () => {
       run.current++;
     };
-  }, [open, initialProfile, subjectName, examBoard, educationalLevel]);
+  }, [
+    open,
+    initialProfile,
+    subjectName,
+    examBoard,
+    educationalLevel,
+    curriculumRegion,
+    courseId,
+    paperId,
+    assessmentTier,
+    initialMode,
+  ]);
   const close = () => {
     run.current++;
     onOpenChange(false);
@@ -199,8 +252,26 @@ export function ExamProfileBuilder({
     key: keyof TemplateIdentity,
     value: string | null,
   ) => {
+    setError("");
+    setSourceId("");
     setIdentity((v) => {
       const next = { ...v, [key]: value };
+      if (["organisation", "qualification", "country"].includes(key)) {
+        next.course = "";
+        next.component = "";
+        next.specificationVersion = "";
+        next.tier = null;
+      }
+      if (key === "course") {
+        next.component = "";
+        next.specificationVersion = "";
+        next.tier = null;
+      }
+      if (
+        builderSelectedCourse(next)?.tierMode === "untiered" ||
+        next.qualification === "A-level"
+      )
+        next.tier = "not_tiered";
       if ((key === "institution" || key === "module") && !value)
         delete next[key];
       return next;
@@ -225,6 +296,7 @@ export function ExamProfileBuilder({
   };
   const chooseSource = (id: string) => {
     setSourceId(id);
+    setSourceChoice("source");
     setSourceUrl("");
     setPresetId("");
     setUpload(null);
@@ -270,7 +342,7 @@ export function ExamProfileBuilder({
       parsedIdentity = identitySchema.parse(identity);
     } catch {
       setError(
-        "Complete the course details, including its specification version. Unknown tier is allowed for practice.",
+        "Check the course choices. Technical details can be reviewed in Advanced details.",
       );
       return;
     }
@@ -304,6 +376,15 @@ export function ExamProfileBuilder({
     payload.requestId = request.current.id;
     const generation = ++run.current;
     setBusy(true);
+    if (presetId && !regenerate) {
+      const local = templateFromPreset(presetId);
+      setProposal(local);
+      setTemplate(clone(local.template));
+      setProposalId("");
+      setStep("review");
+      if (!name.trim())
+        setName(builderAssessmentLabel(local.template.identity));
+    }
     try {
       const result = await api(payload);
       if (generation !== run.current) return;
@@ -315,8 +396,9 @@ export function ExamProfileBuilder({
       setProposalId(result.proposalId);
       setTemplate(clone(t));
       setStep("review");
-      if (!name.trim())
-        setName(t.identity.subject + " · " + t.identity.component);
+      setName((previous) =>
+        previous.trim() ? previous : builderAssessmentLabel(t.identity),
+      );
     } catch (e) {
       if (generation === run.current)
         setError(
@@ -428,6 +510,39 @@ export function ExamProfileBuilder({
       }
     }
   }
+  const courses = builderCourses(identity),
+    selectedCourse = builderSelectedCourse(identity),
+    papers = builderPapers(identity);
+  const needsTier = builderNeedsTier(identity);
+  let resolution: ReturnType<typeof resolveBuilderChoice> | null = null;
+  try {
+    resolution = resolveBuilderChoice(identity, mode);
+  } catch {
+    /* Missing choices stay visible. */
+  }
+  const exactPreset = resolution?.presetId || presetId;
+  const exactSource = resolution?.sourceId || sourceId;
+  const needEvidence = !exactPreset && !exactSource;
+  const reviewChoice = () => {
+    try {
+      if (
+        sourceChoice === "upload" &&
+        identity.tier === null &&
+        !builderNeedsTier(identity)
+      )
+        throw Error(
+          "Does everyone sit the same assessment? Confirm this from your brief, or use Advanced details for separate tiers.",
+        );
+      const resolved = resolveBuilderChoice(identity, mode);
+      setIdentity(resolved.identity);
+      setPresetId(resolved.presetId);
+      setSourceId(resolved.sourceId || sourceId);
+      setError("");
+      setStep("confirm");
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
   const select = (
     value: string,
     onChange: (v: string) => void,
@@ -481,16 +596,24 @@ export function ExamProfileBuilder({
             aria-label="Builder steps"
             className="!mt-4 flex gap-1 rounded-md bg-muted/50 p-1"
           >
-            {["details", "review"].map((s, i) => (
+            {["details", "confirm", "review"].map((s, i) => (
               <button
                 key={s}
                 type="button"
                 disabled={busy || (s === "review" && !template)}
-                onClick={() => setStep(s as typeof step)}
+                onClick={() => {
+                  if (s === "confirm") reviewChoice();
+                  else setStep(s as typeof step);
+                }}
                 aria-current={step === s ? "step" : undefined}
                 className={`min-h-9 flex-1 rounded text-xs ${step === s ? "bg-card font-semibold shadow-sm" : "text-muted-foreground"}`}
               >
-                {i + 1} · {s === "details" ? "Your course" : "Review & save"}
+                {i + 1} ·{" "}
+                {s === "details"
+                  ? "Choose"
+                  : s === "confirm"
+                    ? "Confirm"
+                    : "Preview"}
               </button>
             ))}
           </nav>
@@ -507,6 +630,26 @@ export function ExamProfileBuilder({
               {error}
             </p>
           )}
+          {error && step === "review" && !proposalId && (
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => void build()}
+            >
+              Retry preparing profile
+            </Button>
+          )}
+          {busy && (
+            <p role="status" className="text-sm text-muted-foreground">
+              {step === "review" && proposalId
+                ? "Saving your profile…"
+                : presetId
+                  ? "Preparing your approved profile…"
+                  : sourceChoice === "unverified"
+                    ? "Building your unverified practice draft…"
+                    : "Building your source-backed draft…"}
+            </p>
+          )}
           {notice && (
             <p role="status" className="rounded-md bg-muted p-3 text-sm">
               {notice}
@@ -514,156 +657,384 @@ export function ExamProfileBuilder({
           )}
           {step === "details" ? (
             <>
-              <Field label="Start from an Examly-approved preset">
-                {select(
-                  presetId,
-                  choosePreset,
-                  [
-                    ["", "Choose your own course"],
-                    ...catalogue.map(
-                      (e) =>
-                        [
-                          e.id,
-                          `${e.organisation} ${e.qualification} ${e.subject} · ${e.component} · ${e.tier === "not_tiered" ? "Untiered" : e.tier} · ${e.mode === "full_mock" ? "Full mock" : "Short practice"}`,
-                        ] as [string, string],
-                    ),
-                  ],
-                  "Approved preset",
+              <p className="text-sm text-muted-foreground">
+                {identity.qualification
+                  ? `Using your saved ${identity.qualification} level`
+                  : "We’ll use your subject and saved Settings."}
+                {identity.country
+                  ? ` · ${identity.country === "GB" ? "UK" : identity.country}`
+                  : ""}
+                . Just fill in the missing choices.
+              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/40 p-3 text-sm">
+                <span>
+                  {identity.organisation || "Exam board not selected"} ·{" "}
+                  {subjectName}
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setChangeKnown(!changeKnown)}
+                >
+                  {changeKnown ? "Hide saved details" : "Change details"}
+                </Button>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {(!educationalLevel || changeKnown) && (
+                  <Field label="Educational level">
+                    {select(
+                      identity.qualification,
+                      (v) => changeIdentity("qualification", v),
+                      [
+                        ["", "Choose your level"],
+                        ["GCSE", "GCSE"],
+                        ["A-level", "A Level"],
+                        ...ALL_LEVELS.filter(
+                          (l) => !["level2", "level3", "other"].includes(l.id),
+                        ).map((l) => [l.label, l.label] as [string, string]),
+                      ],
+                      "Educational level",
+                    )}
+                  </Field>
                 )}
-              </Field>
-              {presetId && (
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <ExamlyApprovalBadge
-                    approval={{
-                      status: "approved",
-                      entry: approvedPreset(presetId).entry,
-                    }}
-                  />
-                  <span className="text-xs text-muted-foreground">
-                    No AI call needed
-                  </span>
-                </div>
-              )}
-              <div className="grid gap-3 sm:grid-cols-2">
-                {(
-                  [
-                    ["country", "Country"],
-                    ["educationSystem", "Education system"],
-                    ["qualification", "Qualification"],
-                    ["subject", "Subject"],
-                    ["organisation", "Board or institution"],
-                    ["course", "Course / specification code"],
-                    ["component", "Paper / unit / module"],
-                    ["specificationVersion", "Specification / cohort version"],
-                  ] as const
-                ).map(([key, label]) => (
-                  <Field key={key} label={label}>
+                {(!identity.country || changeKnown) && (
+                  <Field label="Country or education system">
                     <Input
-                      aria-label={label}
-                      className="h-11"
-                      value={String(identity[key] ?? "")}
-                      onChange={(e) => changeIdentity(key, e.target.value)}
+                      aria-label="Country or education system"
+                      value={identity.country}
+                      onChange={(e) =>
+                        changeIdentity("country", e.target.value)
+                      }
+                      placeholder="e.g. UK, US, IB"
                     />
                   </Field>
-                ))}
-                <Field label="Education stage">
-                  {select(
-                    identity.stage,
-                    (v) => changeIdentity("stage", v),
-                    [
-                      ["Secondary", "School / sixth form"],
-                      ["University", "University / college"],
-                      ["Other", "Other course"],
-                    ],
-                    "Education stage",
-                  )}
-                </Field>
-                <Field label="Assessment tier">
-                  {select(
-                    identity.tier ?? "unknown",
-                    (v) => changeIdentity("tier", v === "unknown" ? null : v),
-                    [
-                      ["unknown", "Unknown / not recorded"],
-                      ["not_tiered", "Not tiered"],
-                      ["foundation", "Foundation"],
-                      ["higher", "Higher"],
-                    ],
-                    "Assessment tier",
-                  )}
-                </Field>
-                {identity.stage === "University" && (
-                  <>
-                    <Field label="Institution">
-                      <Input
-                        aria-label="Institution"
-                        value={identity.institution ?? ""}
-                        onChange={(e) =>
-                          changeIdentity("institution", e.target.value)
-                        }
-                      />
-                    </Field>
-                    <Field label="Module">
-                      <Input
-                        aria-label="Module"
-                        value={identity.module ?? ""}
-                        onChange={(e) =>
-                          changeIdentity("module", e.target.value)
-                        }
-                      />
-                    </Field>
-                  </>
                 )}
+                {(!examBoard || changeKnown) && (
+                  <Field
+                    label={
+                      identity.stage === "University"
+                        ? "Institution"
+                        : "Exam board"
+                    }
+                  >
+                    {identity.stage === "University" ||
+                    !["GB", "UK"].includes(identity.country) ? (
+                      <Input
+                        aria-label="Institution or exam board"
+                        value={identity.organisation}
+                        onChange={(e) =>
+                          changeIdentity("organisation", e.target.value)
+                        }
+                        placeholder="Your institution or awarding organisation"
+                      />
+                    ) : (
+                      select(
+                        identity.organisation,
+                        (v) => changeIdentity("organisation", v),
+                        [
+                          ["", "Choose your board"],
+                          ...Array.from(
+                            new Set([
+                              ...BUILDER_BOARDS,
+                              ...(identity.organisation
+                                ? [identity.organisation]
+                                : []),
+                            ]),
+                          ).map((b) => [b, b] as [string, string]),
+                        ],
+                        "Exam board",
+                      )
+                    )}
+                  </Field>
+                )}
+                {courses.length > 1 && (!courseId || changeKnown) && (
+                  <Field label="Which course do you study?">
+                    {select(
+                      selectedCourse?.id ?? "",
+                      (v) =>
+                        changeIdentity(
+                          "course",
+                          courses.find((c) => c.id === v)?.specificationCode ??
+                            v,
+                        ),
+                      [
+                        ["", "Choose your course"],
+                        ...courses.map(
+                          (c) =>
+                            [
+                              c.id,
+                              c.label.replace(
+                                /\s*\((?:7402|1BI0|J247|J257)\)/g,
+                                "",
+                              ),
+                            ] as [string, string],
+                        ),
+                      ],
+                      "Course variant",
+                    )}
+                  </Field>
+                )}
+                {(!paperId || changeKnown) && (
+                  <Field
+                    label={
+                      identity.stage === "University" ? "Assessment" : "Paper"
+                    }
+                  >
+                    {papers.length ? (
+                      select(
+                        papers.find(
+                          (p) =>
+                            p.id === identity.component ||
+                            p.pack.definition(identity.tier ?? p.pack.tiers[0])
+                              .componentCode === identity.component,
+                        )?.id ?? "",
+                        (v) => changeIdentity("component", v),
+                        [
+                          ["", "Choose your paper"],
+                          ...papers.map(
+                            (p) =>
+                              [p.id, p.label.replace(/\s*\([^)]*\)/g, "")] as [
+                                string,
+                                string,
+                              ],
+                          ),
+                        ],
+                        "Paper",
+                      )
+                    ) : (
+                      <Input
+                        aria-label="Paper or assessment"
+                        value={identity.component}
+                        onChange={(e) =>
+                          changeIdentity("component", e.target.value)
+                        }
+                        placeholder={
+                          identity.stage === "University"
+                            ? "e.g. Final assessment"
+                            : "e.g. Paper 1"
+                        }
+                      />
+                    )}
+                  </Field>
+                )}
+                {needsTier && (!assessmentTier || changeKnown) && (
+                  <Field label="Tier">
+                    {select(
+                      identity.tier ?? "",
+                      (v) => changeIdentity("tier", v || null),
+                      [
+                        ["", "Choose your tier"],
+                        ["foundation", "Foundation"],
+                        ["higher", "Higher"],
+                      ],
+                      "Tier",
+                    )}
+                  </Field>
+                )}
+                <Field label="What would you like to practise?">
+                  {select(
+                    mode,
+                    (v) => {
+                      setMode(v as typeof mode);
+                      setPresetId("");
+                    },
+                    [
+                      ["short_practice", "Short practice"],
+                      ["full_mock", "Full mock"],
+                      ["custom", "Custom assessment"],
+                    ],
+                    "Assessment mode",
+                  )}
+                </Field>
               </div>
-              <Field label="Assessment mode">
-                {select(
-                  mode,
-                  (v) => {
-                    setMode(v as typeof mode);
-                    setPresetId("");
-                  },
-                  [
-                    ["short_practice", "Short practice"],
-                    ["full_mock", "Full mock"],
-                    ["custom", "Custom assessment"],
-                  ],
-                  "Assessment mode",
-                )}
-              </Field>
-              {!presetId && (
+              {resolution && needEvidence && (
                 <section className="space-y-3 border-t border-border pt-4">
-                  <h2 className="font-serif text-lg">What should we use?</h2>
+                  <h2 className="text-base font-semibold">
+                    We need a source for this course
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    There isn’t an exact approved preset or reviewed source for
+                    these choices yet. Upload your syllabus or assessment brief
+                    so the draft can follow it.
+                  </p>
                   <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={
+                        sourceChoice === "upload" ? "default" : "outline"
+                      }
+                      onClick={() => {
+                        setSourceChoice("upload");
+                        setError("");
+                      }}
+                    >
+                      Upload syllabus
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={
+                        sourceChoice === "unverified" ? "default" : "outline"
+                      }
+                      onClick={() => {
+                        setSourceChoice("unverified");
+                        setError("");
+                      }}
+                    >
+                      General practice without a syllabus
+                    </Button>
+                  </div>
+                  {sourceChoice === "upload" &&
+                    !needsTier &&
+                    !selectedCourse &&
+                    identity.qualification !== "A-level" && (
+                      <Field label="Does everyone sit the same assessment?">
+                        {select(
+                          identity.tier ?? "",
+                          (v) => changeIdentity("tier", v || null),
+                          [
+                            ["", "Choose an answer"],
+                            ["not_tiered", "Yes, one assessment for everyone"],
+                          ],
+                          "Does everyone sit the same assessment?",
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          Check your brief. If it has separate tiers, record
+                          them in Advanced details.
+                        </p>
+                      </Field>
+                    )}
+                  {sourceChoice === "upload" && (
+                    <Field label="Syllabus or assessment brief">
+                      <Input
+                        aria-label="Syllabus or assessment brief"
+                        type="file"
+                        accept=".pdf,.txt,application/pdf,text/plain"
+                        onChange={(e) => void readUpload(e.target.files?.[0])}
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        PDF or text, up to 3 MB. Scanned PDFs need a text
+                        version. Evidence stays in your account.
+                      </span>
+                    </Field>
+                  )}
+                  {sourceChoice === "unverified" && (
+                    <p className="rounded-md bg-warning-light p-3 text-sm">
+                      Create an unverified general-practice draft. It may not
+                      match your real assessment; full mock is unavailable
+                      without evidence.
+                    </p>
+                  )}
+                </section>
+              )}
+              {resolution?.presetId && (
+                <p className="text-sm text-muted-foreground">
+                  An exact Examly-approved preset is available. No AI call is
+                  needed.
+                </p>
+              )}
+              {resolution?.sourceId && (
+                <p className="text-sm text-muted-foreground">
+                  We found a reviewed official source. We’ll use it to build an
+                  editable AI draft.
+                </p>
+              )}
+              <details className="rounded-md border border-border p-3">
+                <summary className="min-h-6 cursor-pointer text-sm font-medium">
+                  Advanced details
+                </summary>
+                <div className="mt-4 space-y-4">
+                  <p className="text-xs text-muted-foreground">
+                    Optional technical overrides. Changing these can remove
+                    preset approval or require additional evidence.
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-2">
                     {(
                       [
-                        ["source", "Official source"],
-                        ["upload", "Upload syllabus"],
-                        ["unverified", "General practice"],
+                        ["educationSystem", "Education system"],
+                        ["qualification", "Qualification"],
+                        ["course", "Course / specification code"],
+                        ["component", "Paper / component code"],
+                        [
+                          "specificationVersion",
+                          "Specification / cohort version",
+                        ],
                       ] as const
-                    ).map(([id, label]) => (
-                      <Button
-                        key={id}
-                        type="button"
-                        size="sm"
-                        variant={sourceChoice === id ? "default" : "outline"}
-                        aria-pressed={sourceChoice === id}
-                        onClick={() => {
-                          setSourceChoice(id);
-                          setError("");
-                        }}
-                      >
-                        {label}
-                      </Button>
+                    ).map(([key, label]) => (
+                      <Field key={key} label={label}>
+                        <Input
+                          aria-label={label}
+                          value={String(identity[key] ?? "")}
+                          onChange={(e) => changeIdentity(key, e.target.value)}
+                        />
+                      </Field>
                     ))}
+                    <Field label="Education stage">
+                      {select(
+                        identity.stage,
+                        (v) => changeIdentity("stage", v),
+                        [
+                          ["Secondary", "School / sixth form"],
+                          ["University", "University / college"],
+                          ["Other", "Other course"],
+                        ],
+                        "Education stage",
+                      )}
+                    </Field>
                   </div>
-                  {sourceChoice === "source" ? (
+                  {!selectedCourse && identity.qualification !== "A-level" && (
+                    <Field label="Assessment tier">
+                      {select(
+                        identity.tier ?? "",
+                        (v) => changeIdentity("tier", v || null),
+                        [
+                          ["", "Unknown"],
+                          ["not_tiered", "Not tiered"],
+                          ["foundation", "Foundation"],
+                          ["higher", "Higher"],
+                        ],
+                        "Assessment tier",
+                      )}
+                    </Field>
+                  )}
+                  <Field label="Approved preset">
+                    {select(
+                      presetId,
+                      choosePreset,
+                      [
+                        ["", "Resolve from my choices"],
+                        ...catalogue
+                          .filter((e) =>
+                            builderCourses(identity).some(
+                              (c) => c.id === e.course,
+                            ),
+                          )
+                          .map(
+                            (e) =>
+                              [
+                                e.id,
+                                `${e.component} · ${e.tier} · ${e.mode === "full_mock" ? "Full mock" : "Short practice"}`,
+                              ] as [string, string],
+                          ),
+                      ],
+                      "Approved preset",
+                    )}
+                  </Field>
+                  {!exactPreset && (
                     <>
                       <Field label="Registered source">
                         {select(
                           sourceId,
                           chooseSource,
                           [
-                            ["", "Choose a source"],
-                            ...PROFILE_SOURCE_REGISTRY.map(
+                            ["", "Resolve from my choices"],
+                            ...PROFILE_SOURCE_REGISTRY.filter(
+                              (s) =>
+                                s.evidence.identity.subject.toLowerCase() ===
+                                subjectName.toLowerCase(),
+                            ).map(
                               (s) =>
                                 [s.id, s.evidence.documents[0].title] as [
                                   string,
@@ -682,45 +1053,61 @@ export function ExamProfileBuilder({
                           onChange={(e) => {
                             setSourceUrl(e.target.value);
                             setSourceId("");
+                            setSourceChoice("source");
                           }}
                           placeholder="https://…"
                         />
                       </Field>
                       <p className="text-xs text-muted-foreground">
-                        URLs currently resolve reviewed registered documents
-                        only. New domains need repository review; you can upload
-                        a syllabus instead.
+                        Only reviewed registered URLs resolve automatically.
+                        Upload a syllabus for a new source; model knowledge is
+                        never a silent fallback.
                       </p>
                     </>
-                  ) : sourceChoice === "upload" ? (
-                    <>
-                      <Field label="Syllabus or assessment brief">
-                        <Input
-                          aria-label="Syllabus or assessment brief"
-                          type="file"
-                          accept=".pdf,.txt,application/pdf,text/plain"
-                          onChange={(e) => {
-                            void readUpload(e.target.files?.[0]);
-                          }}
-                        />
-                      </Field>
-                      <p className="text-xs text-muted-foreground">
-                        PDF or text, up to 3 MB. Scanned PDFs need a text
-                        version. Evidence stays in your account.
-                      </p>
-                    </>
-                  ) : (
-                    <p className="rounded-md bg-warning-light p-3 text-sm">
-                      Create an unverified general-practice draft. It may not
-                      match your real assessment; full mock is unavailable
-                      without evidence.
-                    </p>
                   )}
-                </section>
-              )}
+                </div>
+              </details>
             </>
+          ) : step === "confirm" ? (
+            <div className="space-y-4 py-3">
+              <h2 className="text-xl font-semibold leading-snug">
+                We’ll build {builderAssessmentLabel(identity)}.
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {mode === "full_mock"
+                  ? "Full mock"
+                  : mode === "short_practice"
+                    ? "Short practice"
+                    : "Custom assessment"}
+                {educationalLevel
+                  ? ` using your saved ${identity.qualification} level`
+                  : ""}
+                . You can edit the completed profile before saving.
+              </p>
+              {presetId ? (
+                <p className="text-sm">
+                  Your exact Examly-approved preset loads instantly, with no AI
+                  call.
+                </p>
+              ) : sourceId ? (
+                <p className="text-sm">
+                  The AI draft will use the reviewed official source for this
+                  course.
+                </p>
+              ) : sourceChoice === "unverified" ? (
+                <p className="rounded-md bg-warning-light p-3 text-sm">
+                  Unverified general practice. This is not an approved preset or
+                  an authentic full mock.
+                </p>
+              ) : (
+                <p className="text-sm">
+                  The AI draft needs your syllabus or a reviewed source. Choose
+                  one in Change details before building.
+                </p>
+              )}
+            </div>
           ) : template && proposal ? (
-            <>
+            <fieldset disabled={busy || !proposalId} className="space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <ExamlyApprovalBadge
                   approval={approval!}
@@ -748,13 +1135,7 @@ export function ExamProfileBuilder({
                 />
               </Field>
               <p className="text-sm text-muted-foreground">
-                {template.identity.organisation} ·{" "}
-                {template.identity.qualification} · {template.identity.course} ·{" "}
-                {template.identity.component}{" "}
-                {template.identity.tier &&
-                template.identity.tier !== "not_tiered"
-                  ? `· ${template.identity.tier}`
-                  : ""}
+                {builderAssessmentLabel(template.identity)}
               </p>
               <div className="flex flex-wrap gap-4 rounded-lg border border-border bg-muted/30 p-3 text-sm">
                 <span>
@@ -819,207 +1200,288 @@ export function ExamProfileBuilder({
                   }
                 />
               </Field>
-              <Field label="Calculator">
-                {select(
-                  template.calculator,
-                  (v) =>
-                    edit((t) => {
-                      t.calculator = v as ProfileTemplate["calculator"];
-                    }),
-                  [
-                    ["allowed", "Allowed"],
-                    ["not_allowed", "Not allowed"],
-                    ["unknown", "Unknown"],
-                  ],
-                  "Calculator",
-                )}
-              </Field>
-              <section className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-serif text-lg">Paper structure</h2>
-                  <span className="text-xs text-muted-foreground">
-                    Examly layout choices
-                  </span>
-                </div>
-                {template.sections.map((section, si) => (
-                  <div key={section.id} className="space-y-2">
-                    <h3 className="text-sm font-semibold">{section.title}</h3>
-                    {section.groups.map((group, gi) => (
-                      <details
-                        key={group.id}
-                        className="rounded-lg border border-border bg-card"
-                      >
-                        <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm">
-                          Question {gi + 1} · {group.parts.length}{" "}
-                          {group.parts.length === 1 ? "part" : "parts"} ·{" "}
-                          {group.parts.reduce((n, p) => n + p.marks, 0)} marks
-                        </summary>
-                        <div className="space-y-3 border-t border-border p-3">
-                          {group.parts.map((part, pi) => (
-                            <div
-                              key={part.id}
-                              className="space-y-2 rounded-md bg-muted/30 p-3"
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold">
-                                  Part {String.fromCharCode(97 + pi)}
-                                </span>
-                                {group.parts.length > 1 && (
+              <details className="rounded-md border border-border p-3">
+                <summary className="cursor-pointer text-sm font-medium">
+                  Advanced details
+                </summary>
+                <div className="mt-4 space-y-5">
+                  <p className="break-words text-xs text-muted-foreground">
+                    {template.identity.qualification} ·{" "}
+                    {template.identity.course} · {template.identity.component} ·{" "}
+                    {template.identity.specificationVersion}
+                  </p>
+                  <Field label="Calculator">
+                    {select(
+                      template.calculator,
+                      (v) =>
+                        edit((t) => {
+                          t.calculator = v as ProfileTemplate["calculator"];
+                        }),
+                      [
+                        ["allowed", "Allowed"],
+                        ["not_allowed", "Not allowed"],
+                        ["unknown", "Unknown"],
+                      ],
+                      "Calculator",
+                    )}
+                  </Field>
+                  <section className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h2 className="font-serif text-lg">Paper structure</h2>
+                      <span className="text-xs text-muted-foreground">
+                        Examly layout choices
+                      </span>
+                    </div>
+                    {template.sections.map((section, si) => (
+                      <div key={section.id} className="space-y-2">
+                        <h3 className="text-sm font-semibold">
+                          {section.title}
+                        </h3>
+                        {section.groups.map((group, gi) => (
+                          <details
+                            key={group.id}
+                            className="rounded-lg border border-border bg-card"
+                          >
+                            <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm">
+                              Question {gi + 1} · {group.parts.length}{" "}
+                              {group.parts.length === 1 ? "part" : "parts"} ·{" "}
+                              {group.parts.reduce((n, p) => n + p.marks, 0)}{" "}
+                              marks
+                            </summary>
+                            <div className="space-y-3 border-t border-border p-3">
+                              {group.parts.map((part, pi) => (
+                                <div
+                                  key={part.id}
+                                  className="space-y-2 rounded-md bg-muted/30 p-3"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-semibold">
+                                      Part {String.fromCharCode(97 + pi)}
+                                    </span>
+                                    {group.parts.length > 1 && (
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        aria-label={`Remove part ${gi + 1}${String.fromCharCode(97 + pi)}`}
+                                        onClick={() =>
+                                          edit((t) => {
+                                            t.sections[si].groups[
+                                              gi
+                                            ].parts.splice(pi, 1);
+                                          })
+                                        }
+                                      >
+                                        Remove
+                                      </Button>
+                                    )}
+                                  </div>
+                                  <div className="grid gap-2 sm:grid-cols-2">
+                                    <Field label="Topic">
+                                      {select(
+                                        part.topic,
+                                        (v) =>
+                                          edit((t) => {
+                                            t.sections[si].groups[gi].parts[
+                                              pi
+                                            ].topic = v;
+                                          }),
+                                        template.topics.map((t) => [t, t]),
+                                        `Topic ${gi + 1}${String.fromCharCode(97 + pi)}`,
+                                      )}
+                                    </Field>
+                                    <Field label="Marks">
+                                      <Input
+                                        aria-label={`Marks ${gi + 1}${String.fromCharCode(97 + pi)}`}
+                                        type="number"
+                                        min={1}
+                                        max={30}
+                                        value={part.marks}
+                                        onChange={(e) =>
+                                          edit((t) => {
+                                            t.sections[si].groups[gi].parts[
+                                              pi
+                                            ].marks = Number(e.target.value);
+                                          })
+                                        }
+                                      />
+                                    </Field>
+                                    <Field label="Response">
+                                      {select(
+                                        part.response,
+                                        (v) =>
+                                          edit((t) => {
+                                            t.sections[si].groups[gi].parts[
+                                              pi
+                                            ].response =
+                                              v as typeof part.response;
+                                          }),
+                                        [
+                                          ["mcq_single", "Tick one box"],
+                                          ["short_answer", "Short answer"],
+                                          ["long_form", "Extended response"],
+                                        ],
+                                        `Response ${gi + 1}${String.fromCharCode(97 + pi)}`,
+                                      )}
+                                    </Field>
+                                    <Field label="Resource">
+                                      {select(
+                                        part.resource,
+                                        (v) =>
+                                          edit((t) => {
+                                            t.sections[si].groups[gi].parts[
+                                              pi
+                                            ].resource =
+                                              v as typeof part.resource;
+                                          }),
+                                        [
+                                          ["none", "No resource"],
+                                          ["data_table", "Data table"],
+                                          ["graph", "Graph"],
+                                          [
+                                            "diagram",
+                                            "Reviewed diagram (adapter required)",
+                                          ],
+                                          [
+                                            "passage",
+                                            "Reviewed passage (adapter required)",
+                                          ],
+                                        ],
+                                        `Resource ${gi + 1}${String.fromCharCode(97 + pi)}`,
+                                      )}
+                                    </Field>
+                                  </div>
+                                </div>
+                              ))}
+                              <div className="flex flex-wrap gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={group.parts.length >= 10}
+                                  onClick={() =>
+                                    edit((t) => {
+                                      t.sections[si].groups[gi].parts.push({
+                                        id: uuid(),
+                                        topic: t.topics[0],
+                                        marks: 1,
+                                        response: "short_answer",
+                                        demand: "AO1",
+                                        resource: "none",
+                                      });
+                                    })
+                                  }
+                                >
+                                  Add part
+                                </Button>
+                                {section.groups.length > 1 && (
                                   <Button
-                                    size="sm"
                                     variant="ghost"
-                                    aria-label={`Remove part ${gi + 1}${String.fromCharCode(97 + pi)}`}
+                                    size="sm"
                                     onClick={() =>
                                       edit((t) => {
-                                        t.sections[si].groups[gi].parts.splice(
-                                          pi,
-                                          1,
-                                        );
+                                        t.sections[si].groups.splice(gi, 1);
                                       })
                                     }
                                   >
-                                    Remove
+                                    Remove question
                                   </Button>
                                 )}
                               </div>
-                              <div className="grid gap-2 sm:grid-cols-2">
-                                <Field label="Topic">
-                                  {select(
-                                    part.topic,
-                                    (v) =>
-                                      edit((t) => {
-                                        t.sections[si].groups[gi].parts[
-                                          pi
-                                        ].topic = v;
-                                      }),
-                                    template.topics.map((t) => [t, t]),
-                                    `Topic ${gi + 1}${String.fromCharCode(97 + pi)}`,
-                                  )}
-                                </Field>
-                                <Field label="Marks">
-                                  <Input
-                                    aria-label={`Marks ${gi + 1}${String.fromCharCode(97 + pi)}`}
-                                    type="number"
-                                    min={1}
-                                    max={30}
-                                    value={part.marks}
-                                    onChange={(e) =>
-                                      edit((t) => {
-                                        t.sections[si].groups[gi].parts[
-                                          pi
-                                        ].marks = Number(e.target.value);
-                                      })
-                                    }
-                                  />
-                                </Field>
-                                <Field label="Response">
-                                  {select(
-                                    part.response,
-                                    (v) =>
-                                      edit((t) => {
-                                        t.sections[si].groups[gi].parts[
-                                          pi
-                                        ].response = v as typeof part.response;
-                                      }),
-                                    [
-                                      ["mcq_single", "Tick one box"],
-                                      ["short_answer", "Short answer"],
-                                      ["long_form", "Extended response"],
-                                    ],
-                                    `Response ${gi + 1}${String.fromCharCode(97 + pi)}`,
-                                  )}
-                                </Field>
-                                <Field label="Resource">
-                                  {select(
-                                    part.resource,
-                                    (v) =>
-                                      edit((t) => {
-                                        t.sections[si].groups[gi].parts[
-                                          pi
-                                        ].resource = v as typeof part.resource;
-                                      }),
-                                    [
-                                      ["none", "No resource"],
-                                      ["data_table", "Data table"],
-                                      ["graph", "Graph"],
-                                      [
-                                        "diagram",
-                                        "Reviewed diagram (adapter required)",
-                                      ],
-                                      [
-                                        "passage",
-                                        "Reviewed passage (adapter required)",
-                                      ],
-                                    ],
-                                    `Resource ${gi + 1}${String.fromCharCode(97 + pi)}`,
-                                  )}
-                                </Field>
-                              </div>
                             </div>
-                          ))}
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={group.parts.length >= 10}
-                              onClick={() =>
-                                edit((t) => {
-                                  t.sections[si].groups[gi].parts.push({
+                          </details>
+                        ))}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            edit((t) => {
+                              t.sections[si].groups.push({
+                                id: uuid(),
+                                parts: [
+                                  {
                                     id: uuid(),
                                     topic: t.topics[0],
                                     marks: 1,
                                     response: "short_answer",
                                     demand: "AO1",
                                     resource: "none",
-                                  });
-                                })
-                              }
-                            >
-                              Add part
-                            </Button>
-                            {section.groups.length > 1 && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  edit((t) => {
-                                    t.sections[si].groups.splice(gi, 1);
-                                  })
-                                }
-                              >
-                                Remove question
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </details>
+                                  },
+                                ],
+                              });
+                            })
+                          }
+                        >
+                          Add question
+                        </Button>
+                      </div>
                     ))}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        edit((t) => {
-                          t.sections[si].groups.push({
-                            id: uuid(),
-                            parts: [
-                              {
-                                id: uuid(),
-                                topic: t.topics[0],
-                                marks: 1,
-                                response: "short_answer",
-                                demand: "AO1",
-                                resource: "none",
-                              },
-                            ],
-                          });
-                        })
-                      }
-                    >
-                      Add question
-                    </Button>
-                  </div>
-                ))}
-              </section>
+                  </section>
+                  {template.warnings.length > 0 && (
+                    <ul className="space-y-1 text-xs text-muted-foreground">
+                      {template.warnings.map((w, i) => (
+                        <li key={i}>{w}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {evidence && (
+                    <details className="rounded-lg border border-border p-3">
+                      <summary className="cursor-pointer text-sm">
+                        Sources & unresolved details
+                      </summary>
+                      <div className="mt-3 space-y-3 text-xs">
+                        {evidence.documents.map((d) => (
+                          <div key={d.id}>
+                            <p className="font-medium">
+                              {d.url ? (
+                                <a
+                                  className="underline"
+                                  href={d.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  {d.title}
+                                </a>
+                              ) : (
+                                d.title
+                              )}{" "}
+                              · {d.version}
+                            </p>
+                            <p className="text-muted-foreground">
+                              {d.authority === "official_registered"
+                                ? "Reviewed official source"
+                                : "User-supplied course evidence"}{" "}
+                              · {d.state}
+                            </p>
+                            {evidence.claims
+                              .filter((c) => c.documentId === d.id)
+                              .map((c, i) => (
+                                <p key={i} className="mt-1">
+                                  {c.field} — p.{" "}
+                                  {
+                                    d.locations.find(
+                                      (l) => l.id === c.locationId,
+                                    )?.page
+                                  }
+                                  ,{" "}
+                                  {
+                                    d.locations.find(
+                                      (l) => l.id === c.locationId,
+                                    )?.section
+                                  }
+                                  : {c.quote} ({c.rule})
+                                </p>
+                              ))}
+                          </div>
+                        ))}
+                        {[...evidence.unresolved, ...evidence.conflicts].map(
+                          (w, i) => (
+                            <p key={i}>{w}</p>
+                          ),
+                        )}
+                      </div>
+                    </details>
+                  )}
+                </div>
+              </details>
               {validation && (
                 <p
                   role="alert"
@@ -1027,69 +1489,6 @@ export function ExamProfileBuilder({
                 >
                   {validation}
                 </p>
-              )}
-              {template.warnings.length > 0 && (
-                <ul className="space-y-1 text-xs text-muted-foreground">
-                  {template.warnings.map((w, i) => (
-                    <li key={i}>{w}</li>
-                  ))}
-                </ul>
-              )}
-              {evidence && (
-                <details className="rounded-lg border border-border p-3">
-                  <summary className="cursor-pointer text-sm">
-                    Sources & unresolved details
-                  </summary>
-                  <div className="mt-3 space-y-3 text-xs">
-                    {evidence.documents.map((d) => (
-                      <div key={d.id}>
-                        <p className="font-medium">
-                          {d.url ? (
-                            <a
-                              className="underline"
-                              href={d.url}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              {d.title}
-                            </a>
-                          ) : (
-                            d.title
-                          )}{" "}
-                          · {d.version}
-                        </p>
-                        <p className="text-muted-foreground">
-                          {d.authority === "official_registered"
-                            ? "Reviewed official source"
-                            : "User-supplied course evidence"}{" "}
-                          · {d.state}
-                        </p>
-                        {evidence.claims
-                          .filter((c) => c.documentId === d.id)
-                          .map((c, i) => (
-                            <p key={i} className="mt-1">
-                              {c.field} — p.{" "}
-                              {
-                                d.locations.find((l) => l.id === c.locationId)
-                                  ?.page
-                              }
-                              ,{" "}
-                              {
-                                d.locations.find((l) => l.id === c.locationId)
-                                  ?.section
-                              }
-                              : {c.quote} ({c.rule})
-                            </p>
-                          ))}
-                      </div>
-                    ))}
-                    {[...evidence.unresolved, ...evidence.conflicts].map(
-                      (w, i) => (
-                        <p key={i}>{w}</p>
-                      ),
-                    )}
-                  </div>
-                </details>
               )}
               {updateSource && (
                 <div className="rounded-md bg-warning-light p-3 text-sm">
@@ -1143,61 +1542,55 @@ export function ExamProfileBuilder({
                   Duplicate saved profile
                 </Button>
               )}
-            </>
+            </fieldset>
           ) : null}
         </div>
         <DialogFooter className="flex-row items-center justify-between gap-2 border-t border-border px-5 py-4 sm:px-6">
           <Button
             variant="ghost"
-            aria-label={step === "review" ? "Course details" : "Manual editor"}
-            className="px-3 text-xs sm:px-4 sm:text-sm"
             disabled={busy}
             onClick={() => {
-              if (step === "review") setStep("details");
-              else {
+              if (step === "confirm" || step === "review") {
+                setChangeKnown(true);
+                setStep("details");
+              } else {
                 run.current++;
                 onManual();
               }
             }}
           >
             <ArrowLeft className="mr-1.5 h-4 w-4" />
-            <span className="sm:hidden">
-              {step === "review" ? "Back" : "Manual"}
-            </span>
-            <span className="hidden sm:inline">
-              {step === "review" ? "Course details" : "Manual editor"}
-            </span>
+            {step === "details" ? "Manual editor" : "Change details"}
           </Button>
           {step === "details" ? (
+            <Button onClick={reviewChoice}>
+              Continue
+              <ArrowRight className="ml-1.5 h-4 w-4" />
+            </Button>
+          ) : step === "confirm" ? (
             <Button
-              aria-label={busy ? "Building…" : "Build profile for me"}
-              className="px-3 text-xs sm:px-4 sm:text-sm"
               disabled={
                 busy ||
+                (!presetId &&
+                  !sourceId &&
+                  !sourceUrl.trim() &&
+                  !(sourceChoice === "upload" && upload) &&
+                  sourceChoice !== "unverified") ||
                 (!presetId &&
                   sourceChoice === "unverified" &&
                   mode === "full_mock")
               }
-              onClick={() => {
-                void build();
-              }}
+              onClick={() => void build()}
             >
-              <Sparkles className="mr-1.5 h-4 w-4" />
-              <span className="sm:hidden">
-                {busy ? "Building…" : "Build profile"}
-              </span>
-              <span className="hidden sm:inline">
-                {busy ? "Building…" : "Build profile for me"}
-              </span>
+              {busy ? "Building…" : "Yes, build it"}
+              <Sparkles className="ml-1.5 h-4 w-4" />
             </Button>
           ) : (
             <Button
-              disabled={busy || !!validation || !name.trim()}
-              onClick={() => {
-                void save();
-              }}
+              disabled={busy || !!validation || !name.trim() || !proposalId}
+              onClick={() => void save()}
             >
-              {busy ? "Saving…" : "Confirm & save"}
+              {busy ? (proposalId ? "Saving…" : "Preparing…") : "Save profile"}
               <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
           )}
