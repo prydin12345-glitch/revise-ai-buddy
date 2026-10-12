@@ -1550,6 +1550,67 @@ export type Database = {
           },
         ]
       }
+      profile_builder_requests: {
+        Row: {
+          call_intents: number
+          created_at: string
+          finished_at: string | null
+          payload_hash: string
+          provider_usage: Json
+          request_id: string
+          result: Json | null
+          saved_profile_id: string | null
+          state: string
+          user_id: string
+        }
+        Insert: {
+          call_intents?: number
+          created_at?: string
+          finished_at?: string | null
+          payload_hash: string
+          provider_usage?: Json
+          request_id: string
+          result?: Json | null
+          saved_profile_id?: string | null
+          state?: string
+          user_id: string
+        }
+        Update: {
+          call_intents?: number
+          created_at?: string
+          finished_at?: string | null
+          payload_hash?: string
+          provider_usage?: Json
+          request_id?: string
+          result?: Json | null
+          saved_profile_id?: string | null
+          state?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_builder_requests_saved_profile_id_fkey"
+            columns: ["saved_profile_id"]
+            isOneToOne: false
+            referencedRelation: "subject_exam_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_builder_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_builder_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       question_feedback_threads: {
         Row: {
           created_at: string
@@ -2408,6 +2469,7 @@ export type Database = {
           paper_blueprint: Json | null
           parent_question_count: number | null
           profile_name: string
+          profile_template: Json | null
           question_count: number
           question_structure: string | null
           structure_preset: string | null
@@ -2439,6 +2501,7 @@ export type Database = {
           paper_blueprint?: Json | null
           parent_question_count?: number | null
           profile_name: string
+          profile_template?: Json | null
           question_count?: number
           question_structure?: string | null
           structure_preset?: string | null
@@ -2470,6 +2533,7 @@ export type Database = {
           paper_blueprint?: Json | null
           parent_question_count?: number | null
           profile_name?: string
+          profile_template?: Json | null
           question_count?: number
           question_structure?: string | null
           structure_preset?: string | null
@@ -3328,6 +3392,10 @@ export type Database = {
         }
         Returns: Json
       }
+      claim_profile_builder_request: {
+        Args: { p_hash: string; p_owner: string; p_request: string }
+        Returns: Json
+      }
       commit_generated_responses: {
         Args: {
           p_context: Json
@@ -3455,6 +3523,14 @@ export type Database = {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
       }
+      record_profile_builder_call: {
+        Args: { p_owner: string; p_request: string }
+        Returns: undefined
+      }
+      record_profile_builder_usage: {
+        Args: { p_owner: string; p_request: string; p_usage: Json }
+        Returns: undefined
+      }
       reserve_ai_request: {
         Args: {
           p_burst_limit: number
@@ -3462,6 +3538,17 @@ export type Database = {
           p_daily_limit: number
           p_feature: string
           p_user_id: string
+        }
+        Returns: Json
+      }
+      save_builder_profile: {
+        Args: {
+          p_context: Json
+          p_name: string
+          p_owner: string
+          p_profile: string
+          p_proposal?: string
+          p_settings: Json
         }
         Returns: Json
       }

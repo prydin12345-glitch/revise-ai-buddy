@@ -15,6 +15,13 @@
       "when": 1791104052551,
       "tag": "0001_response_generation",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791794640404,
+      "tag": "0002_profile_builder_rollout",
+      "breakpoints": true
     }
   ]
 }
