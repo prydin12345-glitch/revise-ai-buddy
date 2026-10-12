@@ -1,0 +1,31 @@
+{
+  "status": "PASS",
+  "widths": [
+    390,
+    768,
+    1440
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "scenarios": [
+    "saved GCSE level / board-paper-tier only",
+    "approved OCR H420/03, zero model calls and reservations",
+    "change details before build",
+    "editable preview, approval removal and restore",
+    "in-memory save/reopen",
+    "Edexcel A/B ambiguity rejection and reviewed-source B draft",
+    "untiered OCR/Edexcel",
+    "university uploaded source-backed draft without codes",
+    "explicit unverified practice with no star",
+    "manual editor preserved"
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "failed": [],
+  "backendRequests": 0,
+  "liveLogin": false,
+  "paidCalls": false,
+  "liveDataChanges": false
+}
