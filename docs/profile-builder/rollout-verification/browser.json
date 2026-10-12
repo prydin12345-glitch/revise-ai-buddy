@@ -1,0 +1,21 @@
+{
+  "result": "PASS",
+  "widths": [
+    390,
+    1440
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "displayedCause": "Missing profile-builder backend deployment",
+  "saveBlocked": true,
+  "explicitRetry": true,
+  "pageErrors": [],
+  "consoleErrors": [],
+  "failedRequests": [],
+  "backendRequests": 0,
+  "paidCalls": 0,
+  "liveWrites": 0,
+  "TLSVerification": "enabled"
+}
