@@ -40,11 +40,11 @@ async function client(sql: string, params: unknown[] = []) {
 beforeAll(async () => {
   db = new PGlite();
   await db.exec(
-    `create schema auth;create role anon;create role authenticated;create role service_role;create table auth.users(id uuid primary key);insert into auth.users values('${owner}'),('${other}');create function auth.role() returns text language sql stable as $$select current_user::text$$;create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.sub',true),'')::uuid$$;create table public.subject_exam_profiles(id uuid primary key default gen_random_uuid(),user_id uuid not null,subject_name text not null,profile_name text not null,topics text[] not null,question_count integer not null check(question_count between 1 and 50),educational_tier text,assessment_tier text,exam_board text,time_limit_minutes integer,mcq_count integer,written_question_count integer,mcq_options_count integer,question_structure text,parent_question_count integer,max_parts_per_question integer,mcq_position text,mark_distribution jsonb,include_extended boolean,extended_marks integer,difficulty_progression text,calculator_policy text,include_graphs boolean,include_tables boolean,paper_blueprint jsonb);grant usage on schema public,auth to authenticated,service_role;grant select,insert,update,delete on subject_exam_profiles to authenticated,service_role;`,
+    `create schema auth;create role anon;create role authenticated;create role service_role;create table public.user_profiles(id uuid primary key);insert into public.user_profiles values('${owner}'),('${other}');create function auth.role() returns text language sql stable as $$select current_user::text$$;create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.sub',true),'')::uuid$$;create table public.subject_exam_profiles(id uuid primary key default gen_random_uuid(),user_id uuid not null,subject_name text not null,profile_name text not null,topics text[] not null,question_count integer not null check(question_count between 1 and 50),educational_tier text,assessment_tier text,exam_board text,time_limit_minutes integer,mcq_count integer,written_question_count integer,mcq_options_count integer,question_structure text,parent_question_count integer,max_parts_per_question integer,mcq_position text,mark_distribution jsonb,include_extended boolean,extended_marks integer,difficulty_progression text,calculator_policy text,include_graphs boolean,include_tables boolean,paper_blueprint jsonb);grant usage on schema public,auth to authenticated,service_role;grant select,insert,update,delete on subject_exam_profiles to authenticated,service_role;grant select,delete on public.user_profiles to authenticated,service_role;`,
   );
   await db.exec(
     readFileSync(
-      "docs/pending-migrations/20261011120000_source_backed_profile_builder.sql",
+      "supabase/migrations/20261012090000_profile_builder_rollout.sql",
       "utf8",
     ),
   );
@@ -232,4 +232,55 @@ it("the existing fifty-part database limit is preserved", async () => {
       JSON.stringify(saved.context),
     ]),
   ).rejects.toThrow(/check constraint/);
+});
+
+it("rollout uses the existing public user identity without an auth.users table", async () => {
+  const authTable = await db.query<{ name: string | null }>(
+    "select to_regclass('auth.users')::text name",
+  );
+  expect(authTable.rows[0].name).toBe(null);
+  const sql = readFileSync(
+    "supabase/migrations/20261012090000_profile_builder_rollout.sql",
+    "utf8",
+  );
+  expect(sql).not.toMatch(/references\s+auth\.users/i);
+  expect(sql).toMatch(
+    /REFERENCES public\.user_profiles\(id\) ON DELETE CASCADE/i,
+  );
+});
+it("deleting the existing public account profile removes its private builder requests", async () => {
+  const account = key(),
+    request = key();
+  await db.query("insert into public.user_profiles(id) values($1)", [account]);
+  await claim(account, request);
+  await db.query("delete from public.user_profiles where id=$1", [account]);
+  const result = await db.query(
+    "select request_id from profile_builder_requests where user_id=$1",
+    [account],
+  );
+  expect(result.rows).toHaveLength(0);
+});
+it("a client cannot erase its request receipts through a public-profile cascade", async () => {
+  const request = key();
+  await claim(owner, request);
+  await expect(
+    client("delete from public.user_profiles where id=$1", [owner]),
+  ).rejects.toThrow(/request history is server-owned/);
+  expect((await claim(owner, request)).rows[0].r.state).toBe("busy");
+  expect(
+    (await db.query("select id from public.user_profiles where id=$1", [owner]))
+      .rows,
+  ).toHaveLength(1);
+});
+it("the migration refuses reapplication without changing existing records", async () => {
+  const sql = readFileSync(
+    "supabase/migrations/20261012090000_profile_builder_rollout.sql",
+    "utf8",
+  );
+  await expect(db.exec(sql)).rejects.toThrow(/objects already exist/);
+  await db.exec("ROLLBACK");
+  expect(
+    (await db.query("select id from public.user_profiles where id=$1", [owner]))
+      .rows,
+  ).toHaveLength(1);
 });

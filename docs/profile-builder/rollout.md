@@ -1,18 +1,18 @@
 # Pending preview rollout
 
-Nothing in this document has been deployed or applied by this task. Keep the website unpublished. Migration, preview deployment and paid tests require the founder's separate authorisation. Merging a draft PR alone does not make the builder backend ready.
+The founder has now authorised the missing-backend repair. The reviewed migration and connected-backend handoff are documented in [rollout-fix.md](rollout-fix.md). Codex has confirmed the missing live service/schema but cannot apply or deploy using its public frontend access. Keep the website unpublished; paid tests remain outside this repair. Merging a PR alone does not make the builder backend ready.
 
 ## Migration review
 
-The proposed additive SQL is [20261011120000_source_backed_profile_builder.sql](../pending-migrations/20261011120000_source_backed_profile_builder.sql). It adds:
+The canonical reviewed additive SQL is [20261012090000_profile_builder_rollout.sql](../../supabase/migrations/20261012090000_profile_builder_rollout.sql). The earlier documentation proposal is superseded and must not be applied as well. It adds:
 
 - Nullable protected `subject_exam_profiles.profile_template`, with a version/server/origin envelope check and security-invoker guard.
-- Owner-readable, service-write-only `profile_builder_requests`, references to existing auth users/profiles, state/accounting bounds and RLS.
+- Owner-readable, service-write-only `profile_builder_requests`, references to existing public account profiles and saved exam profiles, state/accounting bounds and RLS.
 - Service-only request claim, call intent, usage and atomic profile-save RPCs.
 
 Existing profiles remain `NULL`; ordinary owner-authorised core edits and deletion remain on the existing paths. No answers, scores or historical grades are changed. The existing 1–50 question constraint is retained. No public storage bucket is introduced.
 
-Before applying, the deployer must inspect the connected schema and function/trigger names, verify every existing column used by `save_builder_profile`, the auth roles, table owner/RLS and `reserve_ai_request` availability, and confirm that this proposal has not already been applied. Apply exactly once through the existing managed migration workflow; the proposal deliberately is not an auto-applied migration file.
+Before applying, the deployer must inspect the connected schema and function/trigger names, verify every existing column used by `save_builder_profile`, the auth roles, table owner/RLS and `reserve_ai_request` availability, and confirm that this proposal has not already been applied. Apply exactly once through the existing managed migration workflow, recording the reviewed migration version. The migration rejects partial/existing installations instead of overwriting them.
 
 Review and verify a **restorable backup/recovery procedure** in the backend's actual management interface before a live application. PGlite tests do not establish that safety net. Prefer an isolated rehearsal where available; never claim staging or snapshot restoration exists unless verified. Stop and report the precise missing capability rather than using a false assurance.
 
@@ -22,7 +22,7 @@ After an authorised migration, regenerate Supabase types through the existing ma
 
 For a deployment problem, first disable access to the builder/backend entry and restore the previous application/function code while retaining the additive data. Export or back up the new profile envelopes/request records before any destructive reversal. Ordinary legacy profile operations do not require deleting these records.
 
-If a fully reviewed schema rollback is necessary, restore the verified snapshot where supported, or use an authorised down migration in reverse dependency order: remove the new service RPCs; drop the `guard_profile_template` trigger and function; remove the envelope constraint; then remove the new request table and profile column **only after preserving their data and accepting that new templates/receipts would be lost**. Do not run a blind `DROP ... CASCADE`. None of these recovery actions is performed or authorised by this PR.
+If a fully reviewed schema rollback is necessary, restore the verified snapshot where supported, or use an authorised down migration in reverse dependency order: remove the new service RPCs; drop the new `guard_profile_builder_owner_delete` trigger/function and the `guard_profile_template` trigger/function; remove the envelope constraint; then remove the new request table and profile column **only after preserving their data and accepting that new templates/receipts would be lost**. Do not run a blind `DROP ... CASCADE`. None of these recovery actions is performed or authorised by this PR.
 
 ## Function deployment dependency graph
 
