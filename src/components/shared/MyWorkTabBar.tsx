@@ -1,34 +1,34 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { scrollWorkspaceToTop } from '@/lib/workspace-navigation';
 
-const TABS = [
-  { label: "Exams", path: "/my-exams" },
-  { label: "Practice Quizzes", path: "/quizzes" },
-] as const;
-
-export const MyWorkTabBar = () => {
+export const MyWorkTabBar = ({ tutor = false }: { tutor?: boolean }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const tabs = [
+    { label: 'Exams', path: tutor ? '/tutor/exams' : '/my-exams' },
+    { label: 'Quizzes', path: tutor ? '/tutor/practice' : '/quizzes' },
+  ];
 
   return (
-    <div className="flex gap-0 border-b border-border mb-6">
-      {TABS.map((tab) => {
+    <nav aria-label="Practice libraries" className="mb-6 grid grid-cols-2 gap-1 rounded-xl border border-border bg-muted p-1 sm:max-w-sm">
+      {tabs.map((tab) => {
         const isActive = location.pathname === tab.path;
         return (
           <button
             key={tab.label}
+            type="button"
             onClick={() => isActive ? scrollWorkspaceToTop() : navigate(tab.path)}
             aria-current={isActive ? 'page' : undefined}
-            className={`px-6 py-2.5 text-sm border-b-2 transition-all bg-transparent border-none cursor-pointer ${
+            className={`min-h-11 rounded-lg px-4 py-2.5 text-sm transition-colors ${
               isActive
-                ? "border-b-primary text-foreground font-semibold"
-                : "border-b-transparent text-muted-foreground font-normal hover:text-foreground"
+                ? "bg-card text-foreground font-semibold shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {tab.label}
           </button>
         );
       })}
-    </div>
+    </nav>
   );
 };

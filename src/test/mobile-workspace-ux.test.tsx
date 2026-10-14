@@ -37,6 +37,11 @@ const ownerChanged = (id: string | null) => {
   auth.owner = id ?? '';
   auth.callbacks.forEach(callback => callback(id ? 'SIGNED_IN' : 'SIGNED_OUT', id ? { user: { id } } : null));
 };
+function pullDown(target: HTMLElement) {
+  fireEvent.touchStart(target, { touches: [{ clientX: 150, clientY: 100 }] });
+  fireEvent.touchMove(target, { touches: [{ clientX: 150, clientY: 280 }] });
+  fireEvent.touchEnd(target);
+}
 const Wrapper = ({ children }: { children: ReactNode }) => <WorkspaceSession>{children}</WorkspaceSession>;
 const Location = () => { const location = useLocation(); return <output aria-label="location">{location.pathname + location.search + location.hash}</output>; };
 
@@ -57,7 +62,7 @@ describe('five primary controls and browser navigation', () => {
   it.each([false, true])('keeps Home left, Create central and Profile right (tutor=%s)', tutor => {
     const tabs = workspaceDestinations(tutor);
     expect(tabs).toHaveLength(5);
-    expect(tabs.map(tab => tab.key)).toEqual(['home', 'exams', 'create', 'practice', 'profile']);
+    expect(tabs.map(tab => tab.key)).toEqual(['home', 'practice', 'create', tutor ? 'students' : 'subjects', 'profile']);
     expect(tabs[2].path).toBeNull();
   });
   it('Create is an action, never a selected destination, and does not change history', () => {
@@ -71,7 +76,7 @@ describe('five primary controls and browser navigation', () => {
   });
   it('reselecting a destination scrolls to top without pushing another entry', () => {
     render(<MemoryRouter initialEntries={['/my-exams']}><MobileBottomNav onCreate={() => {}} /><Location /></MemoryRouter>);
-    fireEvent.click(screen.getByRole('button', { name: 'Exams' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Practice' }));
     expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
     expect(screen.getByLabelText('location')).toHaveTextContent('/my-exams');
   });
@@ -81,10 +86,35 @@ describe('five primary controls and browser navigation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Home' }));
     expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
   });
+  it.each(['/my-exams', '/quizzes', '/exam/paper/review', '/practice-questions/set/take'])('groups %s under Practice', path => {
+    expect(activeWorkspaceTab(path)).toBe('practice');
+    render(<MemoryRouter initialEntries={[path]}><MobileBottomNav onCreate={() => {}} /><Location /></MemoryRouter>);
+    expect(screen.getByRole('button', { name: 'Practice' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: 'Subjects' })).toBeVisible();
+  });
+  it('remembers the Quizzes library when returning to Practice and re-taps it without switching to Exams', async () => {
+    render(<Wrapper><MemoryRouter initialEntries={['/quizzes?subject=Biology']}><MobileBottomNav onCreate={() => {}} /><Location /></MemoryRouter></Wrapper>);
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: 'Practice' }));
+    expect(screen.getByLabelText('location')).toHaveTextContent('/quizzes?subject=Biology');
+    expect(window.scrollTo).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Subjects' }));
+    expect(screen.getByLabelText('location')).toHaveTextContent('/my-subjects');
+    fireEvent.click(screen.getByRole('button', { name: 'Practice' }));
+    expect(screen.getByLabelText('location')).toHaveTextContent('/quizzes?subject=Biology');
+  });
+  it('keeps tutor exams and quiz libraries together while preserving the Students destination', () => {
+    expect(activeWorkspaceTab('/tutor/exams', true)).toBe('practice');
+    expect(activeWorkspaceTab('/tutor/practice', true)).toBe('practice');
+    render(<MemoryRouter initialEntries={['/tutor/practice']}><MobileBottomNav tutor onCreate={() => {}} /></MemoryRouter>);
+    expect(screen.getByRole('button', { name: 'Practice' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: 'Students' })).toBeVisible();
+  });
   it('does not label unrelated tools or setup as Home or Create', () => {
-    expect(activeWorkspaceTab('/my-subjects')).toBeUndefined();
+    expect(activeWorkspaceTab('/my-subjects')).toBe('subjects');
+    expect(activeWorkspaceTab('/my-subjects/Biology/profile')).toBe('subjects');
     expect(activeWorkspaceTab('/upload')).toBeUndefined();
-    expect(activeWorkspaceTab('/tutor/students', true)).toBe('practice');
+    expect(activeWorkspaceTab('/tutor/students', true)).toBe('students');
     expect(activeWorkspaceTab('/settings/account')).toBe('profile');
   });
   it('returns to the same Profile section when switching primary tabs', async () => {
@@ -92,7 +122,7 @@ describe('five primary controls and browser navigation', () => {
     render(<Wrapper><MemoryRouter initialEntries={['/dashboard']}><Navigation /></MemoryRouter></Wrapper>);
     await act(async () => {});
     fireEvent.click(screen.getByRole('button', { name: 'Open preferences' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Exams' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Practice' }));
     fireEvent.click(screen.getByRole('button', { name: 'Profile' }));
     expect(screen.getByLabelText('location')).toHaveTextContent('/settings?tab=preferences');
   });
@@ -272,24 +302,30 @@ describe('reversible favourite feedback', () => {
 });
 
 describe('list refresh, keyboard and accessible sheets', () => {
+  it('has no refresh control or reserved toolbar while idle', () => {
+    render(<RefreshableList onRefresh={async () => {}}><p>List area</p></RefreshableList>);
+    expect(screen.queryByRole('button', { name: /refresh/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveStyle({ height: '0px' });
+  });
   it('keeps content while refreshing and prevents duplicate refresh calls', async () => {
     let resolve!: () => void;
     const refresh = vi.fn(() => new Promise<void>(value => { resolve = value; }));
     render(<RefreshableList onRefresh={refresh}><p>Existing Biology paper</p></RefreshableList>);
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh list' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh list' }));
+    pullDown(screen.getByText('Existing Biology paper'));
+    pullDown(screen.getByText('Existing Biology paper'));
     expect(refresh).toHaveBeenCalledOnce();
     expect(screen.getByText('Existing Biology paper')).toBeVisible();
     expect(screen.getByRole('status')).toHaveTextContent('Refreshing');
     await act(async () => resolve());
-    expect(screen.getByRole('button', { name: 'Refresh list' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: /refresh/i })).not.toBeInTheDocument();
   });
   it('reports a failed refresh while retaining the list and offers retry', async () => {
     render(<RefreshableList onRefresh={async () => { throw new Error('offline'); }}><p>Existing paper</p></RefreshableList>);
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh list' }));
+    pullDown(screen.getByText('Existing paper'));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Couldn’t refresh'));
     expect(screen.getByText('Existing paper')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Refresh list' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: /refresh/i })).not.toBeInTheDocument();
+    await act(async () => pullDown(screen.getByText('Existing paper')));
   });
   it('a downward pull only triggers at the top of a suitable list', async () => {
     const refresh = vi.fn(async () => {});
@@ -314,6 +350,70 @@ describe('list refresh, keyboard and accessible sheets', () => {
       fireEvent.touchEnd(target);
     }
     expect(refresh).not.toHaveBeenCalled();
+  });
+  it('never cancels ordinary upward scrolling over list cards', async () => {
+    const refresh = vi.fn(async () => {});
+    render(<RefreshableList onRefresh={refresh}><button>Biology card</button></RefreshableList>);
+    const card = screen.getByRole('button', { name: 'Biology card' });
+    fireEvent.touchStart(card, { touches: [{ clientX: 150, clientY: 300 }] });
+    expect(fireEvent.touchMove(card, { touches: [{ clientX: 150, clientY: 120 }] })).toBe(true);
+    fireEvent.touchEnd(card);
+    expect(refresh).not.toHaveBeenCalled();
+    await act(async () => pullDown(card));
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+  it('cancels short and interrupted pulls without refreshing or leaving an indicator', () => {
+    const refresh = vi.fn(async () => {});
+    render(<RefreshableList onRefresh={refresh}><p>List area</p></RefreshableList>);
+    const area = screen.getByText('List area');
+    fireEvent.touchStart(area, { touches: [{ clientX: 150, clientY: 100 }] });
+    fireEvent.touchMove(area, { touches: [{ clientX: 150, clientY: 150 }] });
+    fireEvent.touchEnd(area);
+    fireEvent.touchStart(area, { touches: [{ clientX: 150, clientY: 100 }] });
+    fireEvent.touchMove(area, { touches: [{ clientX: 150, clientY: 300 }] });
+    fireEvent.touchCancel(area);
+    expect(refresh).not.toHaveBeenCalled();
+    expect(screen.getByRole('status')).toHaveStyle({ height: '0px' });
+  });
+  it('leaves independent vertical and horizontal scrollers to the browser', () => {
+    const refresh = vi.fn(async () => {});
+    render(<RefreshableList onRefresh={refresh}><div style={{ overflowY: 'auto' }} data-testid="nested-list"><p>Nested area</p></div><div style={{ overflowX: 'auto' }} data-testid="rail"><p>Subject rail</p></div></RefreshableList>);
+    Object.defineProperties(screen.getByTestId('nested-list'), { scrollHeight: { value: 600 }, clientHeight: { value: 200 } });
+    Object.defineProperties(screen.getByTestId('rail'), { scrollWidth: { value: 600 }, clientWidth: { value: 200 } });
+    pullDown(screen.getByText('Nested area'));
+    pullDown(screen.getByText('Subject rail'));
+    expect(refresh).not.toHaveBeenCalled();
+  });
+  it('leaves native browser refresh available when custom overscroll handling is unsupported', () => {
+    vi.stubGlobal('CSS', { supports: () => false });
+    const refresh = vi.fn(async () => {});
+    render(<RefreshableList onRefresh={refresh}><p>Native list</p></RefreshableList>);
+    pullDown(screen.getByText('Native list'));
+    expect(refresh).not.toHaveBeenCalled();
+    expect(document.documentElement.style.overscrollBehaviorY).not.toBe('contain');
+  });
+  it('unmounting an open iOS workspace drawer leaves the next page scrollable', async () => {
+    const width = window.innerWidth;
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 });
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1');
+    function MenuPage() {
+      const [open, setOpen] = useState(false);
+      const navigate = useNavigate();
+      return <ResponsiveActionSheet open={open} onOpenChange={setOpen} title="Workspace menu" description="Your tools" trigger={<button>Open menu</button>}><button onClick={() => navigate('/my-subjects')}>My Subjects</button></ResponsiveActionSheet>;
+    }
+    try {
+      render(<MemoryRouter initialEntries={['/dashboard']}><Routes><Route path="/dashboard" element={<MenuPage />} /><Route path="/my-subjects" element={<p>Subject list</p>} /></Routes></MemoryRouter>);
+      fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeVisible());
+      expect(document.body).toHaveAttribute('data-scroll-locked');
+      fireEvent.click(screen.getByRole('button', { name: 'My Subjects' }));
+      await waitFor(() => expect(screen.getByText('Subject list')).toBeVisible());
+      await waitFor(() => expect(document.body).not.toHaveAttribute('data-scroll-locked'));
+      expect(document.body.style.position).not.toBe('fixed');
+      expect(fireEvent.touchMove(screen.getByText('Subject list'), { touches: [{ clientX: 150, clientY: 100 }] })).toBe(true);
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
+    }
   });
   it('uses visible Close and Escape controls and restores focus for a contained action', async () => {
     function Sheet() { const [open, setOpen] = useState(false); return <ResponsiveActionSheet open={open} onOpenChange={setOpen} title="Create activity" description="Choose a task" trigger={<button>Open actions</button>}><button>Mock exam</button></ResponsiveActionSheet>; }

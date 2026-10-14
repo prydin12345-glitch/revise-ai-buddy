@@ -408,7 +408,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       icon: Clock,
       value: totalStudyHours > 0 ? `${totalStudyHours.toFixed(0)}h` : "0h",
       label: "Total Study Hours",
-      iconClass: "text-[#a78bfa]",
+      iconClass: "text-info",
       onClick: () => drilldown.openDrawer("study-hours"),
     },
     {
@@ -493,8 +493,25 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     }
   };
 
+  const statsDrawer = <StatsDrilldownDrawer
+    type={drilldown.activeDrawer}
+    onClose={drilldown.closeDrawer}
+    loading={drilldown.loading}
+    completedExams={drilldown.completedExams}
+    averageScore={drilldown.averageScore}
+    scoreBreakdown={drilldown.scoreBreakdown}
+    excludedCount={drilldown.excludedCount}
+    totalHours={drilldown.totalHours}
+    studySessions={drilldown.studySessions}
+    weeklyBreakdown={drilldown.weeklyBreakdown}
+    streakData={drilldown.streakData}
+    studyTimeRange={drilldown.studyTimeRange}
+    onStudyTimeRangeChange={drilldown.handleStudyTimeRangeChange}
+  />;
+
   if (isMobile) {
     return (
+      <>
       <RefreshableList onRefresh={() => refetch()}>
       {isError && <LoadError message="Couldn’t load your dashboard. Your existing content is kept below." onRetry={() => void refetch()} />}
       <MobileDashboard
@@ -506,6 +523,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
         mockExams={mockExams}
         quizzes={quizzes}
         announcements={announcements}
+        homeSubjects={userSubjects.map(subject => ({ key: subject.id, name: subject.subject_name, color: subject.subject_color, board: subject.exam_board }))}
         onCreateExam={() => navigate("/upload")}
         onCreateQuiz={() => navigate("/create-practice-questions")}
         onJoinClass={() => setShowJoinClass(true)}
@@ -513,8 +531,14 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
         onOpenExam={handleOpenExam}
         onStartQuiz={handleStartQuiz}
         onOpenAnnouncement={() => navigate("/my-classes")}
+        onViewSubjects={() => navigate('/my-subjects')}
+        onOpenSubject={name => navigate(`/my-subjects/${encodeURIComponent(name)}`)}
+        onViewClasses={() => navigate('/my-classes')}
+        onViewPractice={kind => navigate(kind === 'quizzes' ? '/quizzes' : '/my-exams')}
       />
       </RefreshableList>
+      {statsDrawer}
+      </>
     );
   }
 
@@ -631,21 +655,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
         }}
       />
 
-      <StatsDrilldownDrawer
-        type={drilldown.activeDrawer}
-        onClose={drilldown.closeDrawer}
-        loading={drilldown.loading}
-        completedExams={drilldown.completedExams}
-        averageScore={drilldown.averageScore}
-        scoreBreakdown={drilldown.scoreBreakdown}
-        excludedCount={drilldown.excludedCount}
-        totalHours={drilldown.totalHours}
-        studySessions={drilldown.studySessions}
-        weeklyBreakdown={drilldown.weeklyBreakdown}
-        streakData={drilldown.streakData}
-        studyTimeRange={drilldown.studyTimeRange}
-        onStudyTimeRangeChange={drilldown.handleStudyTimeRangeChange}
-      />
+      {statsDrawer}
     </div>
     </RefreshableList>
   );

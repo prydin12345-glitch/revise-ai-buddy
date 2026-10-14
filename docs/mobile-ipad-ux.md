@@ -4,7 +4,7 @@ This frontend change starts from `dc34d8a8f65ce98b20d27fb2cc6a35af6a0bedb8` on `
 
 ## Navigation and actions
 
-- Phones, split-screen widths and touch devices, including a wide iPad, have five primary controls: Home, Exams, Create, Quizzes (Students for tutors), Profile. Create opens existing actions and is never a selected destination.
+- Phones, split-screen widths and touch devices, including a wide iPad, have five primary controls: Home, Practice, Create, Subjects (Students for tutors), Profile. Practice groups the existing exam and quiz libraries; see `mobile-home-layout.md` for the follow-up change. Create opens existing actions and is never a selected destination.
 - Other existing destinations remain in the workspace menu. Desktop retains its sidebar and quick actions.
 - Bottom navigation reserves content space and accounts for safe-area insets. Visual viewport changes hide it when the onscreen keyboard would obstruct input; hardware keyboards leave it available.
 - Create, workspace menu and exam filters use the existing Vaul drawer on phones and Radix dialog at wider widths. They retain accessible titles, X controls, Escape and focus restoration. Vaul handles downward dismissal and nested scrolling.
@@ -12,8 +12,8 @@ This frontend change starts from `dc34d8a8f65ce98b20d27fb2cc6a35af6a0bedb8` on `
 
 ## Lists, feedback and state
 
-- Student dashboard, exam and quiz libraries, tutor exams and tutor groups support a visible Refresh fallback and downward pull from the top of suitable content. Existing content stays mounted while updating. Refresh requests are deduplicated.
-- Custom pull handling is used only where CSS overscroll containment can suppress native refresh. Otherwise native behaviour and the visible button remain available. Inputs, horizontal carousels, nested scrollers, browser edges, setup forms and assessment screens do not participate.
+- Student dashboard, exam and quiz libraries, tutor exams and tutor groups support a downward pull from the top of suitable content. The follow-up in `mobile-home-layout.md` removes the persistent Refresh button and its empty toolbar. Existing content stays mounted while updating. Refresh requests are deduplicated.
+- Custom pull handling is used only where CSS overscroll containment can suppress native refresh. Otherwise native browser behaviour remains available. Inputs, horizontal carousels, nested scrollers, browser edges, setup forms and assessment screens do not participate.
 - Predictable loading layouts use skeletons; load failures show a retry action. Lazy route loading has an immediate skeleton rather than a blank delay.
 - Account-scoped memory retains list data, filters, sorting, selected tabs and vertical/horizontal scroll positions. Restoration waits for asynchronous layout, respects user interaction, and supports browser back/forward. Reselecting a primary destination scrolls to the top with reduced-motion support.
 - Existing favourites update immediately, lock repeated taps, reconcile server fetches and roll back with a retry message on failure. Submissions, marking, payments and tutor reply sends remain server-confirmed actions.

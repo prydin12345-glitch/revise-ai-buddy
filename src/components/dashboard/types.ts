@@ -68,6 +68,13 @@ export interface StudentProfile {
   program: string;
 }
 
+export interface HomeSubject {
+  key: string;
+  name: string;
+  color: string;
+  board?: string | null;
+}
+
 /** Everything DashboardShell needs. */
 export interface DashboardData {
   profile: StudentProfile;
@@ -78,6 +85,7 @@ export interface DashboardData {
   mockExams: MockExam[];
   quizzes: Quiz[];
   announcements: Announcement[];
+  homeSubjects?: HomeSubject[];
   // handlers (all optional)
   onCreateExam?: () => void;
   onCreateQuiz?: () => void;
@@ -89,4 +97,8 @@ export interface DashboardData {
   onOpenAnnouncement?: (id: string) => void;
   /** Mobile-only: triggered by the speed-dial "Ask AI" option. */
   onAskAI?: () => void;
+  onViewSubjects?: () => void;
+  onOpenSubject?: (name: string) => void;
+  onViewClasses?: () => void;
+  onViewPractice?: (kind?: 'exams' | 'quizzes') => void;
 }

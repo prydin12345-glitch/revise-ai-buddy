@@ -130,7 +130,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   };
 
   return (
-    <div className="examly-workspace min-h-screen flex w-full bg-background">
+    <div className={cn('examly-workspace min-h-screen flex w-full bg-background', location.pathname === '/dashboard' && primaryRole !== 'tutor' && primaryRole !== 'teacher' && 'examly-home-route')}>
       {/* Desktop sidebar; tablet widths use the same five primary controls */}
       <aside
         className={`examly-workspace-sidebar hidden xl:block fixed left-0 top-0 h-screen bg-sidebar-background border-r border-sidebar-border z-50 transition-all duration-300 ${
@@ -252,7 +252,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       </aside>
 
       {/* Main content */}
-      <div className={`examly-workspace-body flex-1 min-w-0 overflow-x-hidden transition-all duration-300 ${sidebarCollapsed ? "xl:ml-16" : "xl:ml-64"}`}>
+      <div className={`examly-workspace-body flex-1 min-w-0 overflow-x-clip transition-all duration-300 ${sidebarCollapsed ? "xl:ml-16" : "xl:ml-64"}`}>
         {/* Top bar */}
         <header className={`sticky top-0 z-30 h-14 lg:h-16 border-b transition-all duration-200 ${
           scrolled
@@ -376,7 +376,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </header>
 
         {/* Page content — always reserve room for the mobile bottom tab bar */}
-        <main className="examly-workspace-main mx-auto w-full max-w-[1440px] p-4 md:px-6 md:py-8 xl:px-8 xl:pb-8 overflow-x-hidden">{children}</main>
+        <main className="examly-workspace-main mx-auto w-full max-w-[1440px] p-4 md:px-6 md:py-8 xl:px-8 xl:pb-8 overflow-x-clip">{children}</main>
       </div>
 
       <MobileBottomNav tutor={primaryRole === 'tutor'} onCreate={() => setCreateOpen(true)} />
