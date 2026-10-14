@@ -1,12 +1,10 @@
-import { useState, useMemo, useCallback } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   Select, 
   SelectContent, 
@@ -25,62 +23,40 @@ import {
   Search, 
   ArrowUpDown,
   BookOpen,
-  MessageSquare,
-  Layers,
-  Info,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
   TrendingDown,
   Minus,
-  CheckCircle2,
   Timer,
-  Zap
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { format, subDays } from "date-fns";
+import { format, startOfWeek, startOfMonth, subMonths, isValid, parseISO } from "date-fns";
+import { useIsMobile } from '@/hooks/use-mobile';
+import { useStatsSwipe } from '@/hooks/useStatsSwipe';
+import { StreakPanel } from './stats/StreakPanel';
+import { StudyHoursPanel } from './stats/StudyHoursPanel';
+import { STATS_SECTIONS, type DrilldownType, type StatsSection, type ExamItem, type StudySession, type StreakData, type StudyPeriod } from '@/lib/dashboard-stats';
+import '@/styles/dashboard-stats.css';
 
-export type DrilldownType = 'exams' | 'scores' | 'study-hours' | 'streak' | null;
-
-interface ExamItem {
-  id: string;
-  title: string;
-  subject: string;
-  dateTaken: string;
-  score: number;
-  totalMarks: number;
-  earnedMarks: number;
-  isReleased: boolean;
-  status?: string;
-}
-
-interface StudySession {
-  id: string;
-  date: string;
-  duration: number;
-  source: string;
-  subject?: string;
-}
-
-interface StreakData {
-  currentStreak: number;
-  longestStreak: number;
-  lastActiveDate?: string;
-  recentActivity: { date: string; hasActivity: boolean }[];
-  todayActivity: string[];
-}
+export type { DrilldownType } from '@/lib/dashboard-stats';
 
 interface StatsDrilldownDrawerProps {
   type: DrilldownType;
   onClose: () => void;
+  onNavigate: (section: StatsSection) => void;
   loading?: boolean;
+  error?: string;
+  onRetry?: () => void;
   completedExams?: ExamItem[];
-  averageScore?: number;
   scoreBreakdown?: ExamItem[];
   excludedCount?: number;
-  totalHours?: number;
   studySessions?: StudySession[];
-  weeklyBreakdown?: { day: string; hours: number }[];
   streakData?: StreakData;
-  studyTimeRange?: TimeRangeOption;
-  onStudyTimeRangeChange?: (range: TimeRangeOption) => void;
+  studyPeriod: StudyPeriod;
+  onStudyPeriodChange: (period: StudyPeriod) => void;
+  streakMonth: string;
+  onStreakMonthChange: (month: string) => void;
 }
 
 type ExamSortOption = 'recent' | 'oldest' | 'highest' | 'lowest' | 'subject';
@@ -117,20 +93,28 @@ const SubtleDivider = () => (
 export const StatsDrilldownDrawer = ({
   type,
   onClose,
+  onNavigate,
   loading = false,
+  error,
+  onRetry,
   completedExams = [],
-  averageScore = 0,
   scoreBreakdown = [],
   excludedCount = 0,
-  totalHours = 0,
   studySessions = [],
-  weeklyBreakdown = [],
   streakData,
-  studyTimeRange = 'week',
-  onStudyTimeRangeChange,
+  studyPeriod,
+  onStudyPeriodChange,
+  streakMonth,
+  onStreakMonthChange,
 }: StatsDrilldownDrawerProps) => {
   const navigate = useNavigate();
   const isOpen = type !== null;
+  const isMobile = useIsMobile();
+  const swipe = useStatsSwipe(type, onNavigate, isMobile);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const sectionIndex = type ? STATS_SECTIONS.indexOf(type) : 0;
+  const sectionLabels = ['Exams Taken', 'Score Breakdown', 'Study Hours', 'Day Streak'];
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; }, [type]);
 
   // Exams drawer state
   const [examSearch, setExamSearch] = useState('');
@@ -196,7 +180,11 @@ export const StatsDrilldownDrawer = ({
       scores = scores.filter(s => s.subject === scoreSubjectFilter);
     }
     
-    // TODO: Filter by time range when date parsing is reliable
+    if (scoreTimeRange !== 'all') {
+      const now = new Date();
+      const start = scoreTimeRange === 'week' ? startOfWeek(now, { weekStartsOn: 1 }) : scoreTimeRange === 'month' ? startOfMonth(now) : startOfMonth(subMonths(now, 2));
+      scores = scores.filter(score => { const date = parseISO(score.dateTaken); return isValid(date) && date >= start && date <= now; });
+    }
     return scores;
   }, [scoreBreakdown, scoreSubjectFilter, scoreTimeRange]);
 
@@ -254,7 +242,8 @@ export const StatsDrilldownDrawer = ({
   const Icon = getIcon();
 
   const renderContent = () => {
-    if (loading) {
+    if (error) return <div role="alert" className="rounded-2xl border border-border bg-panel p-5"><p className="text-sm">{error}</p>{onRetry && <Button variant="outline" className="mt-4" onClick={onRetry}><RotateCcw className="mr-2 h-4 w-4" />Try again</Button>}</div>;
+    if (loading && (type === 'exams' || type === 'scores')) {
       return (
         <div className="space-y-4">
           {[1, 2, 3].map(i => (
@@ -270,9 +259,9 @@ export const StatsDrilldownDrawer = ({
       case 'scores':
         return renderScoresContent();
       case 'study-hours':
-        return renderStudyHoursContent();
+        return <StudyHoursPanel sessions={studySessions} period={studyPeriod} onChange={onStudyPeriodChange} loading={loading} />;
       case 'streak':
-        return renderStreakContent();
+        return <StreakPanel data={streakData} month={streakMonth} onMonthChange={onStreakMonthChange} loading={loading} />;
       default:
         return null;
     }
@@ -353,7 +342,7 @@ export const StatsDrilldownDrawer = ({
                       <Badge variant="outline" className="text-[10px] h-5 bg-muted/30 border-border/20">
                         {exam.subject}
                       </Badge>
-                      <span className="text-[10px] text-muted-foreground">{exam.dateTaken}</span>
+                      <span className="text-[10px] text-muted-foreground">{isValid(parseISO(exam.dateTaken)) ? format(parseISO(exam.dateTaken), 'd MMM yyyy') : '—'}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -361,22 +350,23 @@ export const StatsDrilldownDrawer = ({
                       <Badge 
                         variant="default" 
                         className={`text-xs ${
-                          exam.score >= 70 ? 'bg-green-500/20 text-green-400 border-green-500/30' :
-                          exam.score >= 50 ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
-                          'bg-red-500/20 text-red-400 border-red-500/30'
+                          exam.score >= 70 ? 'bg-success/10 text-success border-success/30' :
+                          exam.score >= 50 ? 'bg-warning/10 text-warning border-warning/30' :
+                          'bg-danger/10 text-danger border-danger/30'
                         }`}
                       >
                         {Math.round(exam.score)}%
                       </Badge>
                     ) : (
                       <Badge variant="secondary" className="text-[10px] bg-muted/50">
-                        Awaiting
+                        {exam.status === 'marking_failed' ? 'Marking incomplete' : 'Awaiting marks'}
                       </Badge>
                     )}
                     <Button
                       size="icon"
                       variant="ghost"
                       className="h-8 w-8 rounded-full opacity-60 group-hover:opacity-100"
+                      aria-label={`Review ${exam.title}`}
                       onClick={() => navigate(`/exam/${exam.id}/review`)}
                     >
                       <Eye className="w-4 h-4" />
@@ -430,14 +420,14 @@ export const StatsDrilldownDrawer = ({
                   <Trophy className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-3xl font-bold text-primary">{filteredAverage}%</p>
+                  <p className="text-3xl font-bold text-primary">{filteredScores.length ? `${filteredAverage}%` : '—'}</p>
                   <p className="text-xs text-muted-foreground">Average Score</p>
                 </div>
               </div>
               {scoreTrend && (
                 <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
-                  scoreTrend === 'improving' ? 'bg-green-500/10 text-green-400' :
-                  scoreTrend === 'declining' ? 'bg-red-500/10 text-red-400' :
+                  scoreTrend === 'improving' ? 'bg-success/10 text-success' :
+                  scoreTrend === 'declining' ? 'bg-danger/10 text-danger' :
                   'bg-muted/30 text-muted-foreground'
                 }`}>
                   {scoreTrend === 'improving' && <TrendingUp className="w-3 h-3" />}
@@ -472,14 +462,14 @@ export const StatsDrilldownDrawer = ({
               >
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm truncate">{exam.title}</p>
-                  <p className="text-[10px] text-muted-foreground">{exam.dateTaken}</p>
+                  <p className="text-[10px] text-muted-foreground">{isValid(parseISO(exam.dateTaken)) ? format(parseISO(exam.dateTaken), 'd MMM yyyy') : '—'}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="text-right">
                     <p className={`font-semibold text-sm ${
-                      exam.score >= 70 ? 'text-green-400' :
-                      exam.score >= 50 ? 'text-yellow-400' :
-                      'text-red-400'
+                      exam.score >= 70 ? 'text-success' :
+                      exam.score >= 50 ? 'text-warning' :
+                      'text-danger'
                     }`}>{Math.round(exam.score)}%</p>
                     <p className="text-[10px] text-muted-foreground">{exam.earnedMarks}/{exam.totalMarks}</p>
                   </div>
@@ -487,6 +477,7 @@ export const StatsDrilldownDrawer = ({
                     size="icon"
                     variant="ghost"
                     className="h-8 w-8 rounded-full opacity-60 group-hover:opacity-100"
+                    aria-label={`Review ${exam.title}`}
                     onClick={() => navigate(`/exam/${exam.id}/review`)}
                   >
                     <Eye className="w-4 h-4" />
@@ -500,292 +491,31 @@ export const StatsDrilldownDrawer = ({
     );
   };
 
-  const renderStudyHoursContent = () => {
-    // Category breakdown (even if 0)
-    const categories = [
-      { icon: FileText, label: 'Exams', hours: studySessions.filter(s => s.source === 'exam').reduce((sum, s) => sum + s.duration, 0) / 60 },
-      { icon: Zap, label: 'Practice Questions', hours: studySessions.filter(s => s.source === 'practice').reduce((sum, s) => sum + s.duration, 0) / 60 },
-      { icon: MessageSquare, label: 'Reviewing Feedback', hours: studySessions.filter(s => s.source === 'feedback').reduce((sum, s) => sum + s.duration, 0) / 60 },
-      { icon: Layers, label: 'Revision Tasks', hours: studySessions.filter(s => s.source === 'revision').reduce((sum, s) => sum + s.duration, 0) / 60 },
-    ];
-
-    return (
-      <div className="space-y-4">
-        {/* Time Range Selector */}
-        <Select value={studyTimeRange} onValueChange={(v) => onStudyTimeRangeChange?.(v as TimeRangeOption)}>
-          <SelectTrigger className="w-full bg-muted/20 border-border/20">
-            <Calendar className="w-3.5 h-3.5 mr-1.5" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="bg-background border-border/20">
-            {TIME_RANGE_OPTIONS.map(opt => (
-              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Total Hours Card */}
-        <Card className="bg-primary/5 border-primary/20">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-primary/10">
-                <Clock className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-primary">{totalHours.toFixed(1)}h</p>
-                <p className="text-xs text-muted-foreground">
-                  {studyTimeRange === 'week' ? 'This Week' : 
-                   studyTimeRange === 'month' ? 'This Month' :
-                   studyTimeRange === '3months' ? 'Last 3 Months' : 'All Time'}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <SubtleDivider />
-
-        {/* Category Breakdown */}
-        <div className="space-y-2">
-          <h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wider">By Category</h4>
-          <div className="space-y-1.5">
-            {categories.map((cat) => (
-              <div key={cat.label} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/10 border border-border/10">
-                <div className="flex items-center gap-2.5">
-                  <cat.icon className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm">{cat.label}</span>
-                </div>
-                <span className={`text-sm font-medium ${cat.hours > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
-                  {cat.hours > 0 ? `${cat.hours.toFixed(1)}h` : '0h 0m'}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <SubtleDivider />
-
-        {/* Daily Breakdown - Mini Bar Chart */}
-        <div className="space-y-2">
-          <h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wider">Daily Breakdown</h4>
-          <div className="flex gap-1 items-end h-24">
-            {weeklyBreakdown.map((day) => {
-              const maxHours = Math.max(...weeklyBreakdown.map(d => d.hours), 1);
-              const heightPercent = Math.max(8, (day.hours / maxHours) * 100);
-              
-              return (
-                <TooltipProvider key={day.day}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex-1 flex flex-col items-center gap-1">
-                        <div 
-                          className={`w-full rounded-t transition-all ${
-                            day.hours > 0 ? 'bg-primary' : 'bg-muted/30'
-                          }`}
-                          style={{ height: `${heightPercent}%`, minHeight: '4px' }}
-                        />
-                        <span className="text-[10px] text-muted-foreground">{day.day.slice(0, 2)}</span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent className="bg-background border-border/20">
-                      <p>{day.day}: {day.hours > 0 ? `${day.hours.toFixed(1)}h` : '0m'}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Start Study Session Button (Coming Soon) */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                className="w-full mt-4" 
-                variant="outline" 
-                disabled
-              >
-                <Timer className="w-4 h-4 mr-2" />
-                Start Study Session
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent className="bg-background border-border/20">
-              <p>Coming soon</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
-    );
-  };
-
-  const renderStreakContent = () => {
-    const streak = streakData || { currentStreak: 0, longestStreak: 0, recentActivity: [], todayActivity: [] };
-    
-    // Generate last 14 days
-    const last14Days = Array.from({ length: 14 }, (_, i) => {
-      const date = subDays(new Date(), 13 - i);
-      const dateStr = format(date, 'yyyy-MM-dd');
-      const activity = streak.recentActivity?.find(a => a.date === dateStr);
-      return {
-        date: format(date, 'd'),
-        dayName: format(date, 'EEE'),
-        fullDate: format(date, 'MMM d'),
-        hasActivity: activity?.hasActivity || false,
-        isToday: i === 13,
-      };
-    });
-
-    // Calculate next milestone
-    const currentStreakVal = streak.currentStreak;
-    const milestones = [7, 14, 30, 60, 100];
-    const nextMilestone = milestones.find(m => m > currentStreakVal);
-
-    return (
-      <div className="space-y-4">
-        {/* Streak Stats */}
-        <div className="grid grid-cols-2 gap-3">
-          <Card className="bg-orange-500/10 border-orange-500/20">
-            <CardContent className="p-4 text-center">
-              <Flame className="w-7 h-7 mx-auto mb-1.5 text-orange-500" />
-              <p className="text-2xl font-bold text-orange-500">{streak.currentStreak}</p>
-              <p className="text-[10px] text-muted-foreground">Current Streak</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-primary/5 border-primary/20">
-            <CardContent className="p-4 text-center">
-              <Trophy className="w-7 h-7 mx-auto mb-1.5 text-primary" />
-              <p className="text-2xl font-bold text-primary">{streak.longestStreak}</p>
-              <p className="text-[10px] text-muted-foreground">Longest Streak</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Streak Rules Info */}
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/10 border border-border/10">
-          <Info className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-          <p className="text-xs text-muted-foreground">
-            Complete a practice question, submit an exam, or reply to feedback to maintain your streak.
-          </p>
-        </div>
-
-        <SubtleDivider />
-
-        {/* Activity Calendar with Legend */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wider">Last 14 Days</h4>
-            <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded-full bg-orange-500" />
-                <span>Active</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded-full bg-primary/20 ring-1 ring-primary" />
-                <span>Today</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded-full bg-muted/30" />
-                <span>Inactive</span>
-              </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-7 gap-2">
-            {last14Days.map((day, i) => (
-              <TooltipProvider key={i}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="text-center">
-                      <div 
-                        className={`w-9 h-9 mx-auto rounded-full flex items-center justify-center text-xs font-medium transition-colors ${
-                          day.hasActivity 
-                            ? 'bg-orange-500 text-white' 
-                            : day.isToday 
-                              ? 'bg-primary/20 text-primary ring-2 ring-primary' 
-                              : 'bg-muted/20 text-muted-foreground'
-                        }`}
-                      >
-                        {day.date}
-                      </div>
-                      <p className="text-[9px] mt-1 text-muted-foreground">{day.dayName}</p>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-background border-border/20">
-                    <p>{day.fullDate}: {day.hasActivity ? 'Active' : 'No activity'}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            ))}
-          </div>
-        </div>
-
-        <SubtleDivider />
-
-        {/* History Section */}
-        <div className="space-y-2">
-          <h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wider">History</h4>
-          <div className="space-y-1.5">
-            {streak.lastActiveDate && (
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/10 border border-border/10">
-                <span className="text-sm text-muted-foreground">Last activity</span>
-                <span className="text-sm font-medium">
-                  {format(new Date(streak.lastActiveDate), 'MMM d, yyyy')}
-                </span>
-              </div>
-            )}
-            {nextMilestone && (
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/10 border border-border/10">
-                <span className="text-sm text-muted-foreground">Next milestone</span>
-                <span className="text-sm font-medium">{nextMilestone} days</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <SubtleDivider />
-
-        {/* Today's Activity */}
-        <div className="space-y-2">
-          <h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wider">
-            Today's Activity
-          </h4>
-          {streak.todayActivity.length > 0 ? (
-            <div className="space-y-1.5">
-              {streak.todayActivity.map((activity, i) => (
-                <div key={i} className="flex items-center gap-2 p-2.5 rounded-lg bg-green-500/10 border border-green-500/20">
-                  <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  <p className="text-sm">{activity}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="p-3 rounded-lg bg-muted/10 border border-border/10">
-              <p className="text-sm text-muted-foreground">
-                No activity today. Complete a practice question or exam to keep your streak going!
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-full sm:max-w-md border-l-border/10 bg-background/95 backdrop-blur-sm">
-        <SheetHeader className="pb-4 space-y-1">
-          <SheetTitle className="flex items-center gap-2.5 text-lg">
+      <SheetContent className="flex h-[100dvh] w-full max-w-full flex-col gap-0 overflow-hidden border-l-border bg-background p-0 sm:max-w-xl motion-reduce:animate-none" {...swipe}>
+        <SheetHeader className="shrink-0 px-5 pb-4 pt-[max(1.5rem,env(safe-area-inset-top))] text-left sm:px-7">
+          <div className="mb-2 flex items-center gap-2 text-[11px] font-medium text-muted-foreground"><span>Your progress</span><span aria-hidden="true">·</span><span>{sectionIndex + 1} of 4</span></div>
+          <SheetTitle className="flex items-center gap-2.5 pr-8 text-xl tracking-tight">
             <div className="p-2 rounded-lg bg-primary/10">
               <Icon className="w-4 h-4 text-primary" />
             </div>
             {getTitle()}
           </SheetTitle>
-          <p className="text-sm text-muted-foreground">{getSubtitle()}</p>
+          <SheetDescription className="pt-1 text-xs text-muted-foreground">{getSubtitle()}</SheetDescription>
         </SheetHeader>
-        <SubtleDivider />
-        <ScrollArea className="h-[calc(100vh-140px)] pr-4">
+        <nav className="mx-5 mb-4 flex shrink-0 items-center gap-1 rounded-2xl bg-muted/60 p-1 sm:mx-7" aria-label="Stats sections">
+          {STATS_SECTIONS.map((section, index) => <button type="button" key={section} aria-label={sectionLabels[index]} aria-current={type === section ? 'page' : undefined} onClick={() => onNavigate(section)} className={`min-h-10 flex-1 rounded-xl px-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${type === section ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>{['Exams', 'Scores', 'Hours', 'Streak'][index]}</button>)}
+        </nav>
+        <div className="flex shrink-0 items-center justify-between border-y border-border/70 px-5 py-1 sm:px-7">
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" aria-label={`Previous section${sectionIndex > 0 ? `: ${sectionLabels[sectionIndex - 1]}` : ''}`} disabled={sectionIndex === 0} onClick={() => onNavigate(STATS_SECTIONS[sectionIndex - 1])}><ChevronLeft className="h-4 w-4" /></Button>
+          <p className="text-[10px] text-muted-foreground">{isMobile ? 'Swipe left for previous · right for next' : 'Explore your study progress'}</p>
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" aria-label={`Next section${sectionIndex < 3 ? `: ${sectionLabels[sectionIndex + 1]}` : ''}`} disabled={sectionIndex === 3} onClick={() => onNavigate(STATS_SECTIONS[sectionIndex + 1])}><ChevronRight className="h-4 w-4" /></Button>
+        </div>
+        <p className="sr-only" role="status">{type ? `${getTitle()}, section ${sectionIndex + 1} of 4` : ''}</p>
+        <div ref={scrollRef} className="stats-detail-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5 sm:px-7" style={{ touchAction: 'pan-y pinch-zoom' }} aria-label={`${getTitle()} details`}>
           {renderContent()}
-        </ScrollArea>
+        </div>
       </SheetContent>
     </Sheet>
   );
