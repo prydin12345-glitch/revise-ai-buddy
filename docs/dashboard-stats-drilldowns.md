@@ -7,8 +7,10 @@ provider or marking changes are required.
 ## Interaction
 
 - Phones retain a full-screen sheet. Laptop/tablet sheets have more space (up to
-  576px). The header, section buttons, close control and previous/next controls
-  remain fixed while the section content scrolls.
+  576px). The title and close control remain fixed while the section content scrolls.
+  The section strip, page count, visible description and swipe instructions have
+  been removed. Previous/next icon controls remain compact on desktop; on mobile
+  they are visually hidden until keyboard focus, preserving a non-gesture path.
 - On mobile, a deliberate horizontal finger swipe moves one section. As the
   founder requested, finger-left from Scores selects Exams; finger-right selects
   Hours. Ends do not wrap. Buttons offer the same destinations without gestures.
@@ -26,10 +28,13 @@ active days have a joined highlight; today, active days, selected days and futur
 days have distinct states and accessible labels. Months can be browsed without
 changing the current-week summary.
 
-The daily goal is **one completed activity**: submit an exam, finish a quiz or
-complete a revision task. There is no XP and no invented target. The weekly card
-shows actual active days out of seven. History retains the longest streak, next
-milestone and last activity; Today's Activity retains the completed categories.
+The calendar, weekly card and History remain. The separate current-streak/daily-
+goal summary and Today’s Activity block have been removed. The header shows a
+flat vector flame when the loaded streak is zero; an active streak replaces it
+with the saved number. It shows a loading placeholder while fetching. The weekly
+card uses the same vector flame with a flat backing. History retains the longest
+streak, next milestone and last activity, with no icons on its labels.
+There is no XP or daily-goal panel.
 
 The current and longest streak values still come from `user_streaks`; this patch
 does not rewrite the backend's streak calculations. Calendar events come from
@@ -93,7 +98,7 @@ are not claimed. The reference screenshots were inspected directly.
 No migrations, backend deployments, paid generation, live data writes or website
 publication are needed or performed by this change.
 
-### Recorded automated results for this change
+### Initial rollout validation
 
 On Node 24.19.0, with the existing lockfile:
 
@@ -101,7 +106,8 @@ On Node 24.19.0, with the existing lockfile:
 - `npm run check` with two Vitest workers: 2,046 tests / 125 files passed;
   frontend typecheck and critical hook lint passed; backend identifier check and
   all 39 function bundles passed; production build passed.
-- The three new test files contain 57 checks.
+- The original three test files contained 57 checks; subsequent UI-polish results
+  are recorded below.
 - `node scripts/audit-biology.mjs`: all 52 existing template combinations checked.
 - Date/data and hook tests also passed under `TZ=Europe/London` (37 checks).
 - `git diff --check`: pass.
@@ -109,3 +115,20 @@ On Node 24.19.0, with the existing lockfile:
 Existing non-blocking output includes package deprecations, npm's proxy-setting
 warning, old Browserslist data, unrelated test DOM-nesting/PDF-font warnings and
 large production chunks. No check was bypassed or weakened.
+
+### Header and streak polish
+
+Removed the visible section strip, subtitle, page indicator and swipe helper row.
+Mobile opens with focus on the dialog so the hidden previous/next controls are
+not revealed automatically; keyboard focus reveals those controls when needed.
+The current-streak summary, daily-goal panel and Today's Activity section are no
+longer displayed. Both flame treatments use a shared inline SVG; no generated
+bitmap, image fetch or additional asset dependency is involved. Calendar/streak
+data, study aggregation, backend logic and swipe gesture handling are unchanged.
+
+Polish validation on Node 24.19.0: `npm run check` passed with 2,051 tests in
+125 files, clean frontend type/hook checks, the identifier check, all 39 function
+bundles and the production build. The updated drawer suite has 25 passing tests
+covering swipe navigation after strip removal, dialog focus/close, loading and
+zero/positive streak badges, calendar/history and existing study controls.
+`git diff --check` passed. Browser/device visual review remains outstanding.

@@ -40,6 +40,31 @@ function swipe(target: Element, from: number, to: number, dy = 0) {
 }
 
 describe('full-screen stats navigation', () => {
+  it('removes the section strip, page count, captions and swipe instructions while retaining the title', () => {
+    mountDrawer('streak');
+    expect(screen.getByRole('heading', { name: 'Day Streak' })).toBeVisible();
+    expect(screen.getByRole('dialog')).toHaveFocus();
+    expect(screen.queryByRole('navigation', { name: 'Stats sections' })).not.toBeInTheDocument();
+    for (const label of ['Your progress', '4 of 4', 'Keep your momentum going', 'Swipe left for previous · right for next', 'Current streak', 'Daily goal', 'One activity']) expect(screen.queryByText(label)).not.toBeInTheDocument();
+  });
+  it.each([0, 1, 12])('uses a flame for no streak and the saved count for an active streak (%s)', days => {
+    mountDrawer('streak', { streakData: { ...streak, currentStreak: days } });
+    const marker = screen.getByTestId('streak-header-mark');
+    if (days > 0) {
+      expect(marker).toHaveTextContent(String(days));
+      expect(marker.querySelector('svg')).toBeNull();
+      expect(screen.getByRole('dialog')).toHaveAccessibleDescription(`${days}-day streak. Review your day streak.`);
+    } else {
+      expect(marker.querySelector('svg')).not.toBeNull();
+      expect(marker.textContent).toBe('');
+    }
+  });
+  it('does not flash a zero-streak flame or stale number while the streak loads', () => {
+    mountDrawer('streak', { loading: true });
+    const marker = screen.getByTestId('streak-header-mark');
+    expect(marker.querySelector('svg')).toBeNull();
+    expect(marker.textContent).toBe('');
+  });
   it('swipes left from Score Breakdown to Exams Taken, then right through the other sections', () => {
     const { navigate } = mountDrawer();
     swipe(screen.getByLabelText('Score Breakdown details'), 280, 110);
@@ -56,9 +81,9 @@ describe('full-screen stats navigation', () => {
     const { navigate } = mountDrawer('exams');
     swipe(screen.getByLabelText('Exams Taken details'), 280, 100);
     expect(navigate).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Day Streak' }));
+    for (const label of ['Exams Taken', 'Score Breakdown', 'Study Hours']) swipe(screen.getByLabelText(`${label} details`), 100, 280);
     swipe(screen.getByLabelText('Day Streak details'), 100, 280);
-    expect(navigate).toHaveBeenCalledTimes(1);
+    expect(navigate).toHaveBeenCalledTimes(3);
     expect(screen.getByRole('button', { name: 'Next section' })).toBeDisabled();
   });
   it.each([[200, 205, 180], [200, 230, 0], [5, 180, 0], [385, 200, 0]])('ignores vertical, short and browser-edge gestures (%s→%s, dy=%s)', (from, to, dy) => {
@@ -91,8 +116,8 @@ describe('full-screen stats navigation', () => {
     expect(navigate).not.toHaveBeenCalled();
     const next = screen.getByRole('button', { name: 'Next section: Score Breakdown' });
     next.focus(); expect(next).toHaveFocus(); fireEvent.click(next);
-    expect(screen.getByRole('button', { name: 'Score Breakdown' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('status')).toHaveTextContent('section 2 of 4');
+    expect(screen.getByRole('heading', { name: 'Score Breakdown', level: 2 })).toBeVisible();
+    expect(screen.getByRole('status')).toHaveTextContent('Score Breakdown');
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(close).toHaveBeenCalledOnce();
   });
@@ -103,9 +128,10 @@ describe('full-screen stats navigation', () => {
     expect(navigate).toHaveBeenLastCalledWith('scores');
     expect(screen.getByRole('heading', { name: 'Score Breakdown', level: 2 })).toBeVisible();
     // A synthetic compatibility click on a persistent header button is consumed.
-    fireEvent.click(screen.getByRole('button', { name: 'Day Streak' }), { detail: 1 });
+    fireEvent.click(screen.getByRole('button', { name: 'Next section: Study Hours' }), { detail: 1 });
     expect(navigate).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole('button', { name: 'Day Streak' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next section: Study Hours' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next section: Day Streak' }));
     const date = screen.getByRole('button', { name: /Wednesday 14 October 2026/ });
     swipe(date, 280, 100);
     expect(navigate).toHaveBeenLastCalledWith('study-hours');
@@ -115,7 +141,8 @@ describe('full-screen stats navigation', () => {
     const { navigate } = mountDrawer();
     swipe(screen.getByLabelText('Score Breakdown details'), 280, 100);
     expect(navigate).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Day Streak' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next section: Study Hours' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next section: Day Streak' }));
     expect(screen.getByRole('heading', { name: 'Day Streak' })).toBeVisible();
   });
   it('shows a retryable load failure instead of empty or stale statistics', () => {
@@ -199,8 +226,8 @@ function StreakExample({ loading = false, activity = streak }: { loading?: boole
   return <StreakPanel data={activity} month={month} onMonthChange={setMonth} loading={loading} />;
 }
 
-describe('calendar, weekly momentum and activity goal', () => {
-  it('combines a full Monday-first calendar, weekly progress, history and today’s real activities without XP', () => {
+describe('calendar, weekly momentum and history', () => {
+  it('keeps the calendar, weekly progress and icon-free History without summary or activity blocks', () => {
     render(<StreakExample />);
     const calendar = screen.getByRole('table');
     expect(within(calendar).getAllByRole('columnheader')).toHaveLength(7);
@@ -208,11 +235,15 @@ describe('calendar, weekly momentum and activity goal', () => {
     const today = within(calendar).getByRole('button', { name: /Wednesday 14 October 2026/ });
     expect(today).toHaveAttribute('aria-current', 'date');
     expect(within(calendar).getByRole('button', { name: /Thursday 15 October/ })).toBeDisabled();
-    expect(screen.getByRole('progressbar', { name: 'Daily goal: complete one activity' })).toHaveAttribute('aria-valuenow', '1');
+    expect(screen.queryByRole('progressbar', { name: 'Daily goal: complete one activity' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Current streak')).not.toBeInTheDocument();
     expect(screen.getByRole('progressbar', { name: 'Active days this week' })).toHaveAttribute('aria-valuenow', '3');
     expect(screen.getByRole('heading', { name: 'History' })).toBeVisible();
-    expect(screen.getByRole('heading', { name: 'Today’s Activity' })).toBeVisible();
-    expect(screen.getByText('1 quiz completed')).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'Today’s Activity' })).not.toBeInTheDocument();
+    expect(screen.getByText('Best streak').querySelector('svg')).toBeNull();
+    expect(screen.getByText('Next milestone').querySelector('svg')).toBeNull();
+    expect(screen.getByText('12 days')).toBeVisible();
+    expect(screen.getByText('7 days')).toBeVisible();
     expect(screen.queryByText(/XP/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Next streak month' })).toBeDisabled();
   });
@@ -226,11 +257,12 @@ describe('calendar, weekly momentum and activity goal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back to this month' }));
     expect(screen.getByRole('heading', { name: 'October 2026' })).toBeVisible();
   });
-  it('keeps the goal achievable with one completed activity and shows a useful empty state', () => {
+  it('keeps the calendar and weekly empty state without reintroducing a daily goal', () => {
     render(<StreakExample activity={{ currentStreak: 0, longestStreak: 0, activity: [], todayActivity: [] }} />);
-    expect(screen.getByText('One activity')).toBeVisible();
-    expect(screen.getByRole('progressbar', { name: 'Daily goal: complete one activity' })).toHaveAttribute('aria-valuenow', '0');
-    expect(screen.getByText(/Submit an exam, finish a quiz or complete a revision task/)).toBeVisible();
+    expect(screen.getByText('0 of 7 active days')).toBeVisible();
+    expect(screen.getByRole('progressbar', { name: 'Active days this week' })).toHaveAttribute('aria-valuenow', '0');
+    expect(screen.queryByText('Daily goal')).not.toBeInTheDocument();
+    expect(screen.queryByText('One activity')).not.toBeInTheDocument();
   });
   it('does not label an unfetched month inactive or expose stale progress during loading', () => {
     render(<StreakExample loading />);
