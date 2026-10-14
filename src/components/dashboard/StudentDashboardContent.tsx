@@ -496,17 +496,19 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   const statsDrawer = <StatsDrilldownDrawer
     type={drilldown.activeDrawer}
     onClose={drilldown.closeDrawer}
+    onNavigate={drilldown.openDrawer}
+    error={drilldown.error}
+    onRetry={drilldown.retry}
     loading={drilldown.loading}
     completedExams={drilldown.completedExams}
-    averageScore={drilldown.averageScore}
     scoreBreakdown={drilldown.scoreBreakdown}
     excludedCount={drilldown.excludedCount}
-    totalHours={drilldown.totalHours}
     studySessions={drilldown.studySessions}
-    weeklyBreakdown={drilldown.weeklyBreakdown}
     streakData={drilldown.streakData}
-    studyTimeRange={drilldown.studyTimeRange}
-    onStudyTimeRangeChange={drilldown.handleStudyTimeRangeChange}
+    studyPeriod={drilldown.studyPeriod}
+    onStudyPeriodChange={drilldown.setStudyPeriod}
+    streakMonth={drilldown.streakMonth}
+    onStreakMonthChange={drilldown.setStreakMonth}
   />;
 
   if (isMobile) {
