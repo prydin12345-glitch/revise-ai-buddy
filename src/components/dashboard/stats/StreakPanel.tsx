@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { addDays, addMonths, format, isSameMonth, isValid, parseISO, startOfMonth, startOfWeek } from 'date-fns';
-import { Check, CheckCircle2, ChevronLeft, ChevronRight, Flame, Target, Trophy } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { StreakFlame } from './StreakFlame';
 import { cn } from '@/lib/utils';
 import { activityCount, activityDescriptions, calendarDays, dateKey, parseDay, type StreakData } from '@/lib/dashboard-stats';
 
@@ -17,7 +17,6 @@ export function StreakPanel({ data, month, onMonthChange, loading = false }: Pro
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const week = Array.from({ length: 7 }, (_, index) => addDays(startOfWeek(now, { weekStartsOn: 1 }), index));
   const weekActive = week.filter(day => activityCount(activity.get(dateKey(day))) > 0).length;
-  const goalComplete = activityCount(activity.get(today)) > 0;
   const current = data?.currentStreak ?? 0;
   const nextMilestone = [7, 14, 30, 60, 100, 180, 365].find(value => value > current) ?? Math.ceil((current + 1) / 100) * 100;
   const last = data?.lastActiveDate ? parseISO(data.lastActiveDate) : null;
@@ -26,17 +25,6 @@ export function StreakPanel({ data, month, onMonthChange, loading = false }: Pro
 
   return (
     <div className="space-y-5" aria-busy={loading}>
-      <div className="stats-streak-summary">
-        <div className="min-w-0">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground"><Flame className="h-4 w-4 text-warning" />Current streak</p>
-          {loading ? <Skeleton className="h-10 w-28" /> : <p className="text-4xl font-semibold tracking-tight tabular-nums">{current}<span className="ml-1.5 text-base font-medium text-muted-foreground">{current === 1 ? 'day' : 'days'}</span></p>}
-        </div>
-        <div className="flex items-center gap-3 border-l border-border pl-4">
-          <div className={cn('stats-goal-ring', goalComplete && 'is-complete')} role="progressbar" aria-label="Daily goal: complete one activity" aria-valuemin={0} aria-valuemax={1} aria-valuenow={loading ? undefined : goalComplete ? 1 : 0} aria-valuetext={loading ? 'Loading activity' : goalComplete ? 'Complete' : 'Not yet complete'}>{goalComplete && !loading ? <Check className="h-5 w-5" /> : <Target className="h-5 w-5" />}</div>
-          <div className="min-w-0"><p className="text-xs font-medium text-muted-foreground">Daily goal</p><p className="mt-1 text-sm font-semibold">{loading ? '…' : goalComplete ? 'Done for today' : 'One activity'}</p><p className="mt-1 text-[10px] text-muted-foreground">Exam, quiz or revision</p></div>
-        </div>
-      </div>
-
       <section className="stats-calendar-card" aria-label="Streak calendar">
         <div className="mb-4 flex items-center justify-between gap-2" data-stats-no-swipe>
           <Button variant="ghost" size="icon" className="h-11 w-11 rounded-full" aria-label="Previous streak month" onClick={() => navigateMonth(-1)}><ChevronLeft className="h-5 w-5" /></Button>
@@ -66,7 +54,7 @@ export function StreakPanel({ data, month, onMonthChange, loading = false }: Pro
       </section>
 
       <section className="stats-week-card" aria-label="This week's activity">
-        <div className="stats-week-flame" aria-hidden="true"><Flame className="h-9 w-9" strokeWidth={1.6} /></div>
+        <div className="stats-week-flame" aria-hidden="true"><StreakFlame className="h-10 w-8" /></div>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2"><h3 className="text-sm font-semibold">This week</h3><p className="text-xs text-muted-foreground">{loading ? '…' : `${weekActive} of 7 active days`}</p></div>
           <div className="stats-week-progress" role="progressbar" aria-label="Active days this week" aria-valuemin={0} aria-valuemax={7} aria-valuenow={loading ? undefined : weekActive}><span style={{ width: loading ? 0 : `${weekActive / 7 * 100}%` }} /></div>
@@ -83,14 +71,10 @@ export function StreakPanel({ data, month, onMonthChange, loading = false }: Pro
       <section aria-labelledby="streak-history-title">
         <h3 id="streak-history-title" className="mb-3 text-sm font-semibold">History</h3>
         <dl className="stats-history-grid">
-          <div><dt><Trophy className="h-3.5 w-3.5" />Best streak</dt><dd>{loading ? '…' : `${data?.longestStreak ?? 0} days`}</dd></div>
-          <div><dt><Target className="h-3.5 w-3.5" />Next milestone</dt><dd>{loading ? '…' : `${nextMilestone} days`}</dd></div>
+          <div><dt>Best streak</dt><dd>{loading ? '…' : `${data?.longestStreak ?? 0} days`}</dd></div>
+          <div><dt>Next milestone</dt><dd>{loading ? '…' : `${nextMilestone} days`}</dd></div>
           <div className="col-span-2 border-t border-border pt-3"><dt>Last activity</dt><dd>{loading ? '…' : last && isValid(last) ? format(last, 'd MMM yyyy') : 'No activity yet'}</dd></div>
         </dl>
-      </section>
-      <section aria-labelledby="streak-today-title">
-        <h3 id="streak-today-title" className="mb-3 text-sm font-semibold">Today’s Activity</h3>
-        {loading ? <Skeleton className="h-16 w-full rounded-2xl" /> : data?.todayActivity.length ? <ul className="space-y-2">{data.todayActivity.map(item => <li key={item} className="flex items-center gap-2.5 rounded-xl border border-success/20 bg-success/5 px-3.5 py-3 text-xs font-medium"><CheckCircle2 className="h-4 w-4 shrink-0 text-success" />{item}</li>)}</ul> : <div className="rounded-2xl border border-dashed border-border bg-panel px-4 py-4"><p className="text-sm font-medium">Your next small win starts here.</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Submit an exam, finish a quiz or complete a revision task to meet today’s goal.</p></div>}
       </section>
     </div>
   );

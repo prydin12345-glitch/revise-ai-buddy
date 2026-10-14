@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +16,6 @@ import {
   Eye, 
   Calendar, 
   Clock, 
-  Flame, 
   Trophy, 
   FileText, 
   TrendingUp, 
@@ -26,6 +25,7 @@ import {
   ChevronLeft,
   ChevronRight,
   RotateCcw,
+  X,
   TrendingDown,
   Minus,
   Timer,
@@ -35,6 +35,7 @@ import { format, startOfWeek, startOfMonth, subMonths, isValid, parseISO } from 
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useStatsSwipe } from '@/hooks/useStatsSwipe';
 import { StreakPanel } from './stats/StreakPanel';
+import { StreakFlame } from './stats/StreakFlame';
 import { StudyHoursPanel } from './stats/StudyHoursPanel';
 import { STATS_SECTIONS, type DrilldownType, type StatsSection, type ExamItem, type StudySession, type StreakData, type StudyPeriod } from '@/lib/dashboard-stats';
 import '@/styles/dashboard-stats.css';
@@ -112,6 +113,7 @@ export const StatsDrilldownDrawer = ({
   const isMobile = useIsMobile();
   const swipe = useStatsSwipe(type, onNavigate, isMobile);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const sectionIndex = type ? STATS_SECTIONS.indexOf(type) : 0;
   const sectionLabels = ['Exams Taken', 'Score Breakdown', 'Study Hours', 'Day Streak'];
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; }, [type]);
@@ -219,22 +221,11 @@ export const StatsDrilldownDrawer = ({
     }
   };
 
-  const getSubtitle = () => {
-    switch (type) {
-      case 'exams': return `${completedExams.length} exams in total`;
-      case 'scores': return `Based on ${scoreBreakdown.length} released exams`;
-      case 'study-hours': return 'Track your study activity';
-      case 'streak': return 'Keep your momentum going';
-      default: return '';
-    }
-  };
-
   const getIcon = () => {
     switch (type) {
       case 'exams': return FileText;
       case 'scores': return TrendingUp;
       case 'study-hours': return Clock;
-      case 'streak': return Flame;
       default: return FileText;
     }
   };
@@ -493,26 +484,34 @@ export const StatsDrilldownDrawer = ({
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="flex h-[100dvh] w-full max-w-full flex-col gap-0 overflow-hidden border-l-border bg-background p-0 sm:max-w-xl motion-reduce:animate-none" {...swipe}>
-        <SheetHeader className="shrink-0 px-5 pb-4 pt-[max(1.5rem,env(safe-area-inset-top))] text-left sm:px-7">
-          <div className="mb-2 flex items-center gap-2 text-[11px] font-medium text-muted-foreground"><span>Your progress</span><span aria-hidden="true">·</span><span>{sectionIndex + 1} of 4</span></div>
-          <SheetTitle className="flex items-center gap-2.5 pr-8 text-xl tracking-tight">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Icon className="w-4 h-4 text-primary" />
+      <SheetContent
+        ref={contentRef}
+        hideCloseButton
+        className="flex h-[100dvh] w-full max-w-full flex-col gap-0 overflow-hidden border-l-border bg-background p-0 sm:max-w-xl motion-reduce:animate-none focus:outline-none"
+        onOpenAutoFocus={event => { event.preventDefault(); contentRef.current?.focus(); }}
+        {...swipe}
+      >
+        <SheetHeader className="shrink-0 space-y-0 px-5 pb-4 pt-[max(1.5rem,env(safe-area-inset-top))] text-left sm:px-7">
+          <div className="flex items-center gap-2">
+            <SheetTitle className="flex min-w-0 flex-1 items-center gap-2.5 text-xl tracking-tight">
+              {type === 'streak' ? (
+                <span className="stats-streak-mark" aria-hidden="true" data-testid="streak-header-mark">
+                  {loading ? <Skeleton className="h-5 w-5 rounded-md" /> : (streakData?.currentStreak ?? 0) > 0
+                    ? <span className="stats-streak-number">{streakData!.currentStreak}</span>
+                    : <StreakFlame className="h-7 w-6" />}
+                </span>
+              ) : <span className="rounded-lg bg-primary/10 p-2"><Icon className="h-4 w-4 text-primary" /></span>}
+              {getTitle()}
+            </SheetTitle>
+            <div className="stats-section-controls">
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" aria-label={`Previous section${sectionIndex > 0 ? `: ${sectionLabels[sectionIndex - 1]}` : ''}`} disabled={sectionIndex === 0} onClick={() => onNavigate(STATS_SECTIONS[sectionIndex - 1])}><ChevronLeft className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" aria-label={`Next section${sectionIndex < 3 ? `: ${sectionLabels[sectionIndex + 1]}` : ''}`} disabled={sectionIndex === 3} onClick={() => onNavigate(STATS_SECTIONS[sectionIndex + 1])}><ChevronRight className="h-4 w-4" /></Button>
             </div>
-            {getTitle()}
-          </SheetTitle>
-          <SheetDescription className="pt-1 text-xs text-muted-foreground">{getSubtitle()}</SheetDescription>
+            <SheetClose asChild><Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 rounded-full" aria-label="Close"><X className="h-4 w-4" /></Button></SheetClose>
+          </div>
+          <SheetDescription className="sr-only">{type === 'streak' && streakData && !loading ? `${streakData.currentStreak}-day streak. ` : ''}Review your {getTitle().toLowerCase()}.</SheetDescription>
         </SheetHeader>
-        <nav className="mx-5 mb-4 flex shrink-0 items-center gap-1 rounded-2xl bg-muted/60 p-1 sm:mx-7" aria-label="Stats sections">
-          {STATS_SECTIONS.map((section, index) => <button type="button" key={section} aria-label={sectionLabels[index]} aria-current={type === section ? 'page' : undefined} onClick={() => onNavigate(section)} className={`min-h-10 flex-1 rounded-xl px-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${type === section ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>{['Exams', 'Scores', 'Hours', 'Streak'][index]}</button>)}
-        </nav>
-        <div className="flex shrink-0 items-center justify-between border-y border-border/70 px-5 py-1 sm:px-7">
-          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" aria-label={`Previous section${sectionIndex > 0 ? `: ${sectionLabels[sectionIndex - 1]}` : ''}`} disabled={sectionIndex === 0} onClick={() => onNavigate(STATS_SECTIONS[sectionIndex - 1])}><ChevronLeft className="h-4 w-4" /></Button>
-          <p className="text-[10px] text-muted-foreground">{isMobile ? 'Swipe left for previous · right for next' : 'Explore your study progress'}</p>
-          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" aria-label={`Next section${sectionIndex < 3 ? `: ${sectionLabels[sectionIndex + 1]}` : ''}`} disabled={sectionIndex === 3} onClick={() => onNavigate(STATS_SECTIONS[sectionIndex + 1])}><ChevronRight className="h-4 w-4" /></Button>
-        </div>
-        <p className="sr-only" role="status">{type ? `${getTitle()}, section ${sectionIndex + 1} of 4` : ''}</p>
+        <p className="sr-only" role="status">{type ? getTitle() : ''}</p>
         <div ref={scrollRef} className="stats-detail-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5 sm:px-7" style={{ touchAction: 'pan-y pinch-zoom' }} aria-label={`${getTitle()} details`}>
           {renderContent()}
         </div>

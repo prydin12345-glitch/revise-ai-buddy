@@ -22,9 +22,6 @@
 .stats-study-bar.is-empty { height: 3px; min-height: 3px; max-width: 10px; background: hsl(var(--border-strong)); }
 .stats-study-day { display: block; height: 16px; line-height: 16px; white-space: nowrap; font-size: 10px; color: hsl(var(--muted-foreground)); }
 .stats-study-column.is-selected .stats-study-day { color: hsl(var(--foreground)); font-weight: 700; }
-.stats-streak-summary { display: grid; grid-template-columns: .95fr 1.15fr; align-items: center; gap: 12px; padding: 6px 2px 2px; }
-.stats-goal-ring { display: grid; place-items: center; flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%; border: 3px solid hsl(var(--track)); color: hsl(var(--muted-foreground)); }
-.stats-goal-ring.is-complete { border-color: hsl(var(--success)); color: hsl(var(--success)); background: hsl(var(--success) / .08); }
 .stats-calendar-card { padding: 14px 12px 18px; border-radius: 24px; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); }
 .stats-calendar { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0 6px; }
 .stats-calendar th { height: 28px; font-size: 10px; font-weight: 600; color: hsl(var(--muted-foreground)); }
@@ -40,8 +37,7 @@
 .stats-calendar-day.is-selected, .stats-calendar-day:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
 .stats-calendar-spacer { display: block; height: 38px; }
 .stats-week-card { display: flex; align-items: center; gap: 16px; padding: 20px 16px; border-radius: 24px; border: 1px solid hsl(var(--warning) / .18); background: linear-gradient(115deg, hsl(var(--warning) / .08), transparent 65%), hsl(var(--card)); }
-.stats-week-flame { display: grid; place-items: center; flex: 0 0 auto; width: 62px; height: 88px; border-radius: 22px; color: hsl(var(--warning)); background: radial-gradient(ellipse, hsl(var(--warning) / .2), hsl(var(--warning) / .04)); }
-.stats-week-flame svg { fill: hsl(var(--warning) / .15); }
+.stats-week-flame { display: grid; place-items: center; flex: 0 0 auto; width: 54px; height: 70px; border-radius: 16px; color: hsl(var(--warning)); background: hsl(var(--warning-light)); border: 1px solid hsl(var(--warning) / .15); }
 .stats-week-progress { overflow: hidden; height: 7px; margin-top: 12px; border-radius: 99px; background: hsl(var(--track)); }
 .stats-week-progress span { display: block; height: 100%; border-radius: inherit; background: hsl(var(--warning)); transition: width .2s; }
 .stats-week-check { display: grid; place-items: center; width: 25px; height: 25px; margin: auto; border-radius: 50%; color: hsl(var(--muted-foreground)); background: hsl(var(--muted)); }
@@ -56,9 +52,16 @@
   .stats-week-card { gap: 10px; padding: 18px 12px; }
   .stats-week-flame { width: 42px; }
   .stats-week-check { width: 22px; height: 22px; }
-  .stats-goal-ring { width: 34px; height: 34px; }
-  .stats-streak-summary { gap: 8px; grid-template-columns: .9fr 1.2fr; }
 }
 @media (max-width: 767px) { .stats-detail-scroll { scrollbar-width: none; } .stats-detail-scroll::-webkit-scrollbar { display: none; } }
 @media (min-width: 640px) { .stats-study-card { padding: 26px 24px 18px; } .stats-calendar-card { padding: 16px 22px 20px; } .stats-calendar td { height: 46px; } .stats-calendar-day { width: 42px; height: 42px; } .stats-week-card { padding: 22px; gap: 22px; } .stats-week-check { width: 30px; height: 30px; } }
 @media (prefers-reduced-motion: reduce) { .stats-range-option, .stats-week-progress span { transition: none; } }
+
+.stats-streak-mark { display: inline-grid; place-items: center; flex: 0 0 auto; min-width: 40px; height: 40px; padding: 0 8px; border: 1px solid hsl(var(--warning) / .2); border-radius: 13px; color: hsl(var(--warning)); background: hsl(var(--warning-light)); }
+.stats-streak-number { font-size: 19px; line-height: 1; font-weight: 750; font-variant-numeric: tabular-nums; color: hsl(var(--foreground)); }
+.stats-section-controls { display: flex; flex-shrink: 0; gap: 2px; }
+@media (max-width: 767px) {
+  /* Keep non-gesture navigation for assistive technology; reveal it on keyboard focus. */
+  .stats-section-controls { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .stats-section-controls:focus-within { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
+}
