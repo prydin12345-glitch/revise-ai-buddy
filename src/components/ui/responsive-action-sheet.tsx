@@ -18,7 +18,9 @@ interface Props {
 export function ResponsiveActionSheet({ open, onOpenChange, title, description, trigger, children, returnFocus }: Props) {
   const mobile = useIsMobile();
   if (mobile) return (
-    <Drawer open={open} onOpenChange={onOpenChange} shouldScaleBackground={false} autoFocus>
+    // The Radix overlay already owns a scroll lock with unmount cleanup. Vaul's
+    // extra iOS body:fixed positioning can survive a route unmount while open.
+    <Drawer open={open} onOpenChange={onOpenChange} shouldScaleBackground={false} noBodyStyles autoFocus>
       <DrawerTrigger asChild>{trigger}</DrawerTrigger>
       <DrawerContent onCloseAutoFocus={returnFocus ? event => { event.preventDefault(); returnFocus(); } : undefined} className="examly-action-sheet bg-card max-h-[min(85dvh,var(--visible-viewport-height,85dvh))]">
         <DrawerHeader className="text-left pr-16">

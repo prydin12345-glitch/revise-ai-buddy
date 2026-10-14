@@ -6,10 +6,11 @@ import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 import { AddSubjectModal } from "./AddSubjectModal";
 import { SubjectCard } from "@/components/subjects/SubjectCard";
+import { RefreshableList } from "@/components/shared/RefreshableList";
 
 export const SubjectsList = () => {
   const { subjects, isLoading: subjectsLoading, refetch: refetchSubjects } = useUserSubjects();
-  const { getProfilesForSubject, loading: profilesLoading } = useSubjectProfiles();
+  const { getProfilesForSubject, loading: profilesLoading, refetch: refetchProfiles } = useSubjectProfiles();
 
   const [addOpen, setAddOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -56,6 +57,7 @@ export const SubjectsList = () => {
   }
 
   return (
+    <RefreshableList onRefresh={() => Promise.all([refetchSubjects(), refetchProfiles()])}>
     <div className="w-full space-y-5">
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
@@ -64,6 +66,7 @@ export const SubjectsList = () => {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search subjects…"
+            aria-label="Search subjects"
             className="pl-9 h-9 bg-card border-border focus-visible:ring-1"
           />
         </div>
@@ -97,5 +100,6 @@ export const SubjectsList = () => {
         onSubjectAdded={refetchSubjects}
       />
     </div>
+    </RefreshableList>
   );
 };

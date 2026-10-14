@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { MyWorkTabBar } from "@/components/shared/MyWorkTabBar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -23,6 +24,7 @@ const ManagePracticeSets = () => {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
+        <div className="xl:hidden"><MyWorkTabBar tutor /></div>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Practice Sets</h1>

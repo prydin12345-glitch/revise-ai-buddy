@@ -5,6 +5,7 @@ import type { ClassItem } from "../types";
 interface Props {
   classes: ClassItem[];
   onContinue?: (id: string) => void;
+  onViewAll?: () => void;
 }
 
 // fallback glyphs if ClassItem.glyph isn't set
@@ -19,31 +20,31 @@ function thumbStyle(motif: ClassItem["motif"], accent: string): React.CSSPropert
   return { background: `${base}, hsl(var(--surface-panel-2))` };
 }
 
-export default function ClassCarousel({ classes, onContinue }: Props) {
+export default function ClassCarousel({ classes, onContinue, onViewAll }: Props) {
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between px-[18px]">
-        <h2 className="text-[17px] font-extrabold tracking-tight">My Classes</h2>
-        <button className="flex items-center gap-0.5 text-[13px] font-bold text-primary">All ›</button>
+      <div className="flex items-center justify-between">
+        <h2 className="text-[17px] font-bold tracking-tight">My classes</h2>
+        <button type="button" onClick={onViewAll} className="min-h-11 text-xs font-semibold text-primary">View all <span aria-hidden="true">↗</span></button>
       </div>
 
-      <div className="flex snap-x snap-mandatory gap-3.5 overflow-x-auto px-[18px] pb-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+      <div className="no-scrollbar -mx-5 flex snap-x snap-proximity gap-3 overflow-x-auto px-5 pb-1" data-scroll-restoration="home-classes" aria-label="Your classes">
         {classes.map((c, idx) => {
           const Glyph = c.glyph ?? GLYPHS[idx] ?? Target;
           return (
-            <article key={c.id} className="w-[230px] flex-none snap-start overflow-hidden rounded-lg border border-border bg-card">
-              <div className="class-thumbnail relative grid h-[64px] place-items-center" style={thumbStyle(c.motif, c.accentColor)}>
+            <article key={c.id} className="w-[224px] flex-none snap-start overflow-hidden rounded-2xl border border-border bg-card">
+              <div className="class-thumbnail relative grid h-[44px] place-items-center" style={thumbStyle(c.motif, c.accentColor)}>
                 <span className="absolute left-[11px] top-2.5 flex items-center gap-1.5 rounded-md class-subject-label bg-card border border-border px-2 py-[3px] text-xs font-extrabold " style={{ color: c.accentColor }}>
                   <span className="h-1.5 w-1.5 rounded-full" style={{ background: c.accentColor }} />
                   {c.subjectTag}
                 </span>
-                <Glyph className="h-[34px] w-[34px] opacity-35" style={{ color: c.accentColor }} strokeWidth={1.5} />
+                <Glyph aria-hidden="true" className="ml-auto mr-3 h-5 w-5 opacity-50" style={{ color: c.accentColor }} strokeWidth={1.5} />
               </div>
               <div className="flex flex-col gap-2.5 px-3.5 pb-[15px] pt-3.5">
                 <div>
                   <div className="break-words text-base font-extrabold tracking-tight">{c.title}</div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                    {c.teacher}<span className="h-[3px] w-[3px] rounded-full bg-muted-foreground" />{c.students} students
+                    {c.teacher}<span className="h-[3px] w-[3px] rounded-full bg-muted-foreground" />{c.students} {c.students === 1 ? 'student' : 'students'}
                   </div>
                 </div>
                 <div>
@@ -54,7 +55,7 @@ export default function ClassCarousel({ classes, onContinue }: Props) {
                     <div className="h-full rounded-full" style={{ width: `${c.progress}%`, background: c.accentColor }} />
                   </div>
                 </div>
-                <button onClick={() => onContinue?.(c.id)} className="mt-0.5 flex items-center justify-center gap-1.5 rounded-md border border-border bg-panel-2 py-2.5 text-[12.5px] font-extrabold transition-colors active:bg-primary active:text-primary-foreground">
+                <button type="button" onClick={() => onContinue?.(c.id)} className="mt-0.5 flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-panel-2 py-2.5 text-xs font-semibold transition-colors active:bg-accent">
                   Continue <ArrowRight className="h-3.5 w-3.5" />
                 </button>
               </div>
