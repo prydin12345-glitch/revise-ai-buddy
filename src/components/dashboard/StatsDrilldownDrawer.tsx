@@ -2,7 +2,6 @@ import { useState, useMemo, useRef, useEffect, useCallback, useId } from "react"
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { 
@@ -14,30 +13,26 @@ import {
 } from "@/components/ui/select";
 import { 
   Eye, 
-  Calendar, 
   Clock, 
-  Trophy, 
   FileText, 
   TrendingUp, 
   Search, 
   ArrowUpDown,
-  BookOpen,
   ChevronLeft,
   ChevronRight,
   RotateCcw,
   X,
-  TrendingDown,
-  Minus,
-  Timer,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { format, startOfWeek, startOfMonth, subMonths, isValid, parseISO } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useStatsSwipe } from '@/hooks/useStatsSwipe';
 import { StreakPanel } from './stats/StreakPanel';
 import { StreakFlame } from './stats/StreakFlame';
 import { StudyHoursPanel } from './stats/StudyHoursPanel';
 import { ExamShelfIllustration } from './stats/ExamShelfIllustration';
+import { ScoreBreakdownPanel } from './stats/ScoreBreakdownPanel';
+import { buildScoreData, initialScorePeriod, type ScoreData, type ScorePeriod } from '@/lib/dashboard-scores';
 import { STATS_SECTIONS, type DrilldownType, type StatsSection, type ExamItem, type StudySession, type StreakData, type StudyPeriod } from '@/lib/dashboard-stats';
 import '@/styles/dashboard-stats.css';
 
@@ -53,6 +48,9 @@ interface StatsDrilldownDrawerProps {
   completedExams?: ExamItem[];
   scoreBreakdown?: ExamItem[];
   excludedCount?: number;
+  scores?: ScoreData;
+  scorePeriod?: ScorePeriod;
+  onScorePeriodChange?: (period: ScorePeriod) => void;
   studySessions?: StudySession[];
   streakData?: StreakData;
   studyPeriod: StudyPeriod;
@@ -63,7 +61,6 @@ interface StatsDrilldownDrawerProps {
 
 type ExamSortOption = 'recent' | 'oldest' | 'highest' | 'lowest' | 'subject';
 type ExamFilterOption = 'all' | 'completed' | 'in-progress' | 'awaiting' | 'practice';
-type TimeRangeOption = 'week' | 'month' | '3months' | 'all';
 
 const SORT_OPTIONS: { value: ExamSortOption; label: string }[] = [
   { value: 'recent', label: 'Most Recent' },
@@ -80,13 +77,6 @@ const FILTER_OPTIONS: { value: ExamFilterOption; label: string }[] = [
   { value: 'awaiting', label: 'Awaiting Release' },
 ];
 
-const TIME_RANGE_OPTIONS: { value: TimeRangeOption; label: string }[] = [
-  { value: 'week', label: 'This Week' },
-  { value: 'month', label: 'This Month' },
-  { value: '3months', label: 'Last 3 Months' },
-  { value: 'all', label: 'All Time' },
-];
-
 // Subtle divider component
 const SubtleDivider = () => (
   <div className="h-px bg-border/10 my-4" />
@@ -101,7 +91,9 @@ export const StatsDrilldownDrawer = ({
   onRetry,
   completedExams = [],
   scoreBreakdown = [],
-  excludedCount = 0,
+  scores,
+  scorePeriod: suppliedScorePeriod,
+  onScorePeriodChange,
   studySessions = [],
   streakData,
   studyPeriod,
@@ -136,15 +128,10 @@ export const StatsDrilldownDrawer = ({
   const [examSort, setExamSort] = useState<ExamSortOption>('recent');
   const [examFilter, setExamFilter] = useState<ExamFilterOption>('all');
   
-  // Scores drawer state
-  const [scoreTimeRange, setScoreTimeRange] = useState<TimeRangeOption>('all');
-  const [scoreSubjectFilter, setScoreSubjectFilter] = useState<string>('all');
-
-  // Get unique subjects from exams
-  const uniqueSubjects = useMemo(() => {
-    const subjects = new Set(completedExams.map(e => e.subject));
-    return Array.from(subjects).sort();
-  }, [completedExams]);
+  const [localScorePeriod, setLocalScorePeriod] = useState(initialScorePeriod);
+  const [scoreSubject, setScoreSubject] = useState('');
+  const scorePeriod = suppliedScorePeriod ?? localScorePeriod;
+  const scoreData = useMemo(() => scores ?? buildScoreData(completedExams.length ? completedExams : scoreBreakdown, [], [], [], []), [scores, completedExams, scoreBreakdown]);
 
   // Filtered and sorted exams
   const filteredExams = useMemo(() => {
@@ -187,43 +174,6 @@ export const StatsDrilldownDrawer = ({
     return exams;
   }, [completedExams, examSearch, examFilter, examSort]);
 
-  // Filtered scores by time range and subject
-  const filteredScores = useMemo(() => {
-    let scores = [...scoreBreakdown];
-    
-    if (scoreSubjectFilter !== 'all') {
-      scores = scores.filter(s => s.subject === scoreSubjectFilter);
-    }
-    
-    if (scoreTimeRange !== 'all') {
-      const now = new Date();
-      const start = scoreTimeRange === 'week' ? startOfWeek(now, { weekStartsOn: 1 }) : scoreTimeRange === 'month' ? startOfMonth(now) : startOfMonth(subMonths(now, 2));
-      scores = scores.filter(score => { const date = parseISO(score.dateTaken); return isValid(date) && date >= start && date <= now; });
-    }
-    return scores;
-  }, [scoreBreakdown, scoreSubjectFilter, scoreTimeRange]);
-
-  // Calculate trend indicator
-  const scoreTrend = useMemo(() => {
-    if (filteredScores.length < 3) return null;
-    const recent = filteredScores.slice(0, 3);
-    const avgRecent = recent.reduce((sum, e) => sum + e.score, 0) / recent.length;
-    const older = filteredScores.slice(3, 6);
-    if (older.length === 0) return null;
-    const avgOlder = older.reduce((sum, e) => sum + e.score, 0) / older.length;
-    
-    const diff = avgRecent - avgOlder;
-    if (diff > 5) return 'improving';
-    if (diff < -5) return 'declining';
-    return 'stable';
-  }, [filteredScores]);
-
-  // Calculate filtered average
-  const filteredAverage = useMemo(() => {
-    if (filteredScores.length === 0) return 0;
-    return Math.round(filteredScores.reduce((sum, e) => sum + e.score, 0) / filteredScores.length);
-  }, [filteredScores]);
-
   const getTitle = () => {
     switch (type) {
       case 'exams': return 'Exams Taken';
@@ -246,8 +196,8 @@ export const StatsDrilldownDrawer = ({
   const Icon = getIcon();
 
   const renderContent = () => {
-    if (error) return <div role="alert" className="rounded-2xl border border-border bg-panel p-5"><p className="text-sm">{error}</p>{onRetry && <Button variant="outline" className="mt-4" onClick={onRetry}><RotateCcw className="mr-2 h-4 w-4" />Try again</Button>}</div>;
-    if (loading && (type === 'exams' || type === 'scores')) {
+    if (error && type !== 'scores') return <div role="alert" className="rounded-2xl border border-border bg-panel p-5"><p className="text-sm">{error}</p>{onRetry && <Button variant="outline" className="mt-4" onClick={onRetry}><RotateCcw className="mr-2 h-4 w-4" />Try again</Button>}</div>;
+    if (loading && type === 'exams') {
       return (
         <div className="space-y-4">
           {[1, 2, 3].map(i => (
@@ -261,7 +211,7 @@ export const StatsDrilldownDrawer = ({
       case 'exams':
         return renderExamsContent();
       case 'scores':
-        return renderScoresContent();
+        return <ScoreBreakdownPanel data={scoreData} period={scorePeriod} onPeriodChange={onScorePeriodChange ?? setLocalScorePeriod} subject={scoreSubject} onSubjectChange={setScoreSubject} loading={loading} error={error} onRetry={onRetry} onCalendarSwipe={revealSelector} />;
       case 'study-hours':
         return <StudyHoursPanel sessions={studySessions} period={studyPeriod} onChange={onStudyPeriodChange} loading={loading} />;
       case 'streak':
@@ -401,116 +351,6 @@ export const StatsDrilldownDrawer = ({
             ))}
           </div>
         )}
-      </div>
-    );
-  };
-
-  const renderScoresContent = () => {
-    return (
-      <div className="space-y-4">
-        {/* Time Range + Subject Filter */}
-        <div className="flex gap-2">
-          <Select value={scoreTimeRange} onValueChange={(v) => setScoreTimeRange(v as TimeRangeOption)}>
-            <SelectTrigger className="flex-1 bg-muted/20 border-border/20">
-              <Calendar className="w-3.5 h-3.5 mr-1.5" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-background border-border/20">
-              {TIME_RANGE_OPTIONS.map(opt => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={scoreSubjectFilter} onValueChange={setScoreSubjectFilter}>
-            <SelectTrigger className="flex-1 bg-muted/20 border-border/20">
-              <BookOpen className="w-3.5 h-3.5 mr-1.5" />
-              <SelectValue placeholder="All Subjects" />
-            </SelectTrigger>
-            <SelectContent className="bg-background border-border/20">
-              <SelectItem value="all">All Subjects</SelectItem>
-              {uniqueSubjects.map(subj => (
-                <SelectItem key={subj} value={subj}>{subj}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Average Score Card */}
-        <Card className="bg-primary/5 border-primary/20">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-primary/10">
-                  <Trophy className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-3xl font-bold text-primary">{filteredScores.length ? `${filteredAverage}%` : '—'}</p>
-                  <p className="text-xs text-muted-foreground">Average Score</p>
-                </div>
-              </div>
-              {scoreTrend && (
-                <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
-                  scoreTrend === 'improving' ? 'bg-success/10 text-success' :
-                  scoreTrend === 'declining' ? 'bg-danger/10 text-danger' :
-                  'bg-muted/30 text-muted-foreground'
-                }`}>
-                  {scoreTrend === 'improving' && <TrendingUp className="w-3 h-3" />}
-                  {scoreTrend === 'declining' && <TrendingDown className="w-3 h-3" />}
-                  {scoreTrend === 'stable' && <Minus className="w-3 h-3" />}
-                  <span className="capitalize">{scoreTrend}</span>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {excludedCount > 0 && (
-          <p className="text-xs text-muted-foreground bg-muted/20 p-2.5 rounded-lg flex items-center gap-2">
-            <Timer className="w-3.5 h-3.5" />
-            {excludedCount} exam{excludedCount > 1 ? 's' : ''} awaiting mark release
-          </p>
-        )}
-
-        <SubtleDivider />
-
-        {/* Score Breakdown */}
-        <div className="space-y-2">
-          <h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wider">Score Breakdown</h4>
-          {filteredScores.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">No scores to display</p>
-          ) : (
-            filteredScores.map((exam) => (
-              <div 
-                key={exam.id} 
-                className="group flex items-center justify-between p-3 rounded-lg bg-muted/10 hover:bg-muted/20 transition-colors border border-border/10"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{exam.title}</p>
-                  <p className="text-[10px] text-muted-foreground">{isValid(parseISO(exam.dateTaken)) ? format(parseISO(exam.dateTaken), 'd MMM yyyy') : '—'}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="text-right">
-                    <p className={`font-semibold text-sm ${
-                      exam.score >= 70 ? 'text-success' :
-                      exam.score >= 50 ? 'text-warning' :
-                      'text-danger'
-                    }`}>{Math.round(exam.score)}%</p>
-                    <p className="text-[10px] text-muted-foreground">{exam.earnedMarks}/{exam.totalMarks}</p>
-                  </div>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 rounded-full opacity-60 group-hover:opacity-100"
-                    aria-label={`Review ${exam.title}`}
-                    onClick={() => navigate(`/exam/${exam.id}/review`)}
-                  >
-                    <Eye className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
       </div>
     );
   };

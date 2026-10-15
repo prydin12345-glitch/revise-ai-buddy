@@ -102,6 +102,10 @@ exam/practice categories. Names, values and bar labels accompany the colours.
 Score data uses the existing protected `exam_submission_metadata` view. Only
 valid, released, graded scores contribute to the average; an unmarked, failed or
 withheld mark is not treated as a scored zero. Genuine graded zeros remain valid.
+The Score Breakdown drawer now adds fully marked completed quizzes and selects
+one subject and day/month/year at a time. Its two panels, profile grouping and
+calendar-specific gestures are documented in [Score Breakdown calendar](score-breakdown-calendar.md).
+Home's existing summary and the main Stats page layout are not redesigned.
 
 ## Verification
 

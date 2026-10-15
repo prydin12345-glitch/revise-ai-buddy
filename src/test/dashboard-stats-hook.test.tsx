@@ -89,7 +89,7 @@ describe('stats drawer request lifecycle', () => {
     fixture.delayed = new Promise(resolve => { finish = resolve; });
     const { result } = renderHook(useStatsDrilldown);
     act(() => result.current.openDrawer('scores'));
-    await waitFor(() => expect(fixture.calls.length).toBe(1));
+    await waitFor(() => expect(fixture.calls.length).toBe(4));
     const stale = fixture.calls[0];
     fixture.delayed = null;
     act(() => result.current.openDrawer('study-hours'));
@@ -139,5 +139,48 @@ describe('stats drawer request lifecycle', () => {
     act(() => result.current.openDrawer('streak'));
     await waitFor(() => expect(result.current.error).toContain('Sign in again'));
     expect(fixture.calls).toEqual([]);
+  });
+  it('scopes score, quiz, profile and subject reads and never requests answer keys or answer text', async () => {
+    fixture.rows.practice_set_progress = [{ id: 'p', set_id: 'set-a', completed_at: '2026-10-14T10:00:00', practice_question_sets: { id: 'set-a', set_name: 'Quiz', subject_id: 'Biology', profile_id: null, total_questions_generated: 1 } }];
+    fixture.rows.practice_questions = [{ id: 'q', set_id: 'set-a', marks: 2 }];
+    fixture.rows.practice_question_answers = [{ id: 'a', set_id: 'set-a', question_id: 'q', score: 1, submitted_at: '2026-10-14T09:00:00' }];
+    fixture.rows.user_subjects = [{ subject_name: 'Biology' }];
+    const { result } = renderHook(useStatsDrilldown);
+    act(() => result.current.openDrawer('scores'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.scores.attempts).toHaveLength(1);
+    expect(result.current.scores.attempts[0]).toMatchObject({ source: 'quiz', score: 50 });
+    for (const call of fixture.calls) {
+      if (call.table === 'practice_questions') expect(call.steps).toContainEqual(['in', 'set_id', ['set-a']]);
+      else expect(call.steps).toContainEqual(['eq', call.table === 'exam_submission_metadata' ? 'student_id' : 'user_id', 'user-a']);
+      expect(call.signal).toBeInstanceOf(AbortSignal);
+      const fields = call.steps.find(step => step[0] === 'select')![1] as string;
+      expect(fields).not.toMatch(/correct_answer|worked_solution|answer_text|feedback/);
+    }
+    const progress = fixture.calls.find(call => call.table === 'practice_set_progress')!;
+    expect(progress.steps).toContainEqual(['eq', 'practice_question_sets.user_id', 'user-a']);
+  });
+  it('switches days/months locally and fetches a new year with inclusive local year bounds', async () => {
+    const { result } = renderHook(useStatsDrilldown);
+    act(() => result.current.openDrawer('scores'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const count = fixture.calls.length;
+    act(() => result.current.setScorePeriod({ view: 'month', anchor: '2026-09-01' }));
+    expect(fixture.calls).toHaveLength(count);
+    act(() => result.current.setScorePeriod({ view: 'day', anchor: '2026-09-02' }));
+    expect(fixture.calls).toHaveLength(count);
+    act(() => result.current.setScorePeriod({ view: 'year', anchor: '2025-01-01' }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const read = fixture.calls.filter(call => call.table === 'exam_submission_metadata').at(-1)!;
+    expect(read.steps).toContainEqual(['gte', 'submitted_at', new Date(2025, 0, 1).toISOString()]);
+    expect(read.steps).toContainEqual(['lte', 'submitted_at', new Date(2025, 11, 31, 23, 59, 59, 999).toISOString()]);
+  });
+  it('surfaces quiz-grade read failures rather than silently showing an exam-only average', async () => {
+    fixture.rows.practice_set_progress = [{ id: 'p', set_id: 'set-a', completed_at: '2026-10-14T10:00:00', practice_question_sets: { id: 'set-a', set_name: 'Quiz', subject_id: 'Biology', profile_id: null } }];
+    fixture.fail = 'practice_question_answers';
+    const { result } = renderHook(useStatsDrilldown);
+    act(() => result.current.openDrawer('scores'));
+    await waitFor(() => expect(result.current.error).toContain('Couldn’t load'));
+    expect(result.current.scores.attempts).toEqual([]);
   });
 });

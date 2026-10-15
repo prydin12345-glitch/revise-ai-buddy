@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { endOfDay, endOfMonth, isValid, parseISO, startOfMonth, startOfWeek, subDays } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspaceSession } from '@/hooks/use-workspace-session';
+import { EMPTY_SCORES, initialScorePeriod, type ScoreData } from '@/lib/dashboard-scores';
+import { loadDashboardScores } from '@/lib/dashboard-score-loader';
 import {
   dateKey, initialStudyPeriod, parseDay, resolveStudyPeriod, studySummary,
   type DateInterval, type DrilldownType, type ExamItem, type StreakData, type StudyPeriod, type StudySession,
@@ -18,8 +20,9 @@ interface StatsData {
   studySessions: StudySession[];
   totalHours: number;
   streakData?: StreakData;
+  scores: ScoreData;
 }
-const EMPTY: StatsData = { completedExams: [], scoreBreakdown: [], excludedCount: 0, studySessions: [], totalHours: 0 };
+const EMPTY: StatsData = { completedExams: [], scoreBreakdown: [], excludedCount: 0, studySessions: [], totalHours: 0, scores: EMPTY_SCORES };
 
 async function fetchExams(userId: string, signal: AbortSignal): Promise<StatsData> {
   const rows = await readStatsPages<SubmissionRow>((from, to) => supabase
@@ -82,9 +85,11 @@ export const useStatsDrilldown = () => {
   const [activeDrawer, setActiveDrawer] = useState<DrilldownType>(null);
   const [studyPeriod, setStudyPeriod] = useState(initialStudyPeriod);
   const [streakMonth, setStreakMonth] = useState(() => dateKey(startOfMonth(new Date())));
+  const [scorePeriod, setScorePeriod] = useState(initialScorePeriod);
   const [retryToken, setRetryToken] = useState(0);
   const [result, setResult] = useState<{ key: string; data?: StatsData; error?: string }>({ key: '' });
-  const rangeKey = activeDrawer === 'study-hours' ? JSON.stringify(studyPeriod) : activeDrawer === 'streak' ? streakMonth : '';
+  const scoreYear = scorePeriod.anchor.slice(0, 4);
+  const rangeKey = activeDrawer === 'study-hours' ? JSON.stringify(studyPeriod) : activeDrawer === 'streak' ? streakMonth : activeDrawer === 'scores' ? scoreYear : '';
   const key = JSON.stringify([ownerId, activeDrawer, rangeKey, retryToken]);
 
   // Account switches cannot expose the previous owner's drawer or cached results.
@@ -100,7 +105,10 @@ export const useStatsDrilldown = () => {
         if (controller.signal.aborted) return;
         const stats = activeDrawer === 'study-hours' ? await fetchStudy(ownerId, studyPeriod, controller.signal)
           : activeDrawer === 'streak' ? await fetchStreak(ownerId, streakMonth, controller.signal)
-          : await fetchExams(ownerId, controller.signal);
+          : activeDrawer === 'scores' ? await (async (): Promise<StatsData> => {
+            const { exams, scores } = await loadDashboardScores(ownerId, scoreYear, controller.signal);
+            return { ...EMPTY, scores, completedExams: exams, scoreBreakdown: exams.filter(exam => exam.isReleased), excludedCount: exams.filter(exam => !exam.isReleased).length };
+          })() : await fetchExams(ownerId, controller.signal);
         if (!controller.signal.aborted) setResult({ key, data: stats });
       } catch (error) {
         if (!controller.signal.aborted) setResult({ key, error: error instanceof Error ? error.message : 'Couldn’t load your activity. Please try again.' });
@@ -108,7 +116,7 @@ export const useStatsDrilldown = () => {
     };
     void load();
     return () => controller.abort();
-  }, [activeDrawer, ready, ownerId, studyPeriod, streakMonth, key]);
+  }, [activeDrawer, ready, ownerId, studyPeriod, streakMonth, scoreYear, key]);
 
   const openDrawer = useCallback((type: DrilldownType) => {
     if (type) { setRetryToken(value => value + 1); setActiveDrawer(type); }
@@ -121,6 +129,6 @@ export const useStatsDrilldown = () => {
     activeDrawer, openDrawer, closeDrawer, retry,
     loading: !!activeDrawer && ready && !!ownerId && result.key !== key,
     error: activeDrawer && !ownerId ? 'Sign in to view your activity.' : error,
-    ...data, studyPeriod, setStudyPeriod, streakMonth, setStreakMonth,
+    ...data, studyPeriod, setStudyPeriod, streakMonth, setStreakMonth, scorePeriod, setScorePeriod,
   };
 };
