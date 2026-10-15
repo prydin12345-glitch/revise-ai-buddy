@@ -8,18 +8,34 @@ provider or marking changes are required.
 
 - Phones retain a full-screen sheet. Laptop/tablet sheets have more space (up to
   576px). The title and close control remain fixed while the section content scrolls.
-  The section strip, page count, visible description and swipe instructions have
-  been removed. Previous/next icon controls remain compact on desktop; on mobile
-  they are visually hidden until keyboard focus, preserving a non-gesture path.
+  Four small pill selectors sit near the bottom, with no visible text labels.
+  They fade after seven idle seconds and return on a deliberate horizontal swipe
+  (including at a boundary), section navigation or keyboard focus. Their spoken
+  names and current-section state remain available; keyboard focus keeps them
+  visible. Bottom padding keeps the selectors clear of the last content row and
+  device safe area. Previous/next controls remain compact on desktop; on mobile
+  they are visually hidden until keyboard focus. No page count, subtitle or
+  swipe-instruction row is displayed.
 - On mobile, a deliberate horizontal finger swipe moves one section. As the
   founder requested, finger-left from Scores selects Exams; finger-right selects
   Hours. Ends do not wrap. Buttons offer the same destinations without gestures.
 - Vertical scrolling, pinch zoom, browser-edge gestures, text selection, editable
-  inputs and native date controls do not trigger section changes. Swipes over
-  chart bars/date cells are supported; their compatibility click is suppressed.
+  inputs and study date-picker dialogs/popovers do not trigger section changes.
+  Swipes over chart bars/streak calendar cells are supported; their compatibility
+  click is suppressed.
 - Data loads for the selected section. Owner checks, abort signals and request
   keys prevent a late response from another section/month/account being shown.
   Reopening starts a fresh read. Errors show a retry action, not a zero chart.
+
+## Mobile exam history
+
+Mobile uses a compact search/sort toolbar, wrapping filter pills and separated
+full-width exam rows. Each row contains an original decorative SVG study scene,
+title, subject, date, result state and review chevron. The artwork uses theme
+tokens and makes no image request. Subject names choose decoration only, never
+qualification, tier or course identity. Real released zeros remain visible;
+withheld scores remain hidden and failed marking is labelled incomplete. The
+whole row uses the existing review route. Desktop retains its existing list.
 
 ## Day Streak
 
@@ -56,6 +72,16 @@ ranges are validated and limited to 366 days. Longer custom views group days int
 at most 31 labelled buckets without dropping time. Week and month views show
 every day, including genuine empty days.
 
+The four coloured category totals are simple vertical name/value rows. The month
+button opens a year navigator and twelve-month grid. Custom range opens one
+"Select date" dialog: a first tap sets the start, a second sets the end, and
+Save applies the inclusive range. Earlier second taps are ordered automatically;
+same-day ranges work. Month/year navigation retains the draft start. Cancel,
+Escape and dismissal leave the active chart period unchanged. No activity fetch
+is requested until Save. The installed calendar supplies keyboard navigation;
+the day renderer preserves its focus/selection handlers and adds full spoken
+dates. Future dates and ranges exceeding the existing 366-day limit stay blocked.
+
 - Exams: `time_taken_seconds` from submitted exam metadata.
 - Practice: `time_spent_seconds` from completed practice sets.
 - Revision: the duration on completed revision tasks, assigned to their scheduled
@@ -90,6 +116,9 @@ Before merge/release, inspect the actual preview at 320/390px, tablet and laptop
 widths in light and dark mode. Check horizontal swipes (including bars/date
 cells), normal vertical scrolling, close/escape/focus return, historical months,
 custom date validation, empty/loading/error states and a user with real activity.
+Check the seven-second selector fade, its return on a swipe/section change and
+keyboard access, the illustrated exam rows, the month grid and a start/end range
+saved or cancelled across a month/year boundary.
 Confirm the last selected day's entries appear. The cloud browser available in
 this task cannot reach the scratch dev server, and blocked local-file navigation
 was not circumvented. Browser screenshots/device checks and real database reads
@@ -132,3 +161,20 @@ bundles and the production build. The updated drawer suite has 25 passing tests
 covering swipe navigation after strip removal, dialog focus/close, loading and
 zero/positive streak badges, calendar/history and existing study controls.
 `git diff --check` passed. Browser/device visual review remains outstanding.
+
+### Compact selectors, mobile exam history and date pickers
+
+Validation on Node 24.19.0 with the unchanged lockfile: `npm ci` passed, then
+`npm run check` passed with 2,068 tests in 126 files, clean frontend type/hook
+checks, backend identifier checks, all 39 function bundles and the production
+build. The two stats UI suites contain 42 checks, including selector timing,
+keyboard focus, range saving/cancellation, future/oversized ranges, year changes,
+touch isolation and protected exam results. `git diff --check` passed.
+
+The initial two-worker full run timed out in an unchanged tutor-feedback test
+and its following pagination case. Both passed in isolation; the complete run
+then passed with one worker and the original 30-second test limits. No tests or
+timeouts were relaxed. Existing non-blocking warnings remain as listed above;
+the build also reports a dependency PURE-annotation warning from Zod.
+Browser/device visual review and real-account round trips remain outstanding;
+these are synthetic UI and data checks, not screenshots or live-backend tests.

@@ -40,11 +40,11 @@ function swipe(target: Element, from: number, to: number, dy = 0) {
 }
 
 describe('full-screen stats navigation', () => {
-  it('removes the section strip, page count, captions and swipe instructions while retaining the title', () => {
+  it('shows compact section selectors without restoring page counts, captions or swipe instructions', () => {
     mountDrawer('streak');
     expect(screen.getByRole('heading', { name: 'Day Streak' })).toBeVisible();
     expect(screen.getByRole('dialog')).toHaveFocus();
-    expect(screen.queryByRole('navigation', { name: 'Stats sections' })).not.toBeInTheDocument();
+    expect(within(screen.getByRole('navigation', { name: 'Stats sections' })).getAllByRole('button')).toHaveLength(4);
     for (const label of ['Your progress', '4 of 4', 'Keep your momentum going', 'Swipe left for previous · right for next', 'Current streak', 'Daily goal', 'One activity']) expect(screen.queryByText(label)).not.toBeInTheDocument();
   });
   it.each([0, 1, 12])('uses a flame for no streak and the saved count for an active streak (%s)', days => {
@@ -195,20 +195,19 @@ describe('consolidated study chart', () => {
     expect(screen.getByText('September 2026')).toBeVisible();
     expect(screen.getAllByText('1h 0m')[0]).toBeVisible();
     expect(within(screen.getByTestId('study-time-plot')).getAllByRole('button')).toHaveLength(30);
-    fireEvent.change(screen.getByLabelText('Choose study month'), { target: { value: '2026-08' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Choose study month' }));
+    fireEvent.click(screen.getByRole('button', { name: 'August 2026' }));
     expect(screen.getByText('August 2026')).toBeVisible();
     expect(screen.getByText('No study time recorded for these dates.')).toBeVisible();
   });
-  it('validates a custom range, then includes both selected dates', () => {
+  it('applies both selected range endpoints only after saving', () => {
     render(<StudyExample />);
     fireEvent.click(screen.getByRole('button', { name: 'Custom range' }));
-    fireEvent.change(screen.getByLabelText('Study range start'), { target: { value: '2026-10-13' } });
-    fireEvent.change(screen.getByLabelText('Study range end'), { target: { value: '2026-10-12' } });
-    fireEvent.submit(screen.getByRole('button', { name: 'Apply dates' }).closest('form')!);
-    expect(screen.getByRole('alert')).toHaveTextContent('on or after');
-    fireEvent.change(screen.getByLabelText('Study range start'), { target: { value: '2026-10-12' } });
-    fireEvent.change(screen.getByLabelText('Study range end'), { target: { value: '2026-10-14' } });
-    fireEvent.submit(screen.getByRole('button', { name: 'Apply dates' }).closest('form')!);
+    fireEvent.click(screen.getByRole('gridcell', { name: 'Monday 12 October 2026' }));
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('gridcell', { name: 'Wednesday 14 October 2026' }));
+    expect(within(screen.getByTestId('study-time-plot')).getAllByRole('button', { hidden: true })).toHaveLength(7);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.getByText('38m')).toBeVisible();
     expect(within(screen.getByTestId('study-time-plot')).getAllByRole('button')).toHaveLength(3);

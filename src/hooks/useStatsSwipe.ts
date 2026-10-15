@@ -4,7 +4,7 @@ import { adjacentStatsSection, type StatsSection } from '@/lib/dashboard-stats';
 const BLOCKED = 'input,textarea,select,a,[contenteditable="true"],[role="slider"],[data-stats-no-swipe]';
 
 /** Observe only: never cancel vertical page scrolling, native editors or pinch zoom. */
-export function useStatsSwipe(section: StatsSection | null, onNavigate: (section: StatsSection) => void, enabled: boolean) {
+export function useStatsSwipe(section: StatsSection | null, onNavigate: (section: StatsSection) => void, enabled: boolean, onSwipe?: () => void) {
   const gesture = useRef<{ id: number; x: number; y: number; cancelled: boolean } | null>(null);
   const suppressClickUntil = useRef(0);
   return {
@@ -36,6 +36,7 @@ export function useStatsSwipe(section: StatsSection | null, onNavigate: (section
       const dx = touch.clientX - start.x;
       const dy = Math.abs(touch.clientY - start.y);
       if (Math.abs(dx) < 64 || dy > 40 || Math.abs(dx) <= dy * 1.5) return;
+      onSwipe?.();
       const next = adjacentStatsSection(section, dx);
       if (next) {
         // Date cells and bars remain tappable, but a committed swipe must not also tap them.

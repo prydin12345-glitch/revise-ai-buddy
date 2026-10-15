@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback, useId } from "react";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ import { useStatsSwipe } from '@/hooks/useStatsSwipe';
 import { StreakPanel } from './stats/StreakPanel';
 import { StreakFlame } from './stats/StreakFlame';
 import { StudyHoursPanel } from './stats/StudyHoursPanel';
+import { ExamShelfIllustration } from './stats/ExamShelfIllustration';
 import { STATS_SECTIONS, type DrilldownType, type StatsSection, type ExamItem, type StudySession, type StreakData, type StudyPeriod } from '@/lib/dashboard-stats';
 import '@/styles/dashboard-stats.css';
 
@@ -111,7 +112,19 @@ export const StatsDrilldownDrawer = ({
   const navigate = useNavigate();
   const isOpen = type !== null;
   const isMobile = useIsMobile();
-  const swipe = useStatsSwipe(type, onNavigate, isMobile);
+  const [selectorVisible, setSelectorVisible] = useState(true);
+  const selectorTimer = useRef<ReturnType<typeof setTimeout>>();
+  const detailsId = useId();
+  const revealSelector = useCallback(() => {
+    setSelectorVisible(true);
+    clearTimeout(selectorTimer.current);
+    selectorTimer.current = setTimeout(() => setSelectorVisible(false), 7000);
+  }, []);
+  useEffect(() => {
+    if (type) revealSelector();
+    return () => clearTimeout(selectorTimer.current);
+  }, [type, revealSelector]);
+  const swipe = useStatsSwipe(type, onNavigate, isMobile, revealSelector);
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const sectionIndex = type ? STATS_SECTIONS.indexOf(type) : 0;
@@ -266,16 +279,17 @@ export const StatsDrilldownDrawer = ({
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
+              aria-label="Search exams"
               placeholder="Search exams..."
               value={examSearch}
               onChange={(e) => setExamSearch(e.target.value)}
-              className="pl-9 bg-muted/20 border-border/20 focus:border-primary/50"
+              className={isMobile ? 'h-12 rounded-2xl border-border/60 bg-muted/30 pl-10 text-sm' : 'pl-9 bg-muted/20 border-border/20 focus:border-primary/50'}
             />
           </div>
           <Select value={examSort} onValueChange={(v) => setExamSort(v as ExamSortOption)}>
-            <SelectTrigger className="w-[140px] bg-muted/20 border-border/20">
-              <ArrowUpDown className="w-3.5 h-3.5 mr-1.5" />
-              <SelectValue />
+            <SelectTrigger aria-label="Sort exams" className={isMobile ? 'h-12 w-12 shrink-0 justify-center rounded-2xl border-border/60 bg-muted/30 p-0 [&>svg:last-child]:hidden' : 'w-[140px] bg-muted/20 border-border/20'}>
+              <ArrowUpDown className={isMobile ? 'h-4 w-4' : 'w-3.5 h-3.5 mr-1.5'} />
+              <span className={isMobile ? 'sr-only' : undefined}><SelectValue /></span>
             </SelectTrigger>
             <SelectContent className="bg-background border-border/20">
               {SORT_OPTIONS.map(opt => (
@@ -292,7 +306,8 @@ export const StatsDrilldownDrawer = ({
               key={opt.value}
               size="sm"
               variant={examFilter === opt.value ? "default" : "outline"}
-              className={`h-7 text-xs px-3 ${
+              aria-pressed={examFilter === opt.value}
+              className={`${isMobile ? 'h-9 rounded-full px-3.5 text-xs' : 'h-7 text-xs px-3'} ${
                 examFilter === opt.value 
                   ? '' 
                   : 'bg-muted/20 border-border/20 hover:bg-muted/40'
@@ -304,21 +319,39 @@ export const StatsDrilldownDrawer = ({
           ))}
         </div>
 
-        <SubtleDivider />
+        {!isMobile && <SubtleDivider />}
 
         {/* Exam List */}
         {filteredExams.length === 0 ? (
           <div className="text-center py-12">
             <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
             <p className="text-muted-foreground">
-              {examSearch ? 'No exams match your search' : 'No exams yet'}
+              {examSearch ? 'No exams match your search' : examFilter !== 'all' ? 'No exams in this view' : 'No exams yet'}
             </p>
-            {!examSearch && (
+            {!examSearch && examFilter === 'all' && (
               <Button className="mt-4" onClick={() => navigate('/upload')}>
                 Take a Practice Exam
               </Button>
             )}
           </div>
+        ) : isMobile ? (
+          <ul className="stats-exam-list" aria-label="Exam history">
+            {filteredExams.map(exam => <li key={exam.id}>
+              <button type="button" className="stats-exam-row" onClick={() => navigate(`/exam/${exam.id}/review`)} aria-label={`Review ${exam.title}`} aria-describedby={`${detailsId}-${exam.id}-subject ${detailsId}-${exam.id}-date ${detailsId}-${exam.id}-result`}>
+                <ExamShelfIllustration subject={exam.subject} />
+                <span className="min-w-0 flex-1 text-left">
+                  <span className="mb-1 line-clamp-2 text-[15px] font-semibold leading-snug tracking-tight">{exam.title}</span>
+                  <span id={`${detailsId}-${exam.id}-subject`} className="block truncate text-xs text-muted-foreground">{exam.subject}</span>
+                  <span id={`${detailsId}-${exam.id}-date`} className="mt-1 block text-[11px] text-muted-foreground">{isValid(parseISO(exam.dateTaken)) ? format(parseISO(exam.dateTaken), 'd MMM yyyy') : '—'}</span>
+                </span>
+                <span id={`${detailsId}-${exam.id}-result`} className="flex max-w-[96px] shrink-0 items-center gap-2">
+                  {exam.isReleased ? <span className={`rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums ${exam.score >= 70 ? 'bg-success/10 text-success' : exam.score >= 50 ? 'bg-warning/10 text-warning' : 'bg-danger/10 text-danger'}`}>{Math.round(exam.score)}%</span>
+                    : <span className="rounded-lg bg-muted/70 px-2 py-1 text-[10px] font-medium leading-snug text-muted-foreground">{exam.status === 'marking_failed' ? 'Marking incomplete' : exam.status === 'in_progress' ? 'In progress' : 'Awaiting marks'}</span>}
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
+                </span>
+              </button>
+            </li>)}
+          </ul>
         ) : (
           <div className="space-y-2">
             {filteredExams.map((exam) => (
@@ -503,6 +536,7 @@ export const StatsDrilldownDrawer = ({
               ) : <span className="rounded-lg bg-primary/10 p-2"><Icon className="h-4 w-4 text-primary" /></span>}
               {getTitle()}
             </SheetTitle>
+            {type === 'exams' && !loading && !error && <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium tabular-nums text-muted-foreground" aria-label={`${completedExams.length} exams`}>{completedExams.length}</span>}
             <div className="stats-section-controls">
               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" aria-label={`Previous section${sectionIndex > 0 ? `: ${sectionLabels[sectionIndex - 1]}` : ''}`} disabled={sectionIndex === 0} onClick={() => onNavigate(STATS_SECTIONS[sectionIndex - 1])}><ChevronLeft className="h-4 w-4" /></Button>
               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" aria-label={`Next section${sectionIndex < 3 ? `: ${sectionLabels[sectionIndex + 1]}` : ''}`} disabled={sectionIndex === 3} onClick={() => onNavigate(STATS_SECTIONS[sectionIndex + 1])}><ChevronRight className="h-4 w-4" /></Button>
@@ -512,9 +546,12 @@ export const StatsDrilldownDrawer = ({
           <SheetDescription className="sr-only">{type === 'streak' && streakData && !loading ? `${streakData.currentStreak}-day streak. ` : ''}Review your {getTitle().toLowerCase()}.</SheetDescription>
         </SheetHeader>
         <p className="sr-only" role="status">{type ? getTitle() : ''}</p>
-        <div ref={scrollRef} className="stats-detail-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5 sm:px-7" style={{ touchAction: 'pan-y pinch-zoom' }} aria-label={`${getTitle()} details`}>
+        <div id={detailsId} ref={scrollRef} className="stats-detail-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-5 sm:px-7" style={{ touchAction: 'pan-y pinch-zoom' }} aria-label={`${getTitle()} details`}>
           {renderContent()}
         </div>
+        <nav className="stats-section-selector" data-visible={selectorVisible} aria-label="Stats sections" onFocusCapture={revealSelector} onPointerEnter={revealSelector} data-stats-no-swipe>
+          {STATS_SECTIONS.map((section, index) => <button key={section} type="button" aria-label={sectionLabels[index]} aria-current={type === section ? 'page' : undefined} aria-controls={detailsId} onClick={() => { revealSelector(); onNavigate(section); }}><span /></button>)}
+        </nav>
       </SheetContent>
     </Sheet>
   );

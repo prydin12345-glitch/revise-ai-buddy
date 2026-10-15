@@ -1,21 +1,19 @@
 import { useMemo, useState } from 'react';
-import { endOfDay, format, startOfMonth, startOfWeek } from 'date-fns';
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, FileText, Layers, MessageSquare, Zap } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Clock3 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import {
-  dateKey, formatStudyMinutes, parseDay, resolveStudyPeriod, shiftStudyPeriod, studySummary,
+  formatStudyMinutes, resolveStudyPeriod, studySummary,
   type StudyPeriod, type StudySession, type StudySource,
 } from '@/lib/dashboard-stats';
+import { StudyDateControls } from './StudyDateControls';
 
 const CATEGORIES = [
-  { source: 'exam', label: 'Exams', icon: FileText, color: 'hsl(var(--primary))' },
-  { source: 'practice', label: 'Practice Questions', icon: Zap, color: 'hsl(var(--stats-practice))' },
-  { source: 'feedback', label: 'Reviewing Feedback', icon: MessageSquare, color: 'hsl(var(--success))' },
-  { source: 'revision', label: 'Revision Tasks', icon: Layers, color: 'hsl(var(--warning))' },
-] satisfies { source: StudySource; label: string; icon: typeof FileText; color: string }[];
+  { source: 'exam', label: 'Exams', color: 'hsl(var(--primary))' },
+  { source: 'practice', label: 'Practice Questions', color: 'hsl(var(--stats-practice))' },
+  { source: 'feedback', label: 'Reviewing Feedback', color: 'hsl(var(--success))' },
+  { source: 'revision', label: 'Revision Tasks', color: 'hsl(var(--warning))' },
+] satisfies { source: StudySource; label: string; color: string }[];
 
 interface Props { sessions: StudySession[]; period: StudyPeriod; onChange: (period: StudyPeriod) => void; loading?: boolean }
 
@@ -23,60 +21,14 @@ export function StudyHoursPanel({ sessions, period, onChange, loading = false }:
   const now = new Date();
   const interval = resolveStudyPeriod(period, now);
   const summary = useMemo(() => studySummary(sessions, interval), [sessions, interval.start.getTime(), interval.end.getTime()]);
-  const [from, setFrom] = useState(period.from);
-  const [to, setTo] = useState(period.to);
-  const [error, setError] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
   const selectedBucket = summary.buckets.find(bucket => bucket.key === selected);
   const maximum = Math.max(...summary.buckets.map(bucket => bucket.total), 1);
-  const title = period.mode === 'month' ? format(interval.start, 'MMMM yyyy')
-    : period.mode === 'week' ? `${format(interval.start, 'd MMM')} – ${format(interval.end, 'd MMM yyyy')}`
-    : `${format(interval.start, 'd MMM yyyy')} – ${format(interval.end, 'd MMM yyyy')}`;
-  const canGoForward = period.mode === 'month' ? interval.start < startOfMonth(now) : interval.start < startOfWeek(now, { weekStartsOn: 1 });
-  const change = (next: StudyPeriod) => { setSelected(null); setError(''); onChange(next); };
-  const setMode = (mode: StudyPeriod['mode']) => {
-    if (mode === 'custom') {
-      setFrom(period.from); setTo(period.to);
-      return change({ ...period, mode });
-    }
-    change({ ...period, mode, anchor: dateKey(now) });
-  };
-  const applyCustom = (event: React.FormEvent) => {
-    event.preventDefault();
-    try {
-      const next = { ...period, mode: 'custom' as const, from, to };
-      resolveStudyPeriod(next, now);
-      change(next);
-    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Choose a valid date range.'); }
-  };
+  const change = (next: StudyPeriod) => { setSelected(null); onChange(next); };
 
   return (
     <div className="stats-study-surface space-y-5" aria-busy={loading}>
-      <div className="stats-range-switch" role="group" aria-label="Study time range">
-        {(['week', 'month', 'custom'] as const).map(mode => <button type="button" key={mode} aria-pressed={period.mode === mode} onClick={() => setMode(mode)} className={cn('stats-range-option', period.mode === mode && 'is-selected')}>{mode === 'custom' ? 'Custom range' : mode === 'week' ? 'Week' : 'Month'}</button>)}
-      </div>
-
-      {period.mode === 'custom' ? (
-        <form onSubmit={applyCustom} className="space-y-3 rounded-2xl border border-border bg-panel p-4" data-stats-no-swipe>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="min-w-0 space-y-1.5 text-xs font-medium">From<Input aria-label="Study range start" type="date" required value={from} max={dateKey(now)} onChange={event => setFrom(event.target.value)} className="w-full min-w-0 bg-background text-sm" /></label>
-            <label className="min-w-0 space-y-1.5 text-xs font-medium">To<Input aria-label="Study range end" type="date" required value={to} min={from || undefined} max={dateKey(now)} onChange={event => setTo(event.target.value)} className="w-full min-w-0 bg-background text-sm" /></label>
-          </div>
-          {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
-          <Button size="sm" type="submit" className="w-full">Apply dates</Button>
-        </form>
-      ) : (
-        <div className="flex min-w-0 items-center justify-between gap-2" data-stats-no-swipe>
-          <Button size="icon" variant="ghost" className="h-11 w-11 shrink-0 rounded-full" aria-label={`Previous ${period.mode}`} onClick={() => change(shiftStudyPeriod(period, -1))}><ChevronLeft className="h-5 w-5" /></Button>
-          {period.mode === 'month' ? <label className="relative flex min-w-0 items-center justify-center gap-2 text-sm font-semibold"><CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" /><span>{title}</span><input type="month" aria-label="Choose study month" value={format(parseDay(period.anchor), 'yyyy-MM')} max={format(now, 'yyyy-MM')} className="stats-month-input" onChange={event => {
-            const value = event.target.value;
-            if (!/^\d{4}-\d{2}$/.test(value)) return;
-            const anchor = parseDay(`${value}-01`);
-            if (anchor <= endOfDay(now)) change({ ...period, anchor: dateKey(anchor) });
-          }} /></label> : <p className="text-center text-sm font-semibold">{title}</p>}
-          <Button size="icon" variant="ghost" className="h-11 w-11 shrink-0 rounded-full" aria-label={`Next ${period.mode}`} disabled={!canGoForward} onClick={() => change(shiftStudyPeriod(period, 1))}><ChevronRight className="h-5 w-5" /></Button>
-        </div>
-      )}
+      <StudyDateControls period={period} onChange={change} />
 
       <section className="stats-study-card" aria-label="Study time chart">
         <div className="mb-6 flex items-start justify-between gap-3">
@@ -104,10 +56,10 @@ export function StudyHoursPanel({ sessions, period, onChange, loading = false }:
         {!loading && <p className="mt-3 min-h-8 text-xs leading-relaxed text-muted-foreground" aria-live="polite">{selectedBucket ? `${selectedBucket.fullLabel} · ${formatStudyMinutes(selectedBucket.total)}` : summary.totalMinutes === 0 ? 'No study time recorded for these dates.' : 'Tap a bar to see its date and total.'}</p>}
       </section>
 
-      <dl className="grid grid-cols-2 gap-3" aria-label="Study time by category">
-        {CATEGORIES.map(category => <div key={category.source} className="rounded-2xl border border-border bg-panel p-3.5 sm:p-4">
-          <dt className="flex items-center gap-2 text-[11px] font-medium leading-snug text-muted-foreground sm:text-xs"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: category.color }} /><span>{category.label}</span></dt>
-          <dd className="mt-3 flex items-center justify-between gap-2 text-xl font-semibold tracking-tight tabular-nums">{loading ? <Skeleton className="h-7 w-16" /> : formatStudyMinutes(summary.totals[category.source])}<category.icon className="h-4 w-4 shrink-0 text-muted-foreground/70" /></dd>
+      <dl className="stats-study-totals" aria-label="Study time by category">
+        {CATEGORIES.map(category => <div key={category.source}>
+          <dt><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: category.color }} aria-hidden="true" />{category.label}</dt>
+          <dd>{loading ? <Skeleton className="h-5 w-16" /> : formatStudyMinutes(summary.totals[category.source])}</dd>
         </div>)}
       </dl>
       <p className="px-1 text-[11px] leading-relaxed text-muted-foreground">Revision uses the duration of completed tasks. Feedback review time isn’t tracked yet.</p>
