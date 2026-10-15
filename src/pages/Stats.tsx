@@ -291,6 +291,9 @@ const Stats = () => {
           loading={drilldown.loading}
           completedExams={drilldown.completedExams}
           scoreBreakdown={drilldown.scoreBreakdown}
+          scores={drilldown.scores}
+          scorePeriod={drilldown.scorePeriod}
+          onScorePeriodChange={drilldown.setScorePeriod}
           excludedCount={drilldown.excludedCount}
           studySessions={drilldown.studySessions}
           streakData={drilldown.streakData}

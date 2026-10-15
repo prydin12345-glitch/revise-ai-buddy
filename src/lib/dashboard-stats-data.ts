@@ -10,7 +10,7 @@ export interface SubmissionRow {
   total_score?: number | null;
   total_marks?: number | null;
   status?: string | null;
-  exams?: { title: string; subject_id: string; grade_released: boolean | null } | null;
+  exams?: { title: string; subject_id: string; grade_released: boolean | null; profile_id?: string | null } | null;
 }
 export interface PracticeRow { id: string; completed_at: string | null; time_spent_seconds?: number | null }
 export interface TaskRow { id: string; date: string; duration?: number | null; updated_at?: string; is_completed?: boolean }
@@ -26,6 +26,7 @@ export function examItems(rows: SubmissionRow[]): ExamItem[] {
     return {
       id: row.exam_id!, title: row.exams!.title, subject: row.exams!.subject_id,
       dateTaken: row.submitted_at!, status: row.status ?? undefined,
+      profileId: row.exams!.profile_id ?? null,
       // Unmarked, failed and unreleased work never becomes a zero in the average.
       isReleased: released, score: released ? (score! / marks!) * 100 : 0,
       totalMarks: released ? marks! : 0, earnedMarks: released ? score! : 0,

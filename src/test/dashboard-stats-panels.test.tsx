@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { StatsDrilldownDrawer } from '@/components/dashboard/StatsDrilldownDrawer';
 import { StudyHoursPanel } from '@/components/dashboard/stats/StudyHoursPanel';
@@ -135,6 +135,27 @@ describe('full-screen stats navigation', () => {
     const date = screen.getByRole('button', { name: /Wednesday 14 October 2026/ });
     swipe(date, 280, 100);
     expect(navigate).toHaveBeenLastCalledWith('study-hours');
+  });
+  it('isolates all calendar date gestures while body swipes still navigate stats sections', () => {
+    const { navigate } = mountDrawer('scores');
+    swipe(screen.getByRole('button', { name: 'Tuesday 13 October 2026' }), 280, 100);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'Score Breakdown' })).toBeVisible();
+    swipe(screen.getByLabelText('Score Breakdown details'), 280, 100);
+    expect(navigate).toHaveBeenCalledWith('exams');
+  });
+  it('reveals the fading selectors on a date swipe without changing the stats section', () => {
+    vi.useRealTimers(); vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] }); vi.setSystemTime(now);
+    mountDrawer('scores');
+    act(() => vi.advanceTimersByTime(7000));
+    const navigation = screen.getByRole('navigation', { name: 'Stats sections' });
+    expect(navigation).toHaveAttribute('data-visible', 'false');
+    const strip = screen.getByRole('group', { name: 'Daily score dates' });
+    sendTouchEvent('touchStart', strip, { touches: [touch(190, 250)] });
+    sendTouchEvent('touchMove', strip, { touches: [touch(190, 150)] });
+    sendTouchEvent('touchEnd', strip, { touches: [], changedTouches: [touch(190, 150)] });
+    expect(navigation).toHaveAttribute('data-visible', 'true');
+    expect(screen.getByRole('heading', { name: 'Score Breakdown' })).toBeVisible();
   });
   it('keeps desktop section controls while disabling touch paging there', () => {
     device.mobile = false;

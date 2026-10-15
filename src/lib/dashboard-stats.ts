@@ -26,6 +26,7 @@ export interface ExamItem {
   earnedMarks: number;
   isReleased: boolean;
   status?: string;
+  profileId?: string | null;
 }
 export interface ActivityDay {
   date: string;
