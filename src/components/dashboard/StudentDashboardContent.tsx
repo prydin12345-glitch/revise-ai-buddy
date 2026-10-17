@@ -6,7 +6,8 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { FileText, Trophy, Clock, Flame, TrendingUp, ListChecks, Target } from "lucide-react";
+import { TrendingUp, ListChecks, Target } from "lucide-react";
+import { ExamsCompletedIcon, AverageScoreIcon, StudyHoursIcon, DayStreakIcon } from "./DashboardStatIcons";
 import { useExamStats } from "@/hooks/useExamStats";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
@@ -389,7 +390,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
   const profileStats: ProfileStat[] = [
     {
       key: "exams",
-      icon: FileText,
+      icon: ExamsCompletedIcon,
       value: completedExams.length.toString(),
       label: "Exams Completed",
       iconClass: "text-primary",
@@ -397,7 +398,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     },
     {
       key: "avg",
-      icon: Trophy,
+      icon: AverageScoreIcon,
       value: averageScore !== null ? `${averageScore}%` : "—",
       label: "Average Score",
       iconClass: "text-warning",
@@ -405,7 +406,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     },
     {
       key: "hours",
-      icon: Clock,
+      icon: StudyHoursIcon,
       value: totalStudyHours > 0 ? `${totalStudyHours.toFixed(0)}h` : "0h",
       label: "Total Study Hours",
       iconClass: "text-info",
@@ -413,7 +414,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     },
     {
       key: "streak",
-      icon: Flame,
+      icon: DayStreakIcon,
       value: currentStreak > 0 ? currentStreak.toString() : "—",
       label: "Day Streak",
       iconClass: "text-danger",

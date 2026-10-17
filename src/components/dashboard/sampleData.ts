@@ -3,18 +3,19 @@
 // Replace with your real Supabase hook data (same shapes as types.ts),
 // then delete this file.
 import {
-  FileText, Trophy, Clock, Flame, TrendingUp, ListChecks, Target,
+  TrendingUp, ListChecks, Target,
 } from "lucide-react";
+import { ExamsCompletedIcon, AverageScoreIcon, StudyHoursIcon, DayStreakIcon } from "./DashboardStatIcons";
 import type { DashboardData } from "./types";
 
 export const sampleDashboard: DashboardData = {
   profile: { name: "Prydin Asewando", initials: "PA", program: "IB · Year 13" },
 
   profileStats: [
-    { key: "exams",  icon: FileText, value: "8",   label: "Exams Completed",   iconClass: "text-primary" },
-    { key: "avg",    icon: Trophy,   value: "73%", label: "Average Score",     iconClass: "text-warning" },
-    { key: "hours",  icon: Clock,    value: "24h", label: "Total Study Hours", iconClass: "text-[#a78bfa]" },
-    { key: "streak", icon: Flame,    value: "5",   label: "Day Streak",        iconClass: "text-danger" },
+    { key: "exams",  icon: ExamsCompletedIcon, value: "8",   label: "Exams Completed",   iconClass: "text-primary" },
+    { key: "avg",    icon: AverageScoreIcon,   value: "73%", label: "Average Score",     iconClass: "text-warning" },
+    { key: "hours",  icon: StudyHoursIcon,    value: "24h", label: "Total Study Hours", iconClass: "text-info" },
+    { key: "streak", icon: DayStreakIcon,    value: "5",   label: "Day Streak",        iconClass: "text-danger" },
   ],
 
   // User-assigned subject colours
