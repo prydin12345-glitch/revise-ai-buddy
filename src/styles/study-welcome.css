@@ -85,3 +85,55 @@
   .study-welcome-message { max-width: 360px; font-size: 14px; }
   .study-corner { right: 28px; bottom: 6px; width: 34%; max-width: 260px; }
 }
+
+/* Full-bleed colour joins the Home top bar; the dashboard keeps its reading width. */
+.student-home-dashboard {
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+}
+.student-home-grid {
+  display: grid;
+  grid-template-areas: "welcome" "primary" "secondary";
+  gap: 24px;
+  max-width: 1280px;
+  margin-inline: auto;
+  padding: 0 24px 32px;
+}
+.student-home-welcome {
+  grid-area: welcome;
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+  border-radius: 0;
+  background: transparent;
+  padding-inline: 24px;
+}
+.student-home-welcome::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0 -100vw -12px;
+  background-color: hsl(var(--home-hero));
+  pointer-events: none;
+}
+.student-home-primary { grid-area: primary; position: relative; z-index: 1; }
+.student-home-secondary { grid-area: secondary; z-index: 1; align-self: start; }
+
+@media (min-width: 1024px) {
+  .student-home-grid {
+    grid-template-columns: minmax(0, 1fr) 332px;
+    grid-template-areas: "welcome welcome" "primary secondary";
+    padding-inline: 32px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .student-home-grid {
+    grid-template-areas: "welcome secondary" "primary secondary";
+    grid-template-rows: auto 1fr;
+  }
+  .student-home-secondary { margin-top: 24px; }
+  .student-home-welcome .study-welcome-copy { width: 52%; }
+  .student-home-welcome .study-corner { right: 24px; width: 42%; max-width: 240px; }
+}

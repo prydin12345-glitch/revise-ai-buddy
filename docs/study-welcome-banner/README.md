@@ -2,9 +2,12 @@
 
 The original mobile desk, lamp, book, plant and window now form one shared
 `StudyWelcomeBanner` on student Home at mobile, iPad and laptop widths. The
-larger layout places the banner above both dashboard columns; existing create
+larger layout blends the banner into the top bar and page edges. iPad keeps a
+wide banner; from 1280px the artwork shares the left column with the create
+actions and the profile/statistics column starts higher beside it. Existing
 actions, classes, activity, profile statistics and navigation retain their data
-and callbacks. The loading skeleton reserves the new banner space.
+and callbacks. The loading skeleton reserves the new banner space. See the
+[blend refinement](../study-banner-blend/README.md) for current layout screenshots.
 
 Three original SVG settings follow the existing device-local greeting boundaries:
 
@@ -22,7 +25,7 @@ no animation. The hero background and top-bar continuity on mobile are retained
 in both themes. The four-segment mobile stats strip remains 58px tall, with
 20px icons and no visible labels.
 
-## Preview gallery
+## Initial preview gallery
 
 These screenshots show the actual dashboard with an in-memory fixture session,
 not a real student's account. All live Supabase requests were blocked; the
@@ -37,7 +40,7 @@ notification endpoint was also replaced with a read-only local fixture.
 Full dashboard screenshots: [mobile, 390px](mobile-dark.png),
 [iPad portrait, 834px](ipad-dark.png), [laptop, 1440px](laptop-light.png).
 
-## Verification
+## Initial implementation verification
 
 Node 24.19.0, existing installed dependencies and unchanged lockfile:
 

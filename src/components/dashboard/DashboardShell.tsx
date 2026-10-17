@@ -19,7 +19,7 @@ export default function DashboardShell(props: DashboardData) {
   } = props;
 
   return (
-    <div className="min-h-screen bg-background font-sans text-foreground">
+    <div className="examly-home-route min-h-screen bg-background font-sans text-foreground">
       <Topbar
         initials={profile.initials}
         onCreateExam={onCreateExam}
@@ -28,11 +28,11 @@ export default function DashboardShell(props: DashboardData) {
         onJoinClass={onJoinClass}
       />
 
-      <main className="mx-auto max-w-[1280px] px-6 py-7 lg:px-8">
-        <StudyWelcomeBanner name={profile.name} className="mb-6" />
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_332px] lg:items-start">
+      <main className="student-home-dashboard">
+        <div className="student-home-grid">
+          <StudyWelcomeBanner name={profile.name} className="student-home-welcome" />
           {/* LEFT — scrolls with the page */}
-          <div className="flex min-w-0 flex-col gap-5">
+          <div className="student-home-primary flex min-w-0 flex-col gap-5">
             <CreateBanner onCreateExam={onCreateExam} onCreateQuiz={onCreateQuiz} />
             <Announcements items={announcements} onOpen={onOpenAnnouncement} />
             <ClassesGrid classes={classes} onContinue={onContinue} />
@@ -45,7 +45,7 @@ export default function DashboardShell(props: DashboardData) {
           </div>
 
           {/* RIGHT — sticky on desktop */}
-          <aside className="flex flex-col gap-5 lg:sticky lg:top-[88px]">
+          <aside className="student-home-secondary flex min-w-0 flex-col gap-5 lg:sticky lg:top-[88px]">
             <ProfileCard profile={profile} stats={profileStats} />
             <SubjectDonut subjects={subjects} centerValue={averageScore} />
           </aside>

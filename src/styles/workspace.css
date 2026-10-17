@@ -158,19 +158,19 @@
   .my-subjects-page { touch-action: pan-y pinch-zoom; }
 }
 
-@media screen and (max-width: 767px) {
-  .examly-home-route {
-    --home-hero: 218 39% 89%;
-  }
-  .dark .examly-home-route {
-    --home-hero: 220 27% 24%;
-  }
-  .examly-home-route .examly-workspace-body > header {
-    background-color: hsl(var(--home-hero));
-    border-color: transparent;
-  }
-  .examly-home-route .examly-workspace-main {
-    padding-top: 0;
-    padding-inline: 0;
-  }
+.examly-home-route {
+  --home-hero: 218 39% 89%;
+}
+.dark .examly-home-route {
+  --home-hero: 220 27% 24%;
+}
+.examly-home-route .examly-workspace-body > header,
+.examly-home-route > header {
+  background-color: hsl(var(--home-hero));
+  border-color: transparent;
+}
+.examly-home-route .examly-workspace-main {
+  max-width: none;
+  padding-top: 0;
+  padding-inline: 0;
 }
