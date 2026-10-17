@@ -3,12 +3,13 @@
 The original mobile desk, lamp, book, plant and window now form one shared
 `StudyWelcomeBanner` on student Home at mobile, iPad and laptop widths. The
 mobile and iPad layouts blend the banner into the top bar and page edges, with
-rounded top corners on the content surface underneath. From 1280px the original
-separate, rounded banner spans both columns, with the profile/statistics column
-below it beside the create actions. Existing
+rounded top corners on the content surface underneath. At laptop widths with a
+fine pointer, the separate, rounded banner now sits in the main column above a
+horizontal stats strip, beside the class and announcement cards. Existing
 actions, classes, activity, profile statistics and navigation retain their data
 and callbacks. The loading skeleton reserves the new banner space. See the
-[layout refinement](../banner-layout-refinement/README.md) for current screenshots.
+[laptop dashboard map](../laptop-dashboard-remap/README.md) for current screenshots;
+the [layout refinement](../banner-layout-refinement/README.md) records the prior layout.
 
 Three original SVG settings follow the existing device-local greeting boundaries:
 

@@ -7,6 +7,8 @@ import Announcements from "./Announcements";
 import ClassesGrid from "./ClassesGrid";
 import ActivityPanel from "./ActivityPanel";
 import ProfileCard from "./ProfileCard";
+import DashboardSummaryStrip from "./DashboardSummaryStrip";
+import DashboardContextCards from "./DashboardContextCards";
 import StudyWelcomeBanner from "./StudyWelcomeBanner";
 import SubjectDonut from "./SubjectDonut";
 import type { DashboardData } from "./types";
@@ -33,9 +35,12 @@ export default function DashboardShell(props: DashboardData) {
           <StudyWelcomeBanner name={profile.name} className="student-home-welcome" />
           {/* LEFT — scrolls with the page */}
           <div className="student-home-primary flex min-w-0 flex-col gap-5">
-            <CreateBanner onCreateExam={onCreateExam} onCreateQuiz={onCreateQuiz} />
-            <Announcements items={announcements} onOpen={onOpenAnnouncement} />
-            <ClassesGrid classes={classes} onContinue={onContinue} />
+            <div className="student-home-tablet-content flex flex-col gap-5">
+              <CreateBanner onCreateExam={onCreateExam} onCreateQuiz={onCreateQuiz} />
+              <Announcements items={announcements} onOpen={onOpenAnnouncement} />
+              <ClassesGrid classes={classes} onContinue={onContinue} />
+            </div>
+            <DashboardSummaryStrip stats={profileStats} />
             <ActivityPanel
               mockExams={mockExams}
               quizzes={quizzes}
@@ -46,7 +51,10 @@ export default function DashboardShell(props: DashboardData) {
 
           {/* RIGHT — sticky on desktop */}
           <aside className="student-home-secondary flex min-w-0 flex-col gap-5 lg:sticky lg:top-[88px]">
-            <ProfileCard profile={profile} stats={profileStats} />
+            <div className="student-home-tablet-profile"><ProfileCard profile={profile} stats={profileStats} /></div>
+            <DashboardContextCards classes={classes} announcements={announcements}
+              onContinue={onContinue} onOpenAnnouncement={onOpenAnnouncement}
+              onViewClasses={props.onViewClasses} onJoinClass={onJoinClass} />
             <SubjectDonut subjects={subjects} centerValue={averageScore} />
           </aside>
         </div>

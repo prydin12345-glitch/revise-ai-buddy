@@ -14,6 +14,9 @@ import { useWorkspaceScroll } from "@/hooks/use-workspace-scroll";
 import { useKeyboardViewport } from "@/hooks/use-keyboard-viewport";
 import MobileBottomNav from "./mobile/MobileBottomNav";
 import MobileSpeedDial from "./mobile/MobileSpeedDial";
+import SidebarAccount from "./SidebarAccount";
+import { useIsLaptop } from "@/hooks/use-mobile";
+import "@/styles/laptop-dashboard.css";
 import { useUserRole } from "@/hooks/useUserRole";
 import { prefetchRoute, prefetchCommonRoutes } from "@/lib/prefetch-routes";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
@@ -41,6 +44,8 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const location = useLocation();
   const { toast } = useToast();
   const { primaryRole } = useUserRole();
+  const isLaptop = useIsLaptop();
+  const isStudentWorkspace = primaryRole !== "tutor" && primaryRole !== "teacher";
   const [joinClassModalOpen, setJoinClassModalOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
@@ -138,22 +143,23 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         }`}
       >
         <div className="flex flex-col h-full">
-          {/* Sidebar Header — Logo + Collapse */}
+          {/* Desktop account identity + collapse */}
           <div className="h-16 border-b border-sidebar-border flex items-center px-3 gap-2">
             <Button
               variant="ghost"
               size="icon"
               className="h-9 w-9 hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex-shrink-0"
+              aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             >
               <Menu className="w-5 h-5 text-foreground" />
             </Button>
-            {!sidebarCollapsed && (
+            {!sidebarCollapsed && (isStudentWorkspace && isLaptop ? <SidebarAccount /> : (
               <div className="flex items-center">
                 <span className="text-lg font-bold text-foreground">Exam</span>
                 <span className="text-lg font-bold text-primary">ly</span>
               </div>
-            )}
+            ))}
           </div>
 
           {/* Navigation */}
@@ -312,9 +318,13 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 <span className="hidden lg:inline">Upgrade</span>
               </Button>
 
-              {/* Create dropdown — hidden on mobile (the central Create action handles it there) */}
-              {primaryRole !== 'tutor' && (
-                <DropdownMenu>
+              {/* Direct laptop student actions; mobile/tablet keep the central Create control. */}
+              {primaryRole !== 'tutor' && (isStudentWorkspace ? (
+                <div className="examly-desktop-create hidden xl:flex items-center gap-2" aria-label="Create practice">
+                  <Button size="sm" className="h-10 gap-2 shadow-none" onClick={() => navigate("/upload")}><FileText className="h-4 w-4" aria-hidden="true" />Create Exam</Button>
+                  <Button size="sm" variant="outline" className="h-10 gap-2 bg-card" onClick={() => navigate("/create-practice-questions")}><ListChecks className="h-4 w-4" aria-hidden="true" />Create Quiz</Button>
+                </div>
+              ) : <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button size="sm" className="examly-desktop-create hidden xl:flex items-center gap-1.5 h-9 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm">
                       <Plus className="w-3.5 h-3.5" /> Create
@@ -389,8 +399,13 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <Button variant="outline" className="justify-start" onClick={() => { setCreateOpen(false); setAiChatOpen(true); }}><MessageCircle className="h-5 w-5 mr-3" />Ask AI tutor</Button>
         </div>
       </ResponsiveActionSheet>
-      {/* Retain the desktop quick actions. Mobile uses the central Create action. */}
-      {primaryRole !== 'tutor' && !isSettingsRoute && <div className="examly-desktop-quick-actions hidden xl:block"><MobileSpeedDial onCreateExam={() => navigate('/upload')} onCreateQuiz={() => navigate('/create-practice-questions')} onAskAI={() => setAiChatOpen(true)} aiUnreadCount={aiUnread} /></div>}
+      {/* Student laptop has one direct AI control; create actions live in the top bar. */}
+      {primaryRole !== 'tutor' && !isSettingsRoute && <div className="examly-desktop-quick-actions hidden xl:block">
+        {isStudentWorkspace ? <Button className="laptop-ask-ai fixed bottom-6 right-6 z-[45] h-11 gap-2 rounded-full px-4 shadow-sm" onClick={() => setAiChatOpen(true)} aria-expanded={aiChatOpen}>
+          <MessageCircle className="h-4 w-4" aria-hidden="true" />Ask AI
+          {aiUnread > 0 && <span className="rounded-full bg-primary-foreground px-1.5 text-xs text-primary" aria-label={`${aiUnread} unread messages`}>{aiUnread > 9 ? "9+" : aiUnread}</span>}
+        </Button> : <MobileSpeedDial onCreateExam={() => navigate('/upload')} onCreateQuiz={() => navigate('/create-practice-questions')} onAskAI={() => setAiChatOpen(true)} aiUnreadCount={aiUnread} />}
+      </div>}
 
       {/* AI Tutor Chat — appears on every authenticated page */}
       <AiTutorChat
