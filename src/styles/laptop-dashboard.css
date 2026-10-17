@@ -1,0 +1,130 @@
+/* Match the workspace's touch-device navigation, including wide iPad landscape. */
+.laptop-home-summary, .laptop-home-context { display: none; }
+
+/* Laptop Home only: tablet blending and the compact mobile dashboard stay intact. */
+@media screen and (min-width: 1280px) and (pointer: fine) {
+  .examly-home-route {
+    --background: 215 25% 96%;
+    --card: 0 0% 100%;
+    --sidebar-background: 0 0% 100%;
+    --border: 216 19% 87%;
+    --sidebar-border: 216 19% 87%;
+    --surface-panel-2: 215 25% 97%;
+  }
+  .dark .examly-home-route {
+    --background: 220 17% 11%;
+    --card: 220 15% 15%;
+    --sidebar-background: 220 15% 15%;
+    --border: 220 12% 27%;
+    --sidebar-border: 220 12% 27%;
+    --surface-panel-2: 220 16% 13%;
+  }
+  .examly-home-route .examly-workspace-main {
+    max-width: 1600px;
+    padding: 28px 32px 72px;
+  }
+  .examly-home-route .examly-workspace-sidebar {
+    background-color: hsl(var(--sidebar-background));
+    border-color: hsl(var(--sidebar-border));
+  }
+  .examly-home-route .student-home-grid {
+    max-width: none;
+    padding: 0;
+    grid-template-columns: minmax(0, 1fr) 304px;
+    grid-template-areas: "welcome secondary" "primary secondary";
+    grid-template-rows: auto 1fr;
+    gap: 24px;
+  }
+  .examly-home-route .student-home-welcome.study-welcome {
+    min-height: 240px;
+    padding: 32px;
+    border-radius: 16px;
+  }
+  .examly-home-route .study-welcome-copy { width: 52%; }
+  .examly-home-route .study-corner { right: 20px; bottom: 8px; width: 40%; max-width: 232px; }
+  .examly-home-route .student-home-primary { gap: 24px; }
+  .examly-home-route .student-home-tablet-content,
+  .examly-home-route .student-home-tablet-profile { display: none; }
+  .laptop-home-context { display: contents; }
+  .laptop-home-empty { display: block; }
+  .examly-home-route .student-home-secondary { position: static; gap: 20px; margin-top: 0; }
+  .examly-home-route .student-home-primary > section,
+  .examly-home-route .student-home-secondary > section {
+    border-radius: 16px;
+    box-shadow: none;
+  }
+  .laptop-home-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border: 1px solid hsl(var(--border));
+    border-radius: 16px;
+    background: hsl(var(--card));
+    padding: 8px 0;
+  }
+  .laptop-home-stat {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 12px;
+    text-align: left;
+  }
+  .laptop-home-stat + .laptop-home-stat { border-left: 1px solid hsl(var(--border)); }
+  button.laptop-home-stat:hover { background: hsl(var(--surface-panel-2)); }
+  .laptop-context-card {
+    display: flex;
+    min-width: 0;
+    min-height: 232px;
+    flex-direction: column;
+    border: 1px solid hsl(var(--border));
+    border-radius: 16px;
+    padding: 20px;
+    background: hsl(var(--card));
+  }
+  .laptop-context-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .laptop-context-heading h2 { font-size: 13px; font-weight: 600; }
+  .laptop-context-body { flex: 1; min-width: 0; margin-top: 18px; }
+  .laptop-card-arrow {
+    display: grid;
+    width: 30px;
+    height: 32px;
+    place-items: center;
+    border: 1px solid hsl(var(--border));
+    border-radius: 8px;
+  }
+  .laptop-card-arrow:hover:not(:disabled) { background: hsl(var(--accent)); }
+  .laptop-card-arrow:disabled { opacity: .35; cursor: default; }
+  .laptop-context-action {
+    display: flex;
+    width: 100%;
+    min-height: 40px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 20px;
+    border: 1px solid hsl(var(--border));
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: hsl(var(--surface-panel-2));
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .laptop-context-action:hover { border-color: hsl(var(--primary)); background: hsl(var(--accent)); }
+  .laptop-context-link {
+    display: inline-flex;
+    min-height: 32px;
+    align-items: center;
+    align-self: flex-start;
+    gap: 4px;
+    margin-top: 12px;
+    color: hsl(var(--primary));
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .laptop-context-link:hover { text-decoration: underline; }
+  .examly-home-route .laptop-home-skeleton-create { display: none; }
+  .examly-home-route .laptop-home-skeleton-context { height: 272px; }
+  .examly-home-route .laptop-home-skeleton-announcements { display: block; height: 232px; }
+  .examly-home-route .laptop-home-skeleton-activity { height: 520px; }
+}

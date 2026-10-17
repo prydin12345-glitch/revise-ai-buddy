@@ -43,6 +43,11 @@ export default function ActivityPanel({
       </div>
 
       <div className="mt-1.5 flex flex-col">
+        {(tab === "exams" ? mockExams.length === 0 : quizzes.length === 0) && (
+          <p className="laptop-home-empty hidden py-8 text-sm leading-relaxed text-muted-foreground">
+            {tab === "exams" ? "Your recent exams will appear here. Use Create Exam to get started." : "Your recent quizzes will appear here. Use Create Quiz to get started."}
+          </p>
+        )}
         {tab === "exams"
           ? visibleExams.map((m) => <ExamRow key={m.id} exam={m} onClick={() => onOpenExam?.(m.id)} />)
           : visibleQuizzes.map((q) => <QuizRow key={q.id} quiz={q} onClick={() => onStartQuiz?.(q.id)} />)}
