@@ -1,0 +1,87 @@
+.study-welcome {
+  --home-hero: 218 39% 89%;
+  --study-frame: hsl(219 30% 41%);
+  --study-window: hsl(216 40% 76%);
+  --study-light: hsl(37 60% 82%);
+  --study-shade: var(--study-light);
+  --study-sun: hsl(38 85% 70%);
+  --study-cloud: hsl(40 40% 97%);
+  --study-book: hsl(216 31% 54%);
+  --study-paper: hsl(40 35% 96%);
+  --study-leaf: hsl(153 21% 43%);
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  min-height: 220px;
+  overflow: hidden;
+  background-color: hsl(var(--home-hero));
+  padding: 28px 20px 48px;
+}
+
+.dark .study-welcome {
+  --home-hero: 220 27% 24%;
+  --study-frame: hsl(218 25% 50%);
+  --study-window: hsl(225 35% 17%);
+  --study-light: hsl(38 48% 76%);
+  --study-book: hsl(217 33% 66%);
+  --study-paper: hsl(214 23% 83%);
+  --study-leaf: hsl(153 24% 58%);
+}
+
+.study-welcome[data-period="morning"] {
+  --study-window: hsl(32 65% 85%);
+  --study-shade: hsl(161 19% 67%);
+  --study-book: hsl(161 22% 50%);
+}
+.study-welcome[data-period="afternoon"] {
+  --study-window: hsl(202 64% 82%);
+  --study-shade: hsl(211 27% 67%);
+  --study-book: hsl(203 31% 55%);
+}
+.dark .study-welcome[data-period="morning"] {
+  --study-window: hsl(25 28% 44%);
+  --study-shade: hsl(160 21% 61%);
+  --study-book: hsl(161 23% 63%);
+}
+.dark .study-welcome[data-period="afternoon"] {
+  --study-window: hsl(204 37% 39%);
+  --study-shade: hsl(210 30% 70%);
+  --study-book: hsl(203 33% 68%);
+}
+
+.study-welcome-copy { position: relative; z-index: 1; width: 54%; }
+.study-welcome-name {
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -.025em;
+}
+.study-welcome-message {
+  max-width: 170px;
+  margin-top: 16px;
+  color: hsl(var(--foreground) / .75);
+  font-size: 13px;
+  line-height: 1.625;
+}
+.study-corner {
+  position: absolute;
+  right: 10px;
+  bottom: 25px;
+  width: 43%;
+  max-width: 210px;
+  pointer-events: none;
+}
+
+@media (min-width: 768px) {
+  .study-welcome {
+    min-height: 240px;
+    border-radius: 20px;
+    padding: 36px;
+  }
+  .study-welcome-copy { width: 58%; max-width: 560px; }
+  .study-welcome-name { font-size: 36px; }
+  .study-welcome-message { max-width: 360px; font-size: 14px; }
+  .study-corner { right: 28px; bottom: 6px; width: 34%; max-width: 260px; }
+}

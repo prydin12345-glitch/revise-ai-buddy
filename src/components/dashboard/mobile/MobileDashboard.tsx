@@ -3,13 +3,8 @@ import { getBoardDisplayName } from '@/lib/board-scrubber';
 import ClassCarousel from './ClassCarousel';
 import MobileActivityStats from './MobileActivityStats';
 import MobileStatsStrip from './MobileStatsStrip';
-import StudyCorner from './StudyCorner';
+import StudyWelcomeBanner from '../StudyWelcomeBanner';
 import type { DashboardData } from '../types';
-
-function greeting(): string {
-  const hour = new Date().getHours();
-  return hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-}
 
 export default function MobileDashboard({
   profile, profileStats, homeSubjects = [], classes, mockExams, quizzes,
@@ -18,14 +13,7 @@ export default function MobileDashboard({
 }: DashboardData) {
   return (
     <div className="mobile-home min-w-0">
-      <header className="mobile-home-hero relative min-h-[220px] px-5 pb-12 pt-7">
-        <div className="relative z-10 w-[57%]">
-          <p className="text-sm font-medium text-foreground/75">{greeting()},</p>
-          <h1 className="mt-1.5 break-words text-[30px] font-bold leading-[1.15] tracking-tight">{profile.name.split(' ')[0]}</h1>
-          <p className="mt-4 max-w-[170px] text-[13px] leading-relaxed text-foreground/75">Make a little room for revision.</p>
-        </div>
-        <StudyCorner />
-      </header>
+      <StudyWelcomeBanner name={profile.name} />
 
       <div className="relative -mt-6 space-y-7 rounded-t-[28px] bg-background px-5 pb-3 pt-5">
         <MobileStatsStrip stats={profileStats} />

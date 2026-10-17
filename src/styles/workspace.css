@@ -161,21 +161,9 @@
 @media screen and (max-width: 767px) {
   .examly-home-route {
     --home-hero: 218 39% 89%;
-    --study-frame: hsl(219 30% 41%);
-    --study-window: hsl(216 40% 76%);
-    --study-light: hsl(37 60% 82%);
-    --study-book: hsl(216 31% 54%);
-    --study-paper: hsl(40 35% 96%);
-    --study-leaf: hsl(153 21% 43%);
   }
   .dark .examly-home-route {
     --home-hero: 220 27% 24%;
-    --study-frame: hsl(218 25% 50%);
-    --study-window: hsl(225 35% 17%);
-    --study-light: hsl(38 48% 76%);
-    --study-book: hsl(217 33% 66%);
-    --study-paper: hsl(214 23% 83%);
-    --study-leaf: hsl(153 24% 58%);
   }
   .examly-home-route .examly-workspace-body > header {
     background-color: hsl(var(--home-hero));
@@ -185,6 +173,4 @@
     padding-top: 0;
     padding-inline: 0;
   }
-  .mobile-home-hero { background-color: hsl(var(--home-hero)); }
-  .mobile-study-corner { position: absolute; right: 10px; bottom: 25px; width: 43%; max-width: 210px; }
 }
