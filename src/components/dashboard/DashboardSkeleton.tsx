@@ -2,16 +2,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export const DashboardSkeleton = () => (
   <div className="font-sans">
-    <main className="mx-auto max-w-[1280px] px-4 py-6 lg:px-6">
-      <Skeleton className="mb-6 h-[220px] w-full md:h-[240px] md:rounded-[20px]" />
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_332px] lg:items-start">
-        <div className="flex min-w-0 flex-col gap-5">
+    <main className="student-home-dashboard">
+      <div className="student-home-grid">
+        <div className="student-home-welcome"><Skeleton className="h-[220px] w-full md:h-[240px]" /></div>
+        <div className="student-home-primary flex min-w-0 flex-col gap-5">
           <Skeleton className="h-[104px] w-full rounded-lg" />
           <Skeleton className="h-[120px] w-full rounded-lg" />
           <Skeleton className="h-[180px] w-full rounded-lg" />
           <Skeleton className="h-[280px] w-full rounded-lg" />
         </div>
-        <aside className="flex flex-col gap-5">
+        <aside className="student-home-secondary flex min-w-0 flex-col gap-5">
           <Skeleton className="h-[260px] w-full rounded-lg" />
           <Skeleton className="h-[300px] w-full rounded-lg" />
         </aside>

@@ -554,10 +554,10 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     <RefreshableList onRefresh={() => refetch()}>
     {isError && <LoadError message="Couldn’t load your dashboard. Your existing content is kept below." onRetry={() => void refetch()} />}
     <div className="font-sans">
-      <main className="mx-auto max-w-[1280px] px-4 py-6 lg:px-6">
-        <StudyWelcomeBanner name={profile.name} className="mb-6" />
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_332px] lg:items-start">
-          <div className="flex min-w-0 flex-col gap-5">
+      <main className="student-home-dashboard">
+        <div className="student-home-grid">
+          <StudyWelcomeBanner name={profile.name} className="student-home-welcome" />
+          <div className="student-home-primary flex min-w-0 flex-col gap-5">
             <CreateBanner
               onCreateExam={() => navigate("/upload")}
               onCreateQuiz={() => navigate("/create-practice-questions")}
@@ -613,7 +613,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
             />
           </div>
 
-          <aside className="flex flex-col gap-5 lg:sticky lg:top-[88px]">
+          <aside className="student-home-secondary flex min-w-0 flex-col gap-5 lg:sticky lg:top-[88px]">
             <ProfileCard profile={profile} stats={profileStats} />
             <SubjectDonut
               subjects={subjectsForDonut}
