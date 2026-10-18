@@ -6,6 +6,7 @@ import { WorkspaceContext, WorkspaceStore } from "@/hooks/use-workspace-session"
 import DashboardSummaryStrip from "@/components/dashboard/DashboardSummaryStrip";
 import DashboardContextCards from "@/components/dashboard/DashboardContextCards";
 import SidebarAccount from "@/components/dashboard/SidebarAccount";
+import ActivityPanel from "@/components/dashboard/ActivityPanel";
 import type { ClassItem, ProfileStat } from "@/components/dashboard/types";
 import type { ReactNode } from "react";
 
@@ -63,7 +64,8 @@ describe("laptop dashboard cards", () => {
     fireEvent.click(card.getByRole("button", { name: "Previous class" }));
     fireEvent.click(card.getByRole("button", { name: "Previous class" }));
     expect(card.getByRole("heading", { name: "Physics" })).toBeVisible();
-    expect(card.getByText("Tutor · 7 students")).toBeVisible();
+    expect(card.getByText("Tutor", { selector: "dd" })).toBeVisible();
+    expect(card.getByText("7 students", { selector: "dd" })).toBeVisible();
     expect(card.queryByRole("progressbar")).not.toBeInTheDocument();
   });
   it("switches notices independently and opens the visible notice, retaining selections on return", () => {
@@ -98,6 +100,39 @@ describe("laptop dashboard cards", () => {
     fireEvent.click(screen.getByRole("button", { name: "Join a class" }));
     fireEvent.click(screen.getAllByRole("button", { name: "View all classes" })[0]);
     expect(join).toHaveBeenCalledOnce(); expect(view).toHaveBeenCalledOnce();
+  });
+});
+
+describe("recent activity selector", () => {
+  it("announces the selected type and preserves the existing row and View all actions", () => {
+    const store = new WorkspaceStore("alice"), openExam = vi.fn(), startQuiz = vi.fn(), viewAll = vi.fn();
+    const view = () => <Scope store={store}><ActivityPanel
+      mockExams={[{ id: "exam", title: "Biology paper", subject: "Biology", color: "#244ea0", score: 78, status: "done", when: "today" }]}
+      quizzes={[{ id: "quiz", title: "Genetics practice", subject: "Biology", color: "#244ea0", questions: 5, best: null, when: "today" }]}
+      onOpenExam={openExam} onStartQuiz={startQuiz} onViewAll={viewAll}
+    /></Scope>;
+    const first = render(view());
+    const selector = within(screen.getByRole("group", { name: "Recent activity type" }));
+    expect(selector.getByRole("button", { name: "Mock Exams 1" })).toHaveAttribute("aria-pressed", "true");
+    expect(selector.getByRole("button", { name: "Practice Quizzes 1" })).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(screen.getByRole("button", { name: /Biology paper/ }));
+    expect(openExam).toHaveBeenCalledWith("exam");
+    fireEvent.click(selector.getByRole("button", { name: "Practice Quizzes 1" }));
+    expect(selector.getByRole("button", { name: "Practice Quizzes 1" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: /Genetics practice/ }));
+    expect(startQuiz).toHaveBeenCalledWith("quiz");
+    fireEvent.click(screen.getByRole("button", { name: "View all" }));
+    expect(viewAll).toHaveBeenCalledWith("quizzes");
+    first.unmount(); render(view());
+    expect(screen.getByRole("button", { name: "Practice Quizzes 1" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Genetics practice/ })).toBeVisible();
+  });
+  it("keeps both zero-count choices visible with their existing empty states", () => {
+    render(<Scope store={new WorkspaceStore("alice")}><ActivityPanel mockExams={[]} quizzes={[]} /></Scope>);
+    expect(screen.getByRole("button", { name: "Mock Exams 0" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Practice Quizzes 0" }));
+    expect(screen.getByRole("button", { name: "Practice Quizzes 0" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("Your recent quizzes will appear here. Use Create Quiz to get started.")).toBeInTheDocument();
   });
 });
 
