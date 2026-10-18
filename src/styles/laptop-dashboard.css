@@ -1,5 +1,8 @@
 /* Match the workspace's touch-device navigation, including wide iPad landscape. */
 .laptop-home-summary, .laptop-home-context { display: none; }
+.activity-row-status { display: contents; }
+/* The labelled subject buttons provide the keyboard alternative to mouse slices. */
+.subject-statistics :is(.recharts-wrapper, .recharts-pie, .recharts-pie-sector):focus:not(:focus-visible) { outline: none; }
 
 /* Laptop Home only: tablet blending and the compact mobile dashboard stay intact. */
 @media screen and (min-width: 1280px) and (pointer: fine) {
@@ -70,8 +73,35 @@
     padding: 12px;
     text-align: left;
   }
+  .laptop-home-stat-content {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    transform-origin: center;
+    transition: transform 180ms ease-out;
+  }
+  .laptop-home-stat:hover .laptop-home-stat-content,
+  .laptop-home-stat:focus-visible .laptop-home-stat-content { transform: scale(1.06); }
   .laptop-home-stat + .laptop-home-stat { border-left: 1px solid hsl(var(--border)); }
-  button.laptop-home-stat:hover { background: hsl(var(--surface-panel-2)); }
+  .examly-home-route .subject-statistics-overview {
+    display: grid;
+    grid-template-columns: 196px minmax(0, 1fr);
+    align-items: center;
+    gap: 24px;
+    padding-block: 12px;
+  }
+  .examly-home-route .subject-statistics { container-type: inline-size; }
+  .examly-home-route .subject-statistics-legend { margin-top: 0; min-width: 0; }
+  .examly-home-route .home-recent-activity .activity-switcher { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .examly-home-route .home-recent-activity .activity-tab { justify-content: center; gap: 5px; padding-inline: 6px; font-size: 11px; }
+  .examly-home-route .home-recent-activity .activity-row { display: grid; column-gap: 10px; row-gap: 8px; padding-inline: 0; }
+  .examly-home-route .home-recent-activity .activity-row--exam { grid-template-columns: 8px minmax(0, 1fr); }
+  .examly-home-route .home-recent-activity .activity-row--exam > .activity-item-copy { grid-column: 2; }
+  .examly-home-route .home-recent-activity .activity-row--exam > .activity-row-status { display: flex; grid-column: 2; align-items: center; justify-content: space-between; }
+  .examly-home-route .home-recent-activity .activity-row--quiz { grid-template-columns: 8px 34px minmax(0, 1fr); }
+  .examly-home-route .home-recent-activity .activity-quiz-action { grid-column: 3; justify-self: start; }
   .laptop-context-card {
     display: flex;
     min-width: 0;
@@ -126,5 +156,15 @@
   .examly-home-route .laptop-home-skeleton-create { display: none; }
   .examly-home-route .laptop-home-skeleton-context { height: 272px; }
   .examly-home-route .laptop-home-skeleton-announcements { display: block; height: 232px; }
-  .examly-home-route .laptop-home-skeleton-activity { height: 520px; }
+  .examly-home-route .laptop-home-skeleton-activity { height: 320px; }
+  .examly-home-route .laptop-home-skeleton-recent { height: 520px; }
+  @container (min-width: 740px) {
+    .subject-statistics-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; }
+    .subject-statistics-legend > * { margin-top: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .laptop-home-stat-content { transition: none; }
+    .laptop-home-stat:hover .laptop-home-stat-content,
+    .laptop-home-stat:focus-visible .laptop-home-stat-content { transform: none; }
+  }
 }

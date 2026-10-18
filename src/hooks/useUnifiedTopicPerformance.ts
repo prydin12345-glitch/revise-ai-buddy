@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { normaliseTopicTags } from "@/lib/normalise-topic";
 
@@ -30,17 +30,27 @@ export interface UnifiedTopicScore {
  */
 export const useUnifiedTopicPerformance = (
   studentId: string | null | undefined,
-  subject?: string
+  subject?: string | readonly string[]
 ) => {
   const [topics, setTopics] = useState<UnifiedTopicScore[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const requestVersion = useRef(0);
+  // Stable scope even when a caller reconstructs its alias array on render.
+  const scopeKey = JSON.stringify([...new Set((typeof subject === "string" ? [subject] : subject || [])
+    .map(value => value.trim().toLowerCase()).filter(Boolean))].sort());
 
   const fetchUnified = useCallback(async () => {
+    const version = ++requestVersion.current;
+    const scope = new Set<string>(JSON.parse(scopeKey));
+    const belongsToSubject = (value: string | null | undefined) => scope.size === 0 || (value != null && scope.has(value.trim().toLowerCase()));
+    setTopics([]);
+    setError(null);
     if (!studentId) {
-      setTopics([]);
       setLoading(false);
       return;
     }
+    setLoading(true);
 
     try {
       // ---- Exam performance ----
@@ -49,20 +59,22 @@ export const useUnifiedTopicPerformance = (
       // in-progress exam as a pile of zeros ("0% · 9 tried"), so only answers
       // belonging to a graded submission contribute to a score. The rest are
       // tracked separately as pending.
-      const { data: gradedSubmissions } = await supabase
+      const { data: gradedSubmissions, error: submissionError } = await supabase
         .from("exam_submissions")
         .select("exam_id")
         .eq("student_id", studentId)
         .eq("status", "graded");
+      if (submissionError) throw submissionError;
 
       const gradedExamIds = new Set(
         (gradedSubmissions || []).map((s) => s.exam_id).filter(Boolean)
       );
 
-      const { data: allExamAnswers } = await supabase
+      const { data: allExamAnswers, error: examAnswerError } = await supabase
         .from("student_answers")
         .select("score, is_correct, submitted_at, question_id, exam_id")
         .eq("student_id", studentId);
+      if (examAnswerError) throw examAnswerError;
 
       const examAnswers = (allExamAnswers || []).filter(
         (a) => gradedExamIds.has(a.exam_id) && a.score !== null
@@ -80,28 +92,31 @@ export const useUnifiedTopicPerformance = (
       let examQuestions: any[] = [];
       let examSubjectMap: Record<string, string> = {};
       if (examQIds.length > 0) {
-        const { data } = await supabase
+        const { data, error: questionError } = await supabase
           .from("exam_questions")
           .select("id, topic_tag, marks, exam_id")
           .in("id", examQIds);
+        if (questionError) throw questionError;
         examQuestions = data || [];
 
         // Fetch subject_id for each exam
         const examIds = [...new Set(examQuestions.map(q => q.exam_id).filter(Boolean))];
         if (examIds.length > 0) {
-          const { data: exams } = await supabase
+          const { data: exams, error: examError } = await supabase
             .from("exams")
             .select("id, subject_id")
             .in("id", examIds);
+          if (examError) throw examError;
           exams?.forEach(e => { examSubjectMap[e.id] = e.subject_id; });
         }
       }
 
       // ---- Practice performance ----
-      const { data: allPracticeAnswers } = await supabase
+      const { data: allPracticeAnswers, error: practiceAnswerError } = await supabase
         .from("practice_question_answers")
         .select("score, is_correct, submitted_at, question_id")
         .eq("user_id", studentId);
+      if (practiceAnswerError) throw practiceAnswerError;
 
       // Same rule for practice: unmarked or unsubmitted answers don't score.
       const practiceAnswers = (allPracticeAnswers || []).filter(
@@ -120,19 +135,21 @@ export const useUnifiedTopicPerformance = (
       let practiceQuestions: any[] = [];
       let practiceSubjectMap: Record<string, string> = {};
       if (practiceQIds.length > 0) {
-        const { data } = await supabase
+        const { data, error: practiceQuestionError } = await supabase
           .from("practice_questions")
           .select("id, subtopic, marks, set_id")
           .in("id", practiceQIds);
+        if (practiceQuestionError) throw practiceQuestionError;
         practiceQuestions = data || [];
 
         // Fetch subject_id for each practice set
         const setIds = [...new Set(practiceQuestions.map(q => q.set_id).filter(Boolean))];
         if (setIds.length > 0) {
-          const { data: sets } = await supabase
+          const { data: sets, error: setError } = await supabase
             .from("practice_question_sets")
             .select("id, subject_id")
             .in("id", setIds);
+          if (setError) throw setError;
           sets?.forEach(s => { practiceSubjectMap[s.id] = s.subject_id; });
         }
       }
@@ -160,14 +177,14 @@ export const useUnifiedTopicPerformance = (
 
       pendingExamAnswers.forEach((answer) => {
         const q = examQMap.get(answer.question_id);
-        if (!q || !q.topic_tag) return;
+        if (!q || !q.topic_tag || !belongsToSubject(examSubjectMap[q.exam_id])) return;
         const canonical = normMap[q.topic_tag] ?? q.topic_tag;
         pendingByTopic[canonical] = (pendingByTopic[canonical] || 0) + 1;
       });
 
       examAnswers.forEach((answer) => {
         const q = examQMap.get(answer.question_id);
-        if (!q || !q.topic_tag) return;
+        if (!q || !q.topic_tag || !belongsToSubject(examSubjectMap[q.exam_id])) return;
         const canonical = normMap[q.topic_tag] ?? q.topic_tag;
         const pct = q.marks > 0 ? ((Number(answer.score) || 0) / q.marks) * 100 : 0;
 
@@ -190,13 +207,13 @@ export const useUnifiedTopicPerformance = (
 
       pendingPracticeAnswers.forEach((answer) => {
         const q = practiceQMap.get(answer.question_id);
-        if (!q || !q.subtopic) return;
+        if (!q || !q.subtopic || !belongsToSubject(practiceSubjectMap[q.set_id])) return;
         pendingByTopic[q.subtopic] = (pendingByTopic[q.subtopic] || 0) + 1;
       });
 
       practiceAnswers.forEach((answer) => {
         const q = practiceQMap.get(answer.question_id);
-        if (!q || !q.subtopic) return;
+        if (!q || !q.subtopic || !belongsToSubject(practiceSubjectMap[q.set_id])) return;
         const topic = q.subtopic;
 
         if (!practiceByTopic[topic]) {
@@ -298,21 +315,26 @@ export const useUnifiedTopicPerformance = (
       // Remove untested topics — only return topics with real attempt data
       const tested = unified.filter((t) => t.mastery !== "untested");
 
-      setTopics(tested);
+      if (version === requestVersion.current) setTopics(tested);
     } catch (err) {
-      console.error("Error fetching unified topic performance:", err);
+      if (version === requestVersion.current) {
+        setError("Couldn’t load topic performance. Try again.");
+      }
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
-  }, [studentId, subject]);
+  }, [studentId, scopeKey]);
 
   useEffect(() => {
     fetchUnified();
+    return () => { requestVersion.current += 1; };
   }, [fetchUnified]);
 
   return {
     topics,
     loading,
+    error,
+    refetch: fetchUnified,
     weakTopics: topics.filter((t) => t.mastery === "weak" && (t.examScore !== null || t.practiceScore !== null)),
   };
 };

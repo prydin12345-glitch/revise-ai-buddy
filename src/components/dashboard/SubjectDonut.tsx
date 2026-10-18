@@ -1,11 +1,14 @@
 // src/components/dashboard/SubjectDonut.tsx
 // Three-level drill-down: Subjects → Exam Profiles → Topics.
 // State-driven, framer-motion transitions, dark-mode safe via semantic tokens.
-import { useEffect, useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { PieChart, Pie, Cell, Sector, ResponsiveContainer } from "recharts";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowLeft, ChevronRight, Search, Filter } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { useRetainedState, useWorkspaceSession } from "@/hooks/use-workspace-session";
+import { profileTopicRows } from "@/lib/subject-profile-topics";
+import { Skeleton } from "@/components/ui/skeleton";
+import { LoadError } from "@/components/shared/ListFeedback";
 import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 import {
   useUnifiedTopicPerformance,
@@ -24,6 +27,10 @@ interface SubjectDonutProps {
   subjects: Subject[];
   centerValue?: string;
   centerLabel?: string;
+  shareBasis?: "study_time" | "exam_count";
+  loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
 type View = "subjects" | "profiles" | "topics";
@@ -41,6 +48,7 @@ const activeShape = (props: any) => {
       endAngle={endAngle}
       cornerRadius={6}
       fill={fill}
+      stroke="none"
     />
   );
 };
@@ -77,6 +85,7 @@ const masteryMeta: Record<
 
 const timeAgoShort = (iso: string | null): string => {
   if (!iso) return "—";
+  if (!Number.isFinite(Date.parse(iso))) return "—";
   const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
   if (d <= 0) return "today";
   if (d === 1) return "1d ago";
@@ -87,25 +96,36 @@ const timeAgoShort = (iso: string | null): string => {
   return `${m}mo ago`;
 };
 
-export default function SubjectDonut({
+export default function SubjectDonut(props: SubjectDonutProps) {
+  const { ownerId } = useWorkspaceSession();
+  return <SubjectStatistics key={ownerId || "signed-out"} {...props} />;
+}
+
+function SubjectStatistics({
   subjects,
   centerValue = "—",
   centerLabel = "Average score",
+  shareBasis = "study_time",
+  loading = false,
+  error = null,
+  onRetry,
 }: SubjectDonutProps) {
+  const { ownerId } = useWorkspaceSession();
+  const titleId = useId();
+  const reduceMotion = useReducedMotion();
   const [active, setActive] = useState<number | null>(null);
-  const [view, setView] = useState<View>("subjects");
-  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<SortKey>("weakest");
-  const [studentId, setStudentId] = useState<string | null>(null);
+  const [view, setView] = useRetainedState<View>("home-statistics:view", "subjects");
+  const [selectedSubjectKey, setSelectedSubjectKey] = useRetainedState<string | null>("home-statistics:subject", null);
+  const [selectedProfileId, setSelectedProfileId] = useRetainedState<string | null>("home-statistics:profile", null);
+  const [search, setSearch] = useRetainedState("home-statistics:search", "");
+  const [sort, setSort] = useRetainedState<SortKey>("home-statistics:sort", "weakest");
+  const selectedSubject = subjects.find(subject => subject.key === selectedSubjectKey) || null;
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setStudentId(data.user?.id ?? null));
-  }, []);
-
-  const { getProfilesForSubject } = useSubjectProfiles();
-  const { topics: allTopics } = useUnifiedTopicPerformance(studentId);
+  const { getProfilesForSubject, loading: profilesLoading, error: profilesError, retry: retryProfiles } = useSubjectProfiles();
+  const { topics: allTopics, loading: topicsLoading, error: topicsError, refetch: retryTopics } = useUnifiedTopicPerformance(
+    selectedSubject ? ownerId : null,
+    selectedSubject ? [selectedSubject.key, selectedSubject.name, ...(selectedSubject.identifiers || [])] : [],
+  );
 
   const current = active != null ? subjects[active] : null;
 
@@ -119,29 +139,7 @@ export default function SubjectDonut({
     [profilesForSubject, selectedProfileId]
   );
 
-  // Topics belonging to the selected profile (case-insensitive name match).
-  const profileTopicScores = useMemo(() => {
-    if (!selectedProfile) return [];
-    const wanted = new Set(selectedProfile.topics.map((t) => t.toLowerCase().trim()));
-    const matched = allTopics.filter((t) => wanted.has(t.topic.toLowerCase().trim()));
-    // Backfill unattempted topics so the user sees the full set.
-    const matchedNames = new Set(matched.map((t) => t.topic.toLowerCase().trim()));
-    const stubs: UnifiedTopicScore[] = selectedProfile.topics
-      .filter((t) => !matchedNames.has(t.toLowerCase().trim()))
-      .map((t) => ({
-        topic: t,
-        subjectId: null,
-        unifiedScore: 0,
-        examScore: null,
-        practiceScore: null,
-        examQuestionCount: 0,
-        practiceQuestionCount: 0,
-        mastery: "untested",
-        lastAttempted: null,
-        practicedSinceLastExam: false,
-      }));
-    return [...matched, ...stubs];
-  }, [selectedProfile, allTopics]);
+  const profileTopicScores = useMemo(() => selectedProfile ? profileTopicRows(selectedProfile.topics, allTopics) : [], [selectedProfile, allTopics]);
 
   const visibleTopics = useMemo(() => {
     let list = profileTopicScores;
@@ -176,7 +174,9 @@ export default function SubjectDonut({
   }, [profileTopicScores, search, sort]);
 
   const enterSubject = (subject: Subject) => {
-    setSelectedSubject(subject);
+    setActive(null);
+    setSelectedSubjectKey(subject.key);
+    setSelectedProfileId(null);
     setView("profiles");
   };
   const enterProfile = (id: string) => {
@@ -190,7 +190,8 @@ export default function SubjectDonut({
       setSelectedProfileId(null);
       setView("profiles");
     } else if (view === "profiles") {
-      setSelectedSubject(null);
+      setSelectedSubjectKey(null);
+      setActive(null);
       setView("subjects");
     }
   };
@@ -201,16 +202,16 @@ export default function SubjectDonut({
       ? "Statistics"
       : view === "profiles"
       ? `${selectedSubject?.name ?? ""} Statistics`
-      : `${selectedProfile?.profile_name ?? ""}`;
+      : selectedProfile?.profile_name || "Exam profile unavailable";
 
   const subtitle =
     view === "subjects"
-      ? "Share of your study time · click a subject to drill in"
+      ? `${shareBasis === "study_time" ? "Share of your study time" : "Share of your papers"} · select a subject to explore`
       : view === "profiles"
       ? "Pick an exam profile to see topic-level performance"
       : `${selectedSubject?.name ?? ""} · ${profileTopicScores.length} topic${
           profileTopicScores.length === 1 ? "" : "s"
-        }`;
+        } · subject-wide performance`;
 
   const sectionVariants = {
     initial: (dir: number) => ({ x: dir * 24, opacity: 0 }),
@@ -218,39 +219,47 @@ export default function SubjectDonut({
     exit: (dir: number) => ({ x: -dir * 24, opacity: 0 }),
   };
   const direction = view === "subjects" ? -1 : 1;
+  const detailLoading = loading || (view !== "subjects" && (profilesLoading || topicsLoading));
+  const detailError = error || (view !== "subjects" && (profilesError || topicsError));
+  const detailReady = !detailLoading && !detailError;
 
   return (
-    <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
+    <section className="subject-statistics rounded-lg border border-border bg-card p-5 shadow-sm" aria-labelledby={titleId}>
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           {view !== "subjects" && (
             <button
               onClick={goBack}
               className="-ml-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label="Back"
+              aria-label={view === "topics" ? "Back to exam profiles" : "Back to subjects"}
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
           )}
-          <h2 className="truncate text-base font-bold">{title}</h2>
+          <h2 id={titleId} className="break-words text-base font-bold">{title}</h2>
         </div>
       </div>
       <p className="mb-3.5 text-[12.5px] font-semibold text-muted-foreground">{subtitle}</p>
 
+      {detailLoading && <div role="status" aria-label="Loading subject statistics" className="space-y-3 py-3"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>}
+      {!detailLoading && detailError && <LoadError message={detailError} onRetry={() => { if (error) onRetry?.(); if (profilesError) void retryProfiles(); if (topicsError) void retryTopics(); }} />}
+      {view !== "subjects" && detailReady && !selectedSubject && <p className="py-6 text-sm text-muted-foreground">This subject is no longer in your breakdown. Go back to choose another subject.</p>}
+      {view === "topics" && detailReady && selectedSubject && !selectedProfile && <p className="py-6 text-sm text-muted-foreground">This exam profile is no longer available. Go back to choose another profile.</p>}
+
       <AnimatePresence mode="wait" custom={direction}>
         {/* ───────── Level 1: Subjects ───────── */}
-        {view === "subjects" && (
+        {view === "subjects" && detailReady && (
           <motion.div
             key="subjects"
             custom={direction}
             variants={sectionVariants}
-            initial="initial"
+            initial={reduceMotion ? false : "initial"}
             animate="animate"
             exit="exit"
-            transition={{ duration: 0.22, ease: "easeOut" }}
-            className="flex flex-col items-center"
+            transition={{ duration: reduceMotion ? 0 : 0.22, ease: "easeOut" }}
+            className="subject-statistics-overview flex flex-col items-center"
           >
-            <div className="relative h-[196px] w-[196px]">
+            <div className="subject-statistics-chart relative h-[196px] w-[196px]" role="img" aria-label={subjects.length ? `Subject breakdown: ${subjects.map(subject => `${subject.name} ${subject.pct}%`).join(", ")}` : "No subject data yet"}>
               {subjects.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -265,6 +274,8 @@ export default function SubjectDonut({
                       paddingAngle={3}
                       cornerRadius={6}
                       stroke="none"
+                      rootTabIndex={-1}
+                      isAnimationActive={!reduceMotion}
                       activeIndex={active ?? undefined}
                       activeShape={activeShape}
                       onMouseEnter={(_, i) => setActive(i)}
@@ -275,6 +286,7 @@ export default function SubjectDonut({
                         <Cell
                           key={s.key}
                           fill={s.color}
+                          stroke="none"
                           opacity={active == null || active === i ? 1 : 0.3}
                           className="cursor-pointer"
                         />
@@ -301,13 +313,15 @@ export default function SubjectDonut({
               </div>
             </div>
 
-            <div className="mt-5 w-full space-y-1">
+            <div className="subject-statistics-legend mt-5 w-full space-y-1">
               {subjects.map((s, i) => (
                 <button
                   key={s.key}
                   type="button"
                   onMouseEnter={() => setActive(i)}
                   onMouseLeave={() => setActive(null)}
+                  onFocus={() => setActive(i)}
+                  onBlur={() => setActive(null)}
                   onClick={() => enterSubject(s)}
                   className="group w-full rounded-[10px] px-1.5 py-2 text-left transition-colors hover:bg-muted"
                 >
@@ -317,7 +331,7 @@ export default function SubjectDonut({
                         className="h-[9px] w-[9px] flex-shrink-0 rounded-[3px]"
                         style={{ background: s.color }}
                       />
-                      <span className="truncate">{s.name}</span>
+                      <span className="break-words">{s.name}</span>
                     </span>
                     <span className="flex items-center gap-1">
                       <span
@@ -346,15 +360,15 @@ export default function SubjectDonut({
         )}
 
         {/* ───────── Level 2: Exam Profiles ───────── */}
-        {view === "profiles" && selectedSubject && (
+        {view === "profiles" && selectedSubject && detailReady && (
           <motion.div
             key="profiles"
             custom={direction}
             variants={sectionVariants}
-            initial="initial"
+            initial={reduceMotion ? false : "initial"}
             animate="animate"
             exit="exit"
-            transition={{ duration: 0.22, ease: "easeOut" }}
+            transition={{ duration: reduceMotion ? 0 : 0.22, ease: "easeOut" }}
             className="space-y-2"
           >
             {profilesForSubject.length === 0 ? (
@@ -365,9 +379,7 @@ export default function SubjectDonut({
               </div>
             ) : (
               profilesForSubject.map((p) => {
-                const matched = allTopics.filter((t) =>
-                  p.topics.map((x) => x.toLowerCase().trim()).includes(t.topic.toLowerCase().trim())
-                );
+                const matched = profileTopicRows(p.topics, allTopics).filter(row => row.mastery !== "untested");
                 const avg =
                   matched.length > 0
                     ? Math.round(
@@ -418,15 +430,15 @@ export default function SubjectDonut({
         )}
 
         {/* ───────── Level 3: Topics ───────── */}
-        {view === "topics" && selectedProfile && (
+        {view === "topics" && selectedProfile && detailReady && (
           <motion.div
             key="topics"
             custom={direction}
             variants={sectionVariants}
-            initial="initial"
+            initial={reduceMotion ? false : "initial"}
             animate="animate"
             exit="exit"
-            transition={{ duration: 0.22, ease: "easeOut" }}
+            transition={{ duration: reduceMotion ? 0 : 0.22, ease: "easeOut" }}
             className="space-y-3"
           >
             <div className="flex flex-col gap-2">
@@ -436,11 +448,12 @@ export default function SubjectDonut({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search topics…"
+                  aria-label="Search topics"
                   className="h-8 w-full rounded-md border border-border bg-background pl-8 pr-2 text-[12.5px] placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
               <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-                <SelectTrigger className="h-8 w-full text-[12.5px]">
+                <SelectTrigger className="h-8 w-full text-[12.5px]" aria-label="Sort topics">
                   <div className="flex items-center gap-1.5">
                     <Filter className="h-3.5 w-3.5 text-muted-foreground" />
                     <SelectValue />
@@ -482,7 +495,7 @@ export default function SubjectDonut({
                       <div className="mt-1.5 h-[5px] overflow-hidden rounded-full bg-muted">
                         <div
                           className={`h-full rounded-full transition-all ${m.bar}`}
-                          style={{ width: `${Math.max(pct, t.mastery === "untested" ? 0 : 4)}%` }}
+                          style={{ width: `${pct}%` }}
                         />
                       </div>
                       <div className="mt-1.5 flex items-center justify-between text-[10.5px] text-muted-foreground">

@@ -14,7 +14,7 @@ export const DashboardSkeleton = () => (
         <aside className="student-home-secondary flex min-w-0 flex-col gap-5">
           <Skeleton className="laptop-home-skeleton-context h-[260px] w-full rounded-lg" />
           <Skeleton className="laptop-home-skeleton-announcements hidden w-full rounded-lg" />
-          <Skeleton className="h-[300px] w-full rounded-lg" />
+          <Skeleton className="laptop-home-skeleton-recent h-[300px] w-full rounded-lg" />
         </aside>
       </div>
     </main>

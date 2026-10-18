@@ -4,7 +4,7 @@ const MOBILE_BREAKPOINT = 768;
 
 /** Matches the existing workspace sidebar breakpoint without changing mobile. */
 export function useIsLaptop() {
-  const [isLaptop, setIsLaptop] = React.useState(false);
+  const [isLaptop, setIsLaptop] = React.useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 1280px) and (pointer: fine)").matches);
   React.useEffect(() => {
     const mql = window.matchMedia("(min-width: 1280px) and (pointer: fine)");
     const update = () => setIsLaptop(mql.matches);

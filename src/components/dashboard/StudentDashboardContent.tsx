@@ -11,7 +11,7 @@ import { ExamsCompletedIcon, AverageScoreIcon, StudyHoursIcon, DayStreakIcon } f
 import { useExamStats } from "@/hooks/useExamStats";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile, useIsLaptop } from "@/hooks/use-mobile";
 import { ExamWithSubmission } from "./ExamRowItem";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
 import { DashboardSkeleton } from "./DashboardSkeleton";
@@ -75,10 +75,11 @@ const timeAgo = (dateStr: string): string => {
 export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) => {
   const navigate = useNavigate();
   const { ownerId } = useWorkspaceSession();
-  const { studyActivityData } = useExamStats();
+  const { studyActivityData, loading: studyLoading, error: studyError, refetch: retryStudy } = useExamStats();
   const { subjects: userSubjects, getSubjectColor } = useUserSubjects();
   const drilldown = useStatsDrilldown();
   const isMobile = useIsMobile();
+  const isLaptop = useIsLaptop();
 
   const [showJoinClass, setShowJoinClass] = useState(false);
   const [activityModal, setActivityModal] = useState<{ open: boolean; tab: "exams" | "quizzes" }>({
@@ -353,6 +354,11 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     return found?.subject_name ?? idOrName;
   };
 
+  const subjectIdentifiers = (idOrName: string): string[] => {
+    const saved = userSubjects.find(subject => subject.subject_name.toLowerCase() === idOrName.toLowerCase() || subject.id === idOrName || subject.subject_id === idOrName);
+    return [idOrName, saved?.subject_name, saved?.id, saved?.subject_id].filter((value): value is string => Boolean(value));
+  };
+
   // Subject share of study time (from studyActivityData)
   const subjectsForDonut = useMemo<Subject[]>(() => {
     const hoursBySubject = new Map<string, number>();
@@ -371,6 +377,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
       if (sum === 0) return [];
       return Array.from(byId.entries()).map(([id, n]) => ({
         key: id,
+        identifiers: subjectIdentifiers(id),
         name: subjectName(id),
         color: getSubjectColor(id),
         pct: Math.round((n / sum) * 100),
@@ -378,6 +385,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     }
     return Array.from(hoursBySubject.entries()).map(([name, hrs]) => ({
       key: name,
+      identifiers: subjectIdentifiers(name),
       name,
       color: getSubjectColor(name),
       pct: Math.round((hrs / total) * 100),
@@ -551,6 +559,41 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     );
   }
 
+  const activityPanel = (
+    <ActivityPanel
+      mockExams={mockExams}
+      quizzes={quizzes}
+      onOpenExam={(id) => {
+        const ex = allExams.find((e) => e.id === id);
+        const s = ex?.submission?.status;
+        if (s === "graded" || s === "submitted" || s === "completed") {
+          navigate(`/exam/${id}/review`);
+        } else {
+          navigate(`/exam/${id}/in-progress`);
+        }
+      }}
+      onStartQuiz={(id) => {
+        const set = practiceSets.find((p) => p.id === id);
+        if (set?.progress?.completed_at) {
+          navigate(`/practice-questions/${id}/preview`);
+        } else {
+          navigate(`/practice-questions/${id}/take`);
+        }
+      }}
+      onViewAll={(tab) => setActivityModal({ open: true, tab })}
+    />
+  );
+  const statisticsPanel = (
+    <SubjectDonut
+      subjects={subjectsForDonut}
+      loading={studyLoading}
+      error={studyError ? "Couldn’t load your study statistics. Try again." : null}
+      onRetry={() => { void retryStudy(); }}
+      shareBasis={totalStudyHours > 0 ? "study_time" : "exam_count"}
+      centerValue={averageScore !== null ? `${averageScore}%` : "—"}
+    />
+  );
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <RefreshableList onRefresh={() => refetch()}>
@@ -594,28 +637,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
               )}
             </div>
             <DashboardSummaryStrip stats={profileStats} />
-            <ActivityPanel
-              mockExams={mockExams}
-              quizzes={quizzes}
-              onOpenExam={(id) => {
-                const ex = allExams.find((e) => e.id === id);
-                const s = ex?.submission?.status;
-                if (s === "graded" || s === "submitted" || s === "completed") {
-                  navigate(`/exam/${id}/review`);
-                } else {
-                  navigate(`/exam/${id}/in-progress`);
-                }
-              }}
-              onStartQuiz={(id) => {
-                const set = practiceSets.find((p) => p.id === id);
-                if (set?.progress?.completed_at) {
-                  navigate(`/practice-questions/${id}/preview`);
-                } else {
-                  navigate(`/practice-questions/${id}/take`);
-                }
-              }}
-              onViewAll={(tab) => setActivityModal({ open: true, tab })}
-            />
+            {isLaptop ? statisticsPanel : activityPanel}
           </div>
 
           <aside className="student-home-secondary flex min-w-0 flex-col gap-5 lg:sticky lg:top-[88px]">
@@ -625,10 +647,7 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
               onOpenAnnouncement={() => navigate("/my-classes")}
               onViewClasses={() => navigate("/my-classes")}
               onJoinClass={() => setShowJoinClass(true)} />
-            <SubjectDonut
-              subjects={subjectsForDonut}
-              centerValue={averageScore !== null ? `${averageScore}%` : "—"}
-            />
+            {isLaptop ? activityPanel : statisticsPanel}
           </aside>
         </div>
       </main>

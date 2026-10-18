@@ -11,14 +11,26 @@ import DashboardSummaryStrip from "./DashboardSummaryStrip";
 import DashboardContextCards from "./DashboardContextCards";
 import StudyWelcomeBanner from "./StudyWelcomeBanner";
 import SubjectDonut from "./SubjectDonut";
+import { useIsLaptop } from "@/hooks/use-mobile";
 import type { DashboardData } from "./types";
 
 export default function DashboardShell(props: DashboardData) {
+  const isLaptop = useIsLaptop();
   const {
     profile, profileStats, subjects, averageScore, classes, mockExams, quizzes, announcements,
     onCreateExam, onCreateQuiz, onCreateClass, onJoinClass,
     onContinue, onOpenExam, onStartQuiz, onOpenAnnouncement,
   } = props;
+
+  const activityPanel = (
+    <ActivityPanel
+      mockExams={mockExams}
+      quizzes={quizzes}
+      onOpenExam={onOpenExam}
+      onStartQuiz={onStartQuiz}
+    />
+  );
+  const statisticsPanel = (<SubjectDonut subjects={subjects} centerValue={averageScore} />);
 
   return (
     <div className="examly-home-route min-h-screen bg-background font-sans text-foreground">
@@ -41,12 +53,7 @@ export default function DashboardShell(props: DashboardData) {
               <ClassesGrid classes={classes} onContinue={onContinue} />
             </div>
             <DashboardSummaryStrip stats={profileStats} />
-            <ActivityPanel
-              mockExams={mockExams}
-              quizzes={quizzes}
-              onOpenExam={onOpenExam}
-              onStartQuiz={onStartQuiz}
-            />
+            {isLaptop ? statisticsPanel : activityPanel}
           </div>
 
           {/* RIGHT — sticky on desktop */}
@@ -55,7 +62,7 @@ export default function DashboardShell(props: DashboardData) {
             <DashboardContextCards classes={classes} announcements={announcements}
               onContinue={onContinue} onOpenAnnouncement={onOpenAnnouncement}
               onViewClasses={props.onViewClasses} onJoinClass={onJoinClass} />
-            <SubjectDonut subjects={subjects} centerValue={averageScore} />
+            {isLaptop ? activityPanel : statisticsPanel}
           </aside>
         </div>
       </main>

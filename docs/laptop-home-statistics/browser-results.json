@@ -1,0 +1,182 @@
+{
+  "method": "Actual Dashboard/components bundled with an isolated in-memory backend replacement; real Supabase requests blocked. Synthetic records only.",
+  "layouts": [
+    {
+      "width": 390,
+      "height": 1000,
+      "theme": "light",
+      "state": "populated",
+      "layout": "pass"
+    },
+    {
+      "width": 390,
+      "height": 1000,
+      "theme": "dark",
+      "state": "populated",
+      "layout": "pass"
+    },
+    {
+      "width": 834,
+      "height": 1112,
+      "theme": "light",
+      "state": "populated",
+      "layout": "pass"
+    },
+    {
+      "width": 834,
+      "height": 1112,
+      "theme": "dark",
+      "state": "populated",
+      "layout": "pass"
+    },
+    {
+      "width": 1194,
+      "height": 1000,
+      "theme": "light",
+      "state": "populated",
+      "layout": "pass"
+    },
+    {
+      "width": 1194,
+      "height": 1000,
+      "theme": "dark",
+      "state": "populated",
+      "layout": "pass"
+    },
+    {
+      "width": 1280,
+      "height": 1000,
+      "theme": "light",
+      "state": "populated",
+      "layout": "pass"
+    },
+    {
+      "width": 1280,
+      "height": 1000,
+      "theme": "dark",
+      "state": "populated",
+      "layout": "pass"
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "theme": "light",
+      "state": "populated",
+      "layout": "pass"
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "theme": "dark",
+      "state": "populated",
+      "layout": "pass"
+    },
+    {
+      "width": 1920,
+      "height": 1000,
+      "theme": "light",
+      "state": "populated",
+      "layout": "pass"
+    },
+    {
+      "width": 1920,
+      "height": 1000,
+      "theme": "dark",
+      "state": "populated",
+      "layout": "pass"
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "theme": "light",
+      "state": "empty",
+      "layout": "pass"
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "theme": "dark",
+      "state": "empty",
+      "layout": "pass"
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "theme": "light",
+      "state": "loading",
+      "layout": "pass"
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "theme": "dark",
+      "state": "loading",
+      "layout": "pass"
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "theme": "light",
+      "state": "error",
+      "layout": "pass"
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "theme": "dark",
+      "state": "error",
+      "layout": "pass"
+    }
+  ],
+  "interactionRun": {
+    "views": [],
+    "errors": [],
+    "expectedFixtureErrors": 0,
+    "failed": [],
+    "backend": 0,
+    "fontStatuses": [
+      200
+    ],
+    "drilldowns": true,
+    "sortSearchBack": true,
+    "retainedAcrossBreakpoint": true,
+    "keyboard": true,
+    "retry": true,
+    "summaryDrawers": true,
+    "hover": true,
+    "reducedMotion": true
+  },
+  "wideTouchRun": {
+    "views": [
+      {
+        "width": 1366,
+        "theme": "light",
+        "scenario": "populated"
+      },
+      {
+        "width": 1366,
+        "theme": "dark",
+        "scenario": "populated"
+      }
+    ],
+    "errors": [],
+    "failed": [],
+    "backend": 0,
+    "fontStatuses": [
+      200
+    ],
+    "tabletNavigationVisible": true
+  },
+  "matrixNetworkDiagnostic": {
+    "strictZeroFailedRequestAssertion": "not passed",
+    "observed": [
+      {
+        "host": "fonts.gstatic.com",
+        "error": "net::ERR_ABORTED",
+        "startedGeneration": 3,
+        "currentGeneration": 3
+      }
+    ],
+    "impact": "A font request was cancelled during the repeated preview matrix. No JavaScript, console or certificate errors were recorded. Final rendered fonts loaded over verified HTTPS with HTTP 200. The separate desktop interaction and wide-touch runs had no failed requests."
+  }
+}
