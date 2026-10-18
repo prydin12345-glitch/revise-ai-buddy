@@ -9,10 +9,12 @@ export default function DashboardSummaryStrip({ stats }: { stats: ProfileStat[] 
         return (
           <Component key={key} type={onClick ? "button" : undefined} onClick={onClick}
             className="laptop-home-stat" aria-label={`${label}: ${value}`}>
-            <Icon className={`h-6 w-6 shrink-0 ${iconClass}`} aria-hidden="true" />
-            <span className="min-w-0">
-              <span className="block text-2xl font-bold tracking-tight tabular-nums">{value}</span>
-              <span className="mt-1 block text-xs text-muted-foreground">{label}</span>
+            <span className="laptop-home-stat-content">
+              <Icon className={`h-6 w-6 shrink-0 ${iconClass}`} aria-hidden="true" />
+              <span className="min-w-0">
+                <span className="block text-2xl font-bold tracking-tight tabular-nums">{value}</span>
+                <span className="mt-1 block text-xs text-muted-foreground">{label}</span>
+              </span>
             </span>
           </Component>
         );

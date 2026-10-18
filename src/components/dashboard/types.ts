@@ -7,6 +7,8 @@ export interface Subject {
   name: string;
   color: string; // user-picked hex, used only in the chart + legend
   pct: number;   // share of study time, 0–100 (should sum to ~100)
+  /** Known names/IDs for the same saved subject; used only to scope analytics. */
+  identifiers?: string[];
 }
 
 export interface ProfileStat {

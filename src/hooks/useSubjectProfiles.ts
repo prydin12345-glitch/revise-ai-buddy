@@ -100,8 +100,10 @@ export const useSubjectProfiles = () => {
   const [masterTopics, setMasterTopics] = useState<MasterTopic[]>([]);
   const [examProfiles, setExamProfiles] = useState<ExamProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchAll = useCallback(async () => {
+    setError(null);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -125,6 +127,7 @@ export const useSubjectProfiles = () => {
       setMasterTopics((topicsRes.data || []) as MasterTopic[]);
       setExamProfiles((profilesRes.data || []) as ExamProfile[]);
     } catch (err) {
+      setError("Couldn’t load exam profiles. Try again.");
       console.error("Error fetching subject profiles:", err);
     } finally {
       setLoading(false);
@@ -355,6 +358,7 @@ export const useSubjectProfiles = () => {
     masterTopics,
     examProfiles,
     loading,
+    error,
     getTopicsForSubject,
     getProfilesForSubject,
     addTopic,
@@ -363,5 +367,6 @@ export const useSubjectProfiles = () => {
     updateProfile,
     deleteProfile,
     refetch: fetchAll,
+    retry: () => { setLoading(true); return fetchAll(); },
   };
 };
