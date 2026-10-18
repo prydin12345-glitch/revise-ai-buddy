@@ -16,12 +16,14 @@ function useCardSelection<T extends { id: string }>(key: string, items: T[]) {
 
 function Pager({ label, index, count, onMove }: { label: string; index: number; count: number; onMove: (step: number) => void }) {
   return (
-    <div className="flex shrink-0 items-center gap-1">
-      <span className="mr-1 text-xs tabular-nums text-muted-foreground" aria-label={`${label} ${count ? index + 1 : 0} of ${count}`}>
-        {count ? index + 1 : 0}/{count}
+    <div className="laptop-context-pager">
+      <span className="laptop-context-position" aria-label={`${label} ${count ? index + 1 : 0} of ${count}`}>
+        <span>{count ? index + 1 : 0}</span><span className="laptop-context-total"> / {count}</span>
       </span>
-      <button type="button" className="laptop-card-arrow" aria-label={`Previous ${label}`} disabled={count < 2} onClick={() => onMove(-1)}><ChevronLeft className="h-4 w-4" aria-hidden="true" /></button>
-      <button type="button" className="laptop-card-arrow" aria-label={`Next ${label}`} disabled={count < 2} onClick={() => onMove(1)}><ChevronRight className="h-4 w-4" aria-hidden="true" /></button>
+      <div className="laptop-context-pager-controls">
+        <button type="button" className="laptop-card-arrow" aria-label={`Previous ${label}`} disabled={count < 2} onClick={() => onMove(-1)}><ChevronLeft className="h-4 w-4" aria-hidden="true" /></button>
+        <button type="button" className="laptop-card-arrow" aria-label={`Next ${label}`} disabled={count < 2} onClick={() => onMove(1)}><ChevronRight className="h-4 w-4" aria-hidden="true" /></button>
+      </div>
     </div>
   );
 }
@@ -52,18 +54,23 @@ export default function DashboardContextCards({ classes, announcements, onContin
         <div className="laptop-context-body" aria-live="polite" aria-atomic="true">
           {item ? <>
             {/* Membership/profile fields are real. The legacy progress/next placeholders stay out of this card. */}
-            <p className="text-xs font-semibold text-primary">{item.subjectTag}</p>
-            <h3 className="mt-2 break-words text-lg font-semibold leading-snug">{item.title}</h3>
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{item.teacher} · {item.students} {item.students === 1 ? "student" : "students"}</p>
-            <button type="button" className="laptop-context-action" onClick={() => onContinue?.(item.id)}>Continue <ArrowRight className="h-4 w-4" aria-hidden="true" /></button>
+            <p className="laptop-context-kicker">{item.subjectTag}</p>
+            <h3 className="laptop-context-title">{item.title}</h3>
+            <dl className="laptop-context-meta">
+              <div><dt>Tutor</dt><dd>{item.teacher}</dd></div>
+              <div><dt>Students</dt><dd>{item.students} {item.students === 1 ? "student" : "students"}</dd></div>
+            </dl>
           </> : <>
             <Users className="mb-3 h-6 w-6 text-muted-foreground" aria-hidden="true" />
             <h3 className="text-base font-semibold">Your classes, together</h3>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">You haven't joined any classes yet.</p>
-            <button type="button" className="laptop-context-action" onClick={onJoinClass}>Join a class <ArrowRight className="h-4 w-4" aria-hidden="true" /></button>
           </>}
         </div>
-        <button type="button" className="laptop-context-link" onClick={onViewClasses}>View all classes <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" /></button>
+        <div className="laptop-context-footer">
+          <button type="button" className="laptop-context-link" onClick={onViewClasses}>View all classes</button>
+          {item ? <button type="button" className="laptop-context-action" onClick={() => onContinue?.(item.id)}>Continue <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" /></button>
+            : <button type="button" className="laptop-context-action" onClick={onJoinClass}>Join a class <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" /></button>}
+        </div>
       </section>
 
       <section className="laptop-context-card" aria-labelledby={announcementTitle} aria-roledescription="carousel">
@@ -73,17 +80,19 @@ export default function DashboardContextCards({ classes, announcements, onContin
         </div>
         <div className="laptop-context-body" aria-live="polite" aria-atomic="true">
           {announcement ? <>
-            <p className="text-xs font-semibold text-primary">{announcement.from}</p>
-            <h3 className="mt-2 break-words text-lg font-semibold leading-snug">{announcement.title}</h3>
-            <p className="mt-3 text-xs text-muted-foreground">{announcement.when}</p>
-            <button type="button" className="laptop-context-action" onClick={() => onOpenAnnouncement?.(announcement.id)}>Open class <ArrowRight className="h-4 w-4" aria-hidden="true" /></button>
+            <p className="laptop-context-kicker">{announcement.from}</p>
+            <h3 className="laptop-context-title">{announcement.title}</h3>
+            <p className="laptop-context-date">{announcement.when}</p>
           </> : <>
             <Megaphone className="mb-3 h-6 w-6 text-muted-foreground" aria-hidden="true" />
             <h3 className="text-base font-semibold">You're up to date</h3>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Class announcements will appear here.</p>
           </>}
         </div>
-        <button type="button" className="laptop-context-link" onClick={onViewClasses}>View all classes <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" /></button>
+        <div className="laptop-context-footer">
+          <button type="button" className="laptop-context-link" onClick={onViewClasses}>View all classes</button>
+          {announcement && <button type="button" className="laptop-context-action" onClick={() => onOpenAnnouncement?.(announcement.id)}>Open class <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" /></button>}
+        </div>
       </section>
     </div>
   );

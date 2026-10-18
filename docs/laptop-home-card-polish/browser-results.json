@@ -1,0 +1,149 @@
+{
+  "laptop": {
+    "views": [
+      {
+        "width": 1280,
+        "height": 1000,
+        "theme": "light",
+        "state": "populated",
+        "layout": true,
+        "arrows": true,
+        "selector": true,
+        "keyboard": true,
+        "continueDestination": true
+      },
+      {
+        "width": 1280,
+        "height": 1000,
+        "theme": "dark",
+        "state": "populated",
+        "layout": true,
+        "arrows": true,
+        "selector": true,
+        "keyboard": true,
+        "continueDestination": true
+      },
+      {
+        "width": 1440,
+        "height": 1000,
+        "theme": "light",
+        "state": "populated",
+        "layout": true,
+        "arrows": true,
+        "selector": true,
+        "keyboard": true,
+        "continueDestination": true
+      },
+      {
+        "width": 1440,
+        "height": 1000,
+        "theme": "dark",
+        "state": "populated",
+        "layout": true,
+        "arrows": true,
+        "selector": true,
+        "keyboard": true,
+        "continueDestination": true
+      },
+      {
+        "width": 1920,
+        "height": 1000,
+        "theme": "light",
+        "state": "populated",
+        "layout": true,
+        "arrows": true,
+        "selector": true,
+        "keyboard": true,
+        "continueDestination": true
+      },
+      {
+        "width": 1920,
+        "height": 1000,
+        "theme": "dark",
+        "state": "populated",
+        "layout": true,
+        "arrows": true,
+        "selector": true,
+        "keyboard": true,
+        "continueDestination": true
+      },
+      {
+        "width": 1440,
+        "height": 1000,
+        "theme": "light",
+        "state": "empty",
+        "layout": true
+      },
+      {
+        "width": 1440,
+        "height": 1000,
+        "theme": "dark",
+        "state": "empty",
+        "layout": true
+      },
+      {
+        "width": 1440,
+        "height": 1000,
+        "theme": "light",
+        "state": "long",
+        "layout": true
+      },
+      {
+        "width": 1440,
+        "height": 1000,
+        "theme": "dark",
+        "state": "long",
+        "layout": true
+      }
+    ],
+    "errors": [],
+    "unexpectedFailures": [],
+    "cancelledRequests": [],
+    "backend": 0,
+    "fontStatuses": [
+      200
+    ]
+  },
+  "mobile": {
+    "views": [
+      {
+        "width": 390,
+        "theme": "light",
+        "scenario": "populated"
+      },
+      {
+        "width": 390,
+        "theme": "dark",
+        "scenario": "populated"
+      }
+    ],
+    "errors": [],
+    "failed": [],
+    "backend": 0,
+    "fontStatuses": [
+      200
+    ],
+    "tabletNavigationVisible": true
+  },
+  "wideTouchTablet": {
+    "views": [
+      {
+        "width": 1366,
+        "theme": "light",
+        "scenario": "populated"
+      },
+      {
+        "width": 1366,
+        "theme": "dark",
+        "scenario": "populated"
+      }
+    ],
+    "errors": [],
+    "failed": [],
+    "backend": 0,
+    "fontStatuses": [
+      200
+    ],
+    "tabletNavigationVisible": true
+  }
+}

@@ -36,7 +36,7 @@ export default function ActivityPanel({
       </div>
 
       {/* segmented toggle */}
-      <div className="activity-switcher inline-flex gap-1 rounded-md border border-border bg-panel-2 p-1">
+      <div className="activity-switcher inline-flex gap-1 rounded-md border border-border bg-panel-2 p-1" role="group" aria-label="Recent activity type">
         <SegButton active={tab === "exams"} onClick={() => setTab("exams")} label="Mock Exams" count={mockExams.length} />
         <SegButton active={tab === "quizzes"} onClick={() => setTab("quizzes")} label="Practice Quizzes" count={quizzes.length} />
       </div>
@@ -69,13 +69,15 @@ function SegButton({
 }: { active: boolean; onClick: () => void; label: string; count: number }) {
   return (
     <button
+      type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={`activity-tab flex items-center gap-2 min-h-11 rounded-md px-3 py-2 text-[13px] font-bold transition-colors ${
         active ? "bg-primary text-primary-foreground shadow-none" : "text-muted-foreground hover:text-foreground"
       }`}
     >
-      {label}
-      <span className={`rounded-full px-1.5 text-[11px] font-bold ${active ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"}`}>
+      <span className="activity-tab-label">{label}</span>
+      <span className={`activity-tab-count rounded-full px-1.5 text-[11px] font-bold ${active ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"}`}>
         {count}
       </span>
     </button>
