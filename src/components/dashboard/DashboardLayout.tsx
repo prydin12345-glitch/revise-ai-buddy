@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Brain, LayoutDashboard, FileText, CheckSquare, Target, FolderOpen, MessageSquare, Settings, LogOut, User, Menu, Search, Sparkles, TrendingUp, Calendar, BarChart3, Users, MessageCircle, Link2, BookOpen, Sun, Moon, Plus, ChevronDown, ListChecks, GraduationCap, X } from "lucide-react";
+import { Brain, FileText, Target, FolderOpen, MessageSquare, Settings, LogOut, User, Menu, Search, Sparkles, Calendar, Users, MessageCircle, Link2, Sun, Moon, Plus, ChevronDown, ListChecks, GraduationCap, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -22,6 +22,9 @@ import { prefetchRoute, prefetchCommonRoutes } from "@/lib/prefetch-routes";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
 import { useTheme } from "@/hooks/useTheme";
 import { AiTutorChat } from "@/components/ai-tutor/AiTutorChat";
+import { workspaceSidebarItems, isSidebarDestinationActive, sidebarDestinationPath } from "@/lib/workspace-sidebar-navigation";
+import { useRetainedState } from "@/hooks/use-workspace-session";
+import "@/styles/practice-library.css";
 import { cn } from "@/lib/utils";
 
 interface DashboardLayoutProps {
@@ -68,25 +71,9 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     prefetchCommonRoutes();
   }, []);
 
-  const studentNavItems = [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-    { icon: FileText, label: "My Exams", path: "/my-exams" },
-    { icon: CheckSquare, label: "Practice Quizzes", path: "/quizzes" },
-    { icon: Users, label: "My Classes", path: "/my-classes" },
-    { icon: BookOpen, label: "My Subjects", path: "/my-subjects" },
-    { icon: TrendingUp, label: "My Progress", path: "/stats" },
-  ];
-
-  const tutorNavItems = [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-    { icon: FileText, label: "Manage Exams", path: "/tutor/exams" },
-    { icon: CheckSquare, label: "Practice Sets", path: "/tutor/practice" },
-    { icon: User, label: "Students", path: "/tutor/students" },
-    { icon: MessageCircle, label: "Feedback", path: "/tutor/feedback" },
-    { icon: BarChart3, label: "Student Progress", path: "/tutor/progress" },
-  ];
-
-  const navItems = primaryRole === 'tutor' ? tutorNavItems : studentNavItems;
+  const navItems = workspaceSidebarItems(primaryRole === 'tutor');
+  const [lastPaths] = useRetainedState<Record<string, string>>('navigation:last-paths:v2', {});
+  const navPath = (path: string) => sidebarDestinationPath(path, lastPaths.practice);
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -106,7 +93,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   };
 
   const renderNavItem = (item: typeof navItems[0]) => {
-    const isActive = location.pathname === item.path;
+    const isActive = isSidebarDestinationActive(location.pathname, item.path);
     return (
       <Button
         key={item.path}
@@ -122,10 +109,11 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           borderLeft: isActive ? '2px solid hsl(var(--primary))' : '2px solid transparent',
         }}
         onClick={() => {
-          navigate(item.path);
+          navigate(navPath(item.path));
           setSidebarOpen(false);
         }}
         onMouseEnter={() => prefetchRoute(item.path)}
+        aria-current={isActive ? "page" : undefined}
         title={sidebarCollapsed ? item.label : undefined}
       >
         <item.icon className={`w-5 h-5 ${sidebarCollapsed ? "" : "mr-3"} flex-shrink-0`} />
@@ -135,7 +123,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   };
 
   return (
-    <div className={cn('examly-workspace min-h-screen flex w-full bg-background', location.pathname === '/dashboard' && primaryRole !== 'tutor' && primaryRole !== 'teacher' && 'examly-home-route')}>
+    <div className={cn('examly-workspace min-h-screen flex w-full bg-background', location.pathname === '/dashboard' && primaryRole !== 'tutor' && primaryRole !== 'teacher' && 'examly-home-route', ['/my-exams', '/quizzes'].includes(location.pathname) && 'examly-library-route')}>
       {/* Desktop sidebar; tablet widths use the same five primary controls */}
       <aside
         className={`examly-workspace-sidebar hidden xl:block fixed left-0 top-0 h-screen bg-sidebar-background border-r border-sidebar-border z-50 transition-all duration-300 ${
@@ -171,7 +159,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               </p>
             )}
             <div className="space-y-1">
-              {navItems.slice(0, 4).map(renderNavItem)}
+              {navItems.filter(item => item.section === "main").map(renderNavItem)}
             </div>
 
             <Separator className="my-3 bg-border" />
@@ -182,7 +170,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               </p>
             )}
             <div className="space-y-1">
-              {navItems.slice(4).map(renderNavItem)}
+              {navItems.filter(item => item.section === "learning").map(renderNavItem)}
             </div>
           </nav>
 
@@ -271,7 +259,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <ResponsiveActionSheet open={menuOpen} onOpenChange={setMenuOpen} title="Workspace menu" description="Your other Examly tools and account controls."
                 trigger={<Button variant="ghost" size="icon" className="examly-workspace-menu xl:hidden shrink-0" aria-label="Open workspace menu"><Menu className="h-5 w-5" /></Button>}>
                 <div className="grid gap-1">
-                  {navItems.map(item => <Button key={item.path} variant="ghost" className="justify-start min-h-11" onClick={() => { setMenuOpen(false); navigate(item.path); }}><item.icon className="h-5 w-5 mr-3" />{item.label}</Button>)}
+                  {navItems.map(item => <Button key={item.path} variant="ghost" className="justify-start min-h-11" aria-current={isSidebarDestinationActive(location.pathname, item.path) ? "page" : undefined} onClick={() => { setMenuOpen(false); navigate(navPath(item.path)); }}><item.icon className="h-5 w-5 mr-3" />{item.label}</Button>)}
                   <Separator className="my-2" />
                   <Button variant="ghost" className="justify-start" onClick={() => { setMenuOpen(false); navigate("/settings"); }}><User className="h-5 w-5 mr-3" />Profile & settings</Button>
                   <Button variant="ghost" className="justify-start" onClick={toggleTheme}>{theme === "light" ? <Moon className="h-5 w-5 mr-3" /> : <Sun className="h-5 w-5 mr-3" />}{theme === "light" ? "Dark mode" : "Light mode"}</Button>

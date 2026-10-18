@@ -24,7 +24,7 @@ const ManagePracticeSets = () => {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-        <div className="xl:hidden"><MyWorkTabBar tutor /></div>
+        <MyWorkTabBar tutor />
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Practice Sets</h1>

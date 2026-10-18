@@ -1,0 +1,111 @@
+{
+  "views": [],
+  "checks": [
+    {
+      "touch": false,
+      "filters": true,
+      "tabState": true,
+      "optimisticRollback": true,
+      "browserBackForward": true
+    },
+    {
+      "touch": false,
+      "keyboardFocus": true,
+      "coverBackScroll": true,
+      "unifiedMenuOrSidebar": true
+    },
+    {
+      "scenario": "loading",
+      "path": "/my-exams",
+      "touch": false
+    },
+    {
+      "scenario": "loading",
+      "path": "/quizzes",
+      "touch": false
+    },
+    {
+      "scenario": "empty",
+      "path": "/my-exams",
+      "touch": false
+    },
+    {
+      "scenario": "empty",
+      "path": "/quizzes",
+      "touch": false
+    },
+    {
+      "scenario": "error",
+      "path": "/my-exams",
+      "touch": false
+    },
+    {
+      "scenario": "error",
+      "path": "/quizzes",
+      "touch": false
+    },
+    {
+      "touch": true,
+      "filters": true,
+      "tabState": true,
+      "optimisticRollback": true,
+      "browserBackForward": true
+    },
+    {
+      "touch": true,
+      "keyboardFocus": true,
+      "coverBackScroll": true,
+      "unifiedMenuOrSidebar": true
+    },
+    {
+      "scenario": "loading",
+      "path": "/my-exams",
+      "touch": true
+    },
+    {
+      "scenario": "loading",
+      "path": "/quizzes",
+      "touch": true
+    },
+    {
+      "scenario": "empty",
+      "path": "/my-exams",
+      "touch": true
+    },
+    {
+      "scenario": "empty",
+      "path": "/quizzes",
+      "touch": true
+    },
+    {
+      "scenario": "error",
+      "path": "/my-exams",
+      "touch": true
+    },
+    {
+      "scenario": "error",
+      "path": "/quizzes",
+      "touch": true
+    }
+  ],
+  "errors": [],
+  "expectedConsoleErrors": [],
+  "failed": [],
+  "fonts": [
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200
+  ],
+  "backendRequests": 0
+}

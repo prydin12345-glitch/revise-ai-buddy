@@ -9,7 +9,7 @@ import { Upload, Loader2, CheckCircle, CheckCheck, Star, Archive, Filter, Plus, 
 import { StudentPDFDownloadModal } from "@/components/student/StudentPDFDownloadModal";
 import { useStudentPDF } from "@/hooks/useStudentPDF";
 import { ExamCard } from "@/components/exam/ExamCard";
-import { MyWorkTabBar } from "@/components/shared/MyWorkTabBar";
+import { PracticeLibraryHeader, LibrarySkeleton } from "@/components/shared/PracticeLibraryHeader";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { useRetainedState, useWorkspaceSession } from "@/hooks/use-workspace-session";
 import { RefreshableList } from "@/components/shared/RefreshableList";
-import { ListSkeleton, LoadError } from "@/components/shared/ListFeedback";
+import { LoadError } from "@/components/shared/ListFeedback";
 import { ResponsiveActionSheet } from "@/components/ui/responsive-action-sheet";
 import { useOptimisticFavourites } from "@/hooks/use-optimistic-favourites";
 import { EXAM_BOARD_OPTIONS } from "@/lib/board-scrubber";
@@ -634,15 +634,8 @@ const MyExams = () => {
   return (
     <DashboardLayout>
       <RefreshableList onRefresh={loadExams}>
-      <div className="max-w-[1280px] mx-auto space-y-7">
-        {/* Unified Tab Bar */}
-        <MyWorkTabBar />
-
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">My Exams</h1>
-
-          {/* Create Button - compact pill */}
+      <div className="practice-library">
+        <PracticeLibraryHeader action={
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button className="gap-2" aria-label="Create new exam or practice set">
@@ -661,25 +654,25 @@ const MyExams = () => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
+        } />
 
-        {/* Controls Bar - Order: Search → Tabs → Sort/Filter */}
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col 2xl:flex-row 2xl:items-center gap-3">
-            {/* Search Bar (First) */}
-            <div className="relative w-full min-w-0 2xl:flex-1 2xl:max-w-md order-1">
+        {/* Library search, filters and status */}
+        <div className="library-toolbar">
+          <div className="library-toolbar-layout">
+            {/* Search */}
+            <div className="library-search">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Search exams…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-10"
+                className="pl-10 pr-12 h-11"
                 aria-label="Search exams"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="library-search-clear"
                   aria-label="Clear search"
                 >
                   <X className="w-4 h-4" />
@@ -687,39 +680,15 @@ const MyExams = () => {
               )}
             </div>
 
-            {/* Segmented Control Tabs (Second) */}
-            <div className="min-w-0 max-w-full overflow-x-auto order-2">
-              <div className="inline-flex min-h-11 p-1 border border-border bg-muted/50 rounded-md gap-1">
-                {TABS.map((tab) => {
-                  const Icon = tab.icon;
-                  return (
-                    <button
-                      key={tab.value}
-                      onClick={() => setActiveTab(tab.value)}
-                      className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all whitespace-nowrap ${
-                        activeTab === tab.value
-                          ? 'bg-background text-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
-                      }`}
-                      aria-label={`Filter by ${tab.label}`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Sort + Filter Controls (Third) */}
-            <div className="flex flex-wrap items-center gap-2 order-3">
+            {/* Sort and filter controls */}
+            <div className="library-filter-actions">
               {/* Board Filter */}
               {(() => {
                 const uniqueBoards = [...new Set(exams.map(e => e.exam_board).filter(Boolean))] as string[];
                 if (uniqueBoards.length === 0) return null;
                 return (
                   <Select value={filters.board} onValueChange={(v) => setFilters({ ...filters, board: v })}>
-                    <SelectTrigger className="w-36 h-10">
+                    <SelectTrigger className="library-select h-11" aria-label="Filter by exam board">
                       <SelectValue placeholder="All Boards" />
                     </SelectTrigger>
                     <SelectContent>
@@ -740,9 +709,9 @@ const MyExams = () => {
               {/* Sort Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2 h-10 shrink-0" aria-label="Sort exams">
+                  <Button variant="outline" size="sm" className="gap-2 h-11 shrink-0" aria-label="Sort exams">
                     <ArrowUpDown className="w-4 h-4" />
-                    <span className="hidden sm:inline">Sort: {getSortLabel()}</span>
+                    <span className="hidden sm:inline">{getSortLabel()}</span><span className="sm:hidden">Sort</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -764,22 +733,43 @@ const MyExams = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => setFilterPanelOpen(true)}
-                className="gap-2 h-10 shrink-0"
+                className="gap-2 h-11 shrink-0"
                 aria-label="Open filter panel"
               >
                 <Filter className="w-4 h-4" />
-                <span className="hidden sm:inline">Filter</span>
+                <span>Filters</span>
               </Button>
             </div>
+            {/* Status filters */}
+            <div className="library-status-scroll">
+              <div className="library-status-filters" aria-label="Exam status">
+                {TABS.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.value}
+                      onClick={() => setActiveTab(tab.value)}
+                      className="library-status-filter"
+                      aria-pressed={activeTab === tab.value}
+                      aria-label={`Filter by ${tab.label}`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
           </div>
         </div>
 
         {loadError && <LoadError message={loadError} onRetry={() => void loadExams()} />}
         {/* Content */}
-        {loading && !loaded ? <ListSkeleton /> : !loaded && loadError ? null : sortedExams.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border bg-card px-5 py-16 text-center">
-            <h3 className="text-2xl font-semibold mb-2">No exams yet</h3>
-            <p className="text-muted-foreground mb-6">Upload your first exam to get started</p>
+        {loading && !loaded ? <LibrarySkeleton /> : !loaded && loadError ? null : sortedExams.length === 0 ? (
+          <div className="library-empty">
+            <h3 className="text-2xl font-semibold mb-2">No exams to show</h3>
+            <p className="text-muted-foreground mb-6">Try another search or filter, or add a new exam.</p>
             <Button onClick={() => navigate("/upload")}>
               <Upload className="mr-2" />
               Upload Exam
@@ -795,12 +785,12 @@ const MyExams = () => {
             });
 
             return (
-              <div className="space-y-10">
+              <div className="library-subjects">
                 {Array.from(groups.entries()).map(([subjectName, examsInGroup]) => {
                   const subjectColor = getSubjectColor(subjectName);
                   return (
                     <section key={subjectName} aria-label={subjectName}>
-                      <div className="flex items-center gap-2.5 mb-3 px-1">
+                      <div className="library-subject-heading">
                         <span
                           className="w-2 h-2 rounded-full shrink-0"
                           style={{ backgroundColor: subjectColor }}
@@ -816,7 +806,7 @@ const MyExams = () => {
 
                       <div className="relative">
                         <div
-                          data-scroll-restoration={subjectName} className="subject-scrollbar flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory scroll-smooth"
+                          data-scroll-restoration={subjectName} className="library-paper-grid"
                           style={{ ['--scrollbar-thumb' as any]: subjectColor }}
                         >
 
@@ -833,7 +823,7 @@ const MyExams = () => {
                             return (
                               <div
                                 key={exam.id}
-                                className="snap-start shrink-0 w-[min(300px,calc(100vw-2rem))] sm:w-[280px]"
+                                className="min-w-0"
                               >
                                 <ExamCard
                                   exam={exam}

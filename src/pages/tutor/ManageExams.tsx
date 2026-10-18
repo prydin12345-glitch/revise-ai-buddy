@@ -222,7 +222,7 @@ const ManageExams = () => {
   return (
     <RefreshableList onRefresh={refetch}>
     <div className="container mx-auto py-6 space-y-6">
-      <div className="xl:hidden"><MyWorkTabBar tutor /></div>
+      <MyWorkTabBar tutor />
       {error && <LoadError message={error} onRetry={() => void refetch()} />}
       {/* Header - matches Practice Sets */}
       <div className="flex flex-wrap items-center justify-between gap-y-3">

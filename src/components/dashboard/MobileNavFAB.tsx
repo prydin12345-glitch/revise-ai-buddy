@@ -2,30 +2,10 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserRole } from '@/hooks/useUserRole';
-import {
-  LayoutDashboard, FileText, BookOpen, CheckSquare,
-  Users, TrendingUp, Settings, LogOut, X, Menu,
-  MessageCircle, BarChart3, User,
-} from 'lucide-react';
+import { Settings, LogOut, X, Menu } from 'lucide-react';
+import { workspaceSidebarItems, isSidebarDestinationActive, sidebarDestinationPath } from '@/lib/workspace-sidebar-navigation';
+import { useRetainedState } from '@/hooks/use-workspace-session';
 import { supabase } from '@/integrations/supabase/client';
-
-const STUDENT_NAV = [
-  { icon: LayoutDashboard, label: 'Dashboard', route: '/dashboard' },
-  { icon: FileText, label: 'My Exams', route: '/my-exams' },
-  { icon: CheckSquare, label: 'Practice Quizzes', route: '/quizzes' },
-  { icon: Users, label: 'My Classes', route: '/my-classes' },
-  { icon: BookOpen, label: 'My Subjects', route: '/my-subjects' },
-  { icon: TrendingUp, label: 'My Progress', route: '/stats' },
-];
-
-const TUTOR_NAV = [
-  { icon: LayoutDashboard, label: 'Dashboard', route: '/dashboard' },
-  { icon: FileText, label: 'Manage Exams', route: '/tutor/exams' },
-  { icon: CheckSquare, label: 'Practice Sets', route: '/tutor/practice' },
-  { icon: User, label: 'Students', route: '/tutor/students' },
-  { icon: MessageCircle, label: 'Feedback', route: '/tutor/feedback' },
-  { icon: BarChart3, label: 'Student Progress', route: '/tutor/progress' },
-];
 
 export const MobileNavFAB = () => {
   const [open, setOpen] = useState(false);
@@ -33,7 +13,8 @@ export const MobileNavFAB = () => {
   const location = useLocation();
   const { primaryRole } = useUserRole();
   const isTutor = primaryRole === 'tutor';
-  const navItems = isTutor ? TUTOR_NAV : STUDENT_NAV;
+  const navItems = workspaceSidebarItems(isTutor);
+  const [lastPaths] = useRetainedState<Record<string, string>>('navigation:last-paths:v2', {});
 
   // Hide on exam taking pages
   const hideOnRoutes = ['/in-progress', '/live', '/taking'];
@@ -94,12 +75,13 @@ export const MobileNavFAB = () => {
             <div className="px-4 pt-2 pb-1">
               {navItems.map(item => {
                 const Icon = item.icon;
-                const isActive = location.pathname === item.route;
+                const isActive = isSidebarDestinationActive(location.pathname, item.path);
                 return (
                   <button
-                    key={item.route}
+                    aria-current={isActive ? "page" : undefined}
+                    key={item.path}
                     onClick={() => {
-                      navigate(item.route);
+                      navigate(sidebarDestinationPath(item.path, lastPaths.practice));
                       setOpen(false);
                     }}
                     className={`w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl mb-0.5 text-[15px] text-left font-inherit transition-all duration-150 border-none ${
