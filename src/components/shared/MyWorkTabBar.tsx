@@ -10,7 +10,7 @@ export const MyWorkTabBar = ({ tutor = false }: { tutor?: boolean }) => {
   ];
 
   return (
-    <nav aria-label="Practice libraries" className="mb-6 grid grid-cols-2 gap-1 rounded-xl border border-border bg-muted p-1 sm:max-w-sm">
+    <nav aria-label="Practice libraries" className="library-view-switch mb-6 flex w-fit max-w-full gap-1 rounded-lg border border-border bg-muted/50 p-1">
       {tabs.map((tab) => {
         const isActive = location.pathname === tab.path;
         return (
@@ -19,7 +19,7 @@ export const MyWorkTabBar = ({ tutor = false }: { tutor?: boolean }) => {
             type="button"
             onClick={() => isActive ? scrollWorkspaceToTop() : navigate(tab.path)}
             aria-current={isActive ? 'page' : undefined}
-            className={`min-h-11 rounded-lg px-4 py-2.5 text-sm transition-colors ${
+            className={`min-h-11 min-w-28 rounded-md px-5 py-2.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               isActive
                 ? "bg-card text-foreground font-semibold shadow-sm"
                 : "text-muted-foreground hover:text-foreground"

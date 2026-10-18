@@ -1,0 +1,520 @@
+{
+  "views": [
+    {
+      "width": 1280,
+      "height": 900,
+      "theme": "light",
+      "touch": false,
+      "view": "Exams",
+      "cards": 27,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "theme": "light",
+      "touch": false,
+      "view": "Quizzes",
+      "cards": 12,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "theme": "dark",
+      "touch": false,
+      "view": "Exams",
+      "cards": 27,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "theme": "dark",
+      "touch": false,
+      "view": "Quizzes",
+      "cards": 12,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "theme": "light",
+      "touch": false,
+      "view": "Exams",
+      "cards": 27,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "theme": "light",
+      "touch": false,
+      "view": "Quizzes",
+      "cards": 12,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "theme": "dark",
+      "touch": false,
+      "view": "Exams",
+      "cards": 27,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "theme": "dark",
+      "touch": false,
+      "view": "Quizzes",
+      "cards": 12,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "theme": "light",
+      "touch": false,
+      "view": "Exams",
+      "cards": 27,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "theme": "light",
+      "touch": false,
+      "view": "Quizzes",
+      "cards": 12,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "theme": "dark",
+      "touch": false,
+      "view": "Exams",
+      "cards": 27,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "theme": "dark",
+      "touch": false,
+      "view": "Quizzes",
+      "cards": 12,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "height": 844,
+      "theme": "light",
+      "touch": true,
+      "view": "Exams",
+      "cards": 27,
+      "cardHeight": 330,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "height": 844,
+      "theme": "light",
+      "touch": true,
+      "view": "Quizzes",
+      "cards": 12,
+      "cardHeight": 330,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "height": 844,
+      "theme": "dark",
+      "touch": true,
+      "view": "Exams",
+      "cards": 27,
+      "cardHeight": 330,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "height": 844,
+      "theme": "dark",
+      "touch": true,
+      "view": "Quizzes",
+      "cards": 12,
+      "cardHeight": 330,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "touch": true,
+      "view": "Exams",
+      "cards": 27,
+      "cardHeight": 350,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "touch": true,
+      "view": "Quizzes",
+      "cards": 12,
+      "cardHeight": 350,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "touch": true,
+      "view": "Exams",
+      "cards": 27,
+      "cardHeight": 350,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "touch": true,
+      "view": "Quizzes",
+      "cards": 12,
+      "cardHeight": 350,
+      "overflow": false
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "theme": "light",
+      "touch": true,
+      "view": "Exams",
+      "cards": 27,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "theme": "light",
+      "touch": true,
+      "view": "Quizzes",
+      "cards": 12,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "theme": "dark",
+      "touch": true,
+      "view": "Exams",
+      "cards": 27,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "theme": "dark",
+      "touch": true,
+      "view": "Quizzes",
+      "cards": 12,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 834,
+      "height": 1112,
+      "theme": "light",
+      "touch": true,
+      "view": "Exams",
+      "cards": 27,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 834,
+      "height": 1112,
+      "theme": "light",
+      "touch": true,
+      "view": "Quizzes",
+      "cards": 12,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 834,
+      "height": 1112,
+      "theme": "dark",
+      "touch": true,
+      "view": "Exams",
+      "cards": 27,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 834,
+      "height": 1112,
+      "theme": "dark",
+      "touch": true,
+      "view": "Quizzes",
+      "cards": 12,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "touch": true,
+      "view": "Exams",
+      "cards": 27,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "theme": "light",
+      "touch": true,
+      "view": "Quizzes",
+      "cards": 12,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "touch": true,
+      "view": "Exams",
+      "cards": 27,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "theme": "dark",
+      "touch": true,
+      "view": "Quizzes",
+      "cards": 12,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1194,
+      "height": 834,
+      "theme": "light",
+      "touch": true,
+      "view": "Exams",
+      "cards": 27,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1194,
+      "height": 834,
+      "theme": "light",
+      "touch": true,
+      "view": "Quizzes",
+      "cards": 12,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1194,
+      "height": 834,
+      "theme": "dark",
+      "touch": true,
+      "view": "Exams",
+      "cards": 27,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1194,
+      "height": 834,
+      "theme": "dark",
+      "touch": true,
+      "view": "Quizzes",
+      "cards": 12,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1366,
+      "height": 1024,
+      "theme": "light",
+      "touch": true,
+      "view": "Exams",
+      "cards": 27,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1366,
+      "height": 1024,
+      "theme": "light",
+      "touch": true,
+      "view": "Quizzes",
+      "cards": 12,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1366,
+      "height": 1024,
+      "theme": "dark",
+      "touch": true,
+      "view": "Exams",
+      "cards": 27,
+      "cardHeight": 360,
+      "overflow": false
+    },
+    {
+      "width": 1366,
+      "height": 1024,
+      "theme": "dark",
+      "touch": true,
+      "view": "Quizzes",
+      "cards": 12,
+      "cardHeight": 360,
+      "overflow": false
+    }
+  ],
+  "checks": [
+    {
+      "touch": false,
+      "filters": true,
+      "tabState": true,
+      "optimisticRollback": true,
+      "browserBackForward": true
+    },
+    {
+      "scenario": "loading",
+      "path": "/my-exams",
+      "touch": false
+    },
+    {
+      "scenario": "loading",
+      "path": "/quizzes",
+      "touch": false
+    },
+    {
+      "scenario": "empty",
+      "path": "/my-exams",
+      "touch": false
+    },
+    {
+      "scenario": "empty",
+      "path": "/quizzes",
+      "touch": false
+    },
+    {
+      "scenario": "error",
+      "path": "/my-exams",
+      "touch": false
+    },
+    {
+      "scenario": "error",
+      "path": "/quizzes",
+      "touch": false
+    },
+    {
+      "touch": true,
+      "filters": true,
+      "tabState": true,
+      "optimisticRollback": true,
+      "browserBackForward": true
+    },
+    {
+      "scenario": "loading",
+      "path": "/my-exams",
+      "touch": true
+    },
+    {
+      "scenario": "loading",
+      "path": "/quizzes",
+      "touch": true
+    },
+    {
+      "scenario": "empty",
+      "path": "/my-exams",
+      "touch": true
+    },
+    {
+      "scenario": "empty",
+      "path": "/quizzes",
+      "touch": true
+    },
+    {
+      "scenario": "error",
+      "path": "/my-exams",
+      "touch": true
+    },
+    {
+      "scenario": "error",
+      "path": "/quizzes",
+      "touch": true
+    }
+  ],
+  "errors": [],
+  "expectedConsoleErrors": [],
+  "failed": [],
+  "fonts": [
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200
+  ],
+  "backendRequests": 0
+}

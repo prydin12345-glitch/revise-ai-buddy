@@ -6,7 +6,7 @@
 
 /* Laptop layout only. Card presentation is shared in home-dashboard-components.css. */
 @media screen and (min-width: 1280px) and (pointer: fine) {
-  .examly-home-route {
+  :is(.examly-home-route, .examly-library-route) {
     --background: 215 25% 96%;
     --card: 0 0% 100%;
     --sidebar-background: 0 0% 100%;
@@ -14,7 +14,7 @@
     --sidebar-border: 216 19% 87%;
     --surface-panel-2: 215 25% 97%;
   }
-  .dark .examly-home-route {
+  .dark :is(.examly-home-route, .examly-library-route) {
     --background: 220 17% 11%;
     --card: 220 15% 15%;
     --sidebar-background: 220 15% 15%;
@@ -22,11 +22,11 @@
     --sidebar-border: 220 12% 27%;
     --surface-panel-2: 220 16% 13%;
   }
-  .examly-home-route .examly-workspace-main {
+  :is(.examly-home-route, .examly-library-route) .examly-workspace-main {
     max-width: 1600px;
     padding: 28px 32px 72px;
   }
-  .examly-home-route .examly-workspace-sidebar {
+  :is(.examly-home-route, .examly-library-route) .examly-workspace-sidebar {
     background-color: hsl(var(--sidebar-background));
     border-color: hsl(var(--sidebar-border));
   }
