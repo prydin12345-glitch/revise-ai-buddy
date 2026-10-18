@@ -52,7 +52,7 @@ Node 24.19.0, existing verified installation and unchanged `package-lock.json`.
 | `npm run build` | PASS |
 | `git diff --check` | PASS |
 
-The full `npm run check` chain was not rerun for this focused frontend change. Existing non-blocking build warnings: old Browserslist data, Rollup's Zod annotation and chunks exceeding 500kB.
+The three new tablet tests also passed a separate final rerun after correcting unsupported unit-test query options; their string-name expectations are unchanged. The full `npm run check` chain was not rerun for this focused frontend change. Existing non-blocking build warnings: old Browserslist data, Rollup's Zod annotation and chunks exceeding 500kB.
 
 Chromium used the actual Dashboard/components with an isolated in-memory backend replacement and synthetic **Alex Student** records. No real account login, backend writes or paid model calls occurred; real Supabase requests were blocked and counted (zero). Screenshots contain fixture statistics, not claimed real student results.
 
