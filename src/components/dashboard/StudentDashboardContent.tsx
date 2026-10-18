@@ -18,16 +18,10 @@ import { DashboardSkeleton } from "./DashboardSkeleton";
 import MobileDashboard from "./mobile/MobileDashboard";
 
 
-import CreateBanner from "./CreateBanner";
-import Announcements from "./Announcements";
-import ClassesGrid from "./ClassesGrid";
 import ActivityPanel from "./ActivityPanel";
 import ActivityAllModal from "./ActivityAllModal";
-import ProfileCard from "./ProfileCard";
-import DashboardSummaryStrip from "./DashboardSummaryStrip";
-import DashboardContextCards from "./DashboardContextCards";
-import StudyWelcomeBanner from "./StudyWelcomeBanner";
 import SubjectDonut from "./SubjectDonut";
+import StudentHomeLayout from "./StudentHomeLayout";
 import { StatsDrilldownDrawer, type DrilldownType } from "./StatsDrilldownDrawer";
 import type {
   Announcement,
@@ -599,58 +593,14 @@ export const StudentDashboardContent = ({ userEmail }: DashboardContentProps) =>
     <RefreshableList onRefresh={() => refetch()}>
     {isError && <LoadError message="Couldn’t load your dashboard. Your existing content is kept below." onRetry={() => void refetch()} />}
     <div className="font-sans">
-      <main className="student-home-dashboard">
-        <div className="student-home-grid">
-          <StudyWelcomeBanner name={profile.name} className="student-home-welcome" />
-          <div className="student-home-primary flex min-w-0 flex-col gap-5">
-            <div className="student-home-tablet-content flex flex-col gap-5">
-              <CreateBanner
-                onCreateExam={() => navigate("/upload")}
-                onCreateQuiz={() => navigate("/create-practice-questions")}
-              />
-              {announcements.length > 0 && (
-                <Announcements
-                  items={announcements}
-                  onOpen={() => navigate("/my-classes")}
-                />
-              )}
-              {classes.length === 0 ? (
-                <section className="rounded-lg border border-border bg-card p-5 shadow-none">
-                  <h2 className="mb-2 text-base font-bold">My Classes</h2>
-                  <div className="rounded-xl border border-dashed border-border p-6 text-center">
-                    <p className="text-sm text-muted-foreground">
-                      You haven't joined any classes yet.
-                    </p>
-                    <button
-                      onClick={() => setShowJoinClass(true)}
-                      className="mt-3 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:bg-primary/90"
-                    >
-                      Join a class
-                    </button>
-                  </div>
-                </section>
-              ) : (
-                <ClassesGrid
-                  classes={classes}
-                  onContinue={(id) => navigate(`/my-classes?classId=${id}`)}
-                />
-              )}
-            </div>
-            <DashboardSummaryStrip stats={profileStats} />
-            {isLaptop ? statisticsPanel : activityPanel}
-          </div>
-
-          <aside className="student-home-secondary flex min-w-0 flex-col gap-5 lg:sticky lg:top-[88px]">
-            <div className="student-home-tablet-profile"><ProfileCard profile={profile} stats={profileStats} /></div>
-            <DashboardContextCards classes={classes} announcements={announcements}
-              onContinue={(id) => navigate(`/my-classes?classId=${id}`)}
-              onOpenAnnouncement={() => navigate("/my-classes")}
-              onViewClasses={() => navigate("/my-classes")}
-              onJoinClass={() => setShowJoinClass(true)} />
-            {isLaptop ? activityPanel : statisticsPanel}
-          </aside>
-        </div>
-      </main>
+      <StudentHomeLayout isLaptop={isLaptop} profile={profile} profileStats={profileStats}
+        classes={classes} announcements={announcements} statistics={statisticsPanel} activity={activityPanel}
+        onCreateExam={() => navigate("/upload")}
+        onCreateQuiz={() => navigate("/create-practice-questions")}
+        onContinue={(id) => navigate(`/my-classes?classId=${id}`)}
+        onOpenAnnouncement={() => navigate("/my-classes")}
+        onViewClasses={() => navigate("/my-classes")}
+        onJoinClass={() => setShowJoinClass(true)} />
 
       <JoinClassModal
         open={showJoinClass}

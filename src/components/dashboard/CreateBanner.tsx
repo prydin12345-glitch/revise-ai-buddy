@@ -1,21 +1,22 @@
 // src/components/dashboard/CreateBanner.tsx
-import { Sparkles, FileText, ListChecks } from "lucide-react";
+import { FileText, ListChecks } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface CreateBannerProps {
   onCreateExam?: () => void;
   onCreateQuiz?: () => void;
+  compact?: boolean;
 }
 
-export default function CreateBanner({ onCreateExam, onCreateQuiz }: CreateBannerProps) {
+export default function CreateBanner({ onCreateExam, onCreateQuiz, compact = false }: CreateBannerProps) {
   return (
-    <section className="flex flex-col items-start gap-5 rounded-lg border border-border bg-card p-5 sm:p-6 xl:flex-row xl:items-center">
-      <div className="z-10 min-w-0 flex-1">
+    <section className={compact ? "home-create-actions" : "flex flex-col items-start gap-5 rounded-lg border border-border bg-card p-5 sm:p-6 xl:flex-row xl:items-center"} aria-label={compact ? "Create practice" : undefined}>
+      {!compact && <div className="z-10 min-w-0 flex-1">
         <h3 className="text-lg font-semibold tracking-tight">Your next practice session</h3>
         <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
           Choose a timed mock paper or a focused practice quiz.
         </p>
-      </div>
+      </div>}
 
       <div className="z-10 flex w-full flex-wrap gap-3 xl:w-auto xl:flex-nowrap">
         <Button

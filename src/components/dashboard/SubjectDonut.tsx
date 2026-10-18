@@ -230,7 +230,7 @@ function SubjectStatistics({
           {view !== "subjects" && (
             <button
               onClick={goBack}
-              className="-ml-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="subject-statistics-back -ml-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               aria-label={view === "topics" ? "Back to exam profiles" : "Back to subjects"}
             >
               <ArrowLeft className="h-4 w-4" />
