@@ -1,9 +1,14 @@
-import type { ProfileStat } from "./types";
+import type { ReactNode } from "react";
+import type { ProfileStat, StudentProfile } from "./types";
 
 /** Uses the same values and drill-down callbacks as the existing profile card. */
-export default function DashboardSummaryStrip({ stats }: { stats: ProfileStat[] }) {
+export default function DashboardSummaryStrip({ stats, profile, actions }: { stats: ProfileStat[]; profile?: StudentProfile; actions?: ReactNode }) {
   return (
     <section className="laptop-home-summary" aria-label="Your study summary">
+      {profile && <div className="home-summary-heading">
+        <div className="home-summary-identity"><p>{profile.name}</p><p>{profile.program}</p></div>
+        {actions}
+      </div>}
       {stats.map(({ key, icon: Icon, value, label, iconClass, onClick }) => {
         const Component = onClick ? "button" : "div";
         return (
