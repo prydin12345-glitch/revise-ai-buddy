@@ -1,10 +1,15 @@
+import { loadLibraryQuestionMetadata } from "@/lib/library-question-metadata";
+import { LibrarySubjectShelf } from "@/components/shared/LibrarySubjectShelf";
+import { LibraryDeleteDialog } from "@/components/shared/LibraryDeleteDialog";
+import { useLibraryItemActions } from "@/hooks/use-library-item-actions";
+import { LIBRARY_REVISION, sumLibraryMarks } from "@/lib/library-item-cache";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Filter, Loader2, Star, LayoutList, CheckCheck, Search, ArrowUpDown, X } from "lucide-react";
+import { Plus, Filter, Loader2, Star, LayoutList, CheckCheck, Search, ArrowUpDown, X, Archive } from "lucide-react";
 import { PracticeSetCard } from "@/components/practice/PracticeSetCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -29,6 +34,7 @@ interface PracticeSet {
   educational_tier?: string;
   exam_board?: string;
   status: string;
+  user_id?: string;
 }
 
 interface PracticeSetProgress {
@@ -38,13 +44,14 @@ interface PracticeSetProgress {
   time_spent_seconds: number;
 }
 
-type TabType = 'all' | 'favourites' | 'completed';
+type TabType = 'all' | 'favourites' | 'completed' | 'archive';
 type SortType = 'date_created' | 'last_accessed' | 'progress' | 'name';
 
 const TABS: { value: TabType; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { value: 'all', label: 'All quizzes', icon: LayoutList },
   { value: 'favourites', label: 'Favourites', icon: Star },
   { value: 'completed', label: 'Completed', icon: CheckCheck },
+  { value: 'archive', label: 'Archive', icon: Archive },
 ];
 
 const SORT_OPTIONS: { value: SortType; label: string }[] = [
@@ -59,6 +66,8 @@ const MyQuizzes = () => {
   const { subjects } = useUserSubjects();
   const [practiceSets, setPracticeSets] = useRetainedState<PracticeSet[]>("quizzes:practiceSets", []);
   const { ownerId, ready, store } = useWorkspaceSession();
+  const [libraryRevision] = useRetainedState(LIBRARY_REVISION, 0);
+  const itemActions = useLibraryItemActions("quiz");
   const [loaded, setLoaded] = useRetainedState("quizzes:loaded", false);
   const [loading, setLoading] = useState(!loaded);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -72,6 +81,7 @@ const MyQuizzes = () => {
   const [debouncedSearch, setDebouncedSearch] = useRetainedState("quizzes:debouncedSearch", '');
   const [favourites, setFavourites] = useRetainedState<Set<string>>("quizzes:favourites", new Set());
   const [progressMap, setProgressMap] = useRetainedState<Record<string, PracticeSetProgress>>("quizzes:progressMap", {});
+  const [totalMarks, setTotalMarks] = useRetainedState<Record<string, number | null>>("quizzes:totalMarks", {});
   const [recoveredCount, setRecoveredCount] = useState(0);
 
 
@@ -90,7 +100,7 @@ const MyQuizzes = () => {
     void listActions.current?.load();
     void listActions.current?.favourites();
     void listActions.current?.recover();
-  }, [ownerId, ready, store]);
+  }, [ownerId, ready, store, libraryRevision]);
 
   const recoverLostSets = async () => {
     try {
@@ -129,6 +139,8 @@ const MyQuizzes = () => {
 
   const loadPracticeSets = (): Promise<void> => {
     if (loadRequest.current) return loadRequest.current;
+    const revision = store.get(LIBRARY_REVISION, 0);
+    let superseded = false;
     const request = (async () => {
       setLoadError(null);
       try {
@@ -144,12 +156,15 @@ const MyQuizzes = () => {
 
         if (error) throw error;
 
-        const { data: progressData, error: progressError } = await supabase
-          .from('practice_set_progress')
-          .select('*')
-          .eq('user_id', user.id);
+        const [{ data: progressData, error: progressError }, { data: markRows, error: marksError }] = await Promise.all([
+          supabase.from('practice_set_progress').select('*').eq('user_id', user.id),
+          loadLibraryQuestionMetadata('quiz', (sets || []).map(set => set.id)).then(data => ({ data, error: null })).catch((error: unknown) => ({ data: [], error })),
+        ]);
 
         if (progressError) throw progressError;
+        if (revision !== store.get(LIBRARY_REVISION, 0)) { superseded = true; return; }
+        if (marksError) setLoadError("Couldn’t load mark totals. Your quizzes are still available; retry to load the totals.");
+        setTotalMarks(Object.fromEntries((sets || []).map(set => [set.id, marksError ? null : sumLibraryMarks((markRows || []).filter(row => row.itemId === set.id))])));
 
         const progressLookup: Record<string, PracticeSetProgress> = {};
         progressData?.forEach(p => {
@@ -170,6 +185,7 @@ const MyQuizzes = () => {
       } finally {
         setLoading(false);
         loadRequest.current = null;
+        if (superseded) queueMicrotask(() => void listActions.current?.load());
       }
     })();
     loadRequest.current = request;
@@ -205,29 +221,13 @@ const MyQuizzes = () => {
     if (result.error) throw result.error;
   });
 
-  const handleDelete = async (setId: string) => {
-    try {
-      const { error } = await supabase
-        .from('practice_question_sets')
-        .delete()
-        .eq('id', setId);
-
-      if (error) throw error;
-
-      setPracticeSets(prev => prev.filter(s => s.id !== setId));
-      toast({ title: "Success", description: "Practice set deleted" });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
-  };
-
-
   const getSubjectColor = (subjectId: string) => {
     const subject = subjects.find(s => s.subject_name === subjectId);
     return subject?.subject_color || '#3B82F6';
   };
 
   const filteredSets = practiceSets.filter(set => {
+    if (activeTab === 'archive' ? set.status !== 'archived' : set.status === 'archived') return false;
     if (activeTab === 'favourites' && !favourites.has(set.id)) return false;
     if (activeTab === 'completed' && !progressMap[set.id]?.completed_at) return false;
     if (filterSubject !== 'all' && set.subject_id !== filterSubject) return false;
@@ -337,9 +337,9 @@ const MyQuizzes = () => {
               {/* Sort Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2 h-11 shrink-0" aria-label="Sort quizzes">
+                  <Button variant="outline" size="sm" className="library-icon-button h-11 shrink-0" title={getSortLabel()} aria-label="Sort quizzes">
                     <ArrowUpDown className="w-4 h-4" />
-                    <span className="hidden sm:inline">{getSortLabel()}</span><span className="sm:hidden">Sort</span>
+                    <span className="sr-only">{getSortLabel()}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -405,27 +405,7 @@ const MyQuizzes = () => {
                 {Array.from(groups.entries()).map(([subjectName, setsInGroup]) => {
                   const subjectColor = getSubjectColor(subjectName);
                   return (
-                    <section key={subjectName} aria-label={subjectName}>
-                      <div className="library-subject-heading">
-                        <span
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{ backgroundColor: subjectColor }}
-                          aria-hidden
-                        />
-                        <h2 className="text-base sm:text-lg font-semibold tracking-tight truncate">
-                          {subjectName}
-                        </h2>
-                        <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-                          {setsInGroup.length}
-                        </span>
-                      </div>
-
-                      <div className="relative">
-                        <div
-                          data-scroll-restoration={subjectName} className="library-paper-grid"
-                          style={{ ['--scrollbar-thumb' as any]: subjectColor }}
-                        >
-
+                    <LibrarySubjectShelf key={subjectName} subject={subjectName} color={subjectColor} count={setsInGroup.length}>
                           {setsInGroup.map((set) => (
                             <div
                               key={set.id}
@@ -435,13 +415,13 @@ const MyQuizzes = () => {
                                 set={set}
                                 progress={progressMap[set.id] || { questions_attempted: 0, last_accessed_at: set.created_at, time_spent_seconds: 0 }}
                                 subjectColor={subjectColor}
+                                totalMarks={totalMarks[set.id]}
+                                actions={set.user_id === ownerId ? { canArchive: ['published', 'archived'].includes(set.status), pending: itemActions.pending.has(set.id), onDelete: () => itemActions.requestDelete({ ...set, title: set.set_name }), onArchive: () => void itemActions.archive({ ...set, title: set.set_name }) } : undefined}
                                 favourite={{ selected: favourites.has(set.id), pending: favouriteAction.pending.has(set.id), failed: favouriteAction.failed.has(set.id), onToggle: () => void favouriteAction.toggle(set.id) }}
                               />
                             </div>
                           ))}
-                        </div>
-                      </div>
-                    </section>
+                    </LibrarySubjectShelf>
                   );
                 })}
               </div>
@@ -450,6 +430,7 @@ const MyQuizzes = () => {
         )}
       </div>
       </RefreshableList>
+      <LibraryDeleteDialog title={itemActions.deleteItem?.title} pending={!!itemActions.deleteItem && itemActions.pending.has(itemActions.deleteItem.id)} error={itemActions.deleteError} onCancel={itemActions.closeDelete} onConfirm={() => void itemActions.confirmDelete()} />
     </DashboardLayout>
   );
 };

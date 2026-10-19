@@ -1,3 +1,5 @@
+import { useLibraryItemActions } from "@/hooks/use-library-item-actions";
+import { LibraryDeleteDialog } from "@/components/shared/LibraryDeleteDialog";
 import { hasAppHistory } from "@/lib/workspace-navigation";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -18,16 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -57,7 +49,9 @@ import {
 
 interface PracticeSet {
   id: string;
+  user_id?: string;
   set_name: string;
+  status: string;
   subject_id: string;
   subtopics: string[];
   difficulty_mode: string;
@@ -96,7 +90,7 @@ const QuizCover = () => {
   const [isFavourite, setIsFavourite] = useState(false);
 
   const [editOpen, setEditOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const itemActions = useLibraryItemActions("quiz");
   const [pdfOpen, setPdfOpen] = useState(false);
   const [editForm, setEditForm] = useState({ set_name: "", subject_id: "", created_at: "" });
 
@@ -250,21 +244,6 @@ const QuizCover = () => {
     }
   };
 
-  const handleConfirmDelete = async () => {
-    if (!set) return;
-    try {
-      const { error } = await supabase
-        .from("practice_question_sets")
-        .delete()
-        .eq("id", set.id);
-      if (error) throw error;
-      toast({ title: "Success", description: "Quiz deleted successfully" });
-      navigate("/quizzes");
-    } catch (err: any) {
-      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
-    }
-  };
-
   const handlePDFDownload = async () => {
     if (!set) return;
     await generateStudentPDF({ contentType: "practice", contentId: set.id });
@@ -410,7 +389,7 @@ const QuizCover = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDeleteOpen(true)}
+                  onClick={() => itemActions.requestDelete({ ...set, title: set.set_name })}
                   className="w-full flex items-center gap-3 px-2 py-2 rounded-md text-sm text-destructive hover:bg-destructive/10 transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -498,25 +477,7 @@ const QuizCover = () => {
         </Dialog>
 
         {/* Delete Dialog */}
-        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently delete "{set.set_name}". This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleConfirmDelete}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <LibraryDeleteDialog title={itemActions.deleteItem?.title} pending={!!itemActions.deleteItem && itemActions.pending.has(itemActions.deleteItem.id)} error={itemActions.deleteError} onCancel={itemActions.closeDelete} onConfirm={() => { void itemActions.confirmDelete().then(deleted => { if (deleted) navigate("/quizzes"); }); }} />
 
         {/* PDF Download Modal */}
         <StudentPDFDownloadModal

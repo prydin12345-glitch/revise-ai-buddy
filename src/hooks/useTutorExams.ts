@@ -1,4 +1,5 @@
 import { useRetainedState, useWorkspaceSession } from "@/hooks/use-workspace-session";
+import { LIBRARY_REVISION } from "@/lib/library-item-cache";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -19,6 +20,7 @@ interface TutorExam {
 export const useTutorExams = () => {
   const [exams, setExams] = useRetainedState<TutorExam[]>("tutor-exams:exams", []);
   const { store } = useWorkspaceSession();
+  const [libraryRevision] = useRetainedState(LIBRARY_REVISION, 0);
   const [loaded, setLoaded] = useRetainedState("tutor-exams:loaded", false);
   const [loading, setLoading] = useState(!loaded);
   const pending = useRef<Promise<void> | null>(null);
@@ -26,6 +28,7 @@ export const useTutorExams = () => {
 
   const fetchTutorExams = useCallback((): Promise<void> => {
     if (pending.current) return pending.current;
+    const revision = store.get(LIBRARY_REVISION, 0);
     const request = (async () => {
       setLoading(!store.get("tutor-exams:loaded", false));
       setError(null);
@@ -126,6 +129,7 @@ export const useTutorExams = () => {
           });
         }
 
+        if (revision !== store.get(LIBRARY_REVISION, 0)) return;
         setExams(examsWithStats);
         setLoaded(true);
       } catch (err) {
@@ -134,6 +138,7 @@ export const useTutorExams = () => {
       } finally {
         setLoading(false);
         pending.current = null;
+        if (revision !== store.get(LIBRARY_REVISION, 0)) queueMicrotask(() => void fetchTutorExams());
       }
     })();
     pending.current = request;
@@ -142,7 +147,7 @@ export const useTutorExams = () => {
 
   useEffect(() => {
     fetchTutorExams();
-  }, [fetchTutorExams]);
+  }, [fetchTutorExams, libraryRevision]);
 
   const refetch = useCallback(async () => {
     await fetchTutorExams();

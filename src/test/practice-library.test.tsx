@@ -9,7 +9,7 @@ import { MyWorkTabBar } from '@/components/shared/MyWorkTabBar';
 import { workspaceSidebarItems, isSidebarDestinationActive, sidebarDestinationPath } from '@/lib/workspace-sidebar-navigation';
 
 const exam = { id: 'exam-1', title: 'Biological diversity', subject_id: 'Biology', created_at: '2026-10-01', status: 'published', type: 'generated', exam_board: 'ocr', qualification_level: 'level3_a_level', exam_topics: [{ topic_name: 'Biodiversity and conservation' }] };
-const progress = { questionsCompleted: 4, totalQuestions: 20, percentComplete: 20, timeRemaining: '45min', lastAccessed: 'Never', examState: 'in-progress' as const };
+const progress = { questionsCompleted: 4, totalQuestions: 20, percentComplete: 20, totalMarks: 70, timeRemaining: '45min', lastAccessed: 'Never', examState: 'in-progress' as const };
 const quiz = { id: 'quiz-1', set_name: 'Population genetics', subject_id: 'Biology', subtopics: ['Hardy–Weinberg'], difficulty_mode: 'fixed', difficulty_level: 'medium', question_count: 10, created_at: '2026-10-01', exam_board: 'ocr', educational_tier: 'level3_a_level' };
 const quizProgress = { questions_attempted: 4, last_accessed_at: '2026-10-01', time_spent_seconds: 180 };
 const favourite = { selected: false, pending: false, failed: false, onToggle: vi.fn() };
@@ -52,11 +52,25 @@ describe('shared Practice Library navigation', () => {
 });
 
 describe('compact paper covers', () => {
+  it('keeps icon actions separate from opening the paper and labels unlimited time explicitly', () => {
+    const onDelete = vi.fn(), onArchive = vi.fn();
+    open(<ExamCard exam={exam} progress={{ ...progress, timeRemaining: 'No timer' }} subjectColor="#246746" favourite={favourite} actions={{ pending: false, onDelete, onArchive }} />);
+    expect(screen.getByText('Unlimited')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Favourite' }).querySelector('span')).toHaveClass('sr-only');
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Biological diversity' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Archive Biological diversity' }));
+    expect(onDelete).toHaveBeenCalledOnce(); expect(onArchive).toHaveBeenCalledOnce();
+    expect(screen.getByLabelText('path')).toHaveTextContent('/my-exams');
+  });
   it('keeps exam metadata, real progress and cover navigation without repeating the masthead or topics', () => {
     open(<ExamCard exam={exam} progress={progress} subjectColor="#246746" favourite={favourite} />);
     expect(screen.getByRole('heading', { name: exam.title })).toBeVisible();
-    expect(screen.getByText('OCR · A-Level')).toBeVisible();
+    expect(screen.getByText('OCR')).toBeVisible();
+    expect(screen.getByText('A-Level')).toBeVisible();
+    expect(screen.queryByText('Biology')).not.toBeInTheDocument();
     expect(screen.getByText('45min')).toBeVisible();
+    expect(screen.getByText('Number of marks:')).toBeVisible();
+    expect(screen.getByText('70')).toBeVisible();
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '20');
     expect(screen.queryByText('Biodiversity and conservation')).not.toBeInTheDocument();
     expect(screen.queryByText(/Modelled on|Practice paper|Examly/)).not.toBeInTheDocument();

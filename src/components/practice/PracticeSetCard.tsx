@@ -1,4 +1,4 @@
-import { LibraryPaperCard } from "@/components/shared/LibraryPaperCard";
+import { LibraryPaperCard, type LibraryCardActions } from "@/components/shared/LibraryPaperCard";
 import type { FavouriteProps } from "@/components/shared/FavouriteControl";
 import { useNavigate } from "react-router-dom";
 import { getBoardDisplayName } from "@/lib/board-scrubber";
@@ -22,16 +22,19 @@ interface PracticeSet {
   created_at: string;
   educational_tier?: string;
   exam_board?: string;
+  status?: string;
 }
 
 interface PracticeSetCardProps {
   favourite?: FavouriteProps;
+  actions?: LibraryCardActions;
+  totalMarks?: number | null;
   set: PracticeSet;
   progress: PracticeSetProgress;
   subjectColor: string;
 }
 
-export const PracticeSetCard = ({ set, progress, subjectColor, favourite }: PracticeSetCardProps) => {
+export const PracticeSetCard = ({ set, progress, subjectColor, favourite, actions, totalMarks }: PracticeSetCardProps) => {
   const navigate = useNavigate();
 
   const percentComplete =
@@ -50,18 +53,21 @@ export const PracticeSetCard = ({ set, progress, subjectColor, favourite }: Prac
   return (
     <LibraryPaperCard
       title={set.set_name || "Untitled quiz"}
-      subject={set.subject_id || "Subject"}
-      course={[boardLabel, levelLabel].filter(Boolean).join(" · ")}
+      board={boardLabel || ""}
+      level={levelLabel || ""}
+      totalMarks={totalMarks}
       questions={set.question_count}
       timeLabel="Est. time"
       time={`~${estimatedTime}m`}
       difficulty={difficulty}
       progress={percentComplete}
-      state={isCompleted ? "Completed" : progress.questions_attempted > 0 ? "In progress" : "Not started"}
+      state={set.status === "archived" ? "Archived" : isCompleted ? "Completed" : progress.questions_attempted > 0 ? "In progress" : "Not started"}
       completed={isCompleted}
       subjectColor={subjectColor}
       favourite={favourite}
-      onOpen={() => navigate(`/quizzes/${set.id}/cover`)}
+      archived={set.status === "archived"}
+      actions={actions}
+      onOpen={() => { if (set.status !== "archived") navigate(`/quizzes/${set.id}/cover`); }}
     />
   );
 };

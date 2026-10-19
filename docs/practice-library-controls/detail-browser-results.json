@@ -1,0 +1,39 @@
+{
+  "views": [],
+  "checks": [
+    {
+      "touch": false,
+      "kind": "exam",
+      "detailDelete": true
+    },
+    {
+      "touch": false,
+      "kind": "quiz",
+      "detailDelete": true
+    },
+    {
+      "touch": true,
+      "kind": "exam",
+      "detailDelete": true
+    },
+    {
+      "touch": true,
+      "kind": "quiz",
+      "detailDelete": true
+    }
+  ],
+  "errors": [],
+  "failed": [],
+  "fonts": [
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200
+  ],
+  "liveRequests": 0,
+  "transientDiagnostics": []
+}

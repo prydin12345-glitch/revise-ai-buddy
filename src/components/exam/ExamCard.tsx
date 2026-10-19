@@ -1,4 +1,4 @@
-import { LibraryPaperCard } from "@/components/shared/LibraryPaperCard";
+import { LibraryPaperCard, type LibraryCardActions } from "@/components/shared/LibraryPaperCard";
 import {edexcelBiologyBPaperLabel} from '@/lib/biology-paper-display';
 import type { FavouriteProps } from "@/components/shared/FavouriteControl";
 import { useNavigate } from "react-router-dom";
@@ -9,6 +9,7 @@ interface ExamProgress {
   questionsCompleted: number;
   totalQuestions: number;
   percentComplete: number;
+  totalMarks?: number | null;
   timeRemaining: string;
   lastAccessed: string;
   examState: "not-started" | "in-progress" | "completed";
@@ -30,6 +31,7 @@ interface Exam {
 
 interface ExamCardProps {
   favourite?: FavouriteProps;
+  actions?: LibraryCardActions;
   exam: Exam;
   progress: ExamProgress;
   subjectColor: string;
@@ -42,6 +44,7 @@ export const ExamCard = ({
   subjectColor,
   isArchived = false,
   favourite,
+  actions,
 }: ExamCardProps) => {
   const navigate = useNavigate();
 
@@ -53,17 +56,19 @@ export const ExamCard = ({
   return (
     <LibraryPaperCard
       title={exam.title || "Untitled exam"}
-      subject={exam.subject_id || "Subject"}
-      course={savedPaper ?? [boardLabel, levelLabel].filter(Boolean).join(" · ")}
+      board={boardLabel || ""}
+      level={savedPaper ? "A Level Biology B · 9BI0/01" : levelLabel || ""}
+      totalMarks={progress.totalMarks}
       questions={progress.totalQuestions}
       timeLabel="Time"
-      time={progress.timeRemaining && progress.timeRemaining !== "No timer" ? progress.timeRemaining : "Untimed"}
+      time={progress.timeRemaining && progress.timeRemaining !== "No timer" ? progress.timeRemaining : "Unlimited"}
       progress={progress.percentComplete}
       state={isArchived ? "Archived" : progress.examState === "completed" ? "Completed" : progress.examState === "in-progress" ? "In progress" : "Not started"}
       completed={progress.examState === "completed"}
       subjectColor={subjectColor}
       archived={isArchived}
       favourite={favourite}
+      actions={actions}
       onOpen={() => { if (!isArchived) navigate(`/exam/${exam.id}/cover`); }}
     />
   );
