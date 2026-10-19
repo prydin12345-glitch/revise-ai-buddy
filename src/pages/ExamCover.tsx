@@ -1,3 +1,5 @@
+import { useLibraryItemActions } from "@/hooks/use-library-item-actions";
+import { LibraryDeleteDialog } from "@/components/shared/LibraryDeleteDialog";
 import {edexcelBiologyBPaperLabel} from '@/lib/biology-paper-display';
 import { hasAppHistory } from "@/lib/workspace-navigation";
 import { useEffect, useState } from "react";
@@ -19,16 +21,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -59,6 +51,7 @@ import {
 interface Exam {
   generation_context?:unknown;
   id: string;
+  user_id?: string;
   title: string;
   subject_id: string;
   created_at: string;
@@ -113,7 +106,7 @@ const ExamCover = () => {
 
   // Dialog state
   const [editOpen, setEditOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const itemActions = useLibraryItemActions("exam");
   const [pdfOpen, setPdfOpen] = useState(false);
   const [editForm, setEditForm] = useState({ title: "", subject_id: "", created_at: "" });
 
@@ -324,18 +317,6 @@ const ExamCover = () => {
     }
   };
 
-  const handleConfirmDelete = async () => {
-    if (!exam) return;
-    try {
-      const { error } = await supabase.from("exams").delete().eq("id", exam.id);
-      if (error) throw error;
-      toast({ title: "Success", description: "Exam deleted successfully" });
-      navigate("/my-exams");
-    } catch (err: any) {
-      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
-    }
-  };
-
   const handlePDFDownload = async () => {
     if (!exam) return;
     await generateStudentPDF({ contentType: "exam", contentId: exam.id });
@@ -475,7 +456,7 @@ const ExamCover = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDeleteOpen(true)}
+                  onClick={() => itemActions.requestDelete(exam)}
                   className="w-full flex items-center gap-3 px-2 py-2 rounded-md text-sm text-destructive hover:bg-destructive/10 transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -569,25 +550,7 @@ const ExamCover = () => {
         </Dialog>
 
         {/* Delete dialog */}
-        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently delete "{exam.title}". This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleConfirmDelete}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <LibraryDeleteDialog title={itemActions.deleteItem?.title} pending={!!itemActions.deleteItem && itemActions.pending.has(itemActions.deleteItem.id)} error={itemActions.deleteError} onCancel={itemActions.closeDelete} onConfirm={() => { void itemActions.confirmDelete().then(deleted => { if (deleted) navigate("/my-exams"); }); }} />
 
         {/* PDF download */}
         <StudentPDFDownloadModal

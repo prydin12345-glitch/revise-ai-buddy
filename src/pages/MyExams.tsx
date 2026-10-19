@@ -1,3 +1,8 @@
+import { loadLibraryQuestionMetadata } from "@/lib/library-question-metadata";
+import { LibrarySubjectShelf } from "@/components/shared/LibrarySubjectShelf";
+import { LibraryDeleteDialog } from "@/components/shared/LibraryDeleteDialog";
+import { useLibraryItemActions } from "@/hooks/use-library-item-actions";
+import { LIBRARY_REVISION, sumLibraryMarks } from "@/lib/library-item-cache";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
@@ -33,6 +38,7 @@ interface Exam {
   subject_id: string;
   created_at: string;
   status: string;
+  user_id?: string;
   type: string;
   display_order?: number;
   exam_board?: string;
@@ -43,6 +49,7 @@ interface Exam {
 interface ExamProgress {
   questionsCompleted: number;
   totalQuestions: number;
+  totalMarks?: number | null;
   percentComplete: number;
   timeRemaining: string;
   lastAccessed: string;
@@ -73,13 +80,14 @@ const MyExams = () => {
   const { generateStudentPDF } = useStudentPDF();
   const [exams, setExams] = useRetainedState<Exam[]>("exams:exams", []);
   const { ownerId, ready, store } = useWorkspaceSession();
+  const [libraryRevision] = useRetainedState(LIBRARY_REVISION, 0);
+  const itemActions = useLibraryItemActions("exam");
   const [loaded, setLoaded] = useRetainedState("exams:loaded", false);
   const [loading, setLoading] = useState(!loaded);
   const [loadError, setLoadError] = useState<string | null>(null);
   const loadRequest = useRef<Promise<void> | null>(null);
   const loadExamsRef = useRef<() => Promise<void>>();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [beginExamDialogOpen, setBeginExamDialogOpen] = useState(false);
   const [retakeExamDialogOpen, setRetakeExamDialogOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
@@ -175,10 +183,12 @@ const MyExams = () => {
       cancelled = true;
       if (channel) supabase.removeChannel(channel);
     };
-  }, [ownerId, ready, store, restoreGlobalPointerEvents]);
+  }, [ownerId, ready, store, restoreGlobalPointerEvents, libraryRevision]);
 
   const loadExams = (): Promise<void> => {
     if (loadRequest.current) return loadRequest.current;
+    const revision = store.get(LIBRARY_REVISION, 0);
+    let superseded = false;
     const favouriteVersion = favouriteAction.version();
     const request = (async () => {
       setLoadError(null);
@@ -229,6 +239,7 @@ const MyExams = () => {
         ]);
 
         if (error) throw error;
+        if (revision !== store.get(LIBRARY_REVISION, 0)) { superseded = true; return; }
 
         if (favouritesError) setLoadError(favouritesError.message || "Couldn’t load your favourites. Please retry.");
 
@@ -244,7 +255,7 @@ const MyExams = () => {
           const [
             { data: allSubmissions, error: submissionsError },
             { data: allAnswers, error: answersError },
-            { data: questionsData, error: questionsError },
+            questionsData,
             { data: timerData, error: timersError },
           ] = await Promise.all([
             supabase
@@ -257,18 +268,16 @@ const MyExams = () => {
               .select('exam_id')
               .eq('student_id', user.id)
               .in('exam_id', examIds),
-            supabase
-              .from('exam_question_metadata')
-              .select('exam_id')
-              .in('exam_id', examIds),
+            loadLibraryQuestionMetadata('exam', examIds),
             supabase
               .from('exam_timer')
               .select('exam_id, enabled, duration_minutes')
               .in('exam_id', examIds),
           ]);
 
-          const detailError = submissionsError || answersError || questionsError || timersError;
+          const detailError = submissionsError || answersError || timersError;
           if (detailError) throw detailError;
+          if (revision !== store.get(LIBRARY_REVISION, 0)) { superseded = true; return; }
 
           // Separate completed vs in-progress
           const submittedExamIds = new Set(
@@ -290,7 +299,7 @@ const MyExams = () => {
           });
           const questionsCountMap = new Map<string, number>();
           questionsData?.forEach(q => {
-            questionsCountMap.set(q.exam_id, (questionsCountMap.get(q.exam_id) || 0) + 1);
+            questionsCountMap.set(q.itemId, (questionsCountMap.get(q.itemId) || 0) + 1);
           });
           const timerMap = new Map(timerData?.map(t => [t.exam_id, t]) || []);
 
@@ -356,6 +365,7 @@ const MyExams = () => {
             progressMap.set(exam.id, {
               questionsCompleted,
               totalQuestions,
+              totalMarks: sumLibraryMarks((questionsData || []).filter(q => q.itemId === exam.id)),
               percentComplete,
               timeRemaining,
               lastAccessed,
@@ -377,6 +387,7 @@ const MyExams = () => {
       } finally {
         setLoading(false);
         loadRequest.current = null;
+        if (superseded) queueMicrotask(() => void loadExamsRef.current?.());
       }
     })();
     loadRequest.current = request;
@@ -495,30 +506,6 @@ const MyExams = () => {
       loadExams();
     } catch (error: any) {
       toast({ title: "Update Failed", description: error.message, variant: "destructive" });
-    }
-  };
-
-  const handleDelete = (exam: Exam) => {
-    setSelectedExam(exam);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!selectedExam) return;
-
-    try {
-      const { error } = await supabase
-        .from('exams')
-        .delete()
-        .eq('id', selectedExam.id);
-
-      if (error) throw error;
-
-      toast({ title: "Success", description: "Exam deleted successfully" });
-      setDeleteDialogOpen(false);
-      setExams(exams.filter(e => e.id !== selectedExam.id));
-    } catch (error: any) {
-      toast({ title: "Delete Failed", description: error.message, variant: "destructive" });
     }
   };
 
@@ -709,9 +696,9 @@ const MyExams = () => {
               {/* Sort Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2 h-11 shrink-0" aria-label="Sort exams">
+                  <Button variant="outline" size="sm" className="library-icon-button h-11 shrink-0" title={getSortLabel()} aria-label="Sort exams">
                     <ArrowUpDown className="w-4 h-4" />
-                    <span className="hidden sm:inline">{getSortLabel()}</span><span className="sm:hidden">Sort</span>
+                    <span className="sr-only">{getSortLabel()}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -733,11 +720,11 @@ const MyExams = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => setFilterPanelOpen(true)}
-                className="gap-2 h-11 shrink-0"
-                aria-label="Open filter panel"
+                className="library-icon-button h-11 shrink-0"
+                title="Filters" aria-label="Open filter panel"
               >
                 <Filter className="w-4 h-4" />
-                <span>Filters</span>
+                <span className="sr-only">Filters</span>
               </Button>
             </div>
             {/* Status filters */}
@@ -789,27 +776,7 @@ const MyExams = () => {
                 {Array.from(groups.entries()).map(([subjectName, examsInGroup]) => {
                   const subjectColor = getSubjectColor(subjectName);
                   return (
-                    <section key={subjectName} aria-label={subjectName}>
-                      <div className="library-subject-heading">
-                        <span
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{ backgroundColor: subjectColor }}
-                          aria-hidden
-                        />
-                        <h2 className="text-base sm:text-lg font-semibold tracking-tight truncate">
-                          {subjectName}
-                        </h2>
-                        <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-                          {examsInGroup.length}
-                        </span>
-                      </div>
-
-                      <div className="relative">
-                        <div
-                          data-scroll-restoration={subjectName} className="library-paper-grid"
-                          style={{ ['--scrollbar-thumb' as any]: subjectColor }}
-                        >
-
+                    <LibrarySubjectShelf key={subjectName} subject={subjectName} color={subjectColor} count={examsInGroup.length}>
                           {examsInGroup.map((exam) => {
                             const progress = examProgress.get(exam.id) || {
                               questionsCompleted: 0,
@@ -829,15 +796,14 @@ const MyExams = () => {
                                   exam={exam}
                                   progress={progress}
                                   subjectColor={subjectColor}
-                                  isArchived={activeTab === 'archive'}
+                                  isArchived={exam.status === 'archived'}
+                                  actions={exam.user_id === ownerId ? { canArchive: ['published', 'archived'].includes(exam.status), pending: itemActions.pending.has(exam.id), onDelete: () => itemActions.requestDelete(exam), onArchive: () => void itemActions.archive(exam) } : undefined}
                                   favourite={{ selected: favouriteExamIds.includes(exam.id), pending: favouriteAction.pending.has(exam.id), failed: favouriteAction.failed.has(exam.id), onToggle: () => void favouriteAction.toggle(exam.id) }}
                                 />
                               </div>
                             );
                           })}
-                        </div>
-                      </div>
-                    </section>
+                    </LibrarySubjectShelf>
                   );
                 })}
               </div>
@@ -902,23 +868,7 @@ const MyExams = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete "{selectedExam?.title}". This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <LibraryDeleteDialog title={itemActions.deleteItem?.title} pending={!!itemActions.deleteItem && itemActions.pending.has(itemActions.deleteItem.id)} error={itemActions.deleteError} onCancel={itemActions.closeDelete} onConfirm={() => void itemActions.confirmDelete()} />
 
       {/* Begin Exam Dialog */}
       <AlertDialog open={beginExamDialogOpen} onOpenChange={setBeginExamDialogOpen}>
