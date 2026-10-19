@@ -1,0 +1,41 @@
+{
+  "views": [
+    {
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "pageName": "my-exams",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "pageName": "quizzes",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "pageName": "my-exams",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "pageName": "quizzes",
+      "overflow": false
+    }
+  ],
+  "errors": [],
+  "failed": [],
+  "fonts": [
+    200,
+    200,
+    200,
+    200
+  ],
+  "backend": 0
+}
