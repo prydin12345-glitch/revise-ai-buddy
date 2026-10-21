@@ -24,7 +24,7 @@ it("exposes failed profile reads and retry loading without changing or writing p
   expect(result.current.getProfilesForSubject("Biology")).toEqual([]);
   backend.fail = false;
   await act(async () => { await result.current.retry(); });
-  expect(result.current.error).toBeNull();
+  await waitFor(() => expect(result.current.error).toBeNull());
   expect(result.current.loading).toBe(false);
   expect(result.current.getProfilesForSubject("Biology")).toEqual([expect.objectContaining({ id: "profile" })]);
   expect(backend.owners).toEqual(["alice", "alice", "alice", "alice"]);

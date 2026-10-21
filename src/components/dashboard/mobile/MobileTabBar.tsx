@@ -1,3 +1,4 @@
+import { prefetchRoute } from "@/lib/prefetch-routes";
 import { House, LibraryBig, BookOpen, Users, Plus, UserRound } from 'lucide-react';
 import { workspaceDestinations, type WorkspaceTab } from '@/lib/workspace-navigation';
 
@@ -16,7 +17,7 @@ export default function MobileTabBar({ active, tutor = false, onNavigate }: Prop
           const selected = tab.key !== 'create' && active === tab.key;
           const Icon = icons[tab.key];
           return (
-            <button key={tab.key} data-workspace-create={tab.key === 'create' ? '' : undefined} type="button" onClick={() => onNavigate?.(tab.key)} aria-current={selected ? 'page' : undefined}
+            <button key={tab.key} data-workspace-create={tab.key === 'create' ? '' : undefined} type="button" onPointerDown={() => { if (tab.path) prefetchRoute(tab.path); }} onFocus={() => { if (tab.path) prefetchRoute(tab.path); }} onClick={() => onNavigate?.(tab.key)} aria-current={selected ? 'page' : undefined}
               title={tab.key === 'practice' ? 'Exams and quizzes' : undefined}
               aria-haspopup={tab.key === 'create' ? 'dialog' : undefined}
               className={`flex min-h-[68px] min-w-0 flex-1 flex-col items-center justify-center gap-1 text-xs font-semibold ${selected ? 'text-primary' : 'text-muted-foreground'}`}>

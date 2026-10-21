@@ -68,7 +68,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   // Prefetch common routes during browser idle time after mount
   useEffect(() => {
-    prefetchCommonRoutes();
+    return prefetchCommonRoutes();
   }, []);
 
   const navItems = workspaceSidebarItems(primaryRole === 'tutor');
@@ -112,7 +112,9 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           navigate(navPath(item.path));
           setSidebarOpen(false);
         }}
-        onMouseEnter={() => prefetchRoute(item.path)}
+        onMouseEnter={() => prefetchRoute(navPath(item.path))}
+        onFocus={() => prefetchRoute(navPath(item.path))}
+        onPointerDown={() => prefetchRoute(navPath(item.path))}
         aria-current={isActive ? "page" : undefined}
         title={sidebarCollapsed ? item.label : undefined}
       >

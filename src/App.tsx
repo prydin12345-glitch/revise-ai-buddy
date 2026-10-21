@@ -1,10 +1,10 @@
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { Suspense, useEffect } from "react";
-import { PageSkeleton } from "@/components/PageSkeleton";
-import { DelayedFallback } from "@/components/DelayedFallback";
+import { BrowserRouter, Route, Outlet } from "react-router-dom";
+import { useEffect } from "react";
+import { WorkspaceRouteViewport } from "@/components/WorkspaceRouteViewport";
+import { WorkspacePageReady } from "@/components/WorkspacePageReady";
 import { OnboardingGuard } from "@/components/OnboardingGuard";
 import { WorkspaceSession } from "@/components/WorkspaceSession";
 import { CookieConsent } from "@/components/CookieConsent";
@@ -71,7 +71,6 @@ import { TutorLayout } from "./components/tutor/TutorLayout";
 
 const queryClient = new QueryClient();
 
-const PageLoader = () => <DelayedFallback />;
 
 const App = () => {
   // Restore theme preference on initial load (before React hydrates)
@@ -92,8 +91,7 @@ const App = () => {
         <BrowserRouter>
           <WorkspaceSession>
           <PreferencesApplier />
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
+          <WorkspaceRouteViewport>
               {/* Public routes — no guard */}
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
@@ -105,51 +103,52 @@ const App = () => {
               <Route path="/image-credits" element={<ImageCredits />} />
               <Route path="/onboarding" element={<Onboarding />} />
 
-              {/* Protected routes — onboarding guard */}
-              <Route path="/dashboard" element={<OnboardingGuard><Dashboard /></OnboardingGuard>} />
-              <Route path="/stats" element={<OnboardingGuard><Stats /></OnboardingGuard>} />
-              <Route path="/my-subjects" element={<OnboardingGuard><MySubjects /></OnboardingGuard>} />
-              <Route path="/my-subjects/:subjectName" element={<OnboardingGuard><SubjectDetail /></OnboardingGuard>} />
-              <Route path="/my-subjects/:subjectName/:profileId" element={<OnboardingGuard><ProfileDetail /></OnboardingGuard>} />
-              <Route path="/settings" element={<OnboardingGuard><Settings /></OnboardingGuard>} />
-              <Route path="/admin/verifications" element={<OnboardingGuard><AdminVerifications /></OnboardingGuard>} />
-              <Route path="/my-exams" element={<OnboardingGuard><MyExams /></OnboardingGuard>} />
-              <Route path="/my-classes" element={<OnboardingGuard><MyClasses /></OnboardingGuard>} />
-              <Route path="/join/:inviteCode" element={<OnboardingGuard><JoinClassLink /></OnboardingGuard>} />
-              <Route path="/create-practice-questions" element={<OnboardingGuard><CreatePracticeQuestions /></OnboardingGuard>} />
-              <Route path="/quizzes" element={<OnboardingGuard><MyQuizzes /></OnboardingGuard>} />
-              <Route path="/practice-questions/:setId/preview" element={<OnboardingGuard><PracticeSetPreview /></OnboardingGuard>} />
-              <Route path="/practice-questions/:setId/take" element={<OnboardingGuard><TakePracticeQuiz /></OnboardingGuard>} />
-              <Route path="/quizzes/:setId/cover" element={<OnboardingGuard><QuizCover /></OnboardingGuard>} />
-              <Route path="/upload" element={<OnboardingGuard><CreateExam /></OnboardingGuard>} />
+              {/* One stable guard across protected pages; ownership changes reset the viewport. */}
+              <Route element={<OnboardingGuard><WorkspacePageReady><Outlet /></WorkspacePageReady></OnboardingGuard>}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/stats" element={<Stats />} />
+              <Route path="/my-subjects" element={<MySubjects />} />
+              <Route path="/my-subjects/:subjectName" element={<SubjectDetail />} />
+              <Route path="/my-subjects/:subjectName/:profileId" element={<ProfileDetail />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/admin/verifications" element={<AdminVerifications />} />
+              <Route path="/my-exams" element={<MyExams />} />
+              <Route path="/my-classes" element={<MyClasses />} />
+              <Route path="/join/:inviteCode" element={<JoinClassLink />} />
+              <Route path="/create-practice-questions" element={<CreatePracticeQuestions />} />
+              <Route path="/quizzes" element={<MyQuizzes />} />
+              <Route path="/practice-questions/:setId/preview" element={<PracticeSetPreview />} />
+              <Route path="/practice-questions/:setId/take" element={<TakePracticeQuiz />} />
+              <Route path="/quizzes/:setId/cover" element={<QuizCover />} />
+              <Route path="/upload" element={<CreateExam />} />
               
-              <Route path="/upload/:draftId/analyze" element={<OnboardingGuard><AnalyzeExam /></OnboardingGuard>} />
-              <Route path="/upload/:draftId/review-questions" element={<OnboardingGuard><ReviewQuestions /></OnboardingGuard>} />
-              <Route path="/upload/:draftId/settings" element={<OnboardingGuard><ExamSettings /></OnboardingGuard>} />
-              <Route path="/upload/:draftId/format" element={<OnboardingGuard><FormatExam /></OnboardingGuard>} />
-              <Route path="/upload/:draftId/timer" element={<OnboardingGuard><TimerSetup /></OnboardingGuard>} />
-              <Route path="/upload/:draftId/preview" element={<OnboardingGuard><RedirectToReview /></OnboardingGuard>} />
-              <Route path="/exam/:examId/preview" element={<OnboardingGuard><ExamPreview /></OnboardingGuard>} />
-              <Route path="/exam/:examId/cover" element={<OnboardingGuard><ExamCover /></OnboardingGuard>} />
-              <Route path="/exam/:examId/live" element={<OnboardingGuard><ExamInProgress /></OnboardingGuard>} />
-              <Route path="/exam/:examId/in-progress" element={<OnboardingGuard><ExamInProgress /></OnboardingGuard>} />
-              <Route path="/exam/:examId/review" element={<OnboardingGuard><ExamReview /></OnboardingGuard>} />
+              <Route path="/upload/:draftId/analyze" element={<AnalyzeExam />} />
+              <Route path="/upload/:draftId/review-questions" element={<ReviewQuestions />} />
+              <Route path="/upload/:draftId/settings" element={<ExamSettings />} />
+              <Route path="/upload/:draftId/format" element={<FormatExam />} />
+              <Route path="/upload/:draftId/timer" element={<TimerSetup />} />
+              <Route path="/upload/:draftId/preview" element={<RedirectToReview />} />
+              <Route path="/exam/:examId/preview" element={<ExamPreview />} />
+              <Route path="/exam/:examId/cover" element={<ExamCover />} />
+              <Route path="/exam/:examId/live" element={<ExamInProgress />} />
+              <Route path="/exam/:examId/in-progress" element={<ExamInProgress />} />
+              <Route path="/exam/:examId/review" element={<ExamReview />} />
               
               {/* Tutor Routes */}
-              <Route path="/tutor/exams" element={<OnboardingGuard><TutorLayout><ManageExams /></TutorLayout></OnboardingGuard>} />
-              <Route path="/tutor/exams/create" element={<OnboardingGuard><TutorLayout><CreateTutorExam /></TutorLayout></OnboardingGuard>} />
-              <Route path="/tutor/exams/create-manual" element={<OnboardingGuard><TutorLayout><ManualExamCreator /></TutorLayout></OnboardingGuard>} />
-              <Route path="/tutor/exams/:examId" element={<OnboardingGuard><TutorLayout><ExamHub /></TutorLayout></OnboardingGuard>} />
-              <Route path="/tutor/exams/:examId/edit" element={<OnboardingGuard><TutorLayout><EditExam /></TutorLayout></OnboardingGuard>} />
-              <Route path="/tutor/exams/:examId/student/:studentId" element={<OnboardingGuard><TutorLayout><StudentExamReview /></TutorLayout></OnboardingGuard>} />
-              <Route path="/tutor/practice" element={<OnboardingGuard><TutorLayout><ManagePracticeSets /></TutorLayout></OnboardingGuard>} />
-              <Route path="/tutor/students" element={<OnboardingGuard><TutorLayout><ManageStudents /></TutorLayout></OnboardingGuard>} />
-              <Route path="/tutor/progress" element={<OnboardingGuard><TutorLayout><StudentProgress /></TutorLayout></OnboardingGuard>} />
-              <Route path="/tutor/feedback" element={<OnboardingGuard><TutorLayout><ManageFeedback /></TutorLayout></OnboardingGuard>} />
+              <Route path="/tutor/exams" element={<TutorLayout><ManageExams /></TutorLayout>} />
+              <Route path="/tutor/exams/create" element={<TutorLayout><CreateTutorExam /></TutorLayout>} />
+              <Route path="/tutor/exams/create-manual" element={<TutorLayout><ManualExamCreator /></TutorLayout>} />
+              <Route path="/tutor/exams/:examId" element={<TutorLayout><ExamHub /></TutorLayout>} />
+              <Route path="/tutor/exams/:examId/edit" element={<TutorLayout><EditExam /></TutorLayout>} />
+              <Route path="/tutor/exams/:examId/student/:studentId" element={<TutorLayout><StudentExamReview /></TutorLayout>} />
+              <Route path="/tutor/practice" element={<TutorLayout><ManagePracticeSets /></TutorLayout>} />
+              <Route path="/tutor/students" element={<TutorLayout><ManageStudents /></TutorLayout>} />
+              <Route path="/tutor/progress" element={<TutorLayout><StudentProgress /></TutorLayout>} />
+              <Route path="/tutor/feedback" element={<TutorLayout><ManageFeedback /></TutorLayout>} />
               
+              </Route>
               <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
+          </WorkspaceRouteViewport>
           <CookieConsent />
           </WorkspaceSession>
         </BrowserRouter>

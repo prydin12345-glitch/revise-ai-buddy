@@ -1,3 +1,4 @@
+import { LoadError } from "@/components/shared/ListFeedback";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -9,15 +10,15 @@ interface TutorLayoutProps {
 }
 
 export const TutorLayout = ({ children }: TutorLayoutProps) => {
-  const { primaryRole, loading } = useUserRole();
+  const { primaryRole, loading, error, retry } = useUserRole();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && primaryRole !== "tutor") {
+    if (!loading && !error && primaryRole !== "tutor") {
       console.log("TutorLayout: User is not a tutor, redirecting to dashboard");
       navigate("/dashboard");
     }
-  }, [loading, primaryRole, navigate]);
+  }, [loading, error, primaryRole, navigate]);
 
   if (loading) {
     return (
@@ -26,6 +27,8 @@ export const TutorLayout = ({ children }: TutorLayoutProps) => {
       </div>
     );
   }
+
+  if (error) return <div className="mx-auto max-w-xl p-6"><LoadError message="Couldn’t check your role. Please retry." onRetry={() => void retry()} /></div>;
 
   if (primaryRole !== "tutor") {
     return null;

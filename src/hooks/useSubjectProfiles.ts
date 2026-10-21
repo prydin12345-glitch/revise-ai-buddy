@@ -1,9 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useWorkspaceQueryScope } from "./use-workspace-query-client";
+import { profilesQuery } from "@/lib/workspace-summary-queries";
+import { useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { normaliseAssessmentTier } from "@/lib/assessment-tier";
 import { toast } from "sonner";
 
-interface MasterTopic {
+export interface MasterTopic {
   id: string;
   subject_name: string;
   topic: string;
@@ -97,48 +100,25 @@ export const persistAssessmentTier = async (
 };
 
 export const useSubjectProfiles = () => {
-  const [masterTopics, setMasterTopics] = useState<MasterTopic[]>([]);
-  const [examProfiles, setExamProfiles] = useState<ExamProfile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchAll = useCallback(async () => {
-    setError(null);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const [topicsRes, profilesRes] = await Promise.all([
-        supabase
-          .from("subject_master_topics")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("topic"),
-        supabase
-          .from("subject_exam_profiles")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at"),
-      ]);
-
-      if (topicsRes.error) throw topicsRes.error;
-      if (profilesRes.error) throw profilesRes.error;
-
-      setMasterTopics((topicsRes.data || []) as MasterTopic[]);
-      setExamProfiles((profilesRes.data || []) as ExamProfile[]);
-    } catch (err) {
-      setError("Couldn’t load exam profiles. Try again.");
-      console.error("Error fetching subject profiles:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  const { store, client } = useWorkspaceQueryScope();
+  const query = useQuery(profilesQuery(store), client);
+  const masterTopics = query.data?.masterTopics || [];
+  const examProfiles = query.data?.examProfiles || [];
+  const loading = query.isPending;
+  const error = query.error ? "Couldn’t load exam profiles. Try again." : null;
+  const fetchAll = useCallback(() => query.refetch({ cancelRefetch: false }), [query.refetch]);
+  const setMasterTopics = async (update: (rows: MasterTopic[]) => MasterTopic[]) => {
+    await client.cancelQueries({ queryKey: ["workspace-profiles"] });
+    client.setQueryData<NonNullable<typeof query.data>>(["workspace-profiles"], previous => ({ masterTopics: update(previous?.masterTopics || []), examProfiles: previous?.examProfiles || [] }));
+  };
+  const setExamProfiles = async (update: (rows: ExamProfile[]) => ExamProfile[]) => {
+    await client.cancelQueries({ queryKey: ["workspace-profiles"] });
+    client.setQueryData<NonNullable<typeof query.data>>(["workspace-profiles"], previous => ({ masterTopics: previous?.masterTopics || [], examProfiles: update(previous?.examProfiles || []) }));
+  };
   useEffect(() => {
-    fetchAll();
     const refresh = () => { void fetchAll(); };
-    window.addEventListener('examly-profiles-updated', refresh);
-    return () => window.removeEventListener('examly-profiles-updated', refresh);
+    window.addEventListener("examly-profiles-updated", refresh);
+    return () => window.removeEventListener("examly-profiles-updated", refresh);
   }, [fetchAll]);
 
   const getTopicsForSubject = useCallback(
@@ -175,7 +155,7 @@ export const useSubjectProfiles = () => {
         }
         throw error;
       }
-      setMasterTopics((prev) => [...prev, data as MasterTopic]);
+      await setMasterTopics((prev) => [...prev, data as MasterTopic]);
     } catch (err) {
       console.error("Error adding topic:", err);
       toast.error("Failed to add topic");
@@ -190,7 +170,7 @@ export const useSubjectProfiles = () => {
         .eq("id", topicId);
 
       if (error) throw error;
-      setMasterTopics((prev) => prev.filter((t) => t.id !== topicId));
+      await setMasterTopics((prev) => prev.filter((t) => t.id !== topicId));
     } catch (err) {
       console.error("Error removing topic:", err);
       toast.error("Failed to remove topic");
@@ -269,7 +249,7 @@ export const useSubjectProfiles = () => {
         advanced?.assessmentTier ?? null,
         data as ExamProfile,
       );
-      setExamProfiles((prev) => [...prev, tierResult.profile]);
+      await setExamProfiles((prev) => [...prev, tierResult.profile]);
       if (tierResult.status === "failed") {
         toast.error("Profile created, but the Foundation/Higher tier did not save");
       } else {
@@ -324,7 +304,7 @@ export const useSubjectProfiles = () => {
           )
         : { profile: data as ExamProfile, status: "unchanged" as const };
 
-      setExamProfiles((prev) =>
+      await setExamProfiles((prev) =>
         prev.map((p) => (p.id === profileId ? tierResult.profile : p))
       );
       if (tierResult.status === "failed") {
@@ -346,7 +326,7 @@ export const useSubjectProfiles = () => {
         .eq("id", profileId);
 
       if (error) throw error;
-      setExamProfiles((prev) => prev.filter((p) => p.id !== profileId));
+      await setExamProfiles((prev) => prev.filter((p) => p.id !== profileId));
       toast.success("Profile deleted");
     } catch (err) {
       console.error("Error deleting profile:", err);
@@ -367,6 +347,6 @@ export const useSubjectProfiles = () => {
     updateProfile,
     deleteProfile,
     refetch: fetchAll,
-    retry: () => { setLoading(true); return fetchAll(); },
+    retry: fetchAll,
   };
 };

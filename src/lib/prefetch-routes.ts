@@ -7,6 +7,7 @@ export const routePrefetchMap: Record<string, () => Promise<any>> = {
   '/my-exams': () => import('@/pages/MyExams'),
   '/quizzes': () => import('@/pages/MyQuizzes'),
   '/my-classes': () => import('@/pages/MyClasses'),
+  '/my-subjects': () => import('@/pages/MySubjects'),
   '/stats': () => import('@/pages/Stats'),
   '/settings': () => import('@/pages/Settings'),
   '/tutor/exams': () => import('@/pages/tutor/ManageExams'),
@@ -18,7 +19,8 @@ export const routePrefetchMap: Record<string, () => Promise<any>> = {
 
 /** Prefetch a route's chunk by path. Safe to call multiple times — browser caches the module. */
 export const prefetchRoute = (path: string) => {
-  const loader = routePrefetchMap[path];
+  const pathname = path.split(/[?#]/)[0];
+  const loader = routePrefetchMap[pathname] || (/^\/my-subjects\/[^/]+$/.test(pathname) ? () => import('@/pages/SubjectDetail') : /^\/my-subjects\/[^/]+\/[^/]+$/.test(pathname) ? () => import('@/pages/ProfileDetail') : undefined);
   if (loader) {
     loader().catch(() => {
       // Silently ignore prefetch failures
@@ -28,16 +30,18 @@ export const prefetchRoute = (path: string) => {
 
 /** Prefetch common student pages during idle time after dashboard mounts. */
 export const prefetchCommonRoutes = () => {
-  const commonPaths = ['/my-exams', '/stats', '/quizzes', '/settings', '/my-classes'];
+  const commonPaths = ['/my-exams', '/stats', '/quizzes', '/settings', '/my-classes', '/my-subjects'];
 
   if ('requestIdleCallback' in window) {
-    (window as any).requestIdleCallback(() => {
+    const id = window.requestIdleCallback(() => {
       commonPaths.forEach(path => prefetchRoute(path));
     });
+    return () => window.cancelIdleCallback(id);
   } else {
     // Fallback for Safari — use setTimeout with a delay
-    setTimeout(() => {
+    const id = setTimeout(() => {
       commonPaths.forEach(path => prefetchRoute(path));
     }, 2000);
+    return () => clearTimeout(id);
   }
 };

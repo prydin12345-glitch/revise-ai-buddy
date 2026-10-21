@@ -1,6 +1,9 @@
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useWorkspaceQueryScope } from "./use-workspace-query-client";
+import { subjectsQuery } from "@/lib/workspace-summary-queries";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type { SetStateAction } from "react";
 
 interface UserSubject {
   id: string;
@@ -11,31 +14,14 @@ interface UserSubject {
 }
 
 export const useUserSubjects = () => {
-  const [subjects, setSubjects] = useState<UserSubject[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    fetchSubjects();
-  }, []);
-
-  const fetchSubjects = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from("user_subjects")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: true });
-
-      if (error) throw error;
-      setSubjects(data || []);
-    } catch (error) {
-      console.error("Error fetching subjects:", error);
-    } finally {
-      setIsLoading(false);
-    }
+  const { store, client } = useWorkspaceQueryScope();
+  const query = useQuery(subjectsQuery(store), client);
+  const subjects: UserSubject[] = query.data || [];
+  const isLoading = query.isPending;
+  const fetchSubjects = () => query.refetch({ cancelRefetch: false });
+  const setSubjects = async (next: SetStateAction<UserSubject[]>) => {
+    await client.cancelQueries({ queryKey: ["workspace-subjects"] });
+    client.setQueryData<UserSubject[]>(["workspace-subjects"], previous => typeof next === "function" ? next(previous || []) : next);
   };
 
   const getSubjectColor = (subjectName: string): string => {
@@ -149,8 +135,8 @@ export const useUserSubjects = () => {
 
       if (statsError) console.error("Error updating weekly stats:", statsError);
       
-      setSubjects(subjects.map(s => 
-        s.id === existingSubject.id 
+      await setSubjects(previous => previous.map(s =>
+        s.id === existingSubject.id
           ? { ...s, subject_color: color, ...(examBoard !== undefined ? { exam_board: examBoard } : {}) }
           : s
       ));
@@ -173,13 +159,14 @@ export const useUserSubjects = () => {
         .single();
 
       if (error) throw error;
-      if (data) setSubjects([...subjects, data]);
+      if (data) await setSubjects(previous => [...previous, data]);
     }
   };
 
   return {
     subjects,
     isLoading,
+    error: query.error,
     refetch: fetchSubjects,
     getSubjectColor,
     getSubjectExamBoard,

@@ -1,3 +1,7 @@
+import { useWorkspaceQueryScope } from "@/hooks/use-workspace-query-client";
+import { accountQuery, workspaceAvatarUrl } from "@/lib/workspace-account-query";
+import { LoadError } from "@/components/shared/ListFeedback";
+import { isCancelledError } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,82 +17,49 @@ import { SettingsCard } from "@/components/settings/SettingsCard";
 import { SettingRow } from "@/components/settings/SettingRow";
 import { DangerZone } from "@/components/settings/DangerZone";
 
-type UserProfile = {
-  first_name: string | null;
-  last_name: string | null;
-  display_name: string | null;
-  student_code: string | null;
-  avatar_url: string | null;
-};
-
 const AVATAR_BUCKET = "avatars";
-const SIGNED_URL_TTL = 60 * 60 * 24 * 7;
-
-async function resolveAvatarUrl(path: string | null): Promise<string | null> {
-  if (!path) return null;
-  if (path.startsWith("http://") || path.startsWith("https://")) return path;
-  const { data } = await supabase.storage
-    .from(AVATAR_BUCKET)
-    .createSignedUrl(path, SIGNED_URL_TTL);
-  return data?.signedUrl ?? null;
-}
+const resolveAvatarUrl = workspaceAvatarUrl;
 
 export const AccountSection = () => {
-  const [userId, setUserId] = useState<string | null>(null);
-  const [email, setEmail] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [studentCode, setStudentCode] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const { store, client } = useWorkspaceQueryScope();
+  const cached = client.getQueryData<Awaited<ReturnType<ReturnType<typeof accountQuery>["queryFn"]>>>(["workspace-account"]);
+  const [readError, setReadError] = useState(false);
+  const [readAttempt, setReadAttempt] = useState(0);
+  const dirty = useRef(false);
+  const [userId, setUserId] = useState<string | null>(cached?.user.id || null);
+  const [email, setEmail] = useState(cached?.user.email || "");
+  const [firstName, setFirstName] = useState(cached?.profile?.first_name || "");
+  const [lastName, setLastName] = useState(cached?.profile?.last_name || "");
+  const [studentCode, setStudentCode] = useState<string | null>(cached?.profile?.student_code || null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(cached?.avatarUrl || null);
   const [avatarUploading, setAvatarUploading] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!cached);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [profileIncomplete, setProfileIncomplete] = useState(false);
+  const [profileIncomplete, setProfileIncomplete] = useState(Boolean(cached && (!cached.profile?.first_name || !cached.profile?.last_name || !cached.profile?.student_code || cached.profile.student_code.startsWith("XX"))));
   const [hasChanges, setHasChanges] = useState(false);
-  const [originalFirstName, setOriginalFirstName] = useState("");
-  const [originalLastName, setOriginalLastName] = useState("");
+  const [originalFirstName, setOriginalFirstName] = useState(cached?.profile?.first_name || "");
+  const [originalLastName, setOriginalLastName] = useState(cached?.profile?.last_name || "");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { updatePreference } = useUserPreferences();
   const { primaryRole } = useUserRole();
 
+  dirty.current = firstName.trim() !== originalFirstName || lastName.trim() !== originalLastName;
   useEffect(() => {
-    const loadUserData = async () => {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-        setEmail(user.email || "");
-
-        const { data: profile } = await supabase
-          .from("user_profiles")
-          .select("first_name, last_name, display_name, student_code, avatar_url")
-          .eq("id", user.id)
-          .single() as { data: UserProfile | null; error: any };
-
-        if (profile) {
-          const fName = profile.first_name || "";
-          const lName = profile.last_name || "";
-          setFirstName(fName);
-          setLastName(lName);
-          setOriginalFirstName(fName);
-          setOriginalLastName(lName);
-          setStudentCode(profile.student_code);
-          const url = await resolveAvatarUrl(profile.avatar_url);
-          setAvatarUrl(url);
-
-          const needsCompletion =
-            !profile.first_name ||
-            !profile.last_name ||
-            !profile.student_code ||
-            profile.student_code.startsWith("XX");
-          setProfileIncomplete(needsCompletion);
-        }
+    let cancelled = false;
+    setReadError(false);
+    void client.fetchQuery(accountQuery(store)).then(({ user, profile, avatarUrl: url }) => {
+      if (cancelled || dirty.current) return;
+      setUserId(user.id); setEmail(user.email);
+      if (profile) {
+        const fName = profile.first_name || "", lName = profile.last_name || "";
+        setFirstName(fName); setLastName(lName); setOriginalFirstName(fName); setOriginalLastName(lName);
+        setStudentCode(profile.student_code); setAvatarUrl(url);
+        setProfileIncomplete(!profile.first_name || !profile.last_name || !profile.student_code || profile.student_code.startsWith("XX"));
       }
-      setLoading(false);
-    };
-    loadUserData();
-  }, []);
+    }).catch(error => { if (!cancelled && !isCancelledError(error)) setReadError(true); }).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [client, store, readAttempt]);
 
   useEffect(() => {
     setHasChanges(
@@ -135,6 +106,8 @@ export const AccountSection = () => {
       }
 
       const url = await resolveAvatarUrl(filePath);
+      await client.cancelQueries({ queryKey: ["workspace-account"] });
+      client.setQueryData<NonNullable<typeof cached>>(["workspace-account"], previous => previous ? { ...previous, avatarUrl: url, profile: { ...previous.profile!, avatar_url: filePath } } : previous);
       setAvatarUrl(url ? `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}` : null);
       toast.success("Avatar updated");
     } finally {
@@ -182,6 +155,8 @@ export const AccountSection = () => {
         .eq("id", user.id);
       if (updateError) throw updateError;
 
+      await client.cancelQueries({ queryKey: ["workspace-account"] });
+      client.setQueryData<NonNullable<typeof cached>>(["workspace-account"], previous => previous ? { ...previous, profile: { ...previous.profile!, ...updateData } } : previous);
       setFirstName(formattedFirstName);
       setLastName(formattedLastName);
       setOriginalFirstName(formattedFirstName);
@@ -229,6 +204,8 @@ export const AccountSection = () => {
     return fInitial + lInitial || "?";
   };
 
+  const retryRead = () => { setLoading(!cached); setReadAttempt(value => value + 1); };
+  if (readError && !cached) return <LoadError message="Couldn’t load your account details. Please retry." onRetry={retryRead} />;
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -239,6 +216,7 @@ export const AccountSection = () => {
 
   return (
     <div className="space-y-6">
+      {readError && <LoadError message="Couldn’t refresh your account details. Your edits are still here." onRetry={retryRead} />}
       {profileIncomplete && (
         <Alert className="border-amber-500/50 bg-amber-500/10">
           <AlertCircle className="h-4 w-4 text-amber-500" />

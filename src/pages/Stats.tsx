@@ -1,3 +1,5 @@
+import { useWorkspaceSession } from "@/hooks/use-workspace-session";
+import { LoadError } from "@/components/shared/ListFeedback";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3, AlertTriangle } from "lucide-react";
@@ -35,19 +37,24 @@ const Stats = () => {
   const defaultTab =
     searchParams.get("tab") === "weak-topics" ? "weak-topics" : "stats";
   const [desktopTab, setDesktopTab] = useState(defaultTab);
-  const [userId, setUserId] = useState<string | null>(null);
+  const { ownerId } = useWorkspaceSession();
+  const [fallbackUserId, setUserId] = useState<string | null>(null);
+  const userId = ownerId || fallbackUserId;
 
   useEffect(() => {
+    if (ownerId) return;
     supabase.auth
       .getUser()
       .then(({ data }) => setUserId(data.user?.id ?? null));
-  }, []);
+  }, [ownerId]);
 
   const { topics, loading: weakTopicsLoading } =
     useUnifiedTopicPerformance(userId);
   const drilldown = useStatsDrilldown();
   const {
     loading,
+    hasData,
+    refreshing,
     error,
     refetch,
     totalExams,
@@ -113,7 +120,7 @@ const Stats = () => {
     );
   }
 
-  if (error) {
+  if (error && !hasData) {
     return (
       <DashboardLayout>
         <div className="examly-stats mx-auto max-w-[1280px] px-4 py-6 sm:px-6 sm:py-8">
@@ -130,7 +137,8 @@ const Stats = () => {
 
   return (
     <DashboardLayout>
-      <div className="examly-stats max-w-[1280px] mx-auto px-4 sm:px-6 pb-10 pt-6 sm:pt-8">
+      <div aria-busy={refreshing || undefined} className="examly-stats max-w-[1280px] mx-auto px-4 sm:px-6 pb-10 pt-6 sm:pt-8">
+        {error && <LoadError message="Couldn’t update your statistics. Your last loaded results are still shown." onRetry={() => void refetch()} />}
         {isMobile ? (
           /* One tab layer on mobile. The outer Stats / Weak Topics tabs wrapped
              a component that already had its own Overview / Topics / Performance

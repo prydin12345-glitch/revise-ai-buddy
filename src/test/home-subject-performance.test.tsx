@@ -83,7 +83,7 @@ describe("Home subject-scoped topic performance", () => {
     expect(result.current.topics).toEqual([]);
     backend.fail = "";
     await act(async () => { await result.current.refetch(); });
-    expect(result.current.error).toBeNull();
+    await waitFor(() => expect(result.current.error).toBeNull());
     expect(result.current.topics.length).toBeGreaterThan(0);
   });
   it("ignores a late result from the previous subject or account", async () => {
