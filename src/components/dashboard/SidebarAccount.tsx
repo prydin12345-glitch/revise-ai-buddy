@@ -5,9 +5,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 /** Desktop only, read-only identity; the owner-scoped key never reuses another account. */
 export default function SidebarAccount() {
-  const { ownerId } = useWorkspaceSession();
+  const { ownerId, store } = useWorkspaceSession();
   const { data, isPending } = useQuery({
-    queryKey: ["workspace-sidebar-account", ownerId],
+    queryKey: ["workspace-sidebar-account", ownerId, store?.generation],
     enabled: Boolean(ownerId),
     staleTime: 60_000,
     queryFn: async () => {

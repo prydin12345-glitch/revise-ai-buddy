@@ -1,0 +1,253 @@
+{
+  "method": "Real App split bundles; identical offline SDK fixtures with120msauth/180msreads; shared machine timing, not production benchmark; reduced-motion Chromium viewport emulation.",
+  "baseline": "0c6391a2d049c6f3e20a9dd6a2fc34e929aaa56a",
+  "views": [
+    {
+      "width": 1440,
+      "height": 1000,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "width": 834,
+      "height": 1112,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "width": 834,
+      "height": 1112,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "overflow": false
+    },
+    {
+      "width": 1112,
+      "height": 834,
+      "theme": "light",
+      "overflow": false
+    },
+    {
+      "width": 1112,
+      "height": 834,
+      "theme": "dark",
+      "overflow": false
+    }
+  ],
+  "comparisons": [
+    {
+      "round": 1,
+      "kind": "exams",
+      "baselineMedianReadyMs": 1671.5,
+      "afterMedianReadyMs": 1373.5,
+      "baselineLoadingFrames": 482,
+      "afterLoadingFrames": 0,
+      "baselinePageSkeletonFrames": 40,
+      "afterPageSkeletonFrames": 0,
+      "afterEmptyFrames": 0
+    },
+    {
+      "round": 1,
+      "kind": "quizzes",
+      "baselineMedianReadyMs": 1148,
+      "afterMedianReadyMs": 832,
+      "baselineLoadingFrames": 228,
+      "afterLoadingFrames": 0,
+      "baselinePageSkeletonFrames": 44,
+      "afterPageSkeletonFrames": 0,
+      "afterEmptyFrames": 0
+    },
+    {
+      "round": 1,
+      "kind": "subjects",
+      "baselineMedianReadyMs": 1406,
+      "afterMedianReadyMs": 886,
+      "baselineLoadingFrames": 373,
+      "afterLoadingFrames": 0,
+      "baselinePageSkeletonFrames": 61,
+      "afterPageSkeletonFrames": 0,
+      "afterEmptyFrames": 0
+    },
+    {
+      "round": 1,
+      "kind": "stats",
+      "baselineMedianReadyMs": 2526,
+      "afterMedianReadyMs": 1984.5,
+      "baselineLoadingFrames": 710,
+      "afterLoadingFrames": 0,
+      "baselinePageSkeletonFrames": 44,
+      "afterPageSkeletonFrames": 0,
+      "afterEmptyFrames": 0
+    },
+    {
+      "round": 1,
+      "kind": "classes",
+      "baselineMedianReadyMs": 1658.5,
+      "afterMedianReadyMs": 941,
+      "baselineLoadingFrames": 569,
+      "afterLoadingFrames": 0,
+      "baselinePageSkeletonFrames": 37,
+      "afterPageSkeletonFrames": 0,
+      "afterEmptyFrames": 0
+    },
+    {
+      "round": 1,
+      "kind": "settings",
+      "baselineMedianReadyMs": 659.5,
+      "afterMedianReadyMs": 530,
+      "baselineLoadingFrames": 164,
+      "afterLoadingFrames": 0,
+      "baselinePageSkeletonFrames": 46,
+      "afterPageSkeletonFrames": 0,
+      "afterEmptyFrames": 0
+    },
+    {
+      "round": 1,
+      "kind": "home",
+      "baselineMedianReadyMs": 1679.5,
+      "afterMedianReadyMs": 293,
+      "baselineLoadingFrames": 551,
+      "afterLoadingFrames": 0,
+      "baselinePageSkeletonFrames": 0,
+      "afterPageSkeletonFrames": 0,
+      "afterEmptyFrames": 0
+    },
+    {
+      "round": 2,
+      "kind": "exams",
+      "baselineMedianReadyMs": 510.5,
+      "afterMedianReadyMs": 477.5,
+      "baselineLoadingFrames": 0,
+      "afterLoadingFrames": 0,
+      "baselinePageSkeletonFrames": 0,
+      "afterPageSkeletonFrames": 0,
+      "afterEmptyFrames": 0
+    },
+    {
+      "round": 2,
+      "kind": "quizzes",
+      "baselineMedianReadyMs": 360,
+      "afterMedianReadyMs": 446.5,
+      "baselineLoadingFrames": 0,
+      "afterLoadingFrames": 0,
+      "baselinePageSkeletonFrames": 0,
+      "afterPageSkeletonFrames": 0,
+      "afterEmptyFrames": 0
+    },
+    {
+      "round": 2,
+      "kind": "subjects",
+      "baselineMedianReadyMs": 1201,
+      "afterMedianReadyMs": 255.5,
+      "baselineLoadingFrames": 614,
+      "afterLoadingFrames": 0,
+      "baselinePageSkeletonFrames": 0,
+      "afterPageSkeletonFrames": 0,
+      "afterEmptyFrames": 0
+    },
+    {
+      "round": 2,
+      "kind": "stats",
+      "baselineMedianReadyMs": 2090,
+      "afterMedianReadyMs": 305.5,
+      "baselineLoadingFrames": 649,
+      "afterLoadingFrames": 0,
+      "baselinePageSkeletonFrames": 0,
+      "afterPageSkeletonFrames": 0,
+      "afterEmptyFrames": 0
+    },
+    {
+      "round": 2,
+      "kind": "classes",
+      "baselineMedianReadyMs": 1567.5,
+      "afterMedianReadyMs": 462.5,
+      "baselineLoadingFrames": 510,
+      "afterLoadingFrames": 0,
+      "baselinePageSkeletonFrames": 0,
+      "afterPageSkeletonFrames": 0,
+      "afterEmptyFrames": 0
+    },
+    {
+      "round": 2,
+      "kind": "settings",
+      "baselineMedianReadyMs": 498,
+      "afterMedianReadyMs": 205,
+      "baselineLoadingFrames": 126,
+      "afterLoadingFrames": 0,
+      "baselinePageSkeletonFrames": 0,
+      "afterPageSkeletonFrames": 0,
+      "afterEmptyFrames": 0
+    },
+    {
+      "round": 2,
+      "kind": "home",
+      "baselineMedianReadyMs": 1686.5,
+      "afterMedianReadyMs": 268,
+      "baselineLoadingFrames": 686,
+      "afterLoadingFrames": 0,
+      "baselinePageSkeletonFrames": 0,
+      "afterPageSkeletonFrames": 0,
+      "afterEmptyFrames": 0
+    }
+  ],
+  "beforeErrors": [],
+  "afterErrors": [],
+  "beforeFailedRequests": [],
+  "afterFailedRequests": [],
+  "beforeFontResponses": [
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200
+  ],
+  "afterFontResponses": [
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200
+  ],
+  "realBackendRequests": 0,
+  "modelOrFunctionCalls": []
+}

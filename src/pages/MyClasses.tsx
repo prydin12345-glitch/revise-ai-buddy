@@ -1,4 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useWorkspaceQueryScope } from "@/hooks/use-workspace-query-client";
+import { classesQuery } from "@/lib/classes-query";
+import { LoadError } from "@/components/shared/ListFeedback";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/exam-metadata-client";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
@@ -19,7 +23,7 @@ import { ProgressItem } from "@/components/classes/ProgressItem";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { format, isSameMonth, isSameYear } from "date-fns";
 
-interface StudentGroup {
+export interface StudentGroup {
   id: string;
   name: string;
   description?: string;
@@ -28,7 +32,7 @@ interface StudentGroup {
   joined_at?: string;
 }
 
-interface GroupAssignment {
+export interface GroupAssignment {
   id: string;
   exam_id: string;
   exam_title: string;
@@ -39,7 +43,7 @@ interface GroupAssignment {
   group_name: string;
 }
 
-interface GroupAnnouncement {
+export interface GroupAnnouncement {
   id: string;
   title: string;
   message: string;
@@ -49,20 +53,20 @@ interface GroupAnnouncement {
   group_name: string;
 }
 
-interface TutorInfo {
+export interface TutorInfo {
   name: string;
   bio?: string;
   subjects_taught?: string[];
 }
 
-interface SubmissionData {
+export interface SubmissionData {
   status: string;
   total_score?: number;
   total_marks?: number;
   submitted_at?: string;
 }
 
-interface FeedbackThread {
+export interface FeedbackThread {
   id: string;
   question_id: string;
   student_comment: string;
@@ -83,24 +87,26 @@ interface SubjectProgress {
 const MyClasses = () => {
   const { getSubjectColor } = useUserSubjects();
   const [searchParams] = useSearchParams();
-  const [loading, setLoading] = useState(true);
-  const [groups, setGroups] = useState<StudentGroup[]>([]);
-  const [assignments, setAssignments] = useState<GroupAssignment[]>([]);
-  const [announcements, setAnnouncements] = useState<GroupAnnouncement[]>([]);
-  const [submissions, setSubmissions] = useState<Map<string, SubmissionData>>(new Map());
-  const [tutors, setTutors] = useState<Map<string, TutorInfo>>(new Map());
-  const [feedbackThreads, setFeedbackThreads] = useState<FeedbackThread[]>([]);
+  const { store, client } = useWorkspaceQueryScope();
+  const query = useQuery({ ...classesQuery(store), refetchOnMount: "always" }, client);
+  const loading = query.isPending;
+  const groups = query.data?.groups || [];
+  const assignments = query.data?.assignments || [];
+  const announcements = query.data?.announcements || [];
+  const submissions = query.data?.submissions || new Map<string, SubmissionData>();
+  const tutors = query.data?.tutors || new Map<string, TutorInfo>();
+  const feedbackThreads = query.data?.feedbackThreads || [];
+  const firstName = query.data?.firstName || "";
+  const loadStudentClasses = useCallback(() => query.refetch({ cancelRefetch: false }), [query.refetch]);
+  const groupIdsKey = groups.map(group => group.id).join("|");
   const [joinModalOpen, setJoinModalOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<StudentGroup | null>(null);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [groupToLeave, setGroupToLeave] = useState<StudentGroup | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(new Date());
-  const [firstName, setFirstName] = useState("");
 
   useEffect(() => {
-    loadStudentClasses();
-
     // Real-time subscription for announcements
     const channel = supabase
       .channel('student-classes-updates')
@@ -116,7 +122,7 @@ const MyClasses = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [loadStudentClasses, store, groupIdsKey]);
 
   // Auto-select class from URL param
   useEffect(() => {
@@ -126,163 +132,6 @@ const MyClasses = () => {
       if (match) setSelectedClass(match);
     }
   }, [groups, searchParams]);
-
-  const loadStudentClasses = async () => {
-    try {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Get user's first name
-      const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("first_name, display_name")
-        .eq("id", user.id)
-        .single();
-      
-      setFirstName(profile?.first_name || profile?.display_name?.split(" ")[0] || "");
-
-      // Get student's group memberships
-      const { data: memberships } = await supabase
-        .from("group_members")
-        .select(`
-          group_id,
-          joined_at,
-          student_groups!inner (
-            id, name, description, tutor_id, subjects_covered, is_active
-          )
-        `)
-        .eq("student_id", user.id)
-        .eq("is_active", true);
-
-      if (!memberships || memberships.length === 0) {
-        setGroups([]);
-        setLoading(false);
-        return;
-      }
-
-      const activeGroups: StudentGroup[] = memberships
-        .filter((m: any) => m.student_groups?.is_active)
-        .map((m: any) => ({
-          id: m.student_groups.id,
-          name: m.student_groups.name,
-          description: m.student_groups.description,
-          tutor_id: m.student_groups.tutor_id,
-          subjects_covered: m.student_groups.subjects_covered || [],
-          joined_at: m.joined_at,
-        }));
-
-      setGroups(activeGroups);
-
-      // Get tutor info
-      const tutorIds = [...new Set(activeGroups.map(g => g.tutor_id))];
-      const { data: tutorProfiles } = await supabase
-        .from("tutor_profiles")
-        .select("user_id, bio, subjects_taught")
-        .in("user_id", tutorIds);
-
-      const { data: tutorUserProfiles } = await supabase
-        .from("user_profiles")
-        .select("id, display_name, first_name, last_name")
-        .in("id", tutorIds);
-
-      const tutorMap = new Map<string, TutorInfo>();
-      tutorIds.forEach(id => {
-        const profile = tutorUserProfiles?.find(p => p.id === id);
-        const tutorProfile = tutorProfiles?.find(p => p.user_id === id);
-        const name = profile?.display_name || 
-          [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || 
-          "Tutor";
-        tutorMap.set(id, {
-          name,
-          bio: tutorProfile?.bio || undefined,
-          subjects_taught: (tutorProfile?.subjects_taught as string[]) || [],
-        });
-      });
-      setTutors(tutorMap);
-
-      // Get assignments for all groups
-      const groupIds = activeGroups.map(g => g.id);
-      const { data: examAssignments } = await supabase
-        .from("exam_assignments")
-        .select(`
-          id, exam_id, deadline, release_date, target_id,
-          exams!inner (id, title, type, status)
-        `)
-        .eq("assignment_type", "group")
-        .eq("is_active", true)
-        .in("target_id", groupIds);
-
-      const allAssignments: GroupAssignment[] = (examAssignments || [])
-        .filter((a: any) => a.exams?.status === "published")
-        .map((a: any) => {
-          const group = activeGroups.find(g => g.id === a.target_id);
-          return {
-            id: a.id,
-            exam_id: a.exam_id,
-            exam_title: a.exams?.title || "Untitled",
-            exam_type: a.exams?.type || "uploaded",
-            deadline: a.deadline,
-            release_date: a.release_date,
-            group_id: a.target_id,
-            group_name: group?.name || "",
-          };
-        });
-
-      setAssignments(allAssignments);
-
-      // Get student submissions
-      const examIds = allAssignments.map(a => a.exam_id);
-      if (examIds.length > 0) {
-        const { data: studentSubmissions } = await supabase
-          .from("exam_submission_metadata")
-          .select("exam_id, status, total_score, total_marks, submitted_at")
-          .eq("student_id", user.id)
-          .in("exam_id", examIds);
-
-        const submissionMap = new Map();
-        studentSubmissions?.forEach(s => {
-          submissionMap.set(s.exam_id, {
-            status: s.status,
-            total_score: s.total_score,
-            total_marks: s.total_marks,
-            submitted_at: s.submitted_at,
-          });
-        });
-        setSubmissions(submissionMap);
-
-        // Fetch feedback threads for submitted exams
-        const { data: threads } = await supabase
-          .from("question_feedback_threads")
-          .select("*")
-          .eq("student_id", user.id)
-          .in("exam_id", examIds)
-          .order("created_at", { ascending: false });
-
-        setFeedbackThreads(threads || []);
-      }
-
-      // Get announcements
-      const { data: groupAnnouncements } = await supabase
-        .from("group_announcements")
-        .select("id, title, message, created_at, attachment_url, group_id")
-        .in("group_id", groupIds)
-        .order("created_at", { ascending: false })
-        .limit(20);
-
-      const allAnnouncements: GroupAnnouncement[] = (groupAnnouncements || []).map(a => {
-        const group = activeGroups.find(g => g.id === a.group_id);
-        return { ...a, group_name: group?.name || "" };
-      });
-
-      setAnnouncements(allAnnouncements);
-    } catch (error) {
-      console.error("Error loading classes:", error);
-      toast.error("Failed to load your classes");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleLeaveGroup = async () => {
     if (!groupToLeave) return;
@@ -300,7 +149,9 @@ const MyClasses = () => {
       if (error) throw error;
 
       toast.success(`Left ${groupToLeave.name}`);
-      setGroups(prev => prev.filter(g => g.id !== groupToLeave.id));
+      await client.cancelQueries({ queryKey: ["workspace-classes"] });
+      client.setQueryData<NonNullable<typeof query.data>>(["workspace-classes"], previous => previous ? { ...previous, groups: previous.groups.filter(group => group.id !== groupToLeave.id) } : previous);
+      void loadStudentClasses();
       setSelectedClass(null);
     } catch (error) {
       console.error("Error leaving group:", error);
@@ -409,6 +260,8 @@ const MyClasses = () => {
   }, [filteredGroups]);
 
 
+  if (query.error && !query.data) return <DashboardLayout><LoadError message="Couldn’t load your classes. Please retry." onRetry={() => void loadStudentClasses()} /></DashboardLayout>;
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -482,6 +335,7 @@ const MyClasses = () => {
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+        {query.error && <LoadError message="Couldn’t refresh your classes. Your last loaded information is still shown." onRetry={() => void loadStudentClasses()} />}
         {/* Page header */}
         <header className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3 min-w-0">

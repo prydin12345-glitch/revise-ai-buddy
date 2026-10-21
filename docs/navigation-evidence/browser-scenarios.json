@@ -1,0 +1,19 @@
+{
+  "checks": [
+    "cold accuracy widget error retains Stats, avoids auto retry loop and retries locally",
+    "cold subject score errors retain all cards, avoid auto retry loops and retry independently",
+    "cold Home study error keeps the dashboard visible and retries only the widget",
+    "direct-entry error shows retry and retry recovers",
+    "direct library entry then first Home navigation retains content until the dashboard is ready",
+    "slow first sidebar navigation retains Home with visible progress and no skeleton",
+    "browser back during a slow transition cancels the pending destination",
+    "Exams/Quizzes actual buttons and browser back/forward preserve library",
+    "rapid navigation settles only on the latest route",
+    "Stats keeps loaded results during failed refresh and retries without reload",
+    "mobile Home cancels a different pending tab instead of scrolling only",
+    "mobile primary tabs and selected-tab reselect work with reduced motion"
+  ],
+  "errors": [],
+  "failed": [],
+  "backend": 0
+}

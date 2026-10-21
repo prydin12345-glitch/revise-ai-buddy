@@ -16,7 +16,7 @@ interface SubjectCardProps {
 
 export const SubjectCard = ({ subject, profileCount }: SubjectCardProps) => {
   const navigate = useNavigate();
-  const { average, trend, loading } = useSubjectAverage(subject.subject_name);
+  const { average, trend, loading, error, refetch } = useSubjectAverage(subject.subject_name);
 
   const displayName = subject.custom_name || subject.subject_name;
   const boardLabel = subject.exam_board ? getBoardDisplayName(subject.exam_board) : null;
@@ -35,6 +35,7 @@ export const SubjectCard = ({ subject, profileCount }: SubjectCardProps) => {
     : "text-muted-foreground";
 
   return (
+    <div className="min-w-0">
     <button
       onClick={() => navigate(`/my-subjects/${encodeURIComponent(subject.subject_name)}`)}
       className="group w-full text-left rounded-2xl border border-border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/25 hover:border-border-strong overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -64,7 +65,7 @@ export const SubjectCard = ({ subject, profileCount }: SubjectCardProps) => {
                   {average !== null ? `${Math.round(average)}%` : "—"}
                 </div>
                 <div className="text-10 text-muted-foreground mt-1.5">
-                  {average !== null ? "average score" : "no attempts recorded"}
+                  {error ? (average !== null ? "last loaded score" : "score unavailable") : average !== null ? "average score" : "no attempts recorded"}
                 </div>
               </>
             )}
@@ -91,5 +92,7 @@ export const SubjectCard = ({ subject, profileCount }: SubjectCardProps) => {
         </div>
       </div>
     </button>
+    {error && <button type="button" className="mt-2 min-h-11 rounded-md px-3 text-sm text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => void refetch()}>Retry {displayName} score</button>}
+    </div>
   );
 };

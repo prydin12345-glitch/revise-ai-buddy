@@ -1,8 +1,9 @@
-import { loadLibraryQuestionMetadata } from "@/lib/library-question-metadata";
+import { examLibraryQuery } from "@/lib/library-navigation-data";
+import { workspaceQueryClient } from "@/lib/workspace-query-client";
 import { LibrarySubjectShelf } from "@/components/shared/LibrarySubjectShelf";
 import { LibraryDeleteDialog } from "@/components/shared/LibraryDeleteDialog";
 import { useLibraryItemActions } from "@/hooks/use-library-item-actions";
-import { LIBRARY_REVISION, sumLibraryMarks } from "@/lib/library-item-cache";
+import { LIBRARY_REVISION } from "@/lib/library-item-cache";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
@@ -46,7 +47,7 @@ interface Exam {
   exam_topics: Array<{ topic_name: string }>;
 }
 
-interface ExamProgress {
+export interface ExamProgress {
   questionsCompleted: number;
   totalQuestions: number;
   totalMarks?: number | null;
@@ -86,6 +87,7 @@ const MyExams = () => {
   const [loading, setLoading] = useState(!loaded);
   const [loadError, setLoadError] = useState<string | null>(null);
   const loadRequest = useRef<Promise<void> | null>(null);
+  const loadedRevision = useRef<number | null>(null);
   const loadExamsRef = useRef<() => Promise<void>>();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [beginExamDialogOpen, setBeginExamDialogOpen] = useState(false);
@@ -163,7 +165,7 @@ const MyExams = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (cancelled) return;
       userIdForChannel = user?.id ?? null;
-      void loadExamsRef.current?.();
+      if (loadedRevision.current !== libraryRevision) void loadExamsRef.current?.();
 
       // Scope realtime subscription to current user only — avoids reloading
       // on unrelated changes elsewhere in the table.
@@ -189,6 +191,7 @@ const MyExams = () => {
     if (loadRequest.current) return loadRequest.current;
     const revision = store.get(LIBRARY_REVISION, 0);
     let superseded = false;
+    let recovered = false;
     const favouriteVersion = favouriteAction.version();
     const request = (async () => {
       setLoadError(null);
@@ -212,6 +215,7 @@ const MyExams = () => {
             .gte('created_at', sevenDaysAgo);
 
           if (lostExams && lostExams.length > 0) {
+            recovered = true;
             await Promise.allSettled(
               lostExams.map(e =>
                 supabase.functions.invoke('publish-exam', { body: { draftId: e.id } })
@@ -223,171 +227,28 @@ const MyExams = () => {
         }
 
 
-        // Step 1: Fetch exams + favourites in parallel (favourites is independent of exam IDs)
-        const [
-          { data, error },
-          { data: favourites, error: favouritesError },
-        ] = await Promise.all([
-          supabase
-            .from('exams')
-            .select('*, exam_topics(topic_name)')
-            .order('created_at', { ascending: false }),
-          supabase
-            .from('favourite_exams')
-            .select('exam_id')
-            .eq('user_id', user.id),
-        ]);
-
-        if (error) throw error;
+        const prepared = store.get<Awaited<ReturnType<ReturnType<typeof examLibraryQuery>["queryFn"]>> | null>("navigation:exam-library", null);
+        store.set("navigation:exam-library", null, null);
+        const snapshot = prepared && !recovered ? prepared : await workspaceQueryClient(store).fetchQuery({ ...examLibraryQuery(store), staleTime: 0 });
         if (revision !== store.get(LIBRARY_REVISION, 0)) { superseded = true; return; }
-
-        if (favouritesError) setLoadError(favouritesError.message || "Couldn’t load your favourites. Please retry.");
-
-        if (!favouritesError && favouriteVersion === favouriteAction.version()) {
-          setFavouriteExamIds(Array.from(favouriteAction.reconcile(new Set(favourites?.map(f => f.exam_id) || []))));
-        }
-
-        // Batch fetch exam states and progress for all exams
-        if (data && data.length > 0) {
-          const examIds = data.map(exam => exam.id);
-
-          // Step 2: Run ALL remaining queries in parallel — they're all independent.
-          const [
-            { data: allSubmissions, error: submissionsError },
-            { data: allAnswers, error: answersError },
-            questionsData,
-            { data: timerData, error: timersError },
-          ] = await Promise.all([
-            supabase
-              .from('exam_submission_metadata')
-              .select('exam_id, status, time_remaining_seconds, last_accessed_at, exam_started_at')
-              .eq('student_id', user.id)
-              .in('exam_id', examIds),
-            supabase
-              .from('student_answers')
-              .select('exam_id')
-              .eq('student_id', user.id)
-              .in('exam_id', examIds),
-            loadLibraryQuestionMetadata('exam', examIds),
-            supabase
-              .from('exam_timer')
-              .select('exam_id, enabled, duration_minutes')
-              .in('exam_id', examIds),
-          ]);
-
-          const detailError = submissionsError || answersError || timersError;
-          if (detailError) throw detailError;
-          if (revision !== store.get(LIBRARY_REVISION, 0)) { superseded = true; return; }
-
-          // Separate completed vs in-progress
-          const submittedExamIds = new Set(
-            allSubmissions?.filter(s => s.status === 'submitted' || s.status === 'completed' || s.status === 'graded').map(s => s.exam_id) || []
-          );
-          const inProgressExamIds = new Set(
-            allSubmissions?.filter(s => ['in_progress','marking','marking_failed'].includes(s.status)).map(s => s.exam_id) || []
-          );
-
-          setCompletedExamIds(Array.from(submittedExamIds));
-
-          const examIdsWithAnswers = new Set(allAnswers?.map(a => a.exam_id) || []);
-
-          // Create lookup maps
-          const submissionsMap = new Map(allSubmissions?.map(s => [s.exam_id, s]) || []);
-          const answersCountMap = new Map<string, number>();
-          allAnswers?.forEach(a => {
-            answersCountMap.set(a.exam_id, (answersCountMap.get(a.exam_id) || 0) + 1);
-          });
-          const questionsCountMap = new Map<string, number>();
-          questionsData?.forEach(q => {
-            questionsCountMap.set(q.itemId, (questionsCountMap.get(q.itemId) || 0) + 1);
-          });
-          const timerMap = new Map(timerData?.map(t => [t.exam_id, t]) || []);
-
-          // Determine states and calculate progress
-          const statesMap = new Map();
-          const progressMap = new Map<string, ExamProgress>();
-
-          data.forEach(exam => {
-            let state: 'not-started' | 'in-progress' | 'completed';
-
-            if (exam.status !== 'published') {
-              state = 'not-started';
-            } else if (submittedExamIds.has(exam.id)) {
-              state = 'completed';
-            } else if (inProgressExamIds.has(exam.id) || examIdsWithAnswers.has(exam.id)) {
-              state = 'in-progress';
-            } else {
-              state = 'not-started';
-            }
-
-            statesMap.set(exam.id, state);
-
-            // Calculate progress
-            const totalQuestions = questionsCountMap.get(exam.id) || 0;
-            const questionsCompleted = state === 'completed' ? totalQuestions : (answersCountMap.get(exam.id) || 0);
-            const percentComplete = totalQuestions > 0 ? (questionsCompleted / totalQuestions) * 100 : 0;
-
-            // Calculate time remaining
-            let timeRemaining = "No timer";
-            const timer = timerMap.get(exam.id);
-            const submission = submissionsMap.get(exam.id);
-
-            if (state === 'completed') {
-              timeRemaining = "Completed";
-            } else if (timer?.enabled) {
-              if (submission?.time_remaining_seconds !== undefined && submission.time_remaining_seconds !== null) {
-                const hours = Math.floor(submission.time_remaining_seconds / 3600);
-                const minutes = Math.floor((submission.time_remaining_seconds % 3600) / 60);
-                if (hours > 0) {
-                  timeRemaining = `${hours}hr ${minutes}min`;
-                } else {
-                  timeRemaining = `${minutes}min`;
-                }
-              } else if (timer.duration_minutes) {
-                const hours = Math.floor(timer.duration_minutes / 60);
-                const minutes = timer.duration_minutes % 60;
-                if (hours > 0) {
-                  timeRemaining = `${hours}hr ${minutes}min`;
-                } else {
-                  timeRemaining = `${minutes}min`;
-                }
-              }
-            }
-
-            // Format last accessed
-            let lastAccessed = "Never";
-            if (submission?.last_accessed_at) {
-              lastAccessed = new Date(submission.last_accessed_at).toLocaleDateString('en-GB');
-            } else if (submission?.exam_started_at) {
-              lastAccessed = new Date(submission.exam_started_at).toLocaleDateString('en-GB');
-            }
-
-            progressMap.set(exam.id, {
-              questionsCompleted,
-              totalQuestions,
-              totalMarks: sumLibraryMarks((questionsData || []).filter(q => q.itemId === exam.id)),
-              percentComplete,
-              timeRemaining,
-              lastAccessed,
-              examState: state,
-            });
-          });
-
-          setExamStates(statesMap);
-          setExamProgress(progressMap);
-        }
-
-        if (!data?.length) { setCompletedExamIds([]); setExamStates(new Map()); setExamProgress(new Map()); }
-        setExams(data || []);
+        if (snapshot.favouritesError) setLoadError(snapshot.favouritesError.message || "Couldn’t load your favourites. Please retry.");
+        if (!snapshot.favouritesError && favouriteVersion === favouriteAction.version()) setFavouriteExamIds(Array.from(favouriteAction.reconcile(new Set(snapshot.favouriteIds))));
+        setCompletedExamIds(snapshot.completedExamIds);
+        setExamStates(snapshot.statesMap);
+        setExamProgress(snapshot.progressMap);
+        setExams(snapshot.exams);
         setLoaded(true);
-        // Favourites already fetched in parallel above (Step 1)
+        loadedRevision.current = revision;
       } catch (error: any) {
+        if (revision !== store.get(LIBRARY_REVISION, 0)) { superseded = true; return; }
         setLoadError(error.message || "Couldn’t load your exams.");
         toast({ title: "Load Failed", description: error.message, variant: "destructive" });
       } finally {
         setLoading(false);
         loadRequest.current = null;
-        if (superseded) queueMicrotask(() => void loadExamsRef.current?.());
+        if (superseded) queueMicrotask(() => {
+          if (loadedRevision.current !== store.get(LIBRARY_REVISION, 0)) void loadExamsRef.current?.();
+        });
       }
     })();
     loadRequest.current = request;

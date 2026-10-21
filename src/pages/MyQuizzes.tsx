@@ -1,8 +1,9 @@
-import { loadLibraryQuestionMetadata } from "@/lib/library-question-metadata";
+import { quizLibraryQuery } from "@/lib/library-navigation-data";
+import { workspaceQueryClient } from "@/lib/workspace-query-client";
 import { LibrarySubjectShelf } from "@/components/shared/LibrarySubjectShelf";
 import { LibraryDeleteDialog } from "@/components/shared/LibraryDeleteDialog";
 import { useLibraryItemActions } from "@/hooks/use-library-item-actions";
-import { LIBRARY_REVISION, sumLibraryMarks } from "@/lib/library-item-cache";
+import { LIBRARY_REVISION } from "@/lib/library-item-cache";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
@@ -72,6 +73,7 @@ const MyQuizzes = () => {
   const [loading, setLoading] = useState(!loaded);
   const [loadError, setLoadError] = useState<string | null>(null);
   const loadRequest = useRef<Promise<void> | null>(null);
+  const loadedRevision = useRef<number | null>(null);
   const listActions = useRef<{ load: () => Promise<void>; favourites: () => Promise<void>; recover: () => Promise<void> }>();
   const [activeTab, setActiveTab] = useRetainedState<TabType>("quizzes:activeTab", 'all');
   const [filterSubject, setFilterSubject] = useRetainedState("quizzes:filterSubject", 'all');
@@ -97,7 +99,7 @@ const MyQuizzes = () => {
   useEffect(() => {
     if (!ready) return;
     setLoading(!store.get("quizzes:loaded", false));
-    void listActions.current?.load();
+    if (loadedRevision.current !== libraryRevision) void listActions.current?.load();
     void listActions.current?.favourites();
     void listActions.current?.recover();
   }, [ownerId, ready, store, libraryRevision]);
@@ -126,6 +128,11 @@ const MyQuizzes = () => {
 
         setRecoveredCount(lostSets.length);
         localStorage.setItem('practice_sets_recovered', 'true');
+        // Prepared data can predate this confirmed publication. Reload the
+        // opened list rather than reusing its pre-recovery status snapshot.
+        store.set("navigation:quiz-library", null, null);
+        store.set<number>(LIBRARY_REVISION, value => value + 1, 0);
+        await workspaceQueryClient(store).cancelQueries({ queryKey: ["workspace-library", "quiz"] });
 
         toast({
           title: "Practice Sets Restored",
@@ -147,45 +154,26 @@ const MyQuizzes = () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-         const { data: sets, error } = await supabase
-           .from('practice_question_sets')
-           .select('*')
-           .eq('user_id', user.id)
-           .eq('extraction_status', 'completed')
-           .order('created_at', { ascending: false });
-
-        if (error) throw error;
-
-        const [{ data: progressData, error: progressError }, { data: markRows, error: marksError }] = await Promise.all([
-          supabase.from('practice_set_progress').select('*').eq('user_id', user.id),
-          loadLibraryQuestionMetadata('quiz', (sets || []).map(set => set.id)).then(data => ({ data, error: null })).catch((error: unknown) => ({ data: [], error })),
-        ]);
-
-        if (progressError) throw progressError;
+        const prepared = store.get<Awaited<ReturnType<ReturnType<typeof quizLibraryQuery>["queryFn"]>> | null>("navigation:quiz-library", null);
+        store.set("navigation:quiz-library", null, null);
+        const snapshot = prepared || await workspaceQueryClient(store).fetchQuery({ ...quizLibraryQuery(store), staleTime: 0 });
         if (revision !== store.get(LIBRARY_REVISION, 0)) { superseded = true; return; }
-        if (marksError) setLoadError("Couldn’t load mark totals. Your quizzes are still available; retry to load the totals.");
-        setTotalMarks(Object.fromEntries((sets || []).map(set => [set.id, marksError ? null : sumLibraryMarks((markRows || []).filter(row => row.itemId === set.id))])));
-
-        const progressLookup: Record<string, PracticeSetProgress> = {};
-        progressData?.forEach(p => {
-          progressLookup[p.set_id] = {
-            questions_attempted: p.questions_attempted || 0,
-            last_accessed_at: p.last_accessed_at || p.created_at,
-            completed_at: p.completed_at || undefined,
-            time_spent_seconds: p.time_spent_seconds || 0,
-          };
-        });
-
-        setProgressMap(progressLookup);
-        setPracticeSets(sets || []);
+        if (snapshot.marksError) setLoadError("Couldn’t load mark totals. Your quizzes are still available; retry to load the totals.");
+        setTotalMarks(snapshot.totalMarks);
+        setProgressMap(snapshot.progressMap);
+        setPracticeSets(snapshot.sets);
         setLoaded(true);
+        loadedRevision.current = revision;
       } catch (error: any) {
+        if (revision !== store.get(LIBRARY_REVISION, 0)) { superseded = true; return; }
         setLoadError(error.message || "Couldn’t load your practice sets.");
         toast({ title: "Error", description: error.message, variant: "destructive" });
       } finally {
         setLoading(false);
         loadRequest.current = null;
-        if (superseded) queueMicrotask(() => void listActions.current?.load());
+        if (superseded) queueMicrotask(() => {
+          if (loadedRevision.current !== store.get(LIBRARY_REVISION, 0)) void listActions.current?.load();
+        });
       }
     })();
     loadRequest.current = request;

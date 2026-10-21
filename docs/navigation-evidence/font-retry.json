@@ -1,0 +1,29 @@
+{
+  "initial_external_errors": [
+    {
+      "width": 1440,
+      "theme": "light",
+      "type": "console",
+      "error": "Failed to load resource: the server responded with a status of 503 ()"
+    }
+  ],
+  "initial_failed_font_requests": [
+    {
+      "url": "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap",
+      "error": "net::ERR_ABORTED"
+    }
+  ],
+  "targeted_retry": {
+    "viewport": "1440x1000 light",
+    "transitions": 14,
+    "errors": [],
+    "failed_requests": [],
+    "font_responses": [
+      200,
+      200
+    ]
+  },
+  "unchanged_source": true,
+  "tls_verification_enabled": true,
+  "persistent_certificate_database_modified": false
+}

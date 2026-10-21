@@ -1,4 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useWorkspaceQueryScope } from "@/hooks/use-workspace-query-client";
+import { accuracyTrendQuery } from "@/lib/exam-stats-query";
+import { LoadError } from "@/components/shared/ListFeedback";
 import {
   LineChart,
   Line,
@@ -26,7 +30,6 @@ import {
 import { DiagramModal } from "@/components/shared/DiagramModal";
 import { ChartDataTable } from "./ChartDataTable";
 import { Skeleton } from "@/components/ui/skeleton";
-import { supabase } from "@/integrations/supabase/client";
 
 interface SubmissionRow {
   submitted_at: string | null;
@@ -177,40 +180,11 @@ const ChartBody = ({
 
 export const AccuracyTrendChart = () => {
   const [expanded, setExpanded] = useState(false);
-  const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
-  const [retry, setRetry] = useState(0);
-
-  useEffect(() => {
-    const fetch = async () => {
-      setLoading(true);
-      setFailed(false);
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) {
-          setLoading(false);
-          return;
-        }
-        const since = subWeeks(new Date(), 12).toISOString();
-        const { data, error } = await supabase
-          .from("exam_submissions")
-          .select("submitted_at, total_score, total_marks, status")
-          .eq("student_id", user.id)
-          .eq("status", "graded")
-          .gte("submitted_at", since);
-        if (error) throw error;
-        setSubmissions(data ?? []);
-      } catch {
-        setFailed(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetch();
-  }, [retry]);
+  const { store, client } = useWorkspaceQueryScope();
+  const query = useQuery({ ...accuracyTrendQuery(store), refetchOnMount: "always", retryOnMount: false }, client);
+  const submissions: SubmissionRow[] = query.data || [];
+  const loading = query.isPending;
+  const failed = query.isError && !query.data;
 
   const chartData = useMemo(() => {
     const now = new Date();
@@ -306,6 +280,7 @@ export const AccuracyTrendChart = () => {
   return (
     <>
       <div className="stats-panel stats-overall-trend overflow-hidden h-full flex flex-col">
+        {query.error && query.data && <LoadError message="Couldn’t refresh the accuracy trend. Your previous results are still shown." onRetry={() => void query.refetch({ cancelRefetch: false })} />}
         {/* Header */}
         <div className="stats-panel-heading flex justify-between items-center gap-2 flex-shrink-0">
           <div className="min-w-0">
@@ -403,7 +378,7 @@ export const AccuracyTrendChart = () => {
               <button
                 type="button"
                 className="rounded-md border border-border px-4 py-2.5 text-primary"
-                onClick={() => setRetry((v) => v + 1)}
+                onClick={() => void query.refetch({ cancelRefetch: false })}
               >
                 Retry accuracy trend
               </button>

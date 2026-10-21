@@ -199,7 +199,8 @@ it.each([
       await act(async () => {
         await result.current.refetch();
       });
-      expect(result.current.error).toBeNull();
+      // Query observers notify asynchronously after the retry completes.
+      await waitFor(() => expect(result.current.error).toBeNull());
       expect(result.current.subjectPerformanceData).toHaveLength(2);
     } finally {
       log.mockRestore();

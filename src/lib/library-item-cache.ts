@@ -1,3 +1,4 @@
+import { workspaceQueryClient } from "./workspace-query-client";
 import type { QueryClient } from "@tanstack/react-query";
 import type { WorkspaceStore } from "@/hooks/use-workspace-session";
 
@@ -6,6 +7,7 @@ export const LIBRARY_REVISION = "library:revision";
 
 /** Apply only a server-confirmed change. Filters, drafts and navigation state are retained. */
 export async function refreshLibraryItemCaches(store: WorkspaceStore, queryClient: QueryClient, kind: LibraryKind, id: string, status?: string) {
+  const previousRevision = store.get(LIBRARY_REVISION, 0);
   const update = <T extends { id: string; status?: string | null }>(items: T[]) => status
     ? items.map(item => item.id === id ? { ...item, status } : item)
     : items.filter(item => item.id !== id);
@@ -26,6 +28,15 @@ export async function refreshLibraryItemCaches(store: WorkspaceStore, queryClien
   }
   // Lists ignore reads started before this change and refetch rather than resurrecting old rows.
   store.set<number>(LIBRARY_REVISION, previous => previous + 1, 0);
+  store.set(`navigation:${kind}-library`, null, null);
+  const reads = workspaceQueryClient(store);
+  const staleReads = { queryKey: ["workspace-library", kind], predicate: (query: { queryKey: readonly unknown[] }) => Number(query.queryKey[2]) <= previousRevision };
+  await reads.cancelQueries(staleReads);
+  reads.removeQueries(staleReads);
+  void reads.invalidateQueries({ queryKey: ["workspace-exam-stats"] });
+  void reads.invalidateQueries({ queryKey: ["workspace-accuracy-trend"] });
+  void reads.invalidateQueries({ queryKey: ["workspace-subject-average"] });
+  void reads.invalidateQueries({ queryKey: ["workspace-unified-topics"] });
   // Home has a 60-second query cache. Remove the old snapshot before another page can reuse it.
   const key = { queryKey: ["student-dashboard", store.ownerId] };
   await queryClient.cancelQueries(key);
