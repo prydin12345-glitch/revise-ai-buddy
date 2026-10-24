@@ -1,0 +1,46 @@
+[
+  {
+    "case": "tutor-authored string subjects, legacy UUID, object colour and unassigned subject",
+    "name": "laptop",
+    "width": 1440,
+    "height": 1000,
+    "touch": false,
+    "theme": "light",
+    "status": "pass",
+    "errors": [],
+    "externalBlocked": []
+  },
+  {
+    "case": "tutor-authored string subjects, legacy UUID, object colour and unassigned subject",
+    "name": "laptop",
+    "width": 1440,
+    "height": 1000,
+    "touch": false,
+    "theme": "dark",
+    "status": "pass",
+    "errors": [],
+    "externalBlocked": []
+  },
+  {
+    "case": "tutor-authored string subjects, legacy UUID, object colour and unassigned subject",
+    "name": "phone",
+    "width": 390,
+    "height": 844,
+    "touch": true,
+    "theme": "light",
+    "status": "pass",
+    "errors": [],
+    "externalBlocked": []
+  },
+  {
+    "case": "tutor-authored string subjects, legacy UUID, object colour and unassigned subject",
+    "name": "phone",
+    "width": 390,
+    "height": 844,
+    "touch": true,
+    "theme": "dark",
+    "status": "pass",
+    "errors": [],
+    "externalBlocked": []
+  }
+]

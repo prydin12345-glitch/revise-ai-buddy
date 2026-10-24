@@ -1,0 +1,80 @@
+[
+  {
+    "case": "keyboard focus and tabpanel accessibility tree",
+    "focusSequence": [
+      {
+        "tag": "BUTTON",
+        "role": null,
+        "label": null,
+        "text": "View all",
+        "width": 70.484375,
+        "height": 44,
+        "outline": "solid",
+        "parentOutline": "none",
+        "shadow": "rgb(242, 244, 247) 0px 0px 0px 2px, rgb(34, 70, 155) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+      },
+      {
+        "tag": "DIV",
+        "role": "region",
+        "label": "Your assignments",
+        "text": "In progress\nBiological molecules\n\nA Level Biology · Exam\n\nSet by Dr Maya Wilson\n",
+        "width": 806,
+        "height": 232.375,
+        "outline": "solid",
+        "parentOutline": "none",
+        "shadow": "none"
+      },
+      {
+        "tag": "BUTTON",
+        "role": null,
+        "label": "Continue: Biological molecules",
+        "text": "Continue",
+        "width": 97.625,
+        "height": 44,
+        "outline": "solid",
+        "parentOutline": "none",
+        "shadow": "rgb(242, 244, 247) 0px 0px 0px 2px, rgb(34, 70, 155) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+      },
+      {
+        "tag": "BUTTON",
+        "role": null,
+        "label": "Start: Rates of reaction",
+        "text": "Start",
+        "width": 73.34375,
+        "height": 44,
+        "outline": "solid",
+        "parentOutline": "none",
+        "shadow": "rgb(242, 244, 247) 0px 0px 0px 2px, rgb(34, 70, 155) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+      },
+      {
+        "tag": "BUTTON",
+        "role": null,
+        "label": "Start: Functions and graphs",
+        "text": "Start",
+        "width": 73.34375,
+        "height": 44,
+        "outline": "solid",
+        "parentOutline": "none",
+        "shadow": "rgb(242, 244, 247) 0px 0px 0px 2px, rgb(34, 70, 155) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+      },
+      {
+        "tag": "INPUT",
+        "role": null,
+        "label": "Search classes or tutors",
+        "text": "",
+        "width": 188,
+        "height": 40,
+        "outline": "none",
+        "parentOutline": "solid",
+        "shadow": "none"
+      }
+    ],
+    "tabpanelAX": [
+      {
+        "ignored": false,
+        "name": "Overview",
+        "children": 3
+      }
+    ]
+  }
+]

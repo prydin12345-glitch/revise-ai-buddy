@@ -1,0 +1,50 @@
+[
+  {
+    "case": "1024×768 touch class detail layout",
+    "width": 1024,
+    "height": 768,
+    "touch": true,
+    "theme": "light",
+    "status": "pass",
+    "overflow": false,
+    "gridWidth": 976,
+    "mainWidth": 976,
+    "gridColumn": "auto",
+    "columns": "976px",
+    "completedCards": [
+      {
+        "width": 926,
+        "scroll": 921
+      }
+    ],
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "case": "1024×768 touch class detail layout",
+    "width": 1024,
+    "height": 768,
+    "touch": true,
+    "theme": "dark",
+    "status": "pass",
+    "overflow": false,
+    "gridWidth": 976,
+    "mainWidth": 976,
+    "gridColumn": "auto",
+    "columns": "976px",
+    "completedCards": [
+      {
+        "width": 926,
+        "scroll": 921
+      }
+    ],
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  }
+]

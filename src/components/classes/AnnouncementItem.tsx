@@ -1,7 +1,7 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Paperclip, Megaphone } from "lucide-react";
+import { useId, useState } from "react";
+import { Paperclip, Megaphone, ChevronDown, ChevronUp } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
+import "@/styles/class-cards.css";
 
 interface AnnouncementItemProps {
   announcement: {
@@ -17,55 +17,41 @@ interface AnnouncementItemProps {
 }
 
 export const AnnouncementItem = ({ announcement, isUnread = false, showGroupName = false }: AnnouncementItemProps) => {
+  const [expanded, setExpanded] = useState(false);
+  const messageId = useId();
+  const isLongMessage = announcement.message.length > 240 || announcement.message.split("\n").length > 3;
+
   return (
-    <Card className={`transition-all hover:shadow-sm ${isUnread ? "border-l-4 border-l-primary bg-primary/5" : ""}`}>
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isUnread ? "bg-primary/20" : "bg-muted"}`}>
-            <Megaphone className={`w-4 h-4 ${isUnread ? "text-primary" : "text-muted-foreground"}`} />
-          </div>
-          
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <h4 className={`font-medium text-foreground line-clamp-1 ${isUnread ? "font-semibold" : ""}`}>
-                {announcement.title}
-              </h4>
-              {isUnread && (
-                <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
-              )}
-            </div>
-            
-            <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-              {announcement.message}
-            </p>
-            
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span title={format(new Date(announcement.created_at), "PPpp")}>
-                {formatDistanceToNow(new Date(announcement.created_at), { addSuffix: true })}
-              </span>
-              
-              {showGroupName && announcement.group_name && (
-                <Badge variant="outline" className="text-xs">
-                  {announcement.group_name}
-                </Badge>
-              )}
-              
-              {announcement.attachment_url && (
-                <a 
-                  href={announcement.attachment_url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-primary hover:underline"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Paperclip className="w-3 h-3" />
-                  Attachment
-                </a>
-              )}
-            </div>
-          </div>
+    <article className={`class-announcement${isUnread ? " class-announcement--unread" : ""}`}>
+      <span className="class-announcement__icon"><Megaphone aria-hidden="true" /></span>
+      <div className="class-announcement__body">
+        <div className="class-announcement__metadata">
+          {showGroupName && announcement.group_name && <span>{announcement.group_name}</span>}
+          <time dateTime={announcement.created_at} title={format(new Date(announcement.created_at), "PPpp")}>
+            {formatDistanceToNow(new Date(announcement.created_at), { addSuffix: true })}
+          </time>
+          {isUnread && <span className="class-announcement__unread-label">Unread</span>}
         </div>
-      </CardContent>
-    </Card>
+        <h3>{announcement.title}</h3>
+        <p id={messageId} className={isLongMessage && !expanded ? "class-announcement__message--collapsed" : undefined}>
+          {announcement.message}
+        </p>
+        {(isLongMessage || announcement.attachment_url) && (
+          <div className="class-announcement__actions">
+            {isLongMessage && (
+              <button type="button" onClick={() => setExpanded(!expanded)} aria-expanded={expanded} aria-controls={messageId}>
+                {expanded ? "Show less" : "Read announcement"}
+                {expanded ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
+              </button>
+            )}
+            {announcement.attachment_url && (
+              <a href={announcement.attachment_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                <Paperclip aria-hidden="true" />Attachment<span className="sr-only"> (opens in a new tab)</span>
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+    </article>
   );
 };

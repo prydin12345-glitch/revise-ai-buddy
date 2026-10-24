@@ -40,19 +40,19 @@ export const CompletedAssignmentCard = ({
   };
 
   return (
-    <Card className="hover:shadow-md transition-all duration-200 border-l-4 border-l-emerald-500">
+    <Card className="class-completed-assignment border-l-4 border-l-primary">
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <Badge variant="outline" className="text-xs font-medium">
-                {assignment.exam_type === "uploaded" ? "Exam" : "Practice"}
+                Exam
               </Badge>
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
               <span className="text-xs text-emerald-600 font-medium">Completed</span>
             </div>
             
-            <h4 className="font-medium text-foreground line-clamp-1 mb-1">
+            <h4 className="font-medium text-foreground break-words mb-1">
               {assignment.exam_title}
             </h4>
 
