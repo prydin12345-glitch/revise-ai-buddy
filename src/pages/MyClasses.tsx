@@ -14,12 +14,12 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Search, BookOpen, Megaphone, ClipboardList, CheckCircle2, ChevronRight, type LucideIcon } from "lucide-react";
+import { Plus, Search, BookOpen, CheckCircle2, ChevronRight, type LucideIcon } from "lucide-react";
 import { JoinClassModal } from "@/components/tutor/JoinClassModal";
 import { ClassCard } from "@/components/classes/ClassCard";
 import { ClassDetailView } from "@/components/classes/ClassDetailView";
 import { ClassDeadlineCalendar } from "@/components/classes/ClassDeadlineCalendar";
-import { AnnouncementItem } from "@/components/classes/AnnouncementItem";
+import { ClassAnnouncements } from "@/components/classes/ClassAnnouncements";
 import { AssignmentRow } from "@/components/classes/AssignmentRow";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { format, isSameDay, isSameMonth, isValid, startOfMonth } from "date-fns";
@@ -113,6 +113,7 @@ const MyClasses = () => {
   const [selectedMonth, setSelectedMonth] = useRetainedState("classes:month:v1", () => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useRetainedState<Date | undefined>("classes:date:v1", undefined);
   const [activeTab, setActiveTab] = useRetainedState("classes:tab:v1", "classes");
+  const [announcementClass, setAnnouncementClass] = useRetainedState("classes:announcements-class:v1", "all");
 
   useEffect(() => {
     const channel = supabase
@@ -265,8 +266,8 @@ const MyClasses = () => {
           <TabsContent value="classes" className="classes-content classes-overview">
             {groups.length === 0 ? <section className="classes-empty-overview"><ClassesEmpty icon={BookOpen} title="No classes yet" description="Join a class to receive assignments and announcements from your teacher or tutor."><Button onClick={() => setJoinModalOpen(true)}><Plus aria-hidden="true" className="h-4 w-4 mr-2" />Join a class</Button></ClassesEmpty></section> : <>
               <section className="classes-assignments-section" aria-labelledby="classes-assignments-heading">
-                <div className="classes-section-heading"><div><h2 id="classes-assignments-heading">Your assignments<span className="classes-count">{pendingAssignments.length} to do</span></h2><p>Set by your tutors. Current work first.</p></div><Button variant="link" className="classes-view-all" onClick={() => setActiveTab("assignments")}>View all<ChevronRight aria-hidden="true" /></Button></div>
-                {pendingAssignments.length ? <div className="classes-assignment-grid" role="region" aria-label="Your assignments" tabIndex={0}>{overviewAssignments.map(assignment => renderAssignment(assignment, "card"))}</div> : <ClassesEmpty icon={CheckCircle2} title={assignments.length ? "You’re all caught up" : "No assignments yet"} description={assignments.length ? "Your submitted work is available under All assignments." : "Work set by your teacher or tutor will appear here."} />}
+                <div className="classes-section-heading"><div><h2 id="classes-assignments-heading">Your assignments<span className="classes-count">{pendingAssignments.length} to do</span></h2><p>Set by your tutors. Current work first.</p></div></div>
+                {pendingAssignments.length ? <div className="classes-assignment-grid" role="region" aria-label="Your assignments" tabIndex={0}>{overviewAssignments.map(assignment => renderAssignment(assignment, "card"))}</div> : <AssignmentsEmpty completed={assignments.length > 0} />}
               </section>
               <section className="classes-cards-section" aria-labelledby="classes-cards-heading">
                 <div className="classes-section-heading"><h2 id="classes-cards-heading">Your classes<span className="classes-count">{groups.length}</span></h2><div className="classes-search"><Search aria-hidden="true" /><Input aria-label="Search classes or tutors" placeholder="Search classes or tutors" value={searchQuery} onChange={event => setSearchQuery(event.target.value)} /></div></div>
@@ -280,18 +281,18 @@ const MyClasses = () => {
               </section>
               <section className="classes-announcements-section" aria-labelledby="classes-announcements-heading">
                 <div className="classes-section-heading"><h2 id="classes-announcements-heading">From your tutors</h2><Button variant="link" className="classes-view-all" onClick={() => setActiveTab("announcements")}>View all<ChevronRight aria-hidden="true" /></Button></div>
-                {announcements.length ? <div className="classes-announcement-list">{announcements.slice(0, 2).map(announcement => <AnnouncementItem key={announcement.id} announcement={announcement} showGroupName />)}</div> : <ClassesEmpty icon={Megaphone} title="No announcements yet" description="Updates from your teacher or tutor will appear here." />}
+                <ClassAnnouncements announcements={announcements} groups={groups} selectedClass={announcementClass} onClassChange={setAnnouncementClass} limit={2} />
               </section>
             </>}
           </TabsContent>
           <TabsContent value="assignments" className="classes-content">
             <section className="classes-full-section" aria-labelledby="classes-all-assignments-heading"><div className="classes-section-heading"><div><h2 id="classes-all-assignments-heading">All assignments</h2><p>Tutor-set work, including submitted assignments.</p></div></div>
-              {assignments.length ? <div className="classes-assignment-list">{sortedAssignments.map(assignment => renderAssignment(assignment, "row"))}</div> : <ClassesEmpty icon={ClipboardList} title="No assignments yet" description="Your teachers and tutors haven’t assigned any work yet." />}
+              {assignments.length ? <div className="classes-assignment-list">{sortedAssignments.map(assignment => renderAssignment(assignment, "row"))}</div> : <AssignmentsEmpty />}
             </section>
           </TabsContent>
           <TabsContent value="announcements" className="classes-content">
             <section className="classes-full-section" aria-labelledby="classes-all-announcements-heading"><div className="classes-section-heading"><div><h2 id="classes-all-announcements-heading">Announcements</h2><p>Updates and resources from your tutors.</p></div></div>
-              {announcements.length ? <div className="classes-announcement-list">{announcements.map(announcement => <AnnouncementItem key={announcement.id} announcement={announcement} showGroupName />)}</div> : <ClassesEmpty icon={Megaphone} title="No announcements yet" description="Your teachers and tutors haven’t posted any announcements yet." />}
+              <ClassAnnouncements announcements={announcements} groups={groups} selectedClass={announcementClass} onClassChange={setAnnouncementClass} />
             </section>
           </TabsContent>
           {groups.length > 0 && <aside className="classes-schedule-column" aria-label="Calendar and upcoming deadlines">
@@ -313,6 +314,14 @@ const MyClasses = () => {
 
 function ClassesEmpty({ icon: Icon, title, description, children }: { icon: LucideIcon; title: string; description: string; children?: ReactNode }) {
   return <div className="classes-empty"><Icon aria-hidden="true" /><h3>{title}</h3><p>{description}</p>{children}</div>;
+}
+
+function AssignmentsEmpty({ completed = false }: { completed?: boolean }) {
+  return <div className="classes-assignment-empty">
+    <div className="classes-assignment-empty__divider" aria-hidden="true"><span /><CheckCircle2 /><span /></div>
+    <h3>{completed ? "You’re all caught up" : "No assignments yet"}</h3>
+    <p>{completed ? "Your submitted work is available under All assignments." : "Work set by your teacher or tutor will appear here."}</p>
+  </div>;
 }
 
 function ClassesSkeleton() {

@@ -1,0 +1,412 @@
+{
+  "scope": "Synthetic in-memory classes and announcements; actual application source. No login, real backend, model calls or live mutation.",
+  "baselineCommit": "ca2c8688",
+  "browser": "Chromium 151 / Playwright emulation",
+  "before": [
+    {
+      "name": "laptop",
+      "width": 1440,
+      "height": 1000,
+      "touch": false,
+      "theme": "light",
+      "overflow": false,
+      "tab": {
+        "clientHeight": 43,
+        "scrollHeight": 44,
+        "overflowY": "auto"
+      },
+      "empty": null,
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "touch": true,
+      "theme": "dark",
+      "overflow": false,
+      "tab": {
+        "clientHeight": 43,
+        "scrollHeight": 44,
+        "overflowY": "auto"
+      },
+      "empty": null,
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    }
+  ],
+  "views": [
+    {
+      "name": "laptop",
+      "width": 1440,
+      "height": 1000,
+      "touch": false,
+      "theme": "light",
+      "overflow": false,
+      "tab": {
+        "clientHeight": 44,
+        "scrollHeight": 44,
+        "overflowY": "hidden"
+      },
+      "empty": {
+        "border": "0px",
+        "background": "rgba(0, 0, 0, 0)",
+        "icon": true,
+        "dividers": 2
+      },
+      "filterChecks": "All / each joined class / no-recent class / keyboard / retained across tabs / no extra reads",
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": [],
+      "functionInvocations": []
+    },
+    {
+      "name": "laptop",
+      "width": 1440,
+      "height": 1000,
+      "touch": false,
+      "theme": "dark",
+      "overflow": false,
+      "tab": {
+        "clientHeight": 44,
+        "scrollHeight": 44,
+        "overflowY": "hidden"
+      },
+      "empty": {
+        "border": "0px",
+        "background": "rgba(0, 0, 0, 0)",
+        "icon": true,
+        "dividers": 2
+      },
+      "filterChecks": "All / each joined class / no-recent class / keyboard / retained across tabs / no extra reads",
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": [],
+      "functionInvocations": []
+    },
+    {
+      "name": "ipad-landscape",
+      "width": 1180,
+      "height": 820,
+      "touch": true,
+      "theme": "light",
+      "overflow": false,
+      "tab": {
+        "clientHeight": 44,
+        "scrollHeight": 44,
+        "overflowY": "hidden"
+      },
+      "empty": {
+        "border": "0px",
+        "background": "rgba(0, 0, 0, 0)",
+        "icon": true,
+        "dividers": 2
+      },
+      "filterChecks": "All / each joined class / no-recent class / keyboard / retained across tabs / no extra reads",
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": [],
+      "functionInvocations": []
+    },
+    {
+      "name": "ipad-landscape",
+      "width": 1180,
+      "height": 820,
+      "touch": true,
+      "theme": "dark",
+      "overflow": false,
+      "tab": {
+        "clientHeight": 44,
+        "scrollHeight": 44,
+        "overflowY": "hidden"
+      },
+      "empty": {
+        "border": "0px",
+        "background": "rgba(0, 0, 0, 0)",
+        "icon": true,
+        "dividers": 2
+      },
+      "filterChecks": "All / each joined class / no-recent class / keyboard / retained across tabs / no extra reads",
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": [],
+      "functionInvocations": []
+    },
+    {
+      "name": "ipad-portrait",
+      "width": 834,
+      "height": 1112,
+      "touch": true,
+      "theme": "light",
+      "overflow": false,
+      "tab": {
+        "clientHeight": 44,
+        "scrollHeight": 44,
+        "overflowY": "hidden"
+      },
+      "empty": {
+        "border": "0px",
+        "background": "rgba(0, 0, 0, 0)",
+        "icon": true,
+        "dividers": 2
+      },
+      "filterChecks": "All / each joined class / no-recent class / keyboard / retained across tabs / no extra reads",
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": [],
+      "functionInvocations": []
+    },
+    {
+      "name": "ipad-portrait",
+      "width": 834,
+      "height": 1112,
+      "touch": true,
+      "theme": "dark",
+      "overflow": false,
+      "tab": {
+        "clientHeight": 44,
+        "scrollHeight": 44,
+        "overflowY": "hidden"
+      },
+      "empty": {
+        "border": "0px",
+        "background": "rgba(0, 0, 0, 0)",
+        "icon": true,
+        "dividers": 2
+      },
+      "filterChecks": "All / each joined class / no-recent class / keyboard / retained across tabs / no extra reads",
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": [],
+      "functionInvocations": []
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "touch": true,
+      "theme": "light",
+      "overflow": false,
+      "tab": {
+        "clientHeight": 44,
+        "scrollHeight": 44,
+        "overflowY": "hidden"
+      },
+      "empty": {
+        "border": "0px",
+        "background": "rgba(0, 0, 0, 0)",
+        "icon": true,
+        "dividers": 2
+      },
+      "filterChecks": "All / each joined class / no-recent class / keyboard / retained across tabs / no extra reads",
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": [],
+      "functionInvocations": []
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "touch": true,
+      "theme": "dark",
+      "overflow": false,
+      "tab": {
+        "clientHeight": 44,
+        "scrollHeight": 44,
+        "overflowY": "hidden"
+      },
+      "empty": {
+        "border": "0px",
+        "background": "rgba(0, 0, 0, 0)",
+        "icon": true,
+        "dividers": 2
+      },
+      "filterChecks": "All / each joined class / no-recent class / keyboard / retained across tabs / no extra reads",
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": [],
+      "functionInvocations": []
+    },
+    {
+      "name": "narrow",
+      "width": 320,
+      "height": 780,
+      "touch": true,
+      "theme": "light",
+      "overflow": false,
+      "tab": {
+        "clientHeight": 44,
+        "scrollHeight": 44,
+        "overflowY": "hidden"
+      },
+      "empty": {
+        "border": "0px",
+        "background": "rgba(0, 0, 0, 0)",
+        "icon": true,
+        "dividers": 2
+      },
+      "filterChecks": "All / each joined class / no-recent class / keyboard / retained across tabs / no extra reads",
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": [],
+      "functionInvocations": []
+    },
+    {
+      "name": "narrow",
+      "width": 320,
+      "height": 780,
+      "touch": true,
+      "theme": "dark",
+      "overflow": false,
+      "tab": {
+        "clientHeight": 44,
+        "scrollHeight": 44,
+        "overflowY": "hidden"
+      },
+      "empty": {
+        "border": "0px",
+        "background": "rgba(0, 0, 0, 0)",
+        "icon": true,
+        "dividers": 2
+      },
+      "filterChecks": "All / each joined class / no-recent class / keyboard / retained across tabs / no extra reads",
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": [],
+      "functionInvocations": []
+    }
+  ],
+  "filterRail": [
+    {
+      "theme": "light",
+      "left": 1902,
+      "clientWidth": 358,
+      "scrollWidth": 2260,
+      "overflowY": "hidden",
+      "scrollbarWidth": "none",
+      "focusOutline": "solid",
+      "focusedRight": 368.171875,
+      "right": 371,
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    },
+    {
+      "theme": "dark",
+      "left": 1902,
+      "clientWidth": 358,
+      "scrollWidth": 2260,
+      "overflowY": "hidden",
+      "scrollbarWidth": "none",
+      "focusOutline": "solid",
+      "focusedRight": 368.171875,
+      "right": 371,
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    }
+  ],
+  "finalSourceHashes": {
+    "src/components/classes/ClassAnnouncements.tsx": "8a023fc50cd79af91bdaa2b7068156a1d21d7ab260a7de9fbb23b936994da00e",
+    "src/styles/class-announcements.css": "492a4278890aa08f90d46d68f455358adee604eea8f725218dbb87dcc0e21ca6",
+    "src/components/classes/AnnouncementItem.tsx": "524649e2bba7be7d9f2fbae7c50a2f327d52ee01413cdfc52a0fbb318c83ceda",
+    "src/pages/MyClasses.tsx": "fc7d89a8d163e3a35e7b655652aa4ca8f2f4aed54d62b10c65ad74c1a8a54856",
+    "src/styles/classes-workspace.css": "859da47e2c13aed383377576923556a627ea416346a6bfa52e3a39a7defe9e79"
+  },
+  "sourceUnchangedDuringRun": true,
+  "fontHandling": "Existing Manrope and Source Serif imports fulfilled from local snapshots. No external font/TLS health verification is claimed.",
+  "notVerified": [
+    "Real iOS/iPadOS hardware, Safari or VoiceOver",
+    "Live user accounts or backend authorization beyond existing contracts",
+    "External font/network/TLS health"
+  ],
+  "primaryTabKeyboardChecks": [
+    {
+      "width": 130.84375,
+      "height": 44,
+      "touch": false,
+      "theme": "light",
+      "outline": "solid",
+      "offset": "-3px",
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    },
+    {
+      "width": 108.1875,
+      "height": 44,
+      "touch": true,
+      "theme": "dark",
+      "outline": "solid",
+      "offset": "-3px",
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    }
+  ],
+  "sourceHashesMatchAfterFocus": true,
+  "screenshots": [
+    "after-announcements-ipad-landscape-dark.png",
+    "after-announcements-ipad-landscape-light.png",
+    "after-announcements-ipad-portrait-dark.png",
+    "after-announcements-ipad-portrait-light.png",
+    "after-announcements-laptop-dark.png",
+    "after-announcements-laptop-light.png",
+    "after-announcements-narrow-dark.png",
+    "after-announcements-narrow-light.png",
+    "after-announcements-phone-dark.png",
+    "after-announcements-phone-light.png",
+    "after-empty-ipad-landscape-dark.png",
+    "after-empty-ipad-landscape-light.png",
+    "after-empty-ipad-portrait-dark.png",
+    "after-empty-ipad-portrait-light.png",
+    "after-empty-laptop-dark.png",
+    "after-empty-laptop-light.png",
+    "after-empty-narrow-dark.png",
+    "after-empty-narrow-light.png",
+    "after-empty-phone-dark.png",
+    "after-empty-phone-light.png",
+    "after-many-class-filters-phone-dark.png",
+    "after-many-class-filters-phone-light.png",
+    "before-announcements-laptop-light.png",
+    "before-announcements-phone-dark.png",
+    "before-empty-laptop-light.png",
+    "before-empty-phone-dark.png"
+  ]
+}

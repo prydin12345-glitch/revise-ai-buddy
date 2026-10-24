@@ -1,7 +1,8 @@
 import { useId, useState } from "react";
 import { Paperclip, Megaphone, ChevronDown, ChevronUp } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, isToday, isValid, isYesterday } from "date-fns";
 import "@/styles/class-cards.css";
+import "@/styles/class-announcements.css";
 
 interface AnnouncementItemProps {
   announcement: {
@@ -14,22 +15,32 @@ interface AnnouncementItemProps {
   };
   isUnread?: boolean;
   showGroupName?: boolean;
+  presentation?: "card" | "timeline";
 }
 
-export const AnnouncementItem = ({ announcement, isUnread = false, showGroupName = false }: AnnouncementItemProps) => {
+export const AnnouncementItem = ({ announcement, isUnread = false, showGroupName = false, presentation = "card" }: AnnouncementItemProps) => {
   const [expanded, setExpanded] = useState(false);
   const messageId = useId();
   const isLongMessage = announcement.message.length > 240 || announcement.message.split("\n").length > 3;
+  const createdAt = new Date(announcement.created_at);
+  const hasDate = isValid(createdAt);
+  const recentDate = hasDate && (isToday(createdAt) || isYesterday(createdAt));
+  const dateLabel = !hasDate ? "Date unavailable" : isToday(createdAt) ? "Today" : isYesterday(createdAt) ? "Yesterday" : format(createdAt, "d MMM");
 
   return (
-    <article className={`class-announcement${isUnread ? " class-announcement--unread" : ""}`}>
-      <span className="class-announcement__icon"><Megaphone aria-hidden="true" /></span>
+    <article className={`class-announcement${presentation === "timeline" ? " class-announcement--timeline" : ""}${isUnread ? " class-announcement--unread" : ""}`}>
+      {presentation === "timeline" ? (
+        <time className="class-announcement__timeline-date" dateTime={hasDate ? announcement.created_at : undefined} title={hasDate ? format(createdAt, "PPpp") : undefined}>
+          <span>{dateLabel}</span>
+          {hasDate && <span>{format(createdAt, recentDate ? "HH:mm" : "yyyy")}</span>}
+        </time>
+      ) : <span className="class-announcement__icon"><Megaphone aria-hidden="true" /></span>}
       <div className="class-announcement__body">
         <div className="class-announcement__metadata">
           {showGroupName && announcement.group_name && <span>{announcement.group_name}</span>}
-          <time dateTime={announcement.created_at} title={format(new Date(announcement.created_at), "PPpp")}>
-            {formatDistanceToNow(new Date(announcement.created_at), { addSuffix: true })}
-          </time>
+          {presentation !== "timeline" && <time dateTime={hasDate ? announcement.created_at : undefined} title={hasDate ? format(createdAt, "PPpp") : undefined}>
+            {hasDate ? formatDistanceToNow(createdAt, { addSuffix: true }) : "Date unavailable"}
+          </time>}
           {isUnread && <span className="class-announcement__unread-label">Unread</span>}
         </div>
         <h3>{announcement.title}</h3>
