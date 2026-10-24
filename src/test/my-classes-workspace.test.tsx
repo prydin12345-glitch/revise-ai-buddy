@@ -82,7 +82,8 @@ describe("My Classes redesigned workspace", () => {
     data = { ...data, assignments: [], submissions: new Map() };
     open();
     await screen.findByRole("button", { name: "Open A Level Biology" });
-    const assignmentsSection = within(screen.getByRole("region", { name: /Your assignments/i }));
+    fireEvent.keyDown(screen.getByRole("tab", { name: /All assignments/i }), { key: "Enter" });
+    const assignmentsSection = within(screen.getByRole("region", { name: /All assignments/i }));
     expect(assignmentsSection.getByRole("heading", { name: "No assignments yet" })).toBeVisible();
     expect(assignmentsSection.getByText("Work set by your teacher or tutor will appear here.")).toBeVisible();
     expect(assignmentsSection.queryByRole("button", { name: /View all/i })).not.toBeInTheDocument();
@@ -91,28 +92,30 @@ describe("My Classes redesigned workspace", () => {
     expect(fake.writes).toEqual([]);
   });
 
-  it("distinguishes caught-up submitted work from a class that has never received assignments", async () => {
+  it("shows only classes on Your classes while keeping completed assignments available", async () => {
     data = { ...data, submissions: new Map(assigned.map(assignment => [assignment.exam_id, { status: "submitted" }])) };
     open();
     await screen.findByRole("button", { name: "Open A Level Biology" });
-    const assignmentsSection = within(screen.getByRole("region", { name: /Your assignments/i }));
-    expect(assignmentsSection.getByRole("heading", { name: /all caught up/i })).toBeVisible();
-    expect(assignmentsSection.queryByRole("heading", { name: "No assignments yet" })).not.toBeInTheDocument();
-    expect(assignmentsSection.queryByRole("button", { name: /View all/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Your classes" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByRole("region", { name: /Your assignments/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Filter announcements by class" })).not.toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Calendar and upcoming deadlines" })).toBeVisible();
     fireEvent.keyDown(screen.getByRole("tab", { name: /All assignments/i }), { key: "Enter" });
     expect(within(screen.getByRole("tabpanel")).getAllByRole("article")).toHaveLength(assigned.length);
     expect(screen.queryByText("0%")).not.toBeInTheDocument();
   });
 
-  it("shares the selected announcement class across overview/full tabs and restores it without extra reads on filtering", async () => {
+  it("retains the selected announcement class through Your classes and remount without extra reads on filtering", async () => {
     data = { ...data, announcements: [...data.announcements, { ...data.announcements[0], id: "notice-maths", group_id: "maths-group", group_name: "Mathematics Workshop", title: "Maths preparation" }] };
     const first = open();
     await screen.findByRole("button", { name: "Open A Level Biology" });
     const initialReads = fake.read.mock.calls.length;
+    fireEvent.keyDown(screen.getByRole("tab", { name: /Announcements/i }), { key: "Enter" });
     const filter = within(screen.getByRole("group", { name: "Filter announcements by class" }));
     fireEvent.click(filter.getByRole("button", { name: "Mathematics Workshop" }));
     expect(screen.getByRole("heading", { name: "Maths preparation" })).toBeVisible();
     expect(screen.queryByRole("heading", { name: "Assessment preparation" })).not.toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("tab", { name: "Your classes" }), { key: "Enter" });
     fireEvent.keyDown(screen.getByRole("tab", { name: /Announcements/i }), { key: "Enter" });
     expect(screen.getByRole("button", { name: "Mathematics Workshop" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByRole("heading", { name: "Assessment preparation" })).not.toBeInTheDocument();
@@ -126,12 +129,14 @@ describe("My Classes redesigned workspace", () => {
   it("does not carry an announcement class filter into a different account", async () => {
     const first = open();
     await screen.findByRole("button", { name: "Open A Level Biology" });
+    fireEvent.keyDown(screen.getByRole("tab", { name: /Announcements/i }), { key: "Enter" });
     fireEvent.click(within(screen.getByRole("group", { name: "Filter announcements by class" })).getByRole("button", { name: "Mathematics Workshop" }));
     expect(screen.queryByRole("heading", { name: "Assessment preparation" })).not.toBeInTheDocument();
     first.unmount();
     const otherStore = new WorkspaceStore("bob", 1);
     const second = open("/my-classes", otherStore);
     await screen.findByRole("button", { name: "Open A Level Biology" });
+    fireEvent.keyDown(screen.getByRole("tab", { name: /Announcements/i }), { key: "Enter" });
     expect(screen.getByRole("button", { name: "All classes" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("heading", { name: "Assessment preparation" })).toBeVisible();
     second.unmount(); workspaceQueryClient(otherStore).clear();
@@ -207,13 +212,10 @@ describe("My Classes redesigned workspace", () => {
     await waitFor(() => expect(screen.getByRole("tab", { name: /All assignments/i })).toHaveAttribute("aria-selected", "true"));
   });
 
-  it("keeps actionable work visible when several older assignments have closed", async () => {
+  it("keeps old and current assignments in the full list after removing the class-tab preview", async () => {
     const closed = [1, 2, 3].map(day => ({ ...assigned[0], id: `closed-${day}`, exam_id: `closed-exam-${day}`, exam_title: `Closed assessment ${day}`, deadline: `2026-10-0${day}T17:00:00` }));
     data = { ...data, assignments: [...closed, assigned[0]] };
     open(); await screen.findByRole("button", { name: "Open A Level Biology" });
-    const preview = within(screen.getByRole("region", { name: "Your assignments" }));
-    expect(preview.getByRole("article", { name: "Biological molecules" })).toBeVisible();
-    expect(preview.getAllByRole("article")[0]).toHaveAttribute("aria-label", "Biological molecules");
     fireEvent.keyDown(screen.getByRole("tab", { name: /All assignments/i }), { key: "Enter" });
     const fullList = within(screen.getByRole("tabpanel"));
     closed.forEach(assignment => expect(fullList.getByRole("article", { name: assignment.exam_title })).toBeVisible());
