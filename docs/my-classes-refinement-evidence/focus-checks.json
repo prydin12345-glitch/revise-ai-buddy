@@ -1,0 +1,28 @@
+[
+  {
+    "width": 130.84375,
+    "height": 44,
+    "touch": false,
+    "theme": "light",
+    "outline": "solid",
+    "offset": "-3px",
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "width": 108.1875,
+    "height": 44,
+    "touch": true,
+    "theme": "dark",
+    "outline": "solid",
+    "offset": "-3px",
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  }
+]

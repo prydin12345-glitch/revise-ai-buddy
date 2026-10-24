@@ -78,6 +78,65 @@ beforeEach(() => {
 afterEach(() => { cleanup(); workspaceQueryClient(store).clear(); vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe("My Classes redesigned workspace", () => {
+  it("shows the truthful no-assignment state without a redundant View all action", async () => {
+    data = { ...data, assignments: [], submissions: new Map() };
+    open();
+    await screen.findByRole("button", { name: "Open A Level Biology" });
+    const assignmentsSection = within(screen.getByRole("region", { name: /Your assignments/i }));
+    expect(assignmentsSection.getByRole("heading", { name: "No assignments yet" })).toBeVisible();
+    expect(assignmentsSection.getByText("Work set by your teacher or tutor will appear here.")).toBeVisible();
+    expect(assignmentsSection.queryByRole("button", { name: /View all/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /All assignments/i })).toBeVisible();
+    expect(screen.queryByRole("status", { name: "Loading your classes" })).not.toBeInTheDocument();
+    expect(fake.writes).toEqual([]);
+  });
+
+  it("distinguishes caught-up submitted work from a class that has never received assignments", async () => {
+    data = { ...data, submissions: new Map(assigned.map(assignment => [assignment.exam_id, { status: "submitted" }])) };
+    open();
+    await screen.findByRole("button", { name: "Open A Level Biology" });
+    const assignmentsSection = within(screen.getByRole("region", { name: /Your assignments/i }));
+    expect(assignmentsSection.getByRole("heading", { name: /all caught up/i })).toBeVisible();
+    expect(assignmentsSection.queryByRole("heading", { name: "No assignments yet" })).not.toBeInTheDocument();
+    expect(assignmentsSection.queryByRole("button", { name: /View all/i })).not.toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("tab", { name: /All assignments/i }), { key: "Enter" });
+    expect(within(screen.getByRole("tabpanel")).getAllByRole("article")).toHaveLength(assigned.length);
+    expect(screen.queryByText("0%")).not.toBeInTheDocument();
+  });
+
+  it("shares the selected announcement class across overview/full tabs and restores it without extra reads on filtering", async () => {
+    data = { ...data, announcements: [...data.announcements, { ...data.announcements[0], id: "notice-maths", group_id: "maths-group", group_name: "Mathematics Workshop", title: "Maths preparation" }] };
+    const first = open();
+    await screen.findByRole("button", { name: "Open A Level Biology" });
+    const initialReads = fake.read.mock.calls.length;
+    const filter = within(screen.getByRole("group", { name: "Filter announcements by class" }));
+    fireEvent.click(filter.getByRole("button", { name: "Mathematics Workshop" }));
+    expect(screen.getByRole("heading", { name: "Maths preparation" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Assessment preparation" })).not.toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("tab", { name: /Announcements/i }), { key: "Enter" });
+    expect(screen.getByRole("button", { name: "Mathematics Workshop" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("heading", { name: "Assessment preparation" })).not.toBeInTheDocument();
+    expect(fake.read).toHaveBeenCalledTimes(initialReads);
+    first.unmount(); open();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Mathematics Workshop" })).toHaveAttribute("aria-pressed", "true"));
+    expect(screen.queryByRole("heading", { name: "Assessment preparation" })).not.toBeInTheDocument();
+    expect(fake.writes).toEqual([]);
+  });
+
+  it("does not carry an announcement class filter into a different account", async () => {
+    const first = open();
+    await screen.findByRole("button", { name: "Open A Level Biology" });
+    fireEvent.click(within(screen.getByRole("group", { name: "Filter announcements by class" })).getByRole("button", { name: "Mathematics Workshop" }));
+    expect(screen.queryByRole("heading", { name: "Assessment preparation" })).not.toBeInTheDocument();
+    first.unmount();
+    const otherStore = new WorkspaceStore("bob", 1);
+    const second = open("/my-classes", otherStore);
+    await screen.findByRole("button", { name: "Open A Level Biology" });
+    expect(screen.getByRole("button", { name: "All classes" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("heading", { name: "Assessment preparation" })).toBeVisible();
+    second.unmount(); workspaceQueryClient(otherStore).clear();
+  });
+
   it.each(["Biology", "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa"])("renders a real tutor-written subject entry %s across cards and deadlines", async subject => {
     // Supabase's existing JSON column also contains string[] written by the tutor UI.
     data = { ...data, groups: [{ ...groups[0], subjects_covered: [subject] as unknown as StudentGroup["subjects_covered"] }] };
