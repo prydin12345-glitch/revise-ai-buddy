@@ -1,10 +1,11 @@
-import { format, isToday, isTomorrow, isPast, isFuture } from "date-fns";
-import { Clock, FileText, BookOpen } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import type { CSSProperties } from "react";
+import { format, isToday, isTomorrow, isPast, isFuture, isValid } from "date-fns";
+import { ArrowRight, CheckCircle2, Clock, FileText, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import "@/styles/class-assignment.css";
 
 interface AssignmentRowProps {
   assignment: {
@@ -23,87 +24,80 @@ interface AssignmentRowProps {
     total_marks?: number | null;
   } | null;
   subjectColor?: string;
+  presentation?: "card" | "row" | "schedule";
 }
 
-const subjectColors: Record<string, string> = {
-  "Mathematics": "hsl(45, 70%, 60%)",
-  "Physics": "hsl(200, 60%, 50%)",
-  "Chemistry": "hsl(280, 50%, 55%)",
-  "Biology": "hsl(140, 50%, 45%)",
-  "English": "hsl(350, 60%, 55%)",
-  "History": "hsl(25, 60%, 50%)",
-  "Geography": "hsl(170, 50%, 45%)",
-  "Computer Science": "hsl(220, 70%, 55%)",
-  "default": "hsl(var(--primary))"
+const suppliedDate = (value?: string | null) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return isValid(date) ? date : null;
 };
 
-export const AssignmentRow = ({ 
-  assignment, 
-  className, 
+/** The same assigned-exam action and access states, in three responsive layouts. */
+export const AssignmentRow = ({
+  assignment,
+  className,
   tutorName,
   submission,
-  subjectColor 
+  subjectColor,
+  presentation = "row",
 }: AssignmentRowProps) => {
   const navigate = useNavigate();
-  const color = subjectColor || subjectColors["default"];
+  const deadline = suppliedDate(assignment.deadline);
+  const releaseDate = suppliedDate(assignment.release_date);
+  const isCompleted = submission?.status === "graded" || submission?.status === "submitted";
 
   const getStatusConfig = () => {
-    const now = new Date();
-
-    // Check release date - if not yet released
-    if (assignment.release_date && isFuture(new Date(assignment.release_date))) {
-      return { 
-        label: "Not Available", 
-        variant: "secondary" as const, 
-        action: `Available ${format(new Date(assignment.release_date), "MMM d")}`,
+    // Availability and deadline gates retain priority over the submission action.
+    if (releaseDate && isFuture(releaseDate)) {
+      return {
+        label: "Not available",
+        tone: "muted",
+        action: `Available ${format(releaseDate, "d MMM")}`,
         canAct: false,
-        disabledReason: `Available on ${format(new Date(assignment.release_date), "MMM d, yyyy 'at' h:mm a")}`
+        disabledReason: `Available on ${format(releaseDate, "d MMM yyyy 'at' HH:mm")}`,
       };
     }
-
-    // Check deadline for non-completed assignments
-    const isCompleted = submission?.status === "graded" || submission?.status === "submitted";
-    if (assignment.deadline && isPast(new Date(assignment.deadline)) && !isCompleted) {
-      return { 
-        label: "Deadline Passed", 
-        variant: "destructive" as const, 
+    if (deadline && isPast(deadline) && !isCompleted) {
+      return {
+        label: "Deadline passed",
+        tone: "closed",
         action: "View",
         canAct: false,
-        disabledReason: "Deadline has passed"
+        disabledReason: "Deadline has passed",
       };
     }
-
-    // Normal status logic
     if (!submission || !submission.status || submission.status === "not_started") {
-      return { label: "Not Started", variant: "secondary" as const, action: "Start", canAct: true };
+      return { label: "Not started", tone: "muted", action: "Start", canAct: true };
     }
-    if (submission.status === "graded" || submission.status === "submitted") {
-      const score = submission.total_score ?? 0;
-      const total = submission.total_marks ?? 100;
-      return { 
-        label: `${Math.round((score / total) * 100)}%`, 
-        variant: "default" as const, 
+    if (isCompleted) {
+      // This metadata comes from the release-protected view. Missing grades are
+      // deliberately not converted into zero, including while marking is pending.
+      const hasGrade =
+        typeof submission.total_score === "number" && Number.isFinite(submission.total_score) &&
+        typeof submission.total_marks === "number" && Number.isFinite(submission.total_marks) &&
+        submission.total_marks > 0;
+      return {
+        label: hasGrade
+          ? `${Math.round((submission.total_score! / submission.total_marks!) * 100)}%`
+          : submission.status === "graded" ? "Graded" : "Submitted",
+        tone: "complete",
         action: "Review",
-        canAct: true 
+        canAct: true,
       };
     }
     if (submission.status === "in_progress") {
-      return { label: "In Progress", variant: "outline" as const, action: "Continue", canAct: true };
+      return { label: "In progress", tone: "active", action: "Continue", canAct: true };
     }
-    return { label: "Pending", variant: "secondary" as const, action: "View", canAct: true };
-  };
-
-  const getDeadlineInfo = () => {
-    if (!assignment.deadline) return null;
-    const deadline = new Date(assignment.deadline);
-    if (isPast(deadline) && !isToday(deadline)) return { text: "Overdue", urgent: true };
-    if (isToday(deadline)) return { text: "Due Today", urgent: true };
-    if (isTomorrow(deadline)) return { text: "Due Tomorrow", urgent: false };
-    return { text: format(deadline, "MMM d"), urgent: false };
+    return { label: "Pending", tone: "muted", action: "View", canAct: true };
   };
 
   const status = getStatusConfig();
-  const deadlineInfo = getDeadlineInfo();
+  const deadlineText = !deadline ? "No deadline" : !isCompleted && isPast(deadline)
+    ? `Due ${format(deadline, "d MMM")}`
+    : isToday(deadline) ? "Due today"
+      : isTomorrow(deadline) ? "Due tomorrow" : `Due ${format(deadline, "d MMM")}`;
+  const fullDeadline = deadline ? format(deadline, "d MMM yyyy 'at' HH:mm") : undefined;
 
   const handleAction = () => {
     try {
@@ -111,15 +105,12 @@ export const AssignmentRow = ({
         toast.error("This assignment is no longer available.");
         return;
       }
-
       if (!status.canAct) {
-        if (assignment.release_date && isFuture(new Date(assignment.release_date))) {
-          toast.info(`This assignment will be available on ${format(new Date(assignment.release_date), "MMM d, yyyy")}`);
+        if (releaseDate && isFuture(releaseDate)) {
+          toast.info(`This assignment will be available on ${format(releaseDate, "MMM d, yyyy")}`);
         }
         return;
       }
-
-      // Route based on submission status
       if (submission?.status === "graded" || submission?.status === "submitted") {
         navigate(`/exam/${assignment.exam_id}/review`);
       } else {
@@ -131,68 +122,65 @@ export const AssignmentRow = ({
     }
   };
 
-  return (
-    <div 
-      className="flex items-center gap-4 py-4 border-l-4 pl-4 bg-card/30 rounded-r-lg hover:bg-card/50 transition-colors"
-      style={{ borderLeftColor: color }}
+  const action = (
+    <Button
+      type="button"
+      size="sm"
+      variant="ghost"
+      disabled={!status.canAct}
+      onClick={handleAction}
+      className="class-assignment-action"
+      aria-label={`${status.action}: ${assignment.title}`}
     >
-      <div className="p-2 rounded-lg bg-muted/50">
-        {assignment.type === "practice" ? (
-          <BookOpen className="w-5 h-5 text-muted-foreground" />
-        ) : (
-          <FileText className="w-5 h-5 text-muted-foreground" />
-        )}
-      </div>
+      {status.canAct ? <>
+        <span className={presentation === "schedule" ? "sr-only" : undefined}>{status.action}</span>
+        <ArrowRight aria-hidden="true" />
+      </> : <>
+        <Lock aria-hidden="true" />
+        <span className={presentation === "schedule" ? "sr-only" : undefined}>{status.action}</span>
+      </>}
+    </Button>
+  );
 
-      <div className="flex-1 min-w-0">
-        <p className="font-medium text-foreground truncate">{assignment.title}</p>
-        <p className="text-sm text-muted-foreground">
-          {className && <span>{className}</span>}
-          {tutorName && <span> • {tutorName}</span>}
-        </p>
-      </div>
-
-      <div className="flex items-center gap-3">
-        {deadlineInfo && (
-          <div className={`flex items-center gap-1 text-sm ${deadlineInfo.urgent ? 'text-destructive' : 'text-muted-foreground'}`}>
-            <Clock className="w-4 h-4" />
-            <span>{deadlineInfo.text}</span>
-          </div>
-        )}
-
-        <Badge variant={status.variant} className="min-w-[80px] justify-center">
+  return (
+    <article
+      className={`class-assignment class-assignment--${presentation}`}
+      style={{ "--assignment-accent": subjectColor || "hsl(var(--primary))" } as CSSProperties}
+      aria-label={assignment.title}
+    >
+      {presentation === "schedule" && (
+        <div className="class-assignment-date" aria-hidden="true">
+          {deadline ? <><strong>{format(deadline, "dd")}</strong><span>{format(deadline, "MMM")}</span></> : <Clock />}
+        </div>
+      )}
+      <div className="class-assignment-heading">
+        <span className="class-assignment-symbol" aria-hidden="true"><FileText /></span>
+        <span className={`class-assignment-status class-assignment-status--${status.tone}`}>
+          {status.tone === "complete" && <CheckCircle2 aria-hidden="true" />}
+          {!status.canAct && <Lock aria-hidden="true" />}
           {status.label}
-        </Badge>
-
-        {!status.canAct ? (
+        </span>
+      </div>
+      <div className="class-assignment-copy">
+        <h3>{assignment.title}</h3>
+        <p className="class-assignment-context">{className && <span>{className} · </span>}Exam</p>
+        {tutorName && presentation !== "schedule" && <p className="class-assignment-tutor">Set by {tutorName}</p>}
+      </div>
+      <div className="class-assignment-footer">
+        <div className="class-assignment-deadline">
+          <Clock aria-hidden="true" />
+          {deadline ? <time dateTime={assignment.deadline!} title={fullDeadline}>
+            {presentation === "schedule" ? `Due ${format(deadline, "HH:mm")}` : deadlineText}
+          </time> : <span>{deadlineText}</span>}
+        </div>
+        {status.canAct ? action : (
           <Tooltip>
-            <TooltipTrigger asChild>
-              <span>
-                <Button 
-                  size="sm" 
-                  variant="ghost"
-                  disabled
-                  className="text-muted-foreground"
-                >
-                  {status.action}
-                </Button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              {status.disabledReason}
-            </TooltipContent>
+            <TooltipTrigger asChild><span className="class-assignment-disabled" tabIndex={0} aria-label={`${status.label}: ${status.disabledReason}`}>{action}</span></TooltipTrigger>
+            <TooltipContent>{status.disabledReason}</TooltipContent>
           </Tooltip>
-        ) : (
-          <Button 
-            size="sm" 
-            variant="ghost"
-            onClick={handleAction}
-            className="text-primary hover:text-primary hover:bg-primary/10"
-          >
-            {status.action}
-          </Button>
         )}
       </div>
-    </div>
+      {!status.canAct && status.tone !== "closed" && <p className="class-assignment-availability">{status.disabledReason}</p>}
+    </article>
   );
 };

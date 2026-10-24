@@ -1,0 +1,283 @@
+{
+  "scope": "Actual application source with in-memory synthetic SDK. No real login, backend mutation, paid generation, publication or deployment.",
+  "baselineCommit": "986c6825",
+  "finalSourceHashes": {
+    "src/components/classes/ClassDeadlineCalendar.tsx": "8c47fb09acc8f8a9e32384d70a4c3809548f201e910ec6afb57c348d153db320",
+    "src/lib/class-subjects.ts": "b5239433d20ffe092c92d8e38a32f42e2459943e5c3d207a195e51e9ef9dc59e",
+    "src/styles/class-assignment.css": "7106a9d85604a04151dfe916d3d929bfdf35630e72e9f074cb2b35542b7d6a02",
+    "src/styles/class-cards.css": "4b781bdabfffde9418ed388003eec7713a4cf5046b37f1b03567fa713883f3a0",
+    "src/styles/class-deadlines.css": "cf7098544f877105e1e5625988eb0ed2628bb87b09c53860ca33df0c5e2a0b09",
+    "src/styles/classes-workspace.css": "5a32ae03440816e4713caf0c9db902638f57e2e5b8ee20fb249eb6b0dd4eddb1",
+    "src/components/classes/AnnouncementItem.tsx": "6f3291b2f96bd2d85daf78458bfebcba5b36b92f2ce757beb1cff0342fc4aad2",
+    "src/components/classes/AssignmentRow.tsx": "53e59bd89b94c9e386baa3a81e0e28885bdc59e6e9ad1c3a86d531a06addfe94",
+    "src/components/classes/ClassCard.tsx": "16204481e7bf1fe24f350e59293633d149a18a800066c4653754b6aca4df7605",
+    "src/components/classes/ClassDetailView.tsx": "aae41d0f993f8056f0acb116a34879afd501270264875e823b9a3c21cb79c8fa",
+    "src/components/classes/CompletedAssignmentCard.tsx": "94b84c06091efec1cf80cd2512d536fd833a0a949b5cea1fc67528ece50e2fcc",
+    "src/components/dashboard/DashboardLayout.tsx": "205f9108947b640426b37d1d761ff9da491b07395f4f61923f96a112d1ef8b55",
+    "src/pages/MyClasses.tsx": "059cbd6a2a38c3bca44003ea628d5f6503c5367648fbbf185906e9703c38de9e"
+  },
+  "sourceUnchangedDuringRun": true,
+  "browser": "Chromium 151 / Playwright browser emulation",
+  "fontHandling": "Existing Manrope and Source Serif font imports fulfilled from local snapshots; no external TLS network validation claimed.",
+  "viewportThemes": [
+    {
+      "name": "laptop",
+      "width": 1440,
+      "height": 1000,
+      "touch": false,
+      "theme": "light"
+    },
+    {
+      "name": "laptop",
+      "width": 1440,
+      "height": 1000,
+      "touch": false,
+      "theme": "dark"
+    },
+    {
+      "name": "ipad-landscape",
+      "width": 1180,
+      "height": 820,
+      "touch": true,
+      "theme": "light"
+    },
+    {
+      "name": "ipad-landscape",
+      "width": 1180,
+      "height": 820,
+      "touch": true,
+      "theme": "dark"
+    },
+    {
+      "name": "ipad-portrait",
+      "width": 834,
+      "height": 1112,
+      "touch": true,
+      "theme": "light"
+    },
+    {
+      "name": "ipad-portrait",
+      "width": 834,
+      "height": 1112,
+      "touch": true,
+      "theme": "dark"
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "touch": true,
+      "theme": "light"
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "touch": true,
+      "theme": "dark"
+    },
+    {
+      "name": "narrow",
+      "width": 320,
+      "height": 780,
+      "touch": true,
+      "theme": "light"
+    },
+    {
+      "name": "narrow",
+      "width": 320,
+      "height": 780,
+      "touch": true,
+      "theme": "dark"
+    }
+  ],
+  "beforeCombinations": 10,
+  "afterCombinations": 10,
+  "overflowCount": 0,
+  "errors": [],
+  "failedRequests": [],
+  "externalBlocked": [],
+  "functionInvocations": [],
+  "advancedScenarios": [
+    {
+      "case": "search, class detail, feedback, leave cancellation and existing join modal",
+      "status": "pass"
+    },
+    {
+      "case": "all assigned exams, actual released grade, submitted-null-score, future release and expired action gating",
+      "status": "pass"
+    },
+    {
+      "case": "keyboard calendar dates, selected-date filter, no-deadline work, month navigation, keyboard tabs and attachment link",
+      "status": "pass"
+    },
+    {
+      "case": "tab, month and class search retained through existing workspace navigation",
+      "status": "pass"
+    },
+    {
+      "case": "background refresh keeps loaded cards, failed refresh retains content, retry recovers",
+      "status": "pass"
+    },
+    {
+      "case": "cold empty on narrow dark viewport",
+      "status": "pass",
+      "visibleText": "Exam\nly\nMy Classes\n\nYour classes, tutor-set work and due dates. All together.\n\nJoin a class\nOverview\nAll assignments\n0\nAnnouncements\n0\nNo classes yet\n\nJoin a class to receive assignments and announcements from your teacher or tutor.\n\nJoin a class\nHome\nPractice\nCreate\nSubjects\nProfile",
+      "loadingStatus": null
+    },
+    {
+      "case": "cold error on narrow dark viewport",
+      "status": "pass",
+      "visibleText": "Couldn’t open this page\n\nYour saved work is unchanged. Check your connection and try again.\n\nRetry",
+      "loadingStatus": null
+    },
+    {
+      "case": "cold loading on narrow dark viewport",
+      "status": "pass",
+      "visibleText": "",
+      "loadingStatus": "Loading page"
+    },
+    {
+      "case": "direct class entry and visible back fallback clears component parameter",
+      "status": "pass"
+    }
+  ],
+  "detailViewportChecks": [
+    {
+      "case": "1024×768 touch class detail layout",
+      "width": 1024,
+      "height": 768,
+      "touch": true,
+      "theme": "light",
+      "status": "pass",
+      "overflow": false,
+      "gridWidth": 976,
+      "mainWidth": 976,
+      "gridColumn": "auto",
+      "columns": "976px",
+      "completedCards": [
+        {
+          "width": 926,
+          "scroll": 921
+        }
+      ],
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    },
+    {
+      "case": "1024×768 touch class detail layout",
+      "width": 1024,
+      "height": 768,
+      "touch": true,
+      "theme": "dark",
+      "status": "pass",
+      "overflow": false,
+      "gridWidth": 976,
+      "mainWidth": 976,
+      "gridColumn": "auto",
+      "columns": "976px",
+      "completedCards": [
+        {
+          "width": 926,
+          "scroll": 921
+        }
+      ],
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    }
+  ],
+  "subjectShapeChecks": [
+    {
+      "case": "tutor-authored string subjects, legacy UUID, object colour and unassigned subject",
+      "name": "laptop",
+      "width": 1440,
+      "height": 1000,
+      "touch": false,
+      "theme": "light",
+      "status": "pass",
+      "errors": [],
+      "externalBlocked": []
+    },
+    {
+      "case": "tutor-authored string subjects, legacy UUID, object colour and unassigned subject",
+      "name": "laptop",
+      "width": 1440,
+      "height": 1000,
+      "touch": false,
+      "theme": "dark",
+      "status": "pass",
+      "errors": [],
+      "externalBlocked": []
+    },
+    {
+      "case": "tutor-authored string subjects, legacy UUID, object colour and unassigned subject",
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "touch": true,
+      "theme": "light",
+      "status": "pass",
+      "errors": [],
+      "externalBlocked": []
+    },
+    {
+      "case": "tutor-authored string subjects, legacy UUID, object colour and unassigned subject",
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "touch": true,
+      "theme": "dark",
+      "status": "pass",
+      "errors": [],
+      "externalBlocked": []
+    }
+  ],
+  "notVerified": [
+    "Real iOS/iPadOS hardware or Safari/VoiceOver",
+    "Real user accounts, live assignment data, backend authorization beyond existing contracts",
+    "Real class practice-quiz assignment, which is not connected in current product",
+    "External network/font/certificate health"
+  ],
+  "screenshots": [
+    "after-all-assignments-laptop-light.png",
+    "after-background-error-laptop-light.png",
+    "after-class-detail-1024-dark.png",
+    "after-class-detail-1024-light.png",
+    "after-class-detail-laptop-light.png",
+    "after-class-detail-phone-dark.png",
+    "after-empty-phone-dark.png",
+    "after-error-phone-dark.png",
+    "after-ipad-landscape-dark.png",
+    "after-ipad-landscape-light.png",
+    "after-ipad-light-viewport.png",
+    "after-ipad-portrait-dark.png",
+    "after-ipad-portrait-light.png",
+    "after-laptop-dark-viewport.png",
+    "after-laptop-dark.png",
+    "after-laptop-light-viewport.png",
+    "after-laptop-light.png",
+    "after-loading-phone-dark.png",
+    "after-narrow-dark.png",
+    "after-narrow-light.png",
+    "after-phone-dark-viewport.png",
+    "after-phone-dark.png",
+    "after-phone-light-viewport.png",
+    "after-phone-light.png",
+    "before-ipad-landscape-dark.png",
+    "before-ipad-landscape-light.png",
+    "before-ipad-portrait-dark.png",
+    "before-ipad-portrait-light.png",
+    "before-laptop-dark.png",
+    "before-laptop-light.png",
+    "before-narrow-dark.png",
+    "before-narrow-light.png",
+    "before-phone-dark.png",
+    "before-phone-light.png"
+  ]
+}

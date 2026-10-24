@@ -1,0 +1,44 @@
+[
+  {
+    "case": "search, class detail, feedback, leave cancellation and existing join modal",
+    "status": "pass"
+  },
+  {
+    "case": "all assigned exams, actual released grade, submitted-null-score, future release and expired action gating",
+    "status": "pass"
+  },
+  {
+    "case": "keyboard calendar dates, selected-date filter, no-deadline work, month navigation, keyboard tabs and attachment link",
+    "status": "pass"
+  },
+  {
+    "case": "tab, month and class search retained through existing workspace navigation",
+    "status": "pass"
+  },
+  {
+    "case": "background refresh keeps loaded cards, failed refresh retains content, retry recovers",
+    "status": "pass"
+  },
+  {
+    "case": "cold empty on narrow dark viewport",
+    "status": "pass",
+    "visibleText": "Exam\nly\nMy Classes\n\nYour classes, tutor-set work and due dates. All together.\n\nJoin a class\nOverview\nAll assignments\n0\nAnnouncements\n0\nNo classes yet\n\nJoin a class to receive assignments and announcements from your teacher or tutor.\n\nJoin a class\nHome\nPractice\nCreate\nSubjects\nProfile",
+    "loadingStatus": null
+  },
+  {
+    "case": "cold error on narrow dark viewport",
+    "status": "pass",
+    "visibleText": "Couldn’t open this page\n\nYour saved work is unchanged. Check your connection and try again.\n\nRetry",
+    "loadingStatus": null
+  },
+  {
+    "case": "cold loading on narrow dark viewport",
+    "status": "pass",
+    "visibleText": "",
+    "loadingStatus": "Loading page"
+  },
+  {
+    "case": "direct class entry and visible back fallback clears component parameter",
+    "status": "pass"
+  }
+]

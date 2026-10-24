@@ -125,7 +125,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   };
 
   return (
-    <div className={cn('examly-workspace min-h-screen flex w-full bg-background', location.pathname === '/dashboard' && primaryRole !== 'tutor' && primaryRole !== 'teacher' && 'examly-home-route', ['/my-exams', '/quizzes'].includes(location.pathname) && 'examly-library-route')}>
+    <div className={cn('examly-workspace min-h-screen flex w-full bg-background', location.pathname === '/dashboard' && primaryRole !== 'tutor' && primaryRole !== 'teacher' && 'examly-home-route', ['/my-exams', '/quizzes'].includes(location.pathname) && 'examly-library-route', location.pathname === '/my-classes' && 'examly-classes-route')}>
       {/* Desktop sidebar; tablet widths use the same five primary controls */}
       <aside
         className={`examly-workspace-sidebar hidden xl:block fixed left-0 top-0 h-screen bg-sidebar-background border-r border-sidebar-border z-50 transition-all duration-300 ${

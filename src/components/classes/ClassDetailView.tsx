@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, LogOut, BookOpen, Megaphone, CheckCircle2, MessageSquare, Paperclip, CheckCircle } from "lucide-react";
-import { AssignmentCard } from "./AssignmentCard";
+import { ArrowLeft, LogOut, BookOpen, Megaphone, CheckCircle2, MessageSquare, CheckCircle } from "lucide-react";
+import { AssignmentRow } from "./AssignmentRow";
+import { AnnouncementItem } from "./AnnouncementItem";
 import { CompletedAssignmentCard } from "./CompletedAssignmentCard";
 import { ProgressPanel } from "./ProgressPanel";
 import { ClassStatsPanel } from "./ClassStatsPanel";
@@ -113,10 +114,10 @@ export const ClassDetailView = ({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center">
-        <Button variant="ghost" size="icon" onClick={onBack} className="mr-2">
+        <Button variant="ghost" size="icon" onClick={onBack} className="mr-2 class-detail-back" aria-label="Back to My Classes">
           <ArrowLeft className="w-5 h-5" />
         </Button>
-        <h1 className="text-xl font-semibold text-foreground">Class Details</h1>
+        <h1 className="class-detail-heading text-xl font-semibold text-foreground">Class Details</h1>
       </div>
 
       {/* Class Info */}
@@ -154,15 +155,15 @@ export const ClassDetailView = ({
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="class-detail-grid grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Assignments */}
         <div className="lg:col-span-2 space-y-6">
           {/* Upcoming Assignments */}
-          <Card>
+          <Card className="class-detail-panel">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <BookOpen className="w-5 h-5 text-primary" />
-                Upcoming Exams & Practice Sets
+                Assignments to do
                 {upcomingAssignments.length > 0 && (
                   <Badge variant="secondary" className="ml-auto">
                     {upcomingAssignments.length}
@@ -178,9 +179,9 @@ export const ClassDetailView = ({
                 </div>
               ) : (
                 upcomingAssignments.map((assignment) => (
-                  <AssignmentCard
+                  <AssignmentRow
                     key={assignment.id}
-                    assignment={assignment}
+                    assignment={{ id: assignment.id, exam_id: assignment.exam_id, title: assignment.exam_title, type: assignment.exam_type, deadline: assignment.deadline || null, release_date: assignment.release_date }}
                     submission={submissions.get(assignment.exam_id)}
                   />
                 ))
@@ -190,11 +191,11 @@ export const ClassDetailView = ({
 
           {/* Completed Assignments */}
           {completedAssignments.length > 0 && (
-            <Card>
+            <Card className="class-detail-panel">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                  Completed Exams & Practice Sets
+                  Completed assignments
                   <Badge variant="secondary" className="ml-auto bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                     {completedAssignments.length}
                   </Badge>
@@ -219,7 +220,7 @@ export const ClassDetailView = ({
 
           {/* Feedback Threads */}
           {feedbackThreads.length > 0 && (
-            <Card>
+            <Card className="class-detail-panel">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <MessageSquare className="w-5 h-5 text-primary" />
@@ -259,7 +260,7 @@ export const ClassDetailView = ({
 
           {/* Subject Breakdown */}
           {subjectProgress.length > 0 && (
-            <Card className="border-border">
+            <Card className="class-detail-panel border-border">
               <CardContent className="pt-4">
                 <SubjectProgressBreakdown subjects={subjectProgress} />
               </CardContent>
@@ -275,7 +276,7 @@ export const ClassDetailView = ({
           />
 
           {/* Recent Announcements */}
-          <Card>
+          <Card className="class-detail-panel">
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <Megaphone className="w-4 h-4 text-primary" />
@@ -289,20 +290,7 @@ export const ClassDetailView = ({
                 </p>
               ) : (
                 announcements.slice(0, 3).map((announcement) => (
-                  <div key={announcement.id} className="p-3 border rounded-lg bg-card">
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="text-sm font-medium text-foreground">{announcement.title}</h4>
-                      {announcement.attachment_url && (
-                        <Paperclip className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                      {announcement.message}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {formatDistanceToNow(new Date(announcement.created_at), { addSuffix: true })}
-                    </p>
-                  </div>
+                  <AnnouncementItem key={announcement.id} announcement={announcement} />
                 ))
               )}
             </CardContent>
