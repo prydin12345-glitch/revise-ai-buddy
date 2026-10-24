@@ -15,7 +15,7 @@
 .classes-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; padding: 3px 6px; border-radius: 5px; font-size: .625rem; font-weight: 700; line-height: 1.4; letter-spacing: 0; color: hsl(var(--primary)); background: hsl(var(--primary) / .09); white-space: nowrap; }
 .classes-tab-list .classes-count { color: hsl(var(--muted-foreground)); background: hsl(var(--muted)); font-size: .625rem; padding: 1px 5px; }
 .classes-page-layout { display: grid; grid-template-columns: minmax(0, 1fr) 286px; gap: 28px; align-items: start; grid-template-areas: "main schedule"; }
-.classes-page-layout[data-view="classes"] { grid-template-areas: "assignments schedule" "classes schedule" "announcements schedule"; grid-template-rows: auto auto 1fr; }
+.classes-page-layout[data-view="classes"] { grid-template-areas: "classes schedule"; }
 .classes-page-layout[data-empty="true"] { grid-template-columns: minmax(0, 1fr); }
 .classes-content { display: contents; margin: 0; }
 .classes-content[hidden] { display: none !important; }
@@ -23,7 +23,8 @@
 .classes-cards-section { grid-area: classes; min-width: 0; }
 .classes-announcements-section { grid-area: announcements; min-width: 0; }
 .classes-full-section { grid-area: main; min-width: 0; }
-.classes-empty-overview { grid-column: 1 / -1; }
+.classes-empty-overview { grid-area: classes; }
+.classes-page-layout[data-empty="true"][data-view="classes"] { grid-template-areas: "classes"; }
 .classes-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 16px; min-height: 30px; }
 .classes-section-heading h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 1.0625rem; line-height: 1.5; letter-spacing: -.025em; font-weight: 800; }
 .classes-section-heading p { color: hsl(var(--muted-foreground)); font-size: .75rem; line-height: 1.65; margin-top: 4px; }
@@ -49,7 +50,7 @@
 .classes-empty p { margin: 7px auto 0; max-width: 330px; color: hsl(var(--muted-foreground)); font-size: .8125rem; line-height: 1.7; }
 .classes-empty > button { min-height: 44px; margin-top: 20px; }
 .classes-assignment-empty { padding: 25px 18px 30px; text-align: center; }
-.classes-assignment-empty__divider { display: flex; align-items: center; gap: 17px; width: min(330px, 100%); margin: 0 auto 17px; }
+.classes-assignment-empty__divider { display: flex; align-items: center; gap: 17px; width: min(370px, 100%); margin: 0 auto 17px; }
 .classes-assignment-empty__divider > span { flex: 1; height: 1px; background: hsl(var(--border)); }
 .classes-assignment-empty__divider > svg { width: 44px; height: 44px; flex-shrink: 0; stroke-width: 1.4; color: hsl(var(--success)); }
 .classes-assignment-empty h3 { font-size: 1rem; font-weight: 700; letter-spacing: -.02em; }
@@ -80,7 +81,7 @@
 }
 @media screen and (max-width: 1099px) {
   .classes-page-layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main" "schedule"; }
-  .classes-page-layout[data-view="classes"] { grid-template-areas: "assignments" "classes" "schedule" "announcements"; grid-template-rows: auto; }
+  .classes-page-layout[data-view="classes"] { grid-template-areas: "classes" "schedule"; grid-template-rows: auto; }
   .classes-schedule-column { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
   .classes-skeleton-layout { grid-template-columns: minmax(0, 1fr); }
   .classes-skeleton-layout > .animate-pulse { display: none; }
@@ -126,3 +127,8 @@
 @media (prefers-reduced-motion: reduce) {
   .classes-workspace *, .classes-workspace *::before, .classes-workspace *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Centre the empty assignments message in its main column, beside the schedule. */
+.classes-full-section--empty { display: flex; flex-direction: column; min-height: 480px; }
+.classes-full-section--empty .classes-assignment-empty { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
+@media (max-width: 699px) { .classes-full-section--empty { min-height: 330px; } }
