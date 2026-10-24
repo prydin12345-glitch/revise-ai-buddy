@@ -56,6 +56,23 @@
 .class-assignment--schedule .class-assignment-disabled { grid-column: 3; grid-row: 1 / span 3; align-self: center; justify-self: end; width: 44px; min-height: 44px; }
 .class-assignment--schedule .class-assignment-action { padding: 0; }
 .class-assignment--schedule .class-assignment-availability { grid-column: 2; margin-top: 0; }
+/* Class Details uses compact rows and text-only actions. Other class views keep
+   their established card, row and schedule presentations. */
+.class-assignment--detail { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: start; gap: 12px; border: 0; border-radius: 0; padding: 19px 0; background: transparent; }
+.class-assignment--detail + .class-assignment--detail { border-top: 1px solid hsl(var(--border)); }
+.class-assignment-detail-symbol { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 44px; border: 1px solid hsl(var(--border)); border-radius: 9px; background: hsl(var(--surface-panel-2)); color: hsl(var(--primary)); }
+.class-assignment-detail-symbol svg { width: 19px; height: 19px; }
+.class-assignment--detail .class-assignment-copy h3 { font-size: 14px; line-height: 1.65; margin-top: 1px; }
+.class-assignment-detail-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 4px; color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.7; }
+.class-assignment-detail-feedback { margin-top: 5px; font-size: 11px; line-height: 1.6; color: hsl(var(--primary)); }
+.class-assignment-detail-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 9px; max-width: 150px; }
+.class-assignment--detail .class-assignment-status { font-size: 10px; padding: 3px 6px; text-align: right; }
+.class-assignment--detail .class-assignment-action { min-width: 77px; min-height: 44px; padding: 10px 15px; border: 1px solid hsl(var(--primary) / .25); border-radius: 8px; background: hsl(var(--card)); font-size: 12px; font-weight: 700; line-height: 1.5; }
+.class-assignment--detail .class-assignment-action:hover { background: hsl(var(--primary) / .07); border-color: hsl(var(--primary) / .6); }
+.class-assignment--detail .class-assignment-action[data-action="Continue"] { color: hsl(var(--primary-foreground)); background: hsl(var(--primary)); border-color: hsl(var(--primary)); }
+.class-assignment--detail .class-assignment-action[data-action="Continue"]:hover { background: hsl(var(--primary) / .9); }
+.class-assignment--detail .class-assignment-disabled .class-assignment-action { border-color: hsl(var(--border)); background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); }
+.class-assignment--detail .class-assignment-availability { grid-column: 2 / -1; margin-top: 0; font-size: 11px; }
 @media (max-width: 699px) {
   .class-assignment--card { padding: 14px; min-height: 218px; }
   .class-assignment--card .class-assignment-copy h3 { font-size: 14px; min-height: 42px; }
@@ -66,5 +83,18 @@
   .class-assignment--row .class-assignment-footer { grid-column: 1; grid-row: 3; flex-wrap: wrap; }
   .class-assignment--schedule .class-assignment-copy h3 { font-size: 14px; }
   .class-assignment--schedule .class-assignment-context { font-size: 12px; }
+  .class-assignment--detail { grid-template-columns: 30px minmax(0, 1fr) auto; gap: 9px; padding: 16px 0; }
+  .class-assignment-detail-symbol { width: 30px; height: 37px; border-radius: 7px; }
+  .class-assignment-detail-symbol svg { width: 16px; height: 16px; }
+  .class-assignment--detail .class-assignment-copy h3 { font-size: 12px; line-height: 1.7; }
+  .class-assignment-detail-meta, .class-assignment-detail-feedback { font-size: 10px; gap: 4px; }
+  .class-assignment-detail-actions { gap: 8px; max-width: 105px; }
+  .class-assignment--detail .class-assignment-status { font-size: 9px; padding: 3px 5px; }
+  .class-assignment--detail .class-assignment-action { min-width: 68px; min-height: 44px; padding: 9px 10px; font-size: 11px; }
+}
+@media (max-width: 359px) {
+  .class-assignment--detail { grid-template-columns: minmax(0, 1fr) auto; }
+  .class-assignment--detail .class-assignment-detail-symbol { display: none; }
+  .class-assignment--detail .class-assignment-availability { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: reduce) { .class-assignment { transition: none; } }

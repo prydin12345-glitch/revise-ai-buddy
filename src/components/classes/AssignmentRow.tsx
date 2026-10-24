@@ -22,9 +22,11 @@ interface AssignmentRowProps {
     status: string | null;
     total_score?: number | null;
     total_marks?: number | null;
+    submitted_at?: string | null;
   } | null;
+  hasFeedback?: boolean;
   subjectColor?: string;
-  presentation?: "card" | "row" | "schedule";
+  presentation?: "card" | "row" | "schedule" | "detail";
 }
 
 const suppliedDate = (value?: string | null) => {
@@ -33,12 +35,13 @@ const suppliedDate = (value?: string | null) => {
   return isValid(date) ? date : null;
 };
 
-/** The same assigned-exam action and access states, in three responsive layouts. */
+/** The same assigned-exam action and access states, in the shared class layouts. */
 export const AssignmentRow = ({
   assignment,
   className,
   tutorName,
   submission,
+  hasFeedback = false,
   subjectColor,
   presentation = "row",
 }: AssignmentRowProps) => {
@@ -130,17 +133,68 @@ export const AssignmentRow = ({
       disabled={!status.canAct}
       onClick={handleAction}
       className="class-assignment-action"
+      data-action={presentation === "detail" ? status.action : undefined}
       aria-label={`${status.action}: ${assignment.title}`}
     >
       {status.canAct ? <>
         <span className={presentation === "schedule" ? "sr-only" : undefined}>{status.action}</span>
-        <ArrowRight aria-hidden="true" />
+        {presentation !== "detail" && <ArrowRight aria-hidden="true" />}
       </> : <>
         <Lock aria-hidden="true" />
         <span className={presentation === "schedule" ? "sr-only" : undefined}>{status.action}</span>
       </>}
     </Button>
   );
+
+  if (presentation === "detail") {
+    // The same availability gate also protects completed-work metadata. A future
+    // release must not reveal a score or feedback state through this new layout.
+    const visibleCompleted = isCompleted && status.canAct;
+    const submittedAt = suppliedDate(submission?.submitted_at);
+    const detailDate = visibleCompleted ? submittedAt : deadline;
+    const detailDateValue = visibleCompleted ? submission?.submitted_at : assignment.deadline;
+    const detailDateText = visibleCompleted
+      ? submittedAt ? `Submitted ${format(submittedAt, "d MMM")}` : null
+      : deadlineText;
+
+    return (
+      <article
+        className="class-assignment class-assignment--detail"
+        style={{ "--assignment-accent": subjectColor || "hsl(var(--primary))" } as CSSProperties}
+        aria-label={assignment.title}
+        data-state={status.tone}
+      >
+        <span className="class-assignment-detail-symbol" aria-hidden="true"><FileText /></span>
+        <div className="class-assignment-copy">
+          <h3>{assignment.title}</h3>
+          <div className="class-assignment-detail-meta">
+            <span>Exam</span>
+            {detailDateText && <>
+              <span aria-hidden="true">·</span>
+              {detailDate ? <time dateTime={detailDateValue || undefined} title={format(detailDate, "d MMM yyyy 'at' HH:mm")}>
+                {detailDateText}
+              </time> : <span>{detailDateText}</span>}
+            </>}
+          </div>
+          {hasFeedback && visibleCompleted && <p className="class-assignment-detail-feedback">Feedback thread</p>}
+        </div>
+        <div className="class-assignment-detail-actions">
+          <span className={`class-assignment-status class-assignment-status--${status.tone}`}>
+            {status.tone === "complete" && <CheckCircle2 aria-hidden="true" />}
+            {!status.canAct && <Lock aria-hidden="true" />}
+            {status.label}
+          </span>
+          {status.canAct ? action : (
+            <Tooltip>
+              <TooltipTrigger asChild><span className="class-assignment-disabled" tabIndex={0} aria-label={`${status.label}: ${status.disabledReason}`}>{action}</span></TooltipTrigger>
+              <TooltipContent>{status.disabledReason}</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+        {!status.canAct && <p className="class-assignment-availability">{status.disabledReason}</p>}
+      </article>
+    );
+  }
 
   return (
     <article

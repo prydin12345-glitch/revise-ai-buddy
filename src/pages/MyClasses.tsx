@@ -79,13 +79,6 @@ export interface FeedbackThread {
   exam_id: string;
 }
 
-interface SubjectProgress {
-  name: string;
-  color: string;
-  completed: number;
-  total: number;
-}
-
 const MyClasses = () => {
   const { getSubjectColor, subjects: userSubjects } = useUserSubjects();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -185,14 +178,6 @@ const MyClasses = () => {
     const subject = groups.find(group => group.id === groupId)?.subjects_covered?.[0];
     return subject?.color || (subject ? getSubjectColor(subject.name) : "hsl(var(--primary))");
   };
-  // Keep the existing detail breakdown and its calculations; overview counts are class-level.
-  const getSubjectProgressForGroup = (groupId: string): SubjectProgress[] => {
-    const groupAssignments = getAssignmentsForGroup(groupId);
-    return (groups.find(group => group.id === groupId)?.subjects_covered || []).map(subject => ({
-      name: subject.name, color: subject.color || "#3B82F6",
-      completed: groupAssignments.filter(isCompleted).length, total: groupAssignments.length,
-    }));
-  };
   const sortedAssignments = useMemo(() => [...assignments].sort((a, b) => {
     const aDate = a.deadline ? new Date(a.deadline).getTime() : Infinity;
     const bDate = b.deadline ? new Date(b.deadline).getTime() : Infinity;
@@ -232,10 +217,10 @@ const MyClasses = () => {
   if (selectedClass) {
     return <DashboardLayout><div className="classes-workspace classes-detail-workspace">
       {query.error && <LoadError message="Couldn’t refresh your class. Your last loaded information is still shown." onRetry={() => void loadStudentClasses()} />}
-      <ClassDetailView group={selectedClass} tutor={tutors.get(selectedClass.tutor_id)}
+      <ClassDetailView key={selectedClass.id} group={selectedClass} tutor={tutors.get(selectedClass.tutor_id)}
         assignments={getAssignmentsForGroup(selectedClass.id)} submissions={submissions}
         announcements={getAnnouncementsForGroup(selectedClass.id)} feedbackThreads={getFeedbackThreadsForGroup(selectedClass.id)}
-        subjectProgress={getSubjectProgressForGroup(selectedClass.id)} onBack={returnToClasses}
+        subjectColor={subjectColorForGroup(selectedClass.id)} onBack={returnToClasses}
         onLeave={() => { setGroupToLeave(selectedClass); setLeaveDialogOpen(true); }} />
       {leaveConfirmation}
     </div></DashboardLayout>;

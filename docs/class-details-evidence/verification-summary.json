@@ -1,0 +1,559 @@
+{
+  "browser": "Chromium 151",
+  "syntheticSdk": true,
+  "liveAccount": false,
+  "paidGeneration": false,
+  "localFonts": true,
+  "sourceUnchangedDuringRun": true,
+  "sourceHashes": {
+    "src/pages/MyClasses.tsx": "c489a72aa3ea16812f6048215a9d25f0668e2b191c9e0903a03cfd7babcf6b93",
+    "src/components/classes/ClassDetailView.tsx": "e716b18c2b793573adfe407d1c36e153d73053386cdee87812820819690f703c",
+    "src/components/classes/AssignmentRow.tsx": "eb96260e7af6e856b4ed01ef043a87285e13ac9dfcb08fae01ba450c8a61360d",
+    "src/styles/class-details.css": "c9b0ae1eec7a0dfbccaa32e3b8f98bfe1df00d97d74f2f42bcf43657e61f17c5",
+    "src/styles/class-assignment.css": "d12a28564d7f389b8d48afa8463fad99457b49a540edf206fa13c2d9175ff96c"
+  },
+  "before": [
+    {
+      "name": "laptop",
+      "width": 1440,
+      "height": 1000,
+      "theme": "light",
+      "overflow": false,
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    },
+    {
+      "name": "laptop",
+      "width": 1440,
+      "height": 1000,
+      "theme": "dark",
+      "overflow": false,
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    },
+    {
+      "name": "ipad-landscape",
+      "width": 1180,
+      "height": 820,
+      "theme": "light",
+      "overflow": false,
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    },
+    {
+      "name": "ipad-landscape",
+      "width": 1180,
+      "height": 820,
+      "theme": "dark",
+      "overflow": false,
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    },
+    {
+      "name": "ipad-portrait",
+      "width": 834,
+      "height": 1112,
+      "theme": "light",
+      "overflow": false,
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    },
+    {
+      "name": "ipad-portrait",
+      "width": 834,
+      "height": 1112,
+      "theme": "dark",
+      "overflow": false,
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "overflow": false,
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "overflow": false,
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    }
+  ],
+  "views": [
+    {
+      "name": "laptop",
+      "width": 1440,
+      "height": 1000,
+      "touch": false,
+      "theme": "light",
+      "viewport": 1440,
+      "body": 1440,
+      "main": {
+        "x": 288,
+        "y": 92,
+        "width": 1120,
+        "height": 1147.15625,
+        "top": 92,
+        "right": 1408,
+        "bottom": 1239.15625,
+        "left": 288
+      },
+      "schedule": {
+        "x": 1122,
+        "y": 400.90625,
+        "width": 286,
+        "height": 761.9375,
+        "top": 400.90625,
+        "right": 1408,
+        "bottom": 1162.84375,
+        "left": 1122
+      },
+      "functions": [],
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    },
+    {
+      "name": "laptop",
+      "width": 1440,
+      "height": 1000,
+      "touch": false,
+      "theme": "dark",
+      "viewport": 1440,
+      "body": 1440,
+      "main": {
+        "x": 288,
+        "y": 92,
+        "width": 1120,
+        "height": 1147.15625,
+        "top": 92,
+        "right": 1408,
+        "bottom": 1239.15625,
+        "left": 288
+      },
+      "schedule": {
+        "x": 1122,
+        "y": 400.90625,
+        "width": 286,
+        "height": 761.9375,
+        "top": 400.90625,
+        "right": 1408,
+        "bottom": 1162.84375,
+        "left": 1122
+      },
+      "functions": [],
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    },
+    {
+      "name": "ipad-landscape",
+      "width": 1180,
+      "height": 820,
+      "touch": true,
+      "theme": "light",
+      "viewport": 1180,
+      "body": 1180,
+      "main": {
+        "x": 24,
+        "y": 96,
+        "width": 1132,
+        "height": 1201.015625,
+        "top": 96,
+        "right": 1156,
+        "bottom": 1297.015625,
+        "left": 24
+      },
+      "schedule": {
+        "x": 904,
+        "y": 395.640625,
+        "width": 252,
+        "height": 901.375,
+        "top": 395.640625,
+        "right": 1156,
+        "bottom": 1297.015625,
+        "left": 904
+      },
+      "functions": [],
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    },
+    {
+      "name": "ipad-landscape",
+      "width": 1180,
+      "height": 820,
+      "touch": true,
+      "theme": "dark",
+      "viewport": 1180,
+      "body": 1180,
+      "main": {
+        "x": 24,
+        "y": 96,
+        "width": 1132,
+        "height": 1201.015625,
+        "top": 96,
+        "right": 1156,
+        "bottom": 1297.015625,
+        "left": 24
+      },
+      "schedule": {
+        "x": 904,
+        "y": 395.640625,
+        "width": 252,
+        "height": 901.375,
+        "top": 395.640625,
+        "right": 1156,
+        "bottom": 1297.015625,
+        "left": 904
+      },
+      "functions": [],
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    },
+    {
+      "name": "ipad-portrait",
+      "width": 834,
+      "height": 1112,
+      "touch": true,
+      "theme": "light",
+      "viewport": 834,
+      "body": 834,
+      "main": {
+        "x": 24,
+        "y": 88,
+        "width": 786,
+        "height": 1197.796875,
+        "top": 88,
+        "right": 810,
+        "bottom": 1285.796875,
+        "left": 24
+      },
+      "schedule": {
+        "x": 558,
+        "y": 384.421875,
+        "width": 252,
+        "height": 901.375,
+        "top": 384.421875,
+        "right": 810,
+        "bottom": 1285.796875,
+        "left": 558
+      },
+      "functions": [],
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    },
+    {
+      "name": "ipad-portrait",
+      "width": 834,
+      "height": 1112,
+      "touch": true,
+      "theme": "dark",
+      "viewport": 834,
+      "body": 834,
+      "main": {
+        "x": 24,
+        "y": 88,
+        "width": 786,
+        "height": 1197.796875,
+        "top": 88,
+        "right": 810,
+        "bottom": 1285.796875,
+        "left": 24
+      },
+      "schedule": {
+        "x": 558,
+        "y": 384.421875,
+        "width": 252,
+        "height": 901.375,
+        "top": 384.421875,
+        "right": 810,
+        "bottom": 1285.796875,
+        "left": 558
+      },
+      "functions": [],
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "touch": true,
+      "theme": "light",
+      "viewport": 390,
+      "body": 390,
+      "main": {
+        "x": 16,
+        "y": 72,
+        "width": 358,
+        "height": 1935.953125,
+        "top": 72,
+        "right": 374,
+        "bottom": 2007.953125,
+        "left": 16
+      },
+      "schedule": {
+        "x": 16,
+        "y": 1127.984375,
+        "width": 358,
+        "height": 879.96875,
+        "top": 1127.984375,
+        "right": 374,
+        "bottom": 2007.953125,
+        "left": 16
+      },
+      "functions": [],
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "touch": true,
+      "theme": "dark",
+      "viewport": 390,
+      "body": 390,
+      "main": {
+        "x": 16,
+        "y": 72,
+        "width": 358,
+        "height": 1935.953125,
+        "top": 72,
+        "right": 374,
+        "bottom": 2007.953125,
+        "left": 16
+      },
+      "schedule": {
+        "x": 16,
+        "y": 1127.984375,
+        "width": 358,
+        "height": 879.96875,
+        "top": 1127.984375,
+        "right": 374,
+        "bottom": 2007.953125,
+        "left": 16
+      },
+      "functions": [],
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    },
+    {
+      "name": "narrow-phone",
+      "width": 320,
+      "height": 780,
+      "touch": true,
+      "theme": "light",
+      "viewport": 320,
+      "body": 320,
+      "main": {
+        "x": 16,
+        "y": 72,
+        "width": 288,
+        "height": 2026.140625,
+        "top": 72,
+        "right": 304,
+        "bottom": 2098.140625,
+        "left": 16
+      },
+      "schedule": {
+        "x": 16,
+        "y": 1197.171875,
+        "width": 288,
+        "height": 900.96875,
+        "top": 1197.171875,
+        "right": 304,
+        "bottom": 2098.140625,
+        "left": 16
+      },
+      "functions": [],
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    },
+    {
+      "name": "narrow-phone",
+      "width": 320,
+      "height": 780,
+      "touch": true,
+      "theme": "dark",
+      "viewport": 320,
+      "body": 320,
+      "main": {
+        "x": 16,
+        "y": 72,
+        "width": 288,
+        "height": 2026.140625,
+        "top": 72,
+        "right": 304,
+        "bottom": 2098.140625,
+        "left": 16
+      },
+      "schedule": {
+        "x": 16,
+        "y": 1197.171875,
+        "width": 288,
+        "height": 900.96875,
+        "top": 1197.171875,
+        "right": 304,
+        "bottom": 2098.140625,
+        "left": 16
+      },
+      "functions": [],
+      "errors": [],
+      "failedRequests": [],
+      "externalBlocked": [],
+      "modelInvocations": [],
+      "reads": []
+    }
+  ],
+  "scenarios": [
+    {
+      "case": "keyboard, retained view, scoped calendar and tutor",
+      "theme": "light",
+      "errors": [],
+      "externalBlocked": []
+    },
+    {
+      "case": "release/deadline and zero/missing score states",
+      "theme": "light",
+      "errors": [],
+      "externalBlocked": []
+    },
+    {
+      "case": "long class and unbroken assignment title",
+      "width": 834,
+      "theme": "light",
+      "errors": [],
+      "externalBlocked": []
+    },
+    {
+      "case": "long class and unbroken assignment title",
+      "width": 390,
+      "theme": "light",
+      "errors": [],
+      "externalBlocked": []
+    },
+    {
+      "case": "long class and unbroken assignment title",
+      "width": 320,
+      "theme": "light",
+      "errors": [],
+      "externalBlocked": []
+    },
+    {
+      "case": "no-assignments",
+      "theme": "light",
+      "errors": [],
+      "externalBlocked": []
+    },
+    {
+      "case": "no-announcements",
+      "theme": "light",
+      "errors": [],
+      "externalBlocked": []
+    },
+    {
+      "case": "keyboard, retained view, scoped calendar and tutor",
+      "theme": "dark",
+      "errors": [],
+      "externalBlocked": []
+    },
+    {
+      "case": "release/deadline and zero/missing score states",
+      "theme": "dark",
+      "errors": [],
+      "externalBlocked": []
+    },
+    {
+      "case": "long class and unbroken assignment title",
+      "width": 834,
+      "theme": "dark",
+      "errors": [],
+      "externalBlocked": []
+    },
+    {
+      "case": "long class and unbroken assignment title",
+      "width": 390,
+      "theme": "dark",
+      "errors": [],
+      "externalBlocked": []
+    },
+    {
+      "case": "long class and unbroken assignment title",
+      "width": 320,
+      "theme": "dark",
+      "errors": [],
+      "externalBlocked": []
+    },
+    {
+      "case": "no-assignments",
+      "theme": "dark",
+      "errors": [],
+      "externalBlocked": []
+    },
+    {
+      "case": "no-announcements",
+      "theme": "dark",
+      "errors": [],
+      "externalBlocked": []
+    }
+  ],
+  "productionCssOnly": true,
+  "harnessSynchronizationNote": "Initial keyboard assertion raced Radix deferred focus under concurrent load; final runner waits for intended selected-tab state. No product code was changed for this harness fix."
+}
