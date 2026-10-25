@@ -1,0 +1,82 @@
+{
+  "date": "2026-10-25",
+  "baselineCommit": "9460e752ed490f0dbb3a3947f28d3df73779add7",
+  "browser": "Chromium 151.0.7922.173",
+  "method": "Actual application source with synthetic in-memory SDK, production CSS snapshot and local fonts. No real service requests or account login.",
+  "responsiveThemeCombinations": 10,
+  "advancedScenarioGroups": 14,
+  "additionalTouchDialogSizes": 3,
+  "outcome": "All browser assertions passed. No unexpected console/JavaScript/request errors or horizontal overflow.",
+  "runtimeServiceCalls": 0,
+  "paidModelCalls": 0,
+  "sourceHashes": {
+    "src/components/WorkspacePageReady.tsx": "b90fefcf4c460fe6d2755c3885e7707e15a30342bbf8c7c2b58e700d563af79f",
+    "src/components/dashboard/DashboardLayout.tsx": "729092cda347eea547ce67478351de1b2ece2458ea4796c48e2ea523813e3123",
+    "src/components/stats/AddSubjectModal.tsx": "66c01370828364f2cdff482d190d9093e81f37e3b3c8d6c70e17ad708ace569b",
+    "src/components/stats/GradeGoalCard.tsx": "0ecc989ad64b959070fa1af8e6590b4a56c5a42b7087c9e2a003b473326c1d98",
+    "src/components/stats/QuestionRevisitContent.tsx": "9acba51b5ff232125c25475b01e0edf32afce2c68078940b393fd58796f94e84",
+    "src/components/stats/QuestionsToRevisit.tsx": "6eb05f37dd8866eeb16906cc6505f832c2b465e6bf29a49da6ced3c5afb29ef6",
+    "src/components/stats/ScopedWeakTopics.tsx": "eabfbed60bbc9b90eac43dc7207b6324cd4ce9adf726a362d688a41d0f548213",
+    "src/components/stats/StatsFirstResult.tsx": "6b1c505fc9c1f49d24504bc5a83e1c2ed54edaf1f76719f542472fb4004f5d9e",
+    "src/components/stats/SubjectStatsCharts.tsx": "a2c5153984ad9c0c431b139cd93de3aafc0fb61403d18d60c39ef110fb081426",
+    "src/hooks/useSubjectGradeGoals.ts": "4eefb73d1b5e504c5349c413e8d16f816a49cccd426c196be7409469d5f44e72",
+    "src/hooks/useSubjectProfileStats.ts": "93036db8b345746815b42a28417a4b3fbabac4a86c58d194e7c704ca86fd79e2",
+    "src/lib/revisit-question.ts": "8e3b230439823ff0091eaddf3f03da78b033a7d8be3a19dbfafeab65e9835bdb",
+    "src/lib/subject-grade-goals.ts": "4e3cdbe25a4f63ee82d75b97d07d2db17000e9f6701cb11d15a999f74cc80d06",
+    "src/lib/subject-profile-stats-query.ts": "ab871598a50aaf6df384413af4a962b80d79e04e49392a372a8f024c93aa88ce",
+    "src/lib/subject-profile-stats.ts": "9829c8e9bdb6996a1f2cf2823f66ea6ad5c196ef3b16fb3a0195802c5ed28354",
+    "src/pages/Stats.tsx": "f701c8b1973494d4e6abc77dc78604b3af9a0b9730354f3611e2b417e24debc0",
+    "src/styles/subject-stats.css": "8218d4b4e6ea8ede1a690ae2d0892fe905240572aaf1a00a88c37fcdcd8c2b3a",
+    "src/test/add-subject-grade-goal.test.tsx": "74b8b6c8504bc7cd43c0949f99da84a51599bf526a848aeac8117cfd6bd366fd",
+    "src/test/stats-revisit-question.test.tsx": "8da0087dcaef12e047c7d7d129758d961aa78990ab557abc9e02f46a7b85ae7a",
+    "src/test/subject-grade-goals.test.tsx": "606077db3665ebb01f668e78a771b85de68895ef588c4639554493620219aeae",
+    "src/test/subject-profile-stats-hook.test.tsx": "1677570d16049d204e9a52b297a1e75347d882e07d2f6fe4d79857b18cf964dc",
+    "src/test/subject-profile-stats-query.test.ts": "b2e0755e86b426cd17f3257e0b2b3a4a27171597b836c8d85997893027efa238",
+    "src/test/subject-profile-stats.test.ts": "e32b736cb973884f00ca7bea387a6f9e79828dde471f6511895be87d27c1667a",
+    "src/test/subject-stats-charts.test.tsx": "708acb8460c88f3db7e285b6416dd95dcea6cfd4a8fa225d5e6e5f991dfcf3b1",
+    "src/test/subject-stats-page.test.tsx": "07df37ee947285f848e5b2b7b8643fd9e92be25fe4f2c7ea4fb23c54587ced52",
+    "src/test/workspace-route-transitions.test.tsx": "b5030b914ae6b1f9fa7d0bd932040e2fda9aac0a6ede81bc185f221d84506b49"
+  },
+  "limitations": [
+    "No real accounts/backend/network/TLS verification",
+    "No Safari or physical iPad/iOS verification",
+    "No screen-reader audit",
+    "Goals remain account/subject-scoped browser-local settings"
+  ],
+  "checks": {
+    "npmCi": "passed, 864 packages, unchanged lockfile",
+    "typecheck": "passed",
+    "criticalLint": "passed",
+    "focused": {
+      "filesPassed": 9,
+      "testsPassed": 99,
+      "unhandledErrors": 0,
+      "seconds": 58.78
+    },
+    "fullCheck": {
+      "exitCode": 1,
+      "filesPassed": 152,
+      "filesFailed": 1,
+      "testsPassed": 2384,
+      "testsFailed": 1,
+      "unhandledErrors": 1,
+      "failedTestFile": "src/test/tutor-mobile-drafts.test.tsx",
+      "diagnostic": "Async Your Response textbox unavailable; onTaskUpdate RPC timeout",
+      "seconds": 1046.62
+    },
+    "unchangedMainBaseline": {
+      "filesPassed": 145,
+      "testsPassed": 2302,
+      "unhandledErrors": 1,
+      "exitCode": 1
+    },
+    "unchangedMainIsolatedTutor": {
+      "filesPassed": 1,
+      "testsPassed": 2,
+      "exitCode": 0
+    },
+    "edge": "passed, 39 bundled functions; no deployment required",
+    "build": "passed, 1m 28s",
+    "diffCheck": "passed"
+  }
+}

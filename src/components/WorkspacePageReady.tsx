@@ -7,10 +7,10 @@ import { useLocation } from "react-router-dom";
 import { useWorkspaceSession } from "@/hooks/use-workspace-session";
 import { workspaceQueryClient } from "@/lib/workspace-query-client";
 import { rolesQuery, subjectsQuery, profilesQuery } from "@/lib/workspace-summary-queries";
-import { examStatsQuery, accuracyTrendQuery } from "@/lib/exam-stats-query";
+import { examStatsQuery } from "@/lib/exam-stats-query";
 import { studentDashboardQuery } from "@/lib/student-dashboard-query";
 import { subjectAverageQuery } from "@/lib/subject-average-query";
-import { unifiedTopicQuery } from "@/lib/unified-topic-query";
+import { subjectProfileStatsQuery } from "@/lib/subject-profile-stats-query";
 import { QueryClientContext, type QueryClient, type QueryKey } from "@tanstack/react-query";
 
 /** Read-only metadata gates. Never pre-mount a form, recover/publish a draft, or fetch private answers. */
@@ -28,7 +28,7 @@ export function WorkspacePageReady({ children }: { children: ReactNode }) {
     const subjects = client.getQueryData<Array<{ subject_name: string }>>(["workspace-subjects"]) || [];
     reads.push(...subjects.map(subject => ({ ...subjectAverageQuery(store, subject.subject_name), optional: true })));
   }
-  if (pathname === "/stats") reads.push(examStatsQuery(store), unifiedTopicQuery(ownerId, "[]"), { ...accuracyTrendQuery(store), optional: true });
+  if (pathname === "/stats") reads.push(subjectProfileStatsQuery(store));
   const roles = client.getQueryData<Array<{ role: string; metadata?: unknown }>>(["workspace-roles"]);
   const primaryRole = roles?.find(role => (role.metadata as { is_primary?: boolean })?.is_primary === true)?.role || roles?.[0]?.role;
   if (pathname === "/dashboard" && roles && primaryRole !== "tutor" && primaryRole !== "teacher") {

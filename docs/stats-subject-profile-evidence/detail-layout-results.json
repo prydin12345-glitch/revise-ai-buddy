@@ -1,0 +1,38 @@
+[
+  {
+    "width": 320,
+    "height": 780,
+    "theme": "dark",
+    "dialogsFit": true,
+    "noOverflow": true,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "theme": "light",
+    "dialogsFit": true,
+    "noOverflow": true,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "width": 834,
+    "height": 1112,
+    "theme": "dark",
+    "dialogsFit": true,
+    "noOverflow": true,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  }
+]

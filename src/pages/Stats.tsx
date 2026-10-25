@@ -1,318 +1,81 @@
-import { useWorkspaceSession } from "@/hooks/use-workspace-session";
-import { LoadError } from "@/components/shared/ListFeedback";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, AlertTriangle } from "lucide-react";
-import { ScoreTargetChart } from "@/components/stats/ScoreTargetChart";
-import { SubjectScoresChart } from "@/components/stats/SubjectScoresChart";
-import { SubjectPerformanceChart } from "@/components/stats/SubjectPerformanceChart";
-import { WeeklyStudyChart } from "@/components/stats/WeeklyStudyChart";
-import { AccuracyTrendChart } from "@/components/stats/AccuracyTrendChart";
-import {
-  DesktopLearningGauges,
-  TopicProgressOverview,
-} from "@/components/stats/TopicProgressOverview";
-import { RevisionPrioritiesCard } from "@/components/stats/RevisionPrioritiesCard";
-import { MobileStatsTelemetry } from "@/components/stats/mobile/MobileStatsTelemetry";
-import { useExamStats } from "@/hooks/useExamStats";
-import { useStatsDrilldown } from "@/hooks/useStatsDrilldown";
-import { StatsDrilldownDrawer } from "@/components/dashboard/StatsDrilldownDrawer";
-import { WeakTopicsTab } from "@/components/stats/WeakTopicsTab";
-import { useUnifiedTopicPerformance } from "@/hooks/useUnifiedTopicPerformance";
-import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { BookOpen, Clock3 } from "lucide-react";
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { LoadError } from "@/components/shared/ListFeedback";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  StatsPageHeading,
-  StatsLoading,
-  StatsError,
-} from "@/components/stats/StatsPageStates";
-import "@/styles/stats.css";
+import { StatsPageHeading, StatsError } from "@/components/stats/StatsPageStates";
+import { StatsFirstResult } from "@/components/stats/StatsFirstResult";
+import { ScopedWeakTopics, type StatsTopicFilter } from "@/components/stats/ScopedWeakTopics";
+import { ProfileTrendChart, TopicBreakdownChart, ProfileTopicRadar, ProfileStudyChart, TopicScoreDistribution } from "@/components/stats/SubjectStatsCharts";
+import { GradeGoalCard } from "@/components/stats/GradeGoalCard";
+import { QuestionsToRevisit } from "@/components/stats/QuestionsToRevisit";
+import { useSubjectProfileStats } from "@/hooks/useSubjectProfileStats";
+import { useRetainedState, useWorkspaceSession } from "@/hooks/use-workspace-session";
+import { ALL_STATS_PROFILES, selectSubjectProfileStats, type StatsTimeRange } from "@/lib/subject-profile-stats";
+import { LEVEL_DISPLAY_NAMES } from "@/lib/board-level-mapping";
+import { getBoardDisplayName } from "@/lib/board-scrubber";
+import { resolveScaleId } from "@/lib/grade-scales";
+import "@/styles/subject-stats.css";
 
-const Stats = () => {
-  const isMobile = useIsMobile();
-  const [searchParams] = useSearchParams();
-  const defaultTab =
-    searchParams.get("tab") === "weak-topics" ? "weak-topics" : "stats";
-  const [desktopTab, setDesktopTab] = useState(defaultTab);
-  const { ownerId } = useWorkspaceSession();
-  const [fallbackUserId, setUserId] = useState<string | null>(null);
-  const userId = ownerId || fallbackUserId;
+export default function Stats() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { ownerId, store } = useWorkspaceSession();
+  const [tab, setTab] = useRetainedState("stats:tab:v3", () => searchParams.get("tab") === "weak-topics" ? "weak-topics" : "overview");
+  const [subjectId, setSubjectId] = useRetainedState("stats:subject:v3", "");
+  const [profilesBySubject, setProfilesBySubject] = useRetainedState<Record<string, string>>("stats:profiles:v3", {});
+  const [timeRange, setTimeRange] = useRetainedState<StatsTimeRange>("stats:range:v3", "monthly");
+  const [weakFilter, setWeakFilter] = useRetainedState<StatsTopicFilter>("stats:weak-filter:v3", "weak");
+  const { data, loading, refreshing, error, refetch } = useSubjectProfileStats();
+  const activeSubjectId = data.subjects.some(subject => subject.id === subjectId) ? subjectId : data.subjects[0]?.id || "";
+  const subjectScope = useMemo(() => selectSubjectProfileStats(data, { subjectId: activeSubjectId, timeRange }), [data, activeSubjectId, timeRange]);
+  const savedProfile = profilesBySubject[activeSubjectId] || ALL_STATS_PROFILES;
+  const profileId = savedProfile === ALL_STATS_PROFILES || subjectScope.profiles.some(profile => profile.id === savedProfile) ? savedProfile : ALL_STATS_PROFILES;
+  const scoped = useMemo(() => selectSubjectProfileStats(data, { subjectId: activeSubjectId, profileId, timeRange }), [data, activeSubjectId, profileId, timeRange]);
+  const selectedProfile = scoped.profiles.find(profile => profile.id === profileId);
+  const profileLabel = selectedProfile?.name || "All profiles";
+  const subject = scoped.subject;
+  const hasMarkedWork = scoped.attempts.length > 0 || scoped.topics.length > 0;
+  const weakCount = scoped.topicUnavailableCount ? 0 : scoped.topics.filter(topic => topic.mastery === "weak").length;
+  const scopeKey = `${ownerId || "anonymous"}:${store.generation}:${activeSubjectId}:${profileId}`;
+  const savedLevel = selectedProfile?.educationLevel || subject?.educationLevel;
+  const defaultScaleId = savedLevel ? resolveScaleId(savedLevel) : undefined;
+  const defaultTierId = selectedProfile?.assessmentTier === "foundation" || selectedProfile?.assessmentTier === "higher" ? selectedProfile.assessmentTier : undefined;
 
-  useEffect(() => {
-    if (ownerId) return;
-    supabase.auth
-      .getUser()
-      .then(({ data }) => setUserId(data.user?.id ?? null));
-  }, [ownerId]);
-
-  const { topics, loading: weakTopicsLoading } =
-    useUnifiedTopicPerformance(userId);
-  const drilldown = useStatsDrilldown();
-  const {
-    loading,
-    hasData,
-    refreshing,
-    error,
-    refetch,
-    totalExams,
-    completedExams,
-    inProgressExams,
-    subjectPerformanceData,
-    examResultsData,
-    studyActivityData,
-    recentExams,
-    bestSubject,
-    revisionGoals,
-    currentStreak,
-    longestStreak,
-    timeRange,
-    setTimeRange,
-    pieChartMode,
-    setPieChartMode,
-  } = useExamStats();
-
-  const subjects = subjectPerformanceData.map((s) => ({
-    name: s.name,
-    color: s.color,
-  }));
-
-  const avgScore = useMemo(() => {
-    if (subjectPerformanceData.length === 0) return 0;
-    const total = subjectPerformanceData.reduce(
-      (sum, s) => sum + s.avgScore,
-      0,
-    );
-    return Math.round(total / subjectPerformanceData.length);
-  }, [subjectPerformanceData]);
-
-  const totalStudyHours = useMemo(() => {
-    let total = 0;
-    studyActivityData.forEach((day) => {
-      Object.entries(day).forEach(([key, val]) => {
-        if (key !== "day" && typeof val === "number") total += val;
-      });
-    });
-    return total;
-  }, [studyActivityData]);
-
-  const weakCount = topics.filter((t) => t.mastery === "weak").length;
-
-  // Deep links to ?tab=weak-topics land on the Topics tab of the single
-  // mobile segmented control.
-  const mobileInitialTab =
-    searchParams.get("tab") === "weak-topics" ? "topics" : "overview";
-
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="examly-stats mx-auto max-w-[1280px] px-4 py-6 sm:px-6 sm:py-8">
-          <StatsPageHeading
-            actions={
-              !isMobile && <Skeleton className="h-[52px] w-72 max-w-full" />
-            }
-          />
-          <StatsLoading showTabs={isMobile} />
-        </div>
-      </DashboardLayout>
-    );
+  function changeTab(value: string) {
+    setTab(value);
+    const next = new URLSearchParams(searchParams);
+    if (value === "weak-topics") next.set("tab", value); else next.delete("tab");
+    setSearchParams(next, { replace: true });
   }
+  const tabs = <TabsList className="subject-stats-tabs" aria-label="Progress views"><TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="weak-topics">Weak Topics{weakCount > 0 && <span className="subject-stats-count">{weakCount}</span>}</TabsTrigger></TabsList>;
+  const goal = subject && <GradeGoalCard key={`${ownerId}:${subject.id}`} ownerId={ownerId} subjectId={subject.id} subject={subject.name} averageScore={scoped.averageExamScore} defaultScaleId={defaultScaleId} defaultTierId={defaultTierId} profileLabel={profileLabel} targetPercentage={scoped.targetPercentage} />;
 
-  if (error && !hasData) {
-    return (
-      <DashboardLayout>
-        <div className="examly-stats mx-auto max-w-[1280px] px-4 py-6 sm:px-6 sm:py-8">
-          <StatsPageHeading />
-          <StatsError
-            onRetry={() => {
-              void refetch();
-            }}
-          />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  return (
-    <DashboardLayout>
-      <div aria-busy={refreshing || undefined} className="examly-stats max-w-[1280px] mx-auto px-4 sm:px-6 pb-10 pt-6 sm:pt-8">
-        {error && <LoadError message="Couldn’t update your statistics. Your last loaded results are still shown." onRetry={() => void refetch()} />}
-        {isMobile ? (
-          /* One tab layer on mobile. The outer Stats / Weak Topics tabs wrapped
-             a component that already had its own Overview / Topics / Performance
-             control, and the outer "Weak Topics" tab duplicated the inner one. */
-          <>
-            <StatsPageHeading />
-            <MobileStatsTelemetry
-              avgScore={avgScore}
-              currentStreak={currentStreak}
-              longestStreak={longestStreak}
-              subjectPerformanceData={subjectPerformanceData}
-              examResultsData={examResultsData}
-              studyActivityData={studyActivityData}
-              timeRange={timeRange}
-              setTimeRange={setTimeRange}
-              topics={topics}
-              weakTopicsLoading={weakTopicsLoading}
-              initialTab={mobileInitialTab}
-              totalExams={totalExams}
-              completedExams={completedExams}
-              inProgressExams={inProgressExams}
-              totalStudyHours={totalStudyHours}
-              bestSubject={bestSubject}
-              revisionGoals={revisionGoals}
-              viewMode={pieChartMode}
-              onViewModeChange={setPieChartMode}
-              onSummaryClick={drilldown.openDrawer}
-            />
-          </>
-        ) : (
-          <Tabs
-            value={desktopTab}
-            onValueChange={setDesktopTab}
-            className="w-full"
-          >
-            <StatsPageHeading
-              actions={
-                <TabsList
-                  aria-label="Progress views"
-                  className="bg-muted rounded-lg p-1 gap-1 h-auto w-auto inline-flex"
-                >
-                  <TabsTrigger
-                    value="stats"
-                    className="rounded-md px-4 py-2.5 text-sm gap-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-none transition-colors"
-                  >
-                    <BarChart3 className="w-3.5 h-3.5" aria-hidden="true" />
-                    Overview
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="weak-topics"
-                    className="rounded-md px-4 py-2.5 text-sm gap-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-none transition-colors"
-                  >
-                    <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />
-                    Weak Topics
-                    {weakCount > 0 && (
-                      <span className="text-[9px] font-bold bg-destructive text-destructive-foreground rounded-full px-1.5 py-px ml-0.5">
-                        {weakCount}
-                      </span>
-                    )}
-                  </TabsTrigger>
-                </TabsList>
-              }
-            />
-
-            <TabsContent value="stats" className="mt-0">
-              <div className="stats-dashboard">
-                <div className="stats-dashboard-column stats-dashboard-history">
-                  <SubjectScoresChart
-                    data={subjectPerformanceData}
-                    viewMode={pieChartMode}
-                    onViewModeChange={setPieChartMode}
-                  />
-                  <WeeklyStudyChart
-                    data={studyActivityData}
-                    subjects={subjects}
-                  />
-                </div>
-
-                <div className="stats-dashboard-column stats-dashboard-learning">
-                  <RevisionPrioritiesCard
-                    topics={topics}
-                    loading={weakTopicsLoading}
-                    limit={2}
-                    action={
-                      <button
-                        type="button"
-                        className="stats-view-link"
-                        onClick={() => setDesktopTab("weak-topics")}
-                      >
-                        View all
-                      </button>
-                    }
-                  />
-                  <ScoreTargetChart
-                    data={examResultsData}
-                    subjects={subjectPerformanceData}
-                    timeRange={timeRange}
-                    onTimeRangeChange={setTimeRange}
-                    revisionGoals={revisionGoals}
-                  />
-                </div>
-
-                <div className="stats-dashboard-column stats-dashboard-subjects">
-                  <SubjectPerformanceChart
-                    data={subjectPerformanceData}
-                    viewMode={pieChartMode}
-                    onViewModeChange={setPieChartMode}
-                    trendData={examResultsData}
-                  />
-                  <AccuracyTrendChart />
-                </div>
-                <div className="stats-dashboard-progress">
-                  <div>
-                    <div className="stats-section-heading">
-                      <h2>Learning progress</h2>
-                    </div>
-                    <DesktopLearningGauges
-                      topics={topics}
-                      average={avgScore}
-                      streak={currentStreak}
-                      bestStreak={longestStreak}
-                      hasExams={subjectPerformanceData.some(
-                        (subject) => subject.count > 0,
-                      )}
-                      loading={weakTopicsLoading}
-                    />
-                  </div>
-                  <TopicProgressOverview
-                    topics={topics}
-                    loading={weakTopicsLoading}
-                    action={
-                      <button
-                        type="button"
-                        className="stats-view-link"
-                        onClick={() => setDesktopTab("weak-topics")}
-                      >
-                        Explore
-                      </button>
-                    }
-                  />
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="weak-topics" className="mt-0">
-              <WeakTopicsTab topics={topics} loading={weakTopicsLoading} />
-            </TabsContent>
-          </Tabs>
-        )}
-
-        {/* Stats Drilldown Drawer */}
-        <StatsDrilldownDrawer
-          type={drilldown.activeDrawer}
-          onClose={drilldown.closeDrawer}
-          onNavigate={drilldown.openDrawer}
-          error={drilldown.error}
-          onRetry={drilldown.retry}
-          loading={drilldown.loading}
-          completedExams={drilldown.completedExams}
-          scoreBreakdown={drilldown.scoreBreakdown}
-          scores={drilldown.scores}
-          scorePeriod={drilldown.scorePeriod}
-          onScorePeriodChange={drilldown.setScorePeriod}
-          excludedCount={drilldown.excludedCount}
-          studySessions={drilldown.studySessions}
-          streakData={drilldown.streakData}
-          studyPeriod={drilldown.studyPeriod}
-          onStudyPeriodChange={drilldown.setStudyPeriod}
-          streakMonth={drilldown.streakMonth}
-          onStreakMonthChange={drilldown.setStreakMonth}
-        />
-      </div>
-    </DashboardLayout>
-  );
-};
-
-export default Stats;
+  return <DashboardLayout><div className="subject-stats" aria-busy={refreshing || undefined}>
+    {loading && !data.subjects.length ? <><StatsPageHeading actions={<Skeleton className="h-11 w-56 max-w-full"/>}/><div role="status" aria-label="Loading your statistics" aria-busy="true"><span className="sr-only">Loading your statistics…</span><div className="subject-stats-loading" aria-hidden="true"><Skeleton className="h-24 w-full"/><div className="subject-stats-grid"><Skeleton className="subject-stats-trend h-80"/><Skeleton className="subject-stats-breakdown h-80"/>{[1,2,3].map(n=><Skeleton key={n} className="subject-stats-radar h-72"/>)}</div></div></div></> : error && !data.subjects.length ? <><StatsPageHeading/><StatsError onRetry={()=>void refetch()}/></> : <Tabs value={tab} onValueChange={changeTab}>
+      <StatsPageHeading actions={tabs}/>
+      {!!data.unavailableExamCount && <LoadError message="Some exam history couldn’t be grouped by subject. Your available results are still shown." onRetry={()=>void refetch()}/>}
+      {error && <LoadError message="Couldn’t update your statistics. Your last loaded results are still shown." onRetry={()=>void refetch()}/>}
+      {data.subjects.length > 0 && <><div className="subject-stats-scope" aria-label="Statistics selection">
+        <div className="subject-stats-subject-control"><span className="subject-stats-control-label" id="stats-subject-label">Subject</span><div className="subject-stats-subject-switch" role="group" aria-labelledby="stats-subject-label">{data.subjects.map(item=><button type="button" key={item.id} aria-pressed={activeSubjectId===item.id} onClick={()=>setSubjectId(item.id)}><BookOpen aria-hidden="true"/>{item.name}</button>)}</div></div>
+        <div className="subject-stats-profile-control"><label htmlFor="stats-profile-select">Exam profile</label><select id="stats-profile-select" value={profileId} onChange={e=>setProfilesBySubject(previous=>({...previous,[activeSubjectId]:e.target.value}))}><option value={ALL_STATS_PROFILES}>All profiles</option>{scoped.profiles.map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select></div>
+      </div><div className="subject-stats-scope-note"><span>{subject?.name}{selectedProfile?.examBoard ? ` · ${getBoardDisplayName(selectedProfile.examBoard)}` : ""}{selectedProfile?.educationLevel ? ` · ${LEVEL_DISPLAY_NAMES[selectedProfile.educationLevel] || selectedProfile.educationLevel}` : ""}</span><span>{profileId===ALL_STATS_PROFILES?"Comparing profiles":profileLabel} · All cards follow this selection</span></div></>}
+      <TabsContent value="overview" className="m-0" aria-label="Overview">
+        {!hasMarkedWork ? data.unavailableExamCount ? <StatsError onRetry={()=>void refetch()}/> : <><StatsFirstResult noSubjects={!subject} pending={scoped.pending.length>0} subject={subject?.name} profileId={profileId}/>{scoped.unassignedStudyHours > 0 && <p className="subject-stats-pending">{Math.round(scoped.unassignedStudyHours * 10) / 10}h of subject revision recorded this week. It isn’t linked to an exam profile.</p>}{subject && <div className="subject-stats-first-goal">{goal}</div>}</> : <>
+          {scoped.pending.length>0 && <p className="subject-stats-pending"><Clock3 aria-hidden="true"/>{scoped.pending.length} {scoped.pending.length===1?"attempt is":"attempts are"} awaiting marking or release. They aren’t counted as zero.</p>}
+          <div className="subject-stats-grid">
+            <ProfileTrendChart rows={scoped.trend} profiles={scoped.profiles} timeRange={timeRange} onTimeRangeChange={setTimeRange}/>
+            {scoped.topicUnavailableCount > 0 ? <section className="subject-stats-panel subject-stats-topic-unavailable" role="alert"><h2>Some topic results couldn’t load</h2><p>Your exam scores and released question reviews remain available. We won’t show missing topic evidence as zero or as mastered work.</p><button type="button" className="subject-stats-text-button" onClick={()=>void refetch()}>Retry topic results</button></section> : <><TopicBreakdownChart topics={scoped.topics} onStatusSelect={status=>{setWeakFilter(status);changeTab("weak-topics");}}/>
+            <ProfileTopicRadar profiles={scoped.profiles} topicsByProfile={scoped.topicsByProfile}/></>}
+            <ProfileStudyChart days={scoped.studyDays} profiles={scoped.profiles} totalHours={scoped.studyHours} unassignedHours={scoped.unassignedStudyHours}/>
+            {!scoped.topicUnavailableCount && <TopicScoreDistribution topics={scoped.topics}/>}
+            {goal}
+            <QuestionsToRevisit questions={scoped.wrongQuestions} scopeKey={scopeKey}/>
+          </div>
+        </>}
+      </TabsContent>
+      <TabsContent value="weak-topics" className="m-0" aria-label="Weak Topics">{scoped.topicUnavailableCount > 0 || (!!data.unavailableExamCount && !hasMarkedWork) ? <LoadError message="Some topic evidence isn’t available. Your exam scores and released question reviews remain available." onRetry={()=>void refetch()}/> : <ScopedWeakTopics key={scopeKey} topics={scoped.topics} subject={subject?.name || ""} profileId={profileId} initialFilter={weakFilter} onFilterChange={setWeakFilter} pendingCount={scoped.pending.length}/> }</TabsContent>
+    </Tabs>}
+  </div></DashboardLayout>;
+}
