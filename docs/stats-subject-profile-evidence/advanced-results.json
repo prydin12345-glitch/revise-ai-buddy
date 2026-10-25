@@ -1,0 +1,118 @@
+[
+  {
+    "subjectProfileScope": true,
+    "stableProfileColors": true,
+    "noReadsForFilterOrRange": true,
+    "curvedTrend": true,
+    "scopedDataTable": true
+  },
+  {
+    "goalSave": true,
+    "startingDoesNotRewritePerformance": true,
+    "targetAtSavedBoundary": true
+  },
+  {
+    "questionExpectedAnswer": true,
+    "noKeysAfterClose": true,
+    "rechecksRevokedRelease": true,
+    "reviewRetry": true
+  },
+  {
+    "weakTopicsScope": true,
+    "weakDetails": true
+  },
+  {
+    "functions": [
+      "get-exam-questions",
+      "get-exam-questions",
+      "get-exam-questions"
+    ],
+    "noModelCalls": true,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "scenario": "empty",
+    "noOverflow": true,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "scenario": "pending",
+    "noOverflow": true,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "scenario": "practice-only",
+    "noOverflow": true,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "scenario": "no-subjects",
+    "noOverflow": true,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "scenario": "error",
+    "noOverflow": true,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "scenario": "history",
+    "noOverflow": true,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "scenario": "zero",
+    "noOverflow": true,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "scenario": "radar-missing",
+    "noOverflow": true,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "scenario": "topic-unavailable",
+    "noOverflow": true,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  }
+]

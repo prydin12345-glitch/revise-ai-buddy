@@ -37,6 +37,9 @@ vi.mock('@/lib/exam-stats-query', () => ({
   examStatsQuery: () => ({ queryKey: ['test-stats'], queryFn: async () => ({}) }),
   accuracyTrendQuery: () => ({ queryKey: ['test-accuracy'], queryFn: fixtures.readAccuracy }),
 }));
+vi.mock('@/lib/subject-profile-stats-query', () => ({
+  subjectProfileStatsQuery: () => ({ queryKey: ['test-profile-stats'], queryFn: async () => ({}) }),
+}));
 vi.mock('@/lib/student-dashboard-query', () => ({
   studentDashboardQuery: (ownerId: string | null, generation = 0) => ({ queryKey: ['student-dashboard', ownerId, generation], queryFn: fixtures.readHome, staleTime: 60_000 }),
 }));
@@ -271,13 +274,17 @@ describe('read-only route readiness failures', () => {
     await waitFor(() => expect(fixtures.readRoles).toHaveBeenCalledTimes(1));
   });
 
-  it('opens Stats when only optional accuracy fails, leaving a stable local retry', async () => {
+  it('prepares profile-aware Stats without obsolete queries and keeps an optional metric retry local', async () => {
     fixtures.readAccuracy.mockRejectedValueOnce(new Error('Accuracy offline'));
-    render(<WorkspaceContext.Provider value={scope()}><MemoryRouter initialEntries={['/stats']}><Suspense fallback={<div role="status">Preparing page</div>}><WorkspacePageReady>
+    const current = scope();
+    render(<WorkspaceContext.Provider value={current}><MemoryRouter initialEntries={['/stats']}><Suspense fallback={<div role="status">Preparing page</div>}><WorkspacePageReady>
       <h1>Student Stats</h1><OptionalMetric name="Accuracy" queryKey={['test-accuracy']} queryFn={fixtures.readAccuracy} />
     </WorkspacePageReady></Suspense></MemoryRouter></WorkspaceContext.Provider>);
     await screen.findByRole('heading', { name: 'Student Stats' });
-    expect(screen.getByRole('region', { name: 'Accuracy unavailable' })).toBeVisible();
+    expect(await screen.findByRole('region', { name: 'Accuracy unavailable' })).toBeVisible();
+    expect(workspaceQueryClient(current.store).getQueryData(['test-profile-stats'])).toEqual({});
+    expect(workspaceQueryClient(current.store).getQueryData(['test-stats'])).toBeUndefined();
+    expect(workspaceQueryClient(current.store).getQueryData(['test-topics'])).toBeUndefined();
     expect(screen.queryByRole('heading', { name: 'Couldn’t open this page' })).not.toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(fixtures.readAccuracy).toHaveBeenCalledOnce();

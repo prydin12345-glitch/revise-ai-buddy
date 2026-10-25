@@ -1,0 +1,26 @@
+[
+  {
+    "name": "laptop",
+    "width": 1440,
+    "height": 1000,
+    "overflow": false,
+    "text": "Your progress\n\nSee what’s improving, where to focus and how your revision is taking shape.\n\nOverview\nWeak Topics\n3\nSubject performance\n\nAverage graded-exam score\n\nBiology\nChemistry\nMathematics\n0%\n25%\n50%\n75%\n100%\nScore\nExams\nView chart data\n: Subject performance comparison\nStudy activity\nRecorded hours this week\n11.9h\nMon 19 - 25 Oct\nMon\nTue\nWed\nThu\nFri\nSat\nSun\n0h\n6h\n12h\nBiology\nChemistry\nMathematics\nView chart data\n: Study activity this week\nRevision priorities\n\nStart with your lowest-scoring t",
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "name": "phone",
+    "width": 390,
+    "height": 844,
+    "overflow": false,
+    "text": "Your progress\n\nSee what’s improving, where to focus and how your revision is taking shape.\n\nOverview\nTopics\n3\nPerformance\n68%\nTopic accuracy\nAcross marked topics\nView details\n72%\nExam readiness estimate\nScores, coverage & consistency\nView details\nSubject performance\n\nAverage graded-exam score\n\nBiology\nChemistry\nMathematics\n0%\n25%\n50%\n75%\n100%\nScore\nExams\nView chart data\n: Subject performance comparison\nRevision priorities\n\nStart with your lowest-scoring topics\n\nView all\n1\nEnzymes\n\nBiology · 18 m",
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  }
+]

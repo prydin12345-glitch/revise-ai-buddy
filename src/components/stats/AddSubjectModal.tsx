@@ -23,6 +23,9 @@ import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { getRegionBoards } from "@/lib/board-level-mapping";
 import { EXAM_BOARD_OPTIONS } from "@/lib/board-scrubber";
+import { GoalFields } from "./GradeGoalCard";
+import { resolveScaleId } from "@/lib/grade-scales";
+import { saveSubjectGradeGoal, subjectGradeGoalError, type SubjectGradeGoal } from "@/lib/subject-grade-goals";
 
 interface SubjectOption {
   id: string;
@@ -76,6 +79,8 @@ export const AddSubjectModal = ({
     getNextAvailableColour(existingColours)
   );
   const [examBoard, setExamBoard] = useState<string>("");
+  const [gradeGoal, setGradeGoal] = useState<SubjectGradeGoal>({});
+  const [goalEnabled, setGoalEnabled] = useState(false);
 
   // "confirmed" = user picked a subject and is now on the confirmation view
   const [confirmed, setConfirmed] = useState(false);
@@ -102,6 +107,8 @@ export const AddSubjectModal = ({
       setCustomName("");
       setShowCustom(false);
       setConfirmed(false);
+      setGradeGoal({});
+      setGoalEnabled(false);
       setSelectedColour(getNextAvailableColour(existingColours));
       // Seed exam board from the most common board among existing subjects,
       // falling back to empty. The global preferred_exam_board is no longer
@@ -164,13 +171,14 @@ export const AddSubjectModal = ({
       if (!user) throw new Error("Not authenticated");
 
       let subjectName: string;
+      let insertedSubjectId: string | null = null;
       const colour = selectedColour || CATEGORY_COLORS.other;
       const boardValue = examBoard && examBoard !== "__none" ? examBoard : null;
 
       if (showCustom && customName.trim()) {
         subjectName = customName.trim();
 
-        const [_, category] = await Promise.all([
+        const [inserted, category] = await Promise.all([
           supabase.from("user_subjects").insert({
             user_id: user.id,
             subject_name: subjectName,
@@ -178,9 +186,11 @@ export const AddSubjectModal = ({
             is_custom: true,
             custom_name: subjectName,
             exam_board: boardValue,
-          }),
+          }).select("id").single(),
           classifySubjectName(subjectName),
         ]);
+        if (inserted.error) throw inserted.error;
+        insertedSubjectId = inserted.data?.id ?? null;
 
         await supabase
           .from("user_subjects")
@@ -192,7 +202,7 @@ export const AddSubjectModal = ({
       } else if (selectedSubject) {
         subjectName = selectedSubject.name;
 
-        const [_, category] = await Promise.all([
+        const [inserted, category] = await Promise.all([
           supabase.from("user_subjects").insert({
             user_id: user.id,
             subject_id: selectedSubject.id,
@@ -200,9 +210,11 @@ export const AddSubjectModal = ({
             subject_color: colour,
             is_custom: false,
             exam_board: boardValue,
-          }),
+          }).select("id").single(),
           classifySubjectName(subjectName),
         ]);
+        if (inserted.error) throw inserted.error;
+        insertedSubjectId = inserted.data?.id ?? null;
 
         await supabase
           .from("user_subjects")
@@ -213,6 +225,17 @@ export const AddSubjectModal = ({
         toast.success(`Added "${subjectName}"`);
       } else {
         return;
+      }
+
+      if (goalEnabled && insertedSubjectId) {
+        // The subject already exists. A blocked browser store must not undo it.
+        const goal = { scaleId: resolveScaleId(preferences?.preferred_educational_level, preferences?.curriculum_region), ...gradeGoal };
+        const invalid = subjectGradeGoalError(goal);
+        if (invalid) toast.info(`Your subject was added. The grade goal wasn’t saved: ${invalid}`);
+        else {
+          const persisted = saveSubjectGradeGoal(user.id, insertedSubjectId, goal);
+          if (!persisted) toast.info("Your grade goal is available for this session; this browser couldn’t save it for next time.");
+        }
       }
 
       onSubjectAdded();
@@ -422,6 +445,16 @@ export const AddSubjectModal = ({
                 ← Back to list
               </Button>
             </div>
+          )}
+
+          {(confirmed || (showCustom && customName.trim())) && (
+            <details className="rounded-lg border border-border px-3" onToggle={event => { if (event.currentTarget.open) setGoalEnabled(true); }}>
+              <summary className="cursor-pointer py-3 text-xs font-semibold text-primary">Starting grade & goal (optional)</summary>
+              <div className="space-y-3 pb-4">
+                <p className="text-[11px] leading-relaxed text-muted-foreground">Set a starting point and a target. Your current estimate will update from marked exams. Goals stay on this browser for this account.</p>
+                <GoalFields value={{ scaleId: resolveScaleId(preferences?.preferred_educational_level, preferences?.curriculum_region), ...gradeGoal }} onChange={setGradeGoal} compact />
+              </div>
+            </details>
           )}
 
           <DialogFooter>
