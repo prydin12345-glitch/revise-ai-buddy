@@ -6,6 +6,7 @@ import Stats from "@/pages/Stats";
 import { WorkspaceContext, WorkspaceStore } from "@/hooks/use-workspace-session";
 import { EMPTY_SUBJECT_PROFILE_STATS, type SubjectProfileStatsData } from "@/lib/subject-profile-stats";
 import { StatsFirstResult } from "@/components/stats/StatsFirstResult";
+import { SubjectSelector } from "@/components/stats/SubjectSelector";
 import { ScopedWeakTopics } from "@/components/stats/ScopedWeakTopics";
 import { saveSubjectGradeGoal } from "@/lib/subject-grade-goals";
 import type { UnifiedTopicScore } from "@/hooks/useUnifiedTopicPerformance";
@@ -30,3 +31,35 @@ it("topic details distinguish missing practice from a true zero and keep targete
 it("keeps released scores and question review visible when topic metadata is unavailable",()=>{const data=fixture();data.topicUnavailableExams=[{examId:"e1",subject:"Biology",profileId:"full"}];state.data=data;render(wrapper(<Stats/>));expect(screen.getByRole("heading",{name:"Some topic results couldn’t load"})).toBeVisible();expect(screen.queryByRole("heading",{name:"Topic breakdown"})).toBeNull();expect(screen.getByRole("button",{name:/Review question 1/})).toBeVisible();fireEvent.change(screen.getByRole("combobox",{name:"Exam profile"}),{target:{value:"short"}});expect(screen.queryByRole("heading",{name:"Some topic results couldn’t load"})).toBeNull();expect(screen.getByRole("heading",{name:"Topic breakdown"})).toBeVisible();});
 
 it("keeps a new subject’s saved starting grade and target before an exam profile exists",()=>{state.data={...EMPTY_SUBJECT_PROFILE_STATS,subjects:[{id:"new-subject",name:"Biology",color:"#2877b8"}]};saveSubjectGradeGoal("owner-a","new-subject",{scaleId:"alevel_a_e",startingGrade:"D",targetGrade:"A"});render(wrapper(<Stats/>));const card=screen.getByRole("region",{name:"Biology grade goal"});expect(card).toHaveTextContent("Starting grade");expect(card).toHaveTextContent("D");expect(card).toHaveTextContent("Your target");expect(card).toHaveTextContent("A");expect(card).not.toHaveTextContent("This course uses Percentage");});
+
+it("uses saved subject colours for icon-free controls and retains accessible selection",()=>{
+  const select=vi.fn();
+  render(<SubjectSelector subjects={[{id:"dark",name:"Biology",color:"#123"},{id:"bright",name:"Chemistry",color:"#ffff00"},{id:"invalid",name:"History",color:"invalid"}]} selectedId="dark" onSelect={select}/>);
+  const group=screen.getByRole("group",{name:"Subject"});
+  expect(group.style.getPropertyValue("--active-subject-colour")).toBe("#112233");
+  expect(group.querySelector("svg")).toBeNull();
+  const dark=within(group).getByRole("button",{name:"Biology"});
+  expect(dark).toHaveAttribute("aria-pressed","true");
+  expect(dark.style.getPropertyValue("--subject-tab-foreground")).toBe("#ffffff");
+  const bright=within(group).getByRole("button",{name:"Chemistry"});
+  expect(bright.style.getPropertyValue("--subject-tab-foreground")).toBe("#000000");
+  expect(within(group).getByRole("button",{name:"History"}).style.getPropertyValue("--subject-tab-colour")).toBe("#4263eb");
+  fireEvent.click(bright);expect(select).toHaveBeenCalledWith("bright");
+});
+
+it("keeps topic-category drilldown inside Overview and resets it when the subject changes",()=>{
+  render(wrapper(<Stats/>));
+  fireEvent.click(screen.getByRole("button",{name:"Needs attention: 1 topics"}));
+  expect(screen.getByRole("region",{name:"Needs attention topics"})).toHaveTextContent("Cells");
+  expect(screen.getByRole("tab",{name:"Overview"})).toHaveAttribute("data-state","active");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  fireEvent.click(screen.getByRole("button",{name:"Chemistry"}));
+  expect(screen.queryByRole("region",{name:"Needs attention topics"})).toBeNull();
+  expect(screen.getByRole("heading",{name:"Topic breakdown"})).toBeVisible();
+});
+
+it("keeps the main view free of the removed explanatory copy",()=>{
+  render(wrapper(<Stats/>));
+  expect(screen.queryByText(/See what’s improving|Each line follows|Curves join recorded|Axes = marked|Each topic is counted once/)).toBeNull();
+  expect(screen.queryByText(/Open a question to see|Estimates use selected marked|Goals are saved on this browser/)).toBeNull();
+});

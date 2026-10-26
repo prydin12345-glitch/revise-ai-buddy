@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-26",
+  "baselineCommit": "64431934",
+  "browser": "Chromium 151.0.7922.173",
+  "method": "Actual app source with synthetic in-memory SDK, frozen production CSS, local font snapshots and reduced motion. No real accounts/services/model calls.",
+  "responsiveThemeCombinations": 10,
+  "detailedLayoutInteractionContrastCases": 5,
+  "additionalEdgeCases": [
+    "percentage-only grade on 320px",
+    "26 needs-attention topics on 320px"
+  ],
+  "result": "All browser assertions passed. No horizontal overflow, unexpected console/JavaScript/request errors or external runtime requests.",
+  "contrastScope": "Measured selected subject tabs and question/answer/answer-heading text; not a full accessibility audit.",
+  "sourceHashes": {
+    "src/components/stats/GradeGoalCard.tsx": "964f5c51aafcffe00e0d074186d384a1fce0e3cf8a5378e346c9267cbff649b4",
+    "src/components/stats/QuestionRevisitContent.tsx": "8315b9f61d70b90f8c4aae79b665fd9f1449bb93cb0e849645d3796cb833304c",
+    "src/components/stats/QuestionsToRevisit.tsx": "7ed012a9a381566663424456295f2fb77cb5bea98638e264ee85e4f5ecf9c4d1",
+    "src/components/stats/ScopedWeakTopics.tsx": "53d5e89573bc04a5fd0e079b4af80c5da93bbf934d4ec1fab80af72906f340da",
+    "src/components/stats/StatsPageStates.tsx": "419389ce1330e2442eb2caf79921095c659993d96a20d0619a90ad6d283d97e9",
+    "src/components/stats/SubjectSelector.tsx": "6c228a580893ecf8eca93bf18e02475d6310ac928b6f7bce03fcdcee03ec2c8b",
+    "src/components/stats/SubjectStatsCharts.tsx": "286d2f1606cc58199cf9e3fbb59ab244e94c1440425131ab7c3a599ee2742fe8",
+    "src/pages/Stats.tsx": "3fe66fc593614f2297d52851cfb6f97f0ccd265ac78138eea7dd0ddedb7cd667",
+    "src/styles/stats-grade-goal.css": "ba9e9e6cfddcaa4a5e939ba49774dffd7a3b4b5d3b3417d4555e7824cdae035d",
+    "src/styles/stats-question-review.css": "2fa1b61d97170b0751f661dffc2266ebe7c44c2fd044356983e3ccb64af92efd",
+    "src/styles/stats-topic-breakdown.css": "541d86991c35607719939b30e7c71fe9d4976c029cf1709bbef1621cc0cc64ba",
+    "src/styles/subject-stats.css": "495c11a3a5fa08758ed088d4d13a7cc27a5ebd51c049a89920f7f594f44de64f",
+    "src/test/subject-stats-charts.test.tsx": "4adb819ba30d00d07c4c856725ec8fc6f1ffdceb88483f39467570fbaeadd9be",
+    "src/test/subject-stats-page.test.tsx": "87d8112e48d9f96af45d1f2027c12d70c40cf69526cc4d8de04344e80270d140"
+  },
+  "checks": {
+    "frozenTests": {
+      "filesPassed": 9,
+      "testsPassed": 112,
+      "unhandledErrors": 0,
+      "seconds": 59.06
+    },
+    "typecheck": "passed",
+    "criticalLint": "passed",
+    "edge": "passed, 39 bundled functions",
+    "build": "passed, 3m 9s",
+    "diffCheck": "passed",
+    "fullRepositoryGate": "Fresh-checkout GitHub Actions npm ci and npm run check on Node 22",
+    "discardedLocalFullRun": "Interrupted: stale transform after an in-flight source edit and concurrent setup timeouts; not counted as a pass"
+  }
+}

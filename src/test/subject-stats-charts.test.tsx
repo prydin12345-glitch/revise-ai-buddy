@@ -1,6 +1,6 @@
 import { cloneElement, type ReactElement } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { UnifiedTopicScore } from "@/hooks/useUnifiedTopicPerformance";
 import {
   ProfileTrendChart, ProfileTopicRadar, ProfileStudyChart, TopicBreakdownChart,
@@ -64,17 +64,43 @@ it("requires at least three common axes instead of inventing a polygon", () => {
     { profileId: "full", profileName: "Full mock", topics: [topic("Cells", 50)] },
     { profileId: "short", profileName: "Short paper", topics: [topic("Enzymes", 70)] },
   ]} />);
-  expect(screen.getByRole("status")).toHaveTextContent("At least three marked topics");
+  expect(screen.getByRole("status")).toHaveTextContent("Not enough shared topic data");
   expect(document.querySelector(".recharts-radar-polygon")).toBeNull();
 });
 
-it("counts marked topic statuses and routes the exact status action", () => {
-  const onStatus = vi.fn();
-  render(<TopicBreakdownChart topics={[topic("Cells", 80), topic("Enzymes", 60), topic("Molecules", 0), topic("Pending", 0, false)]} onStatusSelect={onStatus} />);
+it("opens the selected category inside its own card and returns to the chart", () => {
+  render(<TopicBreakdownChart topics={[topic("Cells", 80), topic("Enzymes", 60), topic("Molecules", 0), topic("Pending", 0, false)]} />);
   expect(screen.getByRole("button", { name: "Strong: 1 topics" })).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Needs attention: 1 topics" }));
-  expect(onStatus).toHaveBeenCalledWith("weak");
-  expect(screen.getByText("3 marked topics · not whole-syllabus coverage.")).toBeVisible();
+  const group = screen.getByRole("region", { name: "Needs attention topics" });
+  expect(group).toHaveTextContent("Molecules");
+  expect(group).toHaveTextContent("0%");
+  expect(group).not.toHaveTextContent("Cells");
+  expect(group).not.toHaveTextContent("Pending");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.getByRole("heading", { name: "Topic breakdown" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Back to topic breakdown chart" }));
+  expect(screen.queryByRole("region", { name: "Needs attention topics" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Show needs attention topics" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Needs attention: 1 topics" })).toHaveFocus();
+});
+
+it("supports pointer and keyboard activation on the actual doughnut segments", () => {
+  render(<TopicBreakdownChart topics={[topic("Cells", 80), topic("Molecules", 25)]} />);
+  fireEvent.click(screen.getByRole("button", { name: "Show needs attention topics" }));
+  expect(screen.getByRole("region", { name: "Needs attention topics" })).toHaveTextContent("Molecules");
+  fireEvent.click(screen.getByRole("button", { name: "Back to topic breakdown chart" }));
+  fireEvent.keyDown(screen.getByRole("button", { name: "Show strong topics" }), { key: "Enter" });
+  expect(screen.getByRole("region", { name: "Strong topics" })).toHaveTextContent("Cells");
+  expect(screen.getByRole("button", { name: "Back to topic breakdown chart" })).toHaveFocus();
+});
+
+it("keeps zero-count categories usable without inventing topic evidence", () => {
+  render(<TopicBreakdownChart topics={[topic("Cells", 90), topic("Pending", 0, false)]} />);
+  fireEvent.click(screen.getByRole("button", { name: "Needs attention: 0 topics" }));
+  const group = screen.getByRole("region", { name: "Needs attention topics" });
+  expect(group).toHaveTextContent("No topics in this group yet");
+  expect(within(group).queryByRole("listitem")).toBeNull();
 });
 
 it("groups only selected-profile recorded time and labels unassigned revision separately", () => {
@@ -82,10 +108,11 @@ it("groups only selected-profile recorded time and labels unassigned revision se
     { key: "mon", day: "Monday", hoursByProfile: { short: 0 }, total: 0 },
     { key: "tue", day: "Tuesday", hoursByProfile: { short: 1.2 }, total: 1.2 },
   ]} totalHours={1.2} unassignedHours={0.8} />);
-  expect(screen.getByText("recorded time")).toBeVisible();
-  expect(screen.getByText(/0.8h of unassigned subject revision is separate/)).toBeVisible();
+  expect(screen.getByText("This week")).toBeVisible();
+  expect(screen.queryByText(/Unlinked revision/)).toBeNull();
   expect(screen.queryByText("Full mock")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "View study hours data" }));
+  expect(screen.getByRole("dialog")).toHaveTextContent("Unlinked revision: 0.8h");
   expect(screen.getByRole("table", { hidden: true })).toHaveTextContent("0h");
   expect(screen.getByRole("table", { hidden: true })).toHaveTextContent("1.2h");
 });

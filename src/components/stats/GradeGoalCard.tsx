@@ -1,4 +1,6 @@
-import { useEffect, useId, useState, type CSSProperties } from "react";
+import { useEffect, useId, useState } from "react";
+import { Target, Check, Pencil } from "lucide-react";
+import "@/styles/stats-grade-goal.css";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -47,7 +49,7 @@ export function GoalFields({ value, onChange, compact = false, fixedScaleId, fix
         <div className="space-y-1.5"><label htmlFor={`${id}-scale`} className="block font-semibold">Grade scale</label><select id={`${id}-scale`} className="stats-goal-select w-full min-h-11 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground" value={scaleId} disabled={!!fixedScaleId} onChange={event => onChange(goalForScale(value, event.target.value as GradeScaleId))}>{ALL_SCALES.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select>{fixedScaleId && <p className="text-[11px] text-muted-foreground">Uses the selected course’s grade scale.</p>}</div>
         {scale.tiers && <div className="space-y-1.5"><label htmlFor={`${id}-tier`} className="block font-semibold">Tier</label><select id={`${id}-tier`} className="stats-goal-select w-full min-h-11 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground" value={value.tierId ?? ""} disabled={!!fixedTierId} onChange={event => onChange(goalForScale(value, scaleId, event.target.value || undefined))}><option value="">Not set</option>{scale.tiers.map(tier => <option key={tier.id} value={tier.id}>{tier.label}</option>)}</select>{fixedTierId && <p className="text-[11px] text-muted-foreground">The selected exam profile sets this tier.</p>}</div>}
         {scale.grades.length > 0 && <>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">Estimates use these boundaries. Defaults are indicative; replace them with boundaries for your course and paper.</p>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">Indicative boundaries · Saved on this browser</p>
           <div className="grid grid-cols-3 gap-3">{grades.filter(grade => scale.defaultBoundaries[grade] !== undefined).map(grade => <div key={grade}><label htmlFor={`${id}-boundary-${grade}`} className="mb-1 block text-[11px]">{grade} minimum %</label><Input id={`${id}-boundary-${grade}`} type="number" min="0" max="100" step="0.1" placeholder={String(scale.defaultBoundaries[grade])} value={value.boundaries?.[grade] ?? ""} onChange={event => {
             const next = { ...(value.boundaries ?? {}) };
             if (event.target.value === "") delete next[grade];
@@ -112,35 +114,37 @@ export function GradeGoalCard({ ownerId, subjectId, subject, averageScore, defau
     const persisted = save(imported);
     setStorageNote(persisted ? "Previous browser settings copied to this account and subject." : "Previous settings are available for this session only.");
   };
-  const ticks = scale.grades.length ? [...grades].reverse().map(grade => ({ grade, value: bounds[grade] ?? 0 })) : [{ grade: "0%", value: 0 }, { grade: "50%", value: 50 }, { grade: "100%", value: 100 }];
+  const reached = current !== null && target !== null && current >= target;
   return <>
-    <section className="subject-stats-card stats-grade-goal" aria-label={`${subject} grade goal`}>
-      <header className="subject-stats-card-heading"><div><h2>Your grade goal</h2><p>A starting point, a current estimate and a clear target</p></div><Button variant="ghost" size="sm" onClick={edit} disabled={!ownerId}>Edit goal</Button></header>
+    <section className="subject-stats-card stats-grade-goal stats-grade-goal-v2" aria-label={`${subject} grade goal`}>
+      <header className="subject-stats-card-heading stats-goal-heading">
+        <div className="stats-goal-title"><span className="stats-goal-symbol" aria-hidden="true"><Target/></span><h2>Your grade goal</h2></div>
+        <Button variant="ghost" size="sm" onClick={edit} disabled={!ownerId}><Pencil aria-hidden="true"/>Edit goal</Button>
+      </header>
       <div className="stats-grade-summary">
-        <div><span>Starting {scale.grades.length ? "grade" : "percentage"}<small>Set by you</small></span><strong>{starting}</strong></div>
-        <div><span>Current estimate<small>{profileLabel ? `From ${profileLabel}` : "From marked exams"}</small></span><strong>{current === null ? "—" : projection?.grade ?? `${display(current)}%`}{current !== null && projection?.grade && <small>{display(current)}%</small>}</strong></div>
-        <div><span>Your target<small>Saved goal</small></span><strong>{gradeTarget ?? (target !== null ? `${display(target)}%` : "Not set")}</strong></div>
+        <div className="stats-goal-start"><span>Starting {scale.grades.length ? "grade" : "percentage"}</span><strong>{starting}</strong></div>
+        <div className="stats-goal-current"><span>Current estimate</span><strong>{current === null ? "—" : projection?.grade ?? `${display(current)}%`}{current !== null && projection?.grade && <small>{display(current)}%</small>}</strong>{profileLabel && <span className="stats-goal-profile">{profileLabel}</span>}</div>
+        <div className="stats-goal-target"><span>Your target</span><strong>{gradeTarget ?? (target !== null ? `${display(target)}%` : "Not set")}</strong></div>
       </div>
       <div className="stats-grade-bar-wrap">
-        {target !== null && <span className="stats-grade-target-label" style={{ left: `${Math.max(4, Math.min(96, target))}%` }}>Target {gradeTarget ?? `${display(target)}%`}</span>}
+        {target !== null && <span className="stats-grade-target-label" style={{ left: `${Math.max(7, Math.min(93, target))}%` }}>Target {gradeTarget ?? `${display(target)}%`}</span>}
         <div className="stats-grade-progress" role={current === null ? "img" : "meter"} aria-label={current === null ? "No marked exam estimate yet" : `${subject} current exam percentage`} aria-valuemin={current === null ? undefined : 0} aria-valuemax={current === null ? undefined : 100} aria-valuenow={current ?? undefined}>
           <span style={{ width: `${current ?? 0}%` }} />{target !== null && <i style={{ left: `${target}%` }} aria-label={`Target at ${display(target)}%`} />}
         </div>
-        <div className="stats-grade-ticks" aria-hidden="true">{ticks.map(({ grade, value }) => <span key={grade} style={{ left: `${value}%` } as CSSProperties}>{grade}</span>)}</div>
+        <div className="stats-grade-ticks" aria-hidden="true"><span>0%</span><span>50%</span><span>100%</span></div>
       </div>
-      <footer className="stats-grade-footer"><span>{current === null ? "An estimate appears after marked exam results." : target === null ? "Choose a target to see your progress towards it." : current >= target ? "You’re at or above your target." : `${display(target - current)} percentage points to your target`}</span><Button variant="link" size="sm" onClick={edit}>Grade & target details</Button></footer>
-      <p className="stats-card-note">Estimates use selected marked exams and saved boundaries; they can rise or fall. Your starting grade stays as a baseline.</p>
-      <p className="stats-card-note">Goals are saved on this browser for this account.</p>
+      <footer className="stats-grade-footer" data-reached={reached || undefined}>
+        {reached && <Check aria-hidden="true"/>}<span>{current === null ? "No marked exam results yet" : target === null ? "No target set" : reached ? "Target reached" : `${display(target - current)} percentage points to target`}</span>
+      </footer>
       {targetAboveCap && <p className="stats-card-note">This profile’s {tier?.label.toLowerCase()} caps estimates at {tier?.maxGrade}. Your subject target remains {gradeTarget}.</p>}
       {incompatibleScale && <p className="stats-card-note">Your saved goal uses {getScale(stored.scaleId).label}. This course uses {scale.label}; edit the goal to choose matching settings.</p>}
       {canImport && <Button variant="link" size="sm" onClick={importOld} disabled={!ownerId}>Use previous browser settings</Button>}
       {storageNote && <p role="status" className="stats-card-note">{storageNote}</p>}
     </section>
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="stats-grade-dialog max-h-[88dvh] overflow-y-auto sm:max-w-md"><DialogHeader><DialogTitle>Your starting point & goal</DialogTitle><DialogDescription>{subject}. Your starting grade is a baseline you set. Your current estimate updates from marked exams.</DialogDescription></DialogHeader>
+      <DialogContent className="stats-grade-dialog max-h-[88dvh] overflow-y-auto sm:max-w-md"><DialogHeader><DialogTitle>Your starting point & goal</DialogTitle><DialogDescription>{subject} · Personal grade settings</DialogDescription></DialogHeader>
         <GoalFields value={draft} onChange={setDraft} fixedScaleId={defaultScaleId} fixedTierId={defaultTierId} />
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-        <p className="text-[11px] leading-relaxed text-muted-foreground">Saved on this browser for this account. Grade boundaries vary by qualification, paper and series.</p>
         <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={saveDraft} disabled={!ownerId}>Save goal</Button></DialogFooter>
       </DialogContent>
     </Dialog>
