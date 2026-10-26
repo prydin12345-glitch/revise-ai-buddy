@@ -8,10 +8,6 @@ export function StatsPageHeading({ actions }: { actions?: ReactNode }) {
     <header className="stats-page-heading">
       <div className="stats-heading-copy space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Your progress</h1>
-        <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-          See what’s improving, where to focus and how your revision is taking
-          shape.
-        </p>
       </div>
       {actions && <div className="stats-heading-actions">{actions}</div>}
     </header>

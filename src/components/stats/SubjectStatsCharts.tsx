@@ -1,10 +1,10 @@
-import { useId, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ComponentProps, type CSSProperties, type ReactNode } from "react";
 import {
   Area, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line,
   Pie, PieChart, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar,
-  RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  RadarChart, ResponsiveContainer, Sector, Tooltip, XAxis, YAxis,
 } from "recharts";
-import { Maximize2 } from "lucide-react";
+import { ArrowLeft, BarChart3, Maximize2 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -14,6 +14,7 @@ import type { UnifiedTopicScore, UnifiedMastery } from "@/hooks/useUnifiedTopicP
 import type {
   StatsProfile, StatsTrendRow, StatsProfileTopics, StatsStudyDay,
 } from "@/lib/subject-profile-stats";
+import "@/styles/stats-topic-breakdown.css";
 
 type DataRow = Record<string, number | string | boolean | null>;
 type Series = { key: string; label: string };
@@ -44,12 +45,12 @@ function ProfileLegend({ profiles, allProfiles }: { profiles: StatsProfile[]; al
 }
 
 function ChartPanel({
-  title, description, className, actions, visual, rows, series, footer, note,
+  title, description, className, actions, visual, rows, series, footer, details,
   periodKey = "period", periodLabel = "Period", unit = "%", empty,
 }: {
   title: string; description: string; className: string; actions?: ReactNode;
   visual: (height?: number) => ReactNode; rows: DataRow[]; series: Series[];
-  footer?: ReactNode; note?: string; periodKey?: string; periodLabel?: string;
+  footer?: ReactNode; details?: ReactNode; periodKey?: string; periodLabel?: string;
   unit?: string; empty?: ReactNode;
 }) {
   const titleId = useId();
@@ -57,7 +58,7 @@ function ChartPanel({
   return <Dialog open={expanded} onOpenChange={setExpanded}>
     <section className={`subject-stats-panel ${className}`} aria-labelledby={titleId}>
       <header className="subject-stats-panel-heading">
-        <div><h2 id={titleId}>{title}</h2><p>{description}</p></div>
+        <div><h2 id={titleId}>{title}</h2></div>
         <div className="subject-stats-panel-actions">{actions}<DialogTrigger asChild>
           <button type="button" className="subject-stats-expand" aria-label={`View ${title.toLowerCase()} data`}>
             <Maximize2 size={14} aria-hidden="true" />
@@ -66,20 +67,19 @@ function ChartPanel({
       </header>
       {empty ?? <div className="subject-stats-chart">{visual()}</div>}
       {footer && <div className="subject-stats-chart-footer">{footer}</div>}
-      {note && <p className="subject-stats-caption">{note}</p>}
     </section>
     <DialogContent className="subject-stats-expanded stats-chart-dialog max-w-3xl max-h-[88dvh] overflow-y-auto">
       <DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>{description}</DialogDescription></DialogHeader>
       {empty ?? visual(320)}
       {footer && <div className="subject-stats-chart-footer">{footer}</div>}
       <ChartDataTable caption={title} rows={rows} series={series} periodKey={periodKey} periodLabel={periodLabel} unit={unit} />
-      {note && <p className="subject-stats-caption">{note}</p>}
+      {details}
     </DialogContent>
   </Dialog>;
 }
 
-function EmptyChart({ title, children }: { title: string; children: ReactNode }) {
-  return <div className="subject-stats-empty" role="status"><h3>{title}</h3><p>{children}</p></div>;
+function EmptyChart({ title }: { title: string }) {
+  return <div className="subject-stats-empty subject-stats-chart-empty" role="status"><BarChart3 aria-hidden="true"/><h3>{title}</h3></div>;
 }
 
 export function ProfileTrendChart({ rows, profiles, timeRange, onTimeRangeChange }: {
@@ -109,24 +109,45 @@ export function ProfileTrendChart({ rows, profiles, timeRange, onTimeRangeChange
           dot={{ r: 3, fill: "hsl(var(--card))", strokeWidth: 2 }} activeDot={{ r: 5 }} isAnimationActive={false} />)}
     </ComposedChart>
   </ResponsiveContainer>;
-  return <ChartPanel title="Exam score trends" description="Each line follows one saved exam profile"
+  return <ChartPanel title="Exam score trends" description="Exam scores by profile"
     className="subject-stats-trend" visual={chart} rows={data} series={active.map(p => ({ key: p.id, label: p.name }))}
     actions={<label className="subject-stats-range"><span className="sr-only">Exam trend date range</span>
       <select aria-label="Exam trend date range" value={timeRange} onChange={e => onTimeRangeChange(e.target.value as TimeRange)}>
         <option value="weekly">Last 7 days</option><option value="monthly">Last 30 days</option><option value="yearly">Last 12 months</option>
       </select></label>}
     footer={<ProfileLegend profiles={active} allProfiles={profiles} />}
-    note="Curves join recorded averages; they aren’t extra results. The date range applies to this chart."
-    empty={!hasResults ? <EmptyChart title="No marked exam results in this range">Choose a wider range, or complete an exam to see its marked results here.</EmptyChart> : undefined} />;
+    empty={!hasResults ? <EmptyChart title="No marked exam results"/> : undefined} />;
 }
 
 type MarkedStatus = Exclude<UnifiedMastery, "untested">;
 const statuses: Array<{ key: MarkedStatus; label: string; colour: string }> = [
-  { key: "strong", label: "Strong", colour: chartColour(2) },
-  { key: "developing", label: "Developing", colour: chartColour(0) },
-  { key: "weak", label: "Needs attention", colour: chartColour(1) },
+  { key: "strong", label: "Strong", colour: "var(--stats-topic-strong)" },
+  { key: "developing", label: "Developing", colour: "var(--stats-topic-developing)" },
+  { key: "weak", label: "Needs attention", colour: "var(--stats-topic-weak)" },
 ];
 const isMarked = (topic: UnifiedTopicScore) => topic.examScore !== null || topic.practiceScore !== null;
+
+function TopicCategory({ category, topics, height, onBack }: {
+  category: typeof statuses[number] & { count: number };
+  topics: UnifiedTopicScore[];
+  height?: number;
+  onBack: () => void;
+}) {
+  const back = useRef<HTMLButtonElement>(null);
+  useEffect(() => { back.current?.focus({ preventScroll: true }); }, [category.key]);
+  return <div className="stats-topic-drill" style={{ "--topic-accent": category.colour, height: height ?? 204 } as CSSProperties}>
+    <div className="stats-topic-drill-heading">
+      <button ref={back} type="button" className="stats-topic-back" onClick={onBack} aria-label="Back to topic breakdown chart"><ArrowLeft aria-hidden="true"/><span>Back to chart</span></button>
+      <span className="stats-topic-category" aria-live="polite" aria-atomic="true"><i aria-hidden="true"/>{category.label}<strong>{category.count}</strong></span>
+    </div>
+    <div className="stats-topic-drill-list" role="region" aria-label={`${category.label} topics`} tabIndex={0} style={{ maxHeight: height ? height - 52 : 172 }}>
+      {topics.length ? <ul>{topics.map(topic => <li key={`${topic.subjectId}:${topic.topic}`}>
+        <div><span>{topic.topic}</span><strong>{Math.round(topic.unifiedScore)}<small>%</small></strong></div>
+        <span className="stats-topic-score-track" aria-hidden="true"><span style={{ width: `${topic.unifiedScore}%` }}/></span>
+      </li>)}</ul> : <p className="stats-topic-category-empty">No topics in this group yet</p>}
+    </div>
+  </div>;
+}
 
 function DonutLabel({ cx, cy, midAngle, outerRadius, percent, fill }: {
   cx: number; cy: number; midAngle: number; outerRadius: number; percent: number; fill: string;
@@ -141,35 +162,53 @@ function DonutLabel({ cx, cy, midAngle, outerRadius, percent, fill }: {
       fill="hsl(var(--muted-foreground))" fontSize={10}>{Math.round(percent * 100)}%</text></g>;
 }
 
-export function TopicBreakdownChart({ topics, onStatusSelect }: {
-  topics: UnifiedTopicScore[]; onStatusSelect?: (status: MarkedStatus) => void;
-}) {
+export function TopicBreakdownChart({ topics }: { topics: UnifiedTopicScore[] }) {
+  const [selected, setSelected] = useState<MarkedStatus | null>(null);
   const marked = topics.filter(topic => isMarked(topic) && validPct(topic.unifiedScore));
   const data = statuses.map(status => ({ ...status, count: marked.filter(topic => topic.mastery === status.key).length }));
-  const chart = (height = 193) => <ResponsiveContainer width="100%" height={height}>
+  const category = data.find(status => status.key === selected);
+  const selectedTopics = selected ? marked.filter(topic => topic.mastery === selected)
+    .sort((a, b) => a.unifiedScore - b.unifiedScore || a.topic.localeCompare(b.topic)) : [];
+  const showChart = () => {
+    const container = document.activeElement?.closest('.subject-stats-panel, [role="dialog"]');
+    const categoryButton = container?.querySelector<HTMLButtonElement>(`button[data-topic-category="${selected}"]`);
+    setSelected(null);
+    categoryButton?.focus();
+  };
+  const sector = (raw: unknown) => {
+    const shape = raw as ComponentProps<typeof Sector> & { name?: string };
+    const status = data.find(row => row.label === shape.name);
+    if (!status) return <Sector {...shape}/>;
+    return <g role="button" className="stats-topic-sector" tabIndex={0} aria-label={`Show ${status.label.toLowerCase()} topics`}
+      onClick={event => { event.stopPropagation(); setSelected(status.key); }} onKeyDown={event => {
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.stopPropagation(); setSelected(status.key); }
+      }}><Sector {...shape} aria-hidden="true" tabIndex={-1}/></g>;
+  };
+  const chart = (height = 204) => <ResponsiveContainer width="100%" height={height}>
     <PieChart accessibilityLayer>
       <Pie data={data.filter(row => row.count > 0)} dataKey="count" nameKey="label" cx="50%" cy="50%"
-        innerRadius={height > 200 ? 82 : 51} outerRadius={height > 200 ? 112 : 72}
+        innerRadius={height > 250 ? 82 : 56} outerRadius={height > 250 ? 112 : 78}
         startAngle={90} endAngle={-270} paddingAngle={2} stroke="none"
         labelLine={false} label={props => <DonutLabel cx={Number(props.cx)} cy={Number(props.cy)}
           midAngle={Number(props.midAngle)} outerRadius={Number(props.outerRadius)} percent={Number(props.percent)} fill={String(props.fill)} />}
-        isAnimationActive={false} activeIndex={-1}>
-        {data.filter(row => row.count > 0).map(row => <Cell key={row.key} fill={row.colour} />)}
+        inactiveShape={sector} isAnimationActive={false} activeIndex={-1}>
+        {data.filter(row => row.count > 0).map(row => <Cell key={row.key} fill={row.colour}/>)}
       </Pie>
       <text x="50%" y="49%" textAnchor="middle" dominantBaseline="central" fontSize={29} fontWeight={800} fill="hsl(var(--foreground))">{marked.length}</text>
-      <text x="50%" y="61%" textAnchor="middle" fontSize={10} fill="hsl(var(--muted-foreground))">marked topics</text>
+      <text x="50%" y="60%" textAnchor="middle" fontSize={11} fill="hsl(var(--muted-foreground))">topics</text>
       <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [value, "Topics"]} />
     </PieChart>
   </ResponsiveContainer>;
+  const visual = (height?: number) => category ? <TopicCategory category={category} topics={selectedTopics} height={height} onBack={showChart}/> : chart(height);
   const footer = <div className="subject-stats-status-legend" aria-label="Marked topic status">
-    {data.map(row => <button key={row.key} type="button" onClick={() => onStatusSelect?.(row.key)} disabled={!onStatusSelect}
+    {data.map(row => <button key={row.key} type="button" data-topic-category={row.key} onClick={() => setSelected(row.key)} aria-pressed={selected === row.key}
       aria-label={`${row.label}: ${row.count} topics`}><i style={{ background: row.colour }} aria-hidden="true" />
       {row.label}<strong>{row.count}</strong></button>)}
   </div>;
-  return <ChartPanel title="Topic breakdown" description="Marked topics in this selection" className="subject-stats-breakdown"
-    visual={chart} rows={data.map(row => ({ period: row.label, count: row.count }))} series={[{ key: "count", label: "Topics" }]}
-    periodLabel="Status" unit="" footer={footer} note={`${marked.length} marked topics · not whole-syllabus coverage.`}
-    empty={!marked.length ? <EmptyChart title="Marked topics will appear here">Complete an exam or quiz to start seeing your topic progress.</EmptyChart> : undefined} />;
+  return <ChartPanel title="Topic breakdown" description="Marked topic scores" className="subject-stats-breakdown"
+    visual={visual} rows={data.map(row => ({ period: row.label, count: row.count }))} series={[{ key: "count", label: "Topics" }]}
+    periodLabel="Status" unit="" footer={footer}
+    empty={!marked.length && !category ? <EmptyChart title="No marked topics yet"/> : undefined} />;
 }
 
 /** Only genuine shared marked topics can define comparable radar axes. */
@@ -200,11 +239,10 @@ export function ProfileTopicRadar({ profiles, topicsByProfile }: {
       <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => `${round(value)}%`} />
     </RadarChart>
   </ResponsiveContainer>;
-  return <ChartPanel title="Topic spread" description="Compare shared marked topic areas by profile" className="subject-stats-radar"
+  return <ChartPanel title="Topic spread" description="Shared topic scores by profile" className="subject-stats-radar"
     visual={chart} rows={rows} series={active.map(profile => ({ key: profile.id, label: profile.name }))}
     periodLabel="Topic" footer={<ProfileLegend profiles={active} allProfiles={profiles} />}
-    note="Axes = marked topic scores · scale 0–100%. Unassessed areas are not zero."
-    empty={axes.length < 3 ? <EmptyChart title="Not enough shared topic evidence">At least three marked topics must be shared by the selected profiles to draw a useful comparison.</EmptyChart> : undefined} />;
+    empty={axes.length < 3 ? <EmptyChart title="Not enough shared topic data"/> : undefined} />;
 }
 
 export function ProfileStudyChart({ days, profiles, totalHours, unassignedHours }: {
@@ -224,12 +262,12 @@ export function ProfileStudyChart({ days, profiles, totalHours, unassignedHours 
         fill={statsProfileColour(profiles, profile.id)} radius={[2, 2, 0, 0]} isAnimationActive={false} />)}
     </BarChart>
   </ResponsiveContainer>;
-  return <ChartPanel title="Study hours" description="This week · time linked to selected profiles" className="subject-stats-study"
-    visual={height => <>{!height && <div className="subject-stats-study-summary"><strong>{round(totalHours)}<small>h</small></strong><span>recorded time</span></div>}{chart(height)}</>}
+  return <ChartPanel title="Study hours" description="Recorded study time this week" className="subject-stats-study"
+    visual={height => <>{!height && <div className="subject-stats-study-summary stats-study-metric"><strong>{round(totalHours)}<small>h</small></strong><span>This week</span></div>}{chart(height)}</>}
     rows={rows} series={active.map(profile => ({ key: profile.id, label: profile.name }))} unit="h" periodLabel="Day"
     footer={<ProfileLegend profiles={active} allProfiles={profiles} />}
-    note={`Exam & quiz time. ${unassignedHours > 0 ? `${round(unassignedHours)}h of unassigned subject revision is separate.` : "Unassigned revision tasks are excluded."}`}
-    empty={!active.length ? <EmptyChart title="No profile-linked study time yet">Completed exams and quizzes with recorded time will appear here. Unassigned revision stays separate.</EmptyChart> : undefined} />;
+    details={unassignedHours > 0 ? <p className="stats-chart-detail">Unlinked revision: {round(unassignedHours)}h</p> : undefined}
+    empty={!active.length ? <EmptyChart title="No study time yet"/> : undefined} />;
 }
 
 export function topicScoreBins(topics: UnifiedTopicScore[]) {
@@ -243,7 +281,7 @@ export function topicScoreBins(topics: UnifiedTopicScore[]) {
 export function TopicScoreDistribution({ topics }: { topics: UnifiedTopicScore[] }) {
   const rows = topicScoreBins(topics);
   const hasResults = rows.some(row => row.count > 0);
-  const chart = (height = 180) => <ResponsiveContainer width="100%" height={height}>
+  const chart = (height = 230) => <ResponsiveContainer width="100%" height={height}>
     <BarChart accessibilityLayer data={rows} margin={{ top: 12, right: 7, left: 0, bottom: 0 }} barCategoryGap="15%">
       <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
       <XAxis dataKey="period" tick={{ ...tickStyle, fontSize: 9 }} axisLine={false} tickLine={false}
@@ -253,8 +291,7 @@ export function TopicScoreDistribution({ topics }: { topics: UnifiedTopicScore[]
       <Bar dataKey="count" name="Topics" fill={chartColour(0)} fillOpacity={0.82} radius={[3, 3, 0, 0]} maxBarSize={30} isAnimationActive={false} />
     </BarChart>
   </ResponsiveContainer>;
-  return <ChartPanel title="Topic score distribution" description="Where your marked topic scores fall" className="subject-stats-distribution"
+  return <ChartPanel title="Topic score distribution" description="Marked topics by score band" className="subject-stats-distribution"
     visual={chart} rows={rows} series={[{ key: "count", label: "Topics" }]} periodLabel="Score band" unit=""
-    note="Each topic is counted once in a ten-point score band within this selection."
-    empty={!hasResults ? <EmptyChart title="No marked topic scores yet">A distribution appears once your work has been marked.</EmptyChart> : undefined} />;
+    empty={!hasResults ? <EmptyChart title="No marked topic scores yet"/> : undefined} />;
 }

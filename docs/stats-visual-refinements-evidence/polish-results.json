@@ -1,0 +1,365 @@
+[
+  {
+    "width": 1440,
+    "height": 1000,
+    "theme": "light",
+    "subjectColours": [
+      {
+        "subject": "Biology",
+        "contrast": 6.7664404295798075
+      },
+      {
+        "subject": "Chemistry",
+        "contrast": 5.832745523790461
+      },
+      {
+        "subject": "Mathematics",
+        "contrast": 7.858156941714246
+      }
+    ],
+    "inlineTopics": true,
+    "stableCardHeight": true,
+    "keyboardSegment": true,
+    "profileReset": true,
+    "goalTargetAtBoundary": true,
+    "headingFonts": [
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      }
+    ],
+    "reviewPromptContrast": 15.745645711251782,
+    "reviewAnswerContrast": 15.745645711251782,
+    "reviewAnswerHeadingContrast": 15.745645711251782,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "width": 1440,
+    "height": 1000,
+    "theme": "dark",
+    "subjectColours": [
+      {
+        "subject": "Biology",
+        "contrast": 6.7664404295798075
+      },
+      {
+        "subject": "Chemistry",
+        "contrast": 5.832745523790461
+      },
+      {
+        "subject": "Mathematics",
+        "contrast": 7.858156941714246
+      }
+    ],
+    "inlineTopics": true,
+    "stableCardHeight": true,
+    "keyboardSegment": true,
+    "profileReset": true,
+    "goalTargetAtBoundary": true,
+    "headingFonts": [
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      }
+    ],
+    "reviewPromptContrast": 13.869752814160373,
+    "reviewAnswerContrast": 13.869752814160373,
+    "reviewAnswerHeadingContrast": 13.869752814160373,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "width": 834,
+    "height": 1112,
+    "theme": "dark",
+    "subjectColours": [
+      {
+        "subject": "Biology",
+        "contrast": 6.7664404295798075
+      },
+      {
+        "subject": "Chemistry",
+        "contrast": 5.832745523790461
+      },
+      {
+        "subject": "Mathematics",
+        "contrast": 7.858156941714246
+      }
+    ],
+    "inlineTopics": true,
+    "stableCardHeight": true,
+    "keyboardSegment": true,
+    "profileReset": true,
+    "goalTargetAtBoundary": true,
+    "headingFonts": [
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "16px",
+        "weight": "700"
+      }
+    ],
+    "reviewPromptContrast": 13.869752814160373,
+    "reviewAnswerContrast": 13.869752814160373,
+    "reviewAnswerHeadingContrast": 13.869752814160373,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "theme": "light",
+    "subjectColours": [
+      {
+        "subject": "Biology",
+        "contrast": 6.7664404295798075
+      },
+      {
+        "subject": "Chemistry",
+        "contrast": 5.832745523790461
+      },
+      {
+        "subject": "Mathematics",
+        "contrast": 7.858156941714246
+      }
+    ],
+    "inlineTopics": true,
+    "stableCardHeight": true,
+    "keyboardSegment": true,
+    "profileReset": true,
+    "goalTargetAtBoundary": true,
+    "headingFonts": [
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "15px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "15px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "15px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "15px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "15px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "15px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "15px",
+        "weight": "700"
+      }
+    ],
+    "reviewPromptContrast": 15.745645711251782,
+    "reviewAnswerContrast": 15.745645711251782,
+    "reviewAnswerHeadingContrast": 15.745645711251782,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "width": 320,
+    "height": 780,
+    "theme": "dark",
+    "subjectColours": [
+      {
+        "subject": "Biology",
+        "contrast": 6.7664404295798075
+      },
+      {
+        "subject": "Chemistry",
+        "contrast": 5.832745523790461
+      },
+      {
+        "subject": "Mathematics",
+        "contrast": 7.858156941714246
+      }
+    ],
+    "inlineTopics": true,
+    "stableCardHeight": true,
+    "keyboardSegment": true,
+    "profileReset": true,
+    "goalTargetAtBoundary": true,
+    "headingFonts": [
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "15px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "15px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "15px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "15px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "15px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "15px",
+        "weight": "700"
+      },
+      {
+        "family": "Manrope, ui-sans-serif, system-ui, sans-serif",
+        "size": "15px",
+        "weight": "700"
+      }
+    ],
+    "reviewPromptContrast": 13.869752814160373,
+    "reviewAnswerContrast": 13.869752814160373,
+    "reviewAnswerHeadingContrast": 13.869752814160373,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "scenario": "percentage",
+    "narrowGoalFits": true,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "scenario": "many-topics",
+    "narrowGoalFits": true,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  }
+]

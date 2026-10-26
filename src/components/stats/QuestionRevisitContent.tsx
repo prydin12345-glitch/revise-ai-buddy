@@ -63,23 +63,21 @@ export default function QuestionRevisitContent({ row }: { row: StatsWrongQuestio
   if (state.loading) return <div role="status" className="flex items-center gap-2 py-8 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true"/>Opening your marked review…</div>;
   if (!state.review) return <div className="space-y-4 py-4" role="alert"><AlertCircle className="h-6 w-6 text-muted-foreground" aria-hidden="true"/><p className="text-sm leading-relaxed">{state.error}</p><Button variant="outline" onClick={() => retry(value => value + 1)}>Retry review</Button><Button variant="link" asChild><Link to={destination}>Open full exam review</Link></Button></div>;
   const { question, answer } = state.review;
-  return <ReviewRenderBoundary destination={destination}>
-    <div className="stats-question-context text-xs text-muted-foreground">{row.examTitle}</div>
-    <div className="flex items-center justify-between gap-4"><h2 className="text-xl font-bold tracking-tight">Question {question.question_number}</h2><span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">{answer.score} / {question.marks} marks</span></div>
-    <section className="space-y-3 border-t border-border pt-4" aria-label="Question">
-      <MathRenderer content={question.question_text} question={question} latex={question.question_latex} hasMath={!!question.has_math} className="text-sm leading-relaxed"/>
-      {question.response_definition ? <ResponseReview question={question} answerText={answer.answer_text} solutionsReleased/> : <>
+  return <ReviewRenderBoundary destination={destination}><div className="stats-review-content">
+    <div className="stats-review-question-heading"><div><p className="stats-question-context">{row.examTitle}</p><h2>Question {question.question_number}</h2></div><span className="stats-review-score">{answer.score}<small> / {question.marks} marks</small></span></div>
+    <section className="stats-review-question" aria-label="Question">
+      <MathRenderer content={question.question_text} question={question} latex={question.question_latex} hasMath={!!question.has_math} className="stats-review-prompt"/>
+      {question.response_definition ? <div className="stats-review-structured"><ResponseReview question={question} answerText={answer.answer_text} solutionsReleased/></div> : <>
         <LegacyOptions options={question.options}/>
         <SavedQuestionResources question={question} subject={row.subject}/>
-        <section className="stats-expected-answer rounded-lg border border-success/25 bg-success/5 p-4" aria-labelledby="stats-expected-answer-heading"><h3 id="stats-expected-answer-heading" className="mb-3 flex items-center gap-2 text-xs font-semibold text-success"><CheckCircle2 className="h-4 w-4" aria-hidden="true"/>Expected answer</h3><ExpectedAnswer value={expectedLegacyValue(question)}/></section>
+        <section className="stats-expected-answer stats-review-answer" aria-labelledby="stats-expected-answer-heading"><h3 id="stats-expected-answer-heading"><CheckCircle2 aria-hidden="true"/>Expected answer</h3><ExpectedAnswer value={expectedLegacyValue(question)}/></section>
       </>}
     </section>
     {state.insertLoading && <p role="status" className="text-xs text-muted-foreground">Loading saved paper resources…</p>}
-    {!!state.insert.length && <details className="rounded-lg border border-border p-3"><summary className="cursor-pointer text-xs font-medium">Saved paper resources</summary><InsertPanel figures={state.insert}/></details>}
-    {state.insertUnavailable && <p className="text-xs text-muted-foreground">The saved resource booklet couldn’t load. Open the full exam review to retry its resources.</p>}
-    <p className="text-xs leading-relaxed text-muted-foreground">This question and its expected answer come from your released marked review.</p>
-    <Button asChild className="w-full"><Link to={destination}>Open full exam review</Link></Button>
-  </ReviewRenderBoundary>;
+    {!!state.insert.length && <details className="stats-review-resources"><summary>Saved paper resources</summary><InsertPanel figures={state.insert}/></details>}
+    {state.insertUnavailable && <p className="stats-question-meta">Resource booklet unavailable. Retry in the full review.</p>}
+    <Button asChild className="stats-review-full-button"><Link to={destination}>Open full exam review</Link></Button>
+  </div></ReviewRenderBoundary>;
 }
 
 function expectedLegacyValue(question: ReleasedRevisitQuestion): unknown {
@@ -108,7 +106,7 @@ function LegacyOptions({ options }: { options: unknown }) {
 }
 
 function ExpectedAnswer({ value }: { value: unknown }) {
-  if (value === null || value === undefined || value === "") return <p className="text-sm text-muted-foreground">An expected answer wasn’t supplied for this question. Open the full exam review for its marking feedback.</p>;
+  if (value === null || value === undefined || value === "") return <p className="stats-question-meta">No expected answer saved. View marking feedback in the full review.</p>;
   const essay = formatBiologyEssayKey(value);
   if (typeof value === "string" || essay !== String(value)) return <MathRenderer content={essay} className="text-sm leading-relaxed"/>;
   if (typeof value === "number" || typeof value === "boolean") return <p className="text-sm">{String(value)}</p>;

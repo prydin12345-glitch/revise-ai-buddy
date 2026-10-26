@@ -1,0 +1,324 @@
+.stats-grade-goal-v2 {
+  position: relative;
+  padding-bottom: 6px;
+}
+
+.stats-grade-goal-v2 .stats-goal-heading {
+  align-items: center;
+  padding: 20px 22px 0;
+}
+
+.stats-grade-goal-v2 .stats-goal-title {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.stats-grade-goal-v2 .stats-goal-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 11px;
+  background: hsl(var(--primary) / .12);
+  color: hsl(var(--primary));
+}
+
+.stats-grade-goal-v2 .stats-goal-symbol svg {
+  width: 19px;
+  height: 19px;
+}
+
+.stats-grade-goal.stats-grade-goal-v2 .stats-goal-heading > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 9px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.stats-grade-goal-v2 .stats-goal-heading > button svg {
+  width: 13px;
+  height: 13px;
+}
+
+.stats-grade-goal-v2 .stats-grade-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  grid-template-areas: "current target" "current starting";
+  gap: 11px 22px;
+  margin: 0;
+  padding: 23px 22px 0;
+}
+
+.stats-grade-goal-v2 .stats-grade-summary > div {
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.stats-grade-goal-v2 .stats-grade-summary > div > span {
+  display: block;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+}
+
+.stats-grade-goal-v2 .stats-grade-summary .stats-goal-current {
+  grid-area: current;
+  align-self: center;
+}
+
+.stats-grade-goal-v2 .stats-goal-current > strong {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 3px 0 4px;
+  font-size: 54px;
+  font-weight: 750;
+  line-height: 1.12;
+  letter-spacing: -.055em;
+  color: hsl(var(--foreground));
+}
+
+.stats-grade-goal-v2 .stats-goal-current > strong > small {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: hsl(var(--primary) / .11);
+  color: hsl(var(--primary));
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -.015em;
+}
+
+.stats-grade-goal-v2 .stats-grade-summary .stats-goal-profile {
+  max-width: 100%;
+  font-size: 11px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.stats-grade-goal-v2 .stats-grade-summary .stats-goal-target,
+.stats-grade-goal-v2 .stats-grade-summary .stats-goal-start {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 13px;
+  border-radius: 10px;
+  border: 1px solid hsl(var(--border));
+}
+
+.stats-grade-goal-v2 .stats-grade-summary .stats-goal-target {
+  grid-area: target;
+  background: hsl(var(--primary) / .07);
+  border-color: hsl(var(--primary) / .2);
+}
+
+.stats-grade-goal-v2 .stats-grade-summary .stats-goal-start {
+  grid-area: starting;
+  background: hsl(var(--muted) / .35);
+}
+
+.stats-grade-goal-v2 .stats-goal-target > strong,
+.stats-grade-goal-v2 .stats-goal-start > strong {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -.025em;
+  color: hsl(var(--foreground));
+}
+
+.stats-grade-goal-v2 .stats-goal-target > strong {
+  color: hsl(var(--primary));
+}
+
+.stats-grade-goal-v2 .stats-grade-bar-wrap {
+  position: relative;
+  padding: 0;
+  margin: 37px 22px 0;
+}
+
+.stats-grade-goal-v2 .stats-grade-progress {
+  position: relative;
+  height: 13px;
+  border-radius: 5px;
+  background: hsl(var(--muted));
+  overflow: visible;
+}
+
+.stats-grade-goal-v2 .stats-grade-progress > span {
+  display: block;
+  height: 100%;
+  max-width: 100%;
+  border-radius: inherit;
+  background: repeating-linear-gradient(125deg, transparent 0 10px, rgb(255 255 255 / .12) 10px 20px), linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary) / .7));
+}
+
+.stats-grade-goal-v2 .stats-grade-progress > i {
+  position: absolute;
+  top: -5px;
+  bottom: auto;
+  width: 3px;
+  height: 23px;
+  border: 0;
+  border-radius: 3px;
+  background: hsl(var(--foreground));
+  transform: translateX(-50%);
+  box-shadow: 0 0 0 2px hsl(var(--card));
+}
+
+.stats-grade-goal-v2 .stats-grade-target-label {
+  position: absolute;
+  top: -26px;
+  bottom: auto;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  color: hsl(var(--foreground));
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.stats-grade-goal-v2 .stats-grade-ticks {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 11px 0 0;
+  height: auto;
+  color: hsl(var(--muted-foreground));
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.stats-grade-goal-v2 .stats-grade-ticks > span,
+.stats-grade-goal-v2 .stats-grade-ticks > span:first-child,
+.stats-grade-goal-v2 .stats-grade-ticks > span:last-child {
+  position: static;
+  transform: none;
+}
+
+.stats-grade-goal-v2 .stats-grade-footer {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 6px;
+  margin: 17px 22px 14px;
+  padding: 0;
+  border: 0;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.6;
+  color: hsl(var(--muted-foreground));
+}
+
+.stats-grade-goal-v2 .stats-grade-footer[data-reached] {
+  color: hsl(var(--success));
+}
+
+.stats-grade-goal-v2 .stats-grade-footer > svg {
+  width: 15px;
+  height: 15px;
+}
+
+.stats-grade-goal-v2 > .stats-card-note {
+  padding: 0 22px 12px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 699px) {
+  .stats-grade-goal-v2 .stats-goal-heading {
+    padding: 18px 18px 0;
+  }
+
+  .stats-grade-goal-v2 .stats-grade-summary {
+    padding: 22px 18px 0;
+    gap: 9px 14px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  }
+
+  .stats-grade-goal-v2 .stats-goal-current > strong {
+    font-size: 47px;
+    gap: 7px;
+  }
+
+  .stats-grade-goal-v2 .stats-goal-current > strong > small {
+    padding: 4px 7px;
+    font-size: 12px;
+  }
+
+  .stats-grade-goal-v2 .stats-grade-summary .stats-goal-target,
+  .stats-grade-goal-v2 .stats-grade-summary .stats-goal-start {
+    padding: 9px 10px;
+    gap: 7px;
+  }
+
+  .stats-grade-goal-v2 .stats-grade-summary > div > span {
+    font-size: 11px;
+  }
+
+  .stats-grade-goal-v2 .stats-goal-target > strong,
+  .stats-grade-goal-v2 .stats-goal-start > strong {
+    font-size: 20px;
+  }
+
+  .stats-grade-goal-v2 .stats-grade-bar-wrap {
+    margin: 36px 18px 0;
+  }
+
+  .stats-grade-goal-v2 .stats-grade-footer {
+    margin-inline: 18px;
+  }
+
+  .stats-grade-goal-v2 > .stats-card-note {
+    padding-inline: 18px;
+  }
+}
+
+@media (max-width: 359px) {
+  .stats-grade-goal-v2 .stats-goal-heading {
+    padding-inline: 16px;
+  }
+
+  .stats-grade-goal-v2 .stats-goal-symbol {
+    display: none;
+  }
+
+  .stats-grade-goal-v2 .stats-grade-summary {
+    padding-inline: 16px;
+    gap: 8px 11px;
+  }
+
+  .stats-grade-goal-v2 .stats-goal-current > strong {
+    font-size: 41px;
+  }
+
+  .stats-grade-goal-v2 .stats-goal-current > strong > small {
+    font-size: 11px;
+  }
+
+  .stats-grade-goal-v2 .stats-grade-summary .stats-goal-target,
+  .stats-grade-goal-v2 .stats-grade-summary .stats-goal-start {
+    flex-wrap: wrap;
+    padding: 8px 9px;
+    gap: 3px 7px;
+  }
+}
+
+@media (pointer: coarse) {
+  .stats-grade-goal.stats-grade-goal-v2 .stats-goal-heading > button { min-height: 44px; }
+}

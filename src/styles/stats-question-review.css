@@ -1,0 +1,144 @@
+/* Question review is a portal: keep its rich text tied to the active theme. */
+.stats-question-dialog {
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.stats-question-dialog .prose {
+  --tw-prose-body: hsl(var(--card-foreground));
+  --tw-prose-headings: hsl(var(--card-foreground));
+  --tw-prose-lead: hsl(var(--card-foreground));
+  --tw-prose-links: hsl(var(--primary));
+  --tw-prose-bold: hsl(var(--card-foreground));
+  --tw-prose-counters: hsl(var(--muted-foreground));
+  --tw-prose-bullets: hsl(var(--muted-foreground));
+  --tw-prose-hr: hsl(var(--border));
+  --tw-prose-quotes: hsl(var(--card-foreground));
+  --tw-prose-quote-borders: hsl(var(--border));
+  --tw-prose-captions: hsl(var(--muted-foreground));
+  --tw-prose-kbd: var(--card-foreground);
+  --tw-prose-code: hsl(var(--card-foreground));
+  --tw-prose-pre-code: hsl(var(--card-foreground));
+  --tw-prose-pre-bg: hsl(var(--muted));
+  --tw-prose-th-borders: hsl(var(--border));
+  --tw-prose-td-borders: hsl(var(--border));
+  color: hsl(var(--card-foreground));
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.stats-question-dialog .stats-question-dialog-header {
+  padding-right: 28px;
+  text-align: left;
+}
+
+.stats-question-dialog-header h2 {
+  color: hsl(var(--card-foreground));
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: -.025em;
+}
+
+.stats-question-dialog .stats-question-meta,
+.stats-question-dialog .stats-question-context {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.stats-review-content {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.stats-review-question-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 4px;
+}
+
+.stats-review-question-heading > div { min-width: 0; }
+.stats-review-question-heading h2 {
+  color: hsl(var(--card-foreground));
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -.025em;
+  line-height: 1.5;
+  margin-top: 3px;
+}
+
+.stats-review-score {
+  flex-shrink: 0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: hsl(var(--muted));
+  color: hsl(var(--card-foreground));
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-review-score small {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.stats-review-question {
+  min-width: 0;
+  border-top: 1px solid hsl(var(--border));
+  padding-top: 20px;
+}
+
+.stats-review-question > * + * { margin-top: 20px; }
+.stats-review-prompt > :first-child { margin-top: 0; }
+.stats-review-prompt > :last-child { margin-bottom: 0; }
+
+.stats-question-dialog .stats-review-answer {
+  background: hsl(var(--success) / .07);
+  border: 1px solid hsl(var(--success) / .3);
+  border-radius: 12px;
+  padding: 18px;
+  color: hsl(var(--card-foreground));
+}
+
+.stats-review-answer > h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: hsl(var(--card-foreground));
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.stats-review-answer > h3 svg { height: 17px; width: 17px; color: hsl(var(--success)); }
+.stats-review-answer > .prose > :first-child { margin-top: 0; }
+.stats-review-answer > .prose > :last-child { margin-bottom: 0; }
+.stats-review-structured { font-size: 14px; }
+.stats-review-structured h3 { color: hsl(var(--card-foreground)); font-size: 14px; }
+.stats-review-structured :is(input, textarea):disabled { opacity: 1; -webkit-text-fill-color: hsl(var(--foreground)); }
+
+.stats-review-resources {
+  padding: 12px 14px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+}
+.stats-review-resources > summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+.stats-review-full-button { width: 100%; min-height: 44px; font-size: 13px; }
+
+@media (max-width: 380px) {
+  .stats-review-question-heading { align-items: flex-start; gap: 10px; }
+  .stats-review-question-heading h2 { font-size: 18px; }
+  .stats-review-score { padding: 7px 8px; font-size: 16px; }
+  .stats-review-score small { font-size: 11px; }
+  .stats-question-dialog .stats-review-answer { padding: 14px; }
+}
