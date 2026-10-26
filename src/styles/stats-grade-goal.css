@@ -14,23 +14,6 @@
   gap: 11px;
 }
 
-.stats-grade-goal-v2 .stats-goal-symbol {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  flex-shrink: 0;
-  border-radius: 11px;
-  background: hsl(var(--primary) / .12);
-  color: hsl(var(--primary));
-}
-
-.stats-grade-goal-v2 .stats-goal-symbol svg {
-  width: 19px;
-  height: 19px;
-}
-
 .stats-grade-goal.stats-grade-goal-v2 .stats-goal-heading > button {
   display: inline-flex;
   align-items: center;
@@ -294,10 +277,6 @@
     padding-inline: 16px;
   }
 
-  .stats-grade-goal-v2 .stats-goal-symbol {
-    display: none;
-  }
-
   .stats-grade-goal-v2 .stats-grade-summary {
     padding-inline: 16px;
     gap: 8px 11px;
@@ -322,3 +301,11 @@
 @media (pointer: coarse) {
   .stats-grade-goal.stats-grade-goal-v2 .stats-goal-heading > button { min-height: 44px; }
 }
+
+.stats-goal-fields { color-scheme: light; }
+.dark .stats-goal-fields { color-scheme: dark; }
+
+/* Keep numeric input and keyboard stepping, without mismatched native spinners. */
+.stats-goal-fields input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+.stats-goal-fields input[type="number"]::-webkit-inner-spin-button,
+.stats-goal-fields input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }

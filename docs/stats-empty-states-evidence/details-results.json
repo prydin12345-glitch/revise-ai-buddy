@@ -1,0 +1,145 @@
+[
+  {
+    "width": 1440,
+    "height": 1000,
+    "theme": "light",
+    "neutralTabs": true,
+    "unusedProfileExcluded": true,
+    "validRadarRetained": true,
+    "onlyPositiveStudyProfile": true,
+    "targetIconRemoved": true,
+    "tooltipContrasts": [
+      15.745645711251782,
+      15.745645711251782,
+      15.745645711251782,
+      15.745645711251782
+    ],
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "width": 1440,
+    "height": 1000,
+    "theme": "dark",
+    "neutralTabs": true,
+    "unusedProfileExcluded": true,
+    "validRadarRetained": true,
+    "onlyPositiveStudyProfile": true,
+    "targetIconRemoved": true,
+    "tooltipContrasts": [
+      13.869752814160373,
+      13.869752814160373,
+      13.869752814160373,
+      13.869752814160373
+    ],
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "width": 834,
+    "height": 1112,
+    "theme": "dark",
+    "neutralTabs": true,
+    "unusedProfileExcluded": true,
+    "validRadarRetained": true,
+    "onlyPositiveStudyProfile": true,
+    "targetIconRemoved": true,
+    "tooltipContrasts": [
+      13.869752814160373,
+      13.869752814160373,
+      13.869752814160373,
+      13.869752814160373
+    ],
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "theme": "light",
+    "neutralTabs": true,
+    "unusedProfileExcluded": true,
+    "validRadarRetained": true,
+    "onlyPositiveStudyProfile": true,
+    "targetIconRemoved": true,
+    "tooltipContrasts": [
+      15.745645711251782,
+      15.745645711251782,
+      15.745645711251782,
+      15.745645711251782
+    ],
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "width": 320,
+    "height": 780,
+    "theme": "dark",
+    "neutralTabs": true,
+    "unusedProfileExcluded": true,
+    "validRadarRetained": true,
+    "onlyPositiveStudyProfile": true,
+    "targetIconRemoved": true,
+    "tooltipContrasts": [
+      13.869752814160373,
+      13.869752814160373,
+      13.869752814160373,
+      13.869752814160373
+    ],
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "theme": "light",
+    "percentageInput": {
+      "appearance": "textfield",
+      "scheme": "light",
+      "spin": "textfield"
+    },
+    "keyboardStepping": true,
+    "savedGoal": true,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "theme": "dark",
+    "percentageInput": {
+      "appearance": "textfield",
+      "scheme": "dark",
+      "spin": "textfield"
+    },
+    "keyboardStepping": true,
+    "savedGoal": true,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  },
+  {
+    "expandedEmptyHasNoKeysOrTable": true,
+    "errors": [],
+    "failedRequests": [],
+    "externalBlocked": [],
+    "modelInvocations": [],
+    "reads": []
+  }
+]

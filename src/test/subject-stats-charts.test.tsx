@@ -40,10 +40,25 @@ it("keeps a selected profile's colour stable and exposes genuine zero / missing 
 });
 
 it("does not draw absent profile results as a zero series", () => {
-  render(<ProfileTrendChart profiles={profiles} rows={[{ key: "one", period: "Mon", full: null }]}
+  const { container } = render(<ProfileTrendChart profiles={profiles} rows={[{ key: "one", period: "Mon", full: null, short: Number.NaN }]}
     timeRange="weekly" onTimeRangeChange={() => {}} />);
   expect(screen.getByRole("status")).toHaveTextContent("No marked exam results");
   expect(screen.queryByText("0%")).toBeNull();
+  expect(screen.queryByLabelText("Exam profile legend")).toBeNull();
+  expect(container.querySelector(".recharts-wrapper")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "View exam score trends data" }));
+  const dialog = screen.getByRole("dialog");
+  expect(within(dialog).queryByText("Full mock")).toBeNull();
+  expect(within(dialog).queryByRole("table", { hidden: true })).toBeNull();
+});
+
+it("excludes unscored profiles from a mixed trend while retaining a real zero", () => {
+  render(<ProfileTrendChart profiles={profiles} rows={[{ key: "one", period: "Mon", full: null, short: 0 }]}
+    timeRange="weekly" onTimeRangeChange={() => {}} />);
+  const legend = screen.getByLabelText("Exam profile legend");
+  expect(legend).toHaveTextContent("Short paper");
+  expect(legend).not.toHaveTextContent("Full mock");
+  expect(screen.queryByRole("status")).toBeNull();
 });
 
 it("uses only shared marked topics for radar axes and preserves a real zero", () => {
@@ -66,6 +81,33 @@ it("requires at least three common axes instead of inventing a polygon", () => {
   ]} />);
   expect(screen.getByRole("status")).toHaveTextContent("Not enough shared topic data");
   expect(document.querySelector(".recharts-radar-polygon")).toBeNull();
+  expect(screen.queryByLabelText("Exam profile legend")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "View topic spread data" }));
+  expect(within(screen.getByRole("dialog")).queryByRole("table", { hidden: true })).toBeNull();
+});
+
+it("does not let an unattempted profile hide the available topic spread or appear in its key", () => {
+  const groups = [
+    { profileId: "full", profileName: "Full mock", topics: [] },
+    { profileId: "short", profileName: "Short paper", topics: [topic("Cells", 0), topic("Molecules", 80), topic("Enzymes", 60)] },
+  ];
+  expect(sharedRadarTopics(groups)).toEqual(["Cells", "Enzymes", "Molecules"]);
+  render(<ProfileTopicRadar profiles={profiles} topicsByProfile={groups}/>);
+  expect(screen.queryByRole("status")).toBeNull();
+  const legend = screen.getByLabelText("Exam profile legend");
+  expect(legend).toHaveTextContent("Short paper");
+  expect(legend).not.toHaveTextContent("Full mock");
+  expect(document.querySelector(".recharts-radar-polygon path")).toHaveAttribute("stroke", "var(--stats-series-4)");
+});
+
+it("shows only an empty topic spread when every profile is unmarked", () => {
+  render(<ProfileTopicRadar profiles={profiles} topicsByProfile={[
+    { profileId: "full", profileName: "Full mock", topics: [topic("Pending", 0, false)] },
+    { profileId: "short", profileName: "Short paper", topics: [] },
+  ]}/>);
+  expect(screen.getByRole("status")).toHaveTextContent("Not enough shared topic data");
+  expect(screen.queryByLabelText("Exam profile legend")).toBeNull();
+  expect(document.querySelector(".recharts-wrapper")).toBeNull();
 });
 
 it("opens the selected category inside its own card and returns to the chart", () => {
@@ -117,6 +159,31 @@ it("groups only selected-profile recorded time and labels unassigned revision se
   expect(screen.getByRole("table", { hidden: true })).toHaveTextContent("1.2h");
 });
 
+it("shows a clock empty state without zero-only study graphs or profile keys", () => {
+  const { container } = render(<ProfileStudyChart profiles={profiles} days={[
+    { key: "mon", day: "Monday", hoursByProfile: { full: 0, short: Number.NaN }, total: 0 },
+    { key: "tue", day: "Tuesday", hoursByProfile: { full: 0, short: Number.POSITIVE_INFINITY }, total: 0 },
+  ]} totalHours={0} unassignedHours={0}/>);
+  expect(screen.getByRole("status")).toHaveTextContent("0 Hours studied this week");
+  expect(container.querySelector(".lucide-clock3")).not.toBeNull();
+  expect(container.querySelector(".recharts-wrapper")).toBeNull();
+  expect(screen.queryByLabelText("Exam profile legend")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "View study hours data" }));
+  const dialog = screen.getByRole("dialog");
+  expect(within(dialog).queryByRole("table", { hidden: true })).toBeNull();
+  expect(dialog).not.toHaveTextContent("Full mock");
+});
+
+it("keeps zero-only study profiles out of a populated weekly key", () => {
+  render(<ProfileStudyChart profiles={profiles} days={[
+    { key: "mon", day: "Monday", hoursByProfile: { full: 0, short: .5 }, total: .5 },
+  ]} totalHours={.5} unassignedHours={0}/>);
+  expect(screen.queryByRole("status")).toBeNull();
+  const legend = screen.getByLabelText("Exam profile legend");
+  expect(legend).toHaveTextContent("Short paper");
+  expect(legend).not.toHaveTextContent("Full mock");
+});
+
 it("uses ten numeric score bins, with 100 in the last band, excluding pending and invalid results", () => {
   const topics = [topic("Zero", 0), topic("Nine", 9), topic("Ten", 10), topic("Hundred", 100), topic("Pending", 0, false), topic("Invalid", Number.NaN)];
   const bins = topicScoreBins(topics);
@@ -125,4 +192,21 @@ it("uses ten numeric score bins, with 100 in the last band, excluding pending an
   render(<TopicScoreDistribution topics={topics} />);
   fireEvent.click(screen.getByRole("button", { name: "View topic score distribution data" }));
   expect(screen.getByRole("table", { hidden: true })).toHaveTextContent("90–100%");
+});
+
+it("keeps an empty score distribution free of graph axes and zero-filled data tables", () => {
+  const { container } = render(<TopicScoreDistribution topics={[topic("Pending", 0, false), topic("Invalid", Number.NaN)]}/>);
+  expect(screen.getByRole("status")).toHaveTextContent("No marked topic scores yet");
+  expect(container.querySelector(".subject-stats-chart-empty > svg")).not.toBeNull();
+  expect(container.querySelector(".recharts-wrapper")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "View topic score distribution data" }));
+  expect(within(screen.getByRole("dialog")).queryByRole("table", { hidden: true })).toBeNull();
+});
+
+it("uses theme foreground for hovered topic counts rather than the slice colour", () => {
+  const { container } = render(<TopicBreakdownChart topics={[topic("Cells", 80), topic("Molecules", 25)]}/>);
+  fireEvent.mouseEnter(container.querySelector(".recharts-pie-sector")!);
+  const item = container.querySelector<HTMLElement>(".recharts-tooltip-item");
+  expect(item).not.toBeNull();
+  expect(item?.style.color).toBe("hsl(var(--foreground))");
 });

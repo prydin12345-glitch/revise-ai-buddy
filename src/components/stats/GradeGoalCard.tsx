@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from "react";
-import { Target, Check, Pencil } from "lucide-react";
+import { Check, Pencil } from "lucide-react";
 import "@/styles/stats-grade-goal.css";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,7 @@ export function GoalFields({ value, onChange, compact = false, fixedScaleId, fix
     const number = raw === "" ? undefined : Number(raw);
     onChange({ ...value, [key]: number });
   };
-  return <div className="space-y-4">
+  return <div className="stats-goal-fields space-y-4">
     <div className={compact ? "grid grid-cols-1 gap-4 sm:grid-cols-2" : "space-y-4"}>
       <div className="space-y-1.5">
         <label className="block text-xs font-semibold" htmlFor={`${id}-starting`}>Starting {scale.grades.length ? "grade" : "percentage"} <span className="font-normal text-muted-foreground">(optional)</span></label>
@@ -118,7 +118,7 @@ export function GradeGoalCard({ ownerId, subjectId, subject, averageScore, defau
   return <>
     <section className="subject-stats-card stats-grade-goal stats-grade-goal-v2" aria-label={`${subject} grade goal`}>
       <header className="subject-stats-card-heading stats-goal-heading">
-        <div className="stats-goal-title"><span className="stats-goal-symbol" aria-hidden="true"><Target/></span><h2>Your grade goal</h2></div>
+        <div className="stats-goal-title"><h2>Your grade goal</h2></div>
         <Button variant="ghost" size="sm" onClick={edit} disabled={!ownerId}><Pencil aria-hidden="true"/>Edit goal</Button>
       </header>
       <div className="stats-grade-summary">

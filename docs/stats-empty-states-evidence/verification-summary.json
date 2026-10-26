@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-26",
+  "baselineCommit": "de55a8ad",
+  "method": "Actual app source, synthetic SDK records, frozen production CSS and local fonts; no real services or login.",
+  "responsiveThemeCases": 10,
+  "detailCases": 8,
+  "results": "All passed; no unexpected browser console/JavaScript/request errors, horizontal overflow, external runtime requests or model calls.",
+  "checks": {
+    "focusedFiles": 7,
+    "focusedTests": 87,
+    "focusedSeconds": 96.47,
+    "typecheck": "passed",
+    "criticalLint": "passed",
+    "productionBuild": "passed, 1m 4s",
+    "diffCheck": "passed",
+    "fullGate": "Fresh-checkout CI npm ci / npm run check on Node 22; see PR status"
+  },
+  "sourceHashes": {
+    "src/components/stats/GradeGoalCard.tsx": "c96884d0b6fb6d0fd5d711ffa390b43f1d32b47867c2d69c5bfedb636ba17774",
+    "src/components/stats/SubjectStatsCharts.tsx": "50ca040b09fc2101ddfef23dfcddafc50172f358d1ba9041283cd7f2d9080c05",
+    "src/styles/stats-grade-goal.css": "64b78d7bd81e1cbbe0ba50fbc48542cd91e5ed40fd94da8f1ccb9f0d6674e111",
+    "src/styles/subject-stats.css": "4d44b03a9d782b325f464ffaaea53df87448c69bbced6171bbc0afc3970d0bc0",
+    "src/test/subject-stats-charts.test.tsx": "e4c3bc9ce43f46767931be271c969b0efc39458c9b8dff621b2f53037ca02ccf"
+  }
+}
