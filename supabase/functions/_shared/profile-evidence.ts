@@ -39,7 +39,9 @@ export const evidenceSchema = z
                 z
                   .object({
                     id: text.max(100),
-                    page: z.number().int().min(1).max(120),
+                    // Existing v1 evidence remains valid; indexed source jobs
+                    // retain physical page references across longer documents.
+                    page: z.number().int().min(1).max(240),
                     section: text.max(200),
                     text: text.max(1000),
                   })

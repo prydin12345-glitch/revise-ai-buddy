@@ -2,7 +2,7 @@ import https from "node:https";
 import dns from "node:dns/promises";
 import net from "node:net";
 import { createHash } from "node:crypto";
-const HOSTS = new Set(["qualifications.pearson.com"]);
+const HOSTS = new Set(["qualifications.pearson.com", "cdn.sanity.io"]);
 export function sourceUrl(raw) {
   const u = new URL(raw);
   if (
@@ -14,6 +14,12 @@ export function sourceUrl(raw) {
     u.hash
   )
     throw Error("Unapproved source URL");
+  // AQA's current official resource pages link this exact public asset project.
+  // Other Sanity tenants/assets are not approved source destinations.
+  if (
+    u.hostname === "cdn.sanity.io" &&
+    !/^\/files\/p28bar15\/green\/[a-f0-9]{40}\.pdf$/.test(u.pathname)
+  ) throw Error("Unapproved source URL");
   return u;
 }
 export function publicAddress(address) {

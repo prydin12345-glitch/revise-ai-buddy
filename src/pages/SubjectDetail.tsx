@@ -5,7 +5,7 @@ import { EditSubjectModal } from "@/lib/EditSubjectModal";
 import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, BookOpen, Plus, Target, FileText, ListChecks, Activity } from "lucide-react";
+import { ArrowLeft, BookOpen, Sparkles, Target, FileText, ListChecks, Activity } from "lucide-react";
 import { useUserSubjects } from "@/hooks/useUserSubjects";
 import { useSubjectProfiles } from "@/hooks/useSubjectProfiles";
 import { useSubjectAverage } from "@/hooks/useSubjectAverage";
@@ -212,9 +212,8 @@ const SubjectDetail = () => {
               onClick={handleOpenCreateProfile}
               className="flex items-center gap-1.5 px-3.5 py-2 min-h-[40px] md:min-h-0 rounded-xl bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span className="md:hidden">New</span>
-              <span className="hidden md:inline">New profile</span>
+              <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>Build profile for me</span>
             </button>
           </div>
 
@@ -330,6 +329,7 @@ const SubjectDetail = () => {
           subjectName={subject.subject_name}
           subjectColor={subject.subject_color}
           examBoard={subject.exam_board}
+          initialBuilder
           availableTopics={topicNames}
           onSave={handleSaveProfile}
           initialData={editingProfile || undefined}

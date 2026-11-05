@@ -10,6 +10,7 @@ import {
 import { ExamProfileModal } from "@/components/stats/ExamProfileModal";
 import {
   ownerEvidence,
+  pearsonTemplate,
   templateFixture,
   syllabus,
 } from "../../supabase/tests/profile-builder-fixtures";
@@ -24,7 +25,21 @@ import { proposeProfile } from "../../supabase/functions/_shared/profile-builder
 import type { BuilderApi } from "@/lib/profile-builder-client";
 import { evidenceFingerprint } from "../../supabase/functions/_shared/profile-evidence";
 import { identitySchema } from "../../supabase/functions/_shared/profile-template";
+import { resolveRegisteredSource } from "../../supabase/functions/_shared/profile-source-registry";
 
+const pending = vi.hoisted(() => ({
+  read: vi.fn(
+    async (_subject: string): Promise<{ jobId: string } | null> => null,
+  ),
+  remember: vi.fn(async (_subject: string, _jobId: string) => {}),
+  clear: vi.fn(async (_subject: string, _jobId?: string) => {}),
+}));
+vi.mock("@/lib/profile-builder-client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/profile-builder-client")>()),
+  readPendingBuilderJob: pending.read,
+  rememberPendingBuilderJob: pending.remember,
+  clearPendingBuilderJob: pending.clear,
+}));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: { functions: { invoke: vi.fn() } },
 }));
@@ -37,7 +52,10 @@ vi.mock("@/hooks/useUserPreferences", () => ({
     },
   }),
 }));
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 const base = {
   open: true,
   onOpenChange: vi.fn(),
@@ -103,9 +121,11 @@ it("approved preview is immediate but cannot save until the authoritative receip
   expect(
     screen.getByRole("img", { name: "Examly-approved preset" }),
   ).toBeInTheDocument();
-  expect(screen.getByLabelText("Total marks")).toHaveValue(70);
-  expect(screen.getByLabelText("Time limit (minutes)")).toHaveValue(90);
+  expect(screen.getByText("70", { selector: "strong" })).toBeInTheDocument();
+  expect(screen.getByText("90", { selector: "strong" })).toBeInTheDocument();
+  expect(screen.queryByLabelText("Total marks")).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Preparing…" })).toBeDisabled();
+  await waitFor(() => expect(api).toHaveBeenCalledTimes(1));
   const input = api.mock.calls[0][0];
   resolve!({
     proposal: templateFromPreset(String(input.presetId)),
@@ -188,7 +208,10 @@ it("explicit Biology A stays separate from Biology B and has no tier control", (
   );
   expect(screen.getByText(/We need a source/)).toBeInTheDocument();
   confirm();
-  expect(screen.getByRole("button", { name: "Yes, build it" })).toBeDisabled();
+  expect(
+    screen.queryByRole("button", { name: "Yes, build it" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole("alert")).toHaveTextContent(/Add your syllabus/);
 });
 it("Biology B resolves its reviewed source, code and version without technical typing", () => {
   render(
@@ -299,29 +322,63 @@ it("the existing editor passes saved Settings level, region and board into the b
   expect(screen.getByText("AQA · Physics")).toBeInTheDocument();
   expect(screen.queryByLabelText("Educational level")).not.toBeInTheDocument();
 });
-it("unsupported university upload creates an editable source-backed preview and can save without entering codes", async () => {
+it("an uploaded university syllabus discovers identity before confirmation and shows a simple editable preview", async () => {
   const calls: any[] = [];
+  const discovered = {
+    ...templateFixture().identity,
+    country: "US",
+    educationSystem: "US",
+    stage: "University",
+    qualification: "College (4-year)",
+    organisation: "Example University",
+    course: "BIO101",
+    component: "Final assessment",
+    specificationVersion: "2026",
+    tier: "not_tiered" as const,
+  };
+  const template = templateFixture();
+  template.identity = discovered;
+  const evidence = await ownerEvidence();
+  evidence.identity = discovered;
+  const proposal = {
+    proposalVersion: 1 as const,
+    promptVersion: 1 as const,
+    origin: "source_backed_ai" as const,
+    template,
+    evidence,
+    evidenceVersion: await evidenceFingerprint(evidence),
+    presetId: null,
+    profileSettings: null,
+  };
+  let stage: "identifying" | "ready" | "drafting" | "complete" = "identifying";
+  let jobId = "";
+  const job = () => ({
+    jobId,
+    stage,
+    identity: discovered,
+    mode: "short_practice" as const,
+    progress: { completed: stage === "identifying" ? 0 : 1, total: 2 },
+    message: "Source processing",
+    ...(stage === "complete" ? { proposalId: jobId, proposal } : {}),
+  });
   const api: BuilderApi = async (input) => {
     calls.push(input);
+    if (input.action === "prepare_source") {
+      jobId = String(input.requestId);
+      return { job: job() };
+    }
+    if (input.action === "advance_source") {
+      stage = stage === "identifying" ? "ready" : "complete";
+      return { job: job() };
+    }
+    if (input.action === "confirm_source") {
+      expect(input.identity).toEqual(discovered);
+      stage = "drafting";
+      return { job: job() };
+    }
     if (input.action === "save")
       return { profile: { id: crypto.randomUUID() } };
-    const template = templateFixture();
-    template.identity = input.identity as typeof template.identity;
-    const evidence = await ownerEvidence();
-    evidence.identity = template.identity;
-    return {
-      proposalId: crypto.randomUUID(),
-      proposal: {
-        proposalVersion: 1,
-        promptVersion: 1,
-        origin: "source_backed_ai",
-        template,
-        evidence,
-        evidenceVersion: await evidenceFingerprint(evidence),
-        presetId: null,
-        profileSettings: null,
-      },
-    };
+    throw Error("Unexpected request");
   };
   render(
     <ExamProfileBuilder
@@ -336,10 +393,9 @@ it("unsupported university upload creates an editable source-backed preview and 
     target: { value: "Final assessment" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Upload syllabus" }));
-  fireEvent.change(
-    screen.getByLabelText("Does everyone sit the same assessment?"),
-    { target: { value: "not_tiered" } },
-  );
+  expect(
+    screen.queryByLabelText("Does everyone sit the same assessment?"),
+  ).not.toBeInTheDocument();
   const bytes = new TextEncoder().encode(syllabus);
   fireEvent.change(screen.getByLabelText("Syllabus or assessment brief"), {
     target: {
@@ -353,17 +409,28 @@ it("unsupported university upload creates an editable source-backed preview and 
       ],
     },
   });
-  confirm();
-  await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Yes, build it" })).toBeEnabled(),
-  );
+  await screen.findByRole("button", { name: "Read syllabus" });
+  fireEvent.click(screen.getByRole("button", { name: "Read syllabus" }));
+  await screen.findByRole("button", { name: "Yes, build it" });
+  expect(calls.map((call) => call.action)).toEqual([
+    "prepare_source",
+    "advance_source",
+  ]);
+  expect(calls[0].identity.specificationVersion).toBe("Not verified");
+  expect(calls[0].uploads).toHaveLength(1);
+  expect(
+    screen.queryByRole("navigation", { name: "Builder steps" }),
+  ).not.toBeInTheDocument();
   build();
   await screen.findByText("Source-backed AI draft");
   expect(
     screen.queryByRole("img", { name: "Examly-approved preset" }),
   ).not.toBeInTheDocument();
-  expect(calls[0].identity.specificationVersion).toBe("Not verified");
-  expect(calls[0].upload).toBeTruthy();
+  expect(screen.queryByLabelText("Profile name")).not.toBeInTheDocument();
+  expect(
+    screen.queryByLabelText("Time limit (minutes)"),
+  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
   fireEvent.change(screen.getByLabelText("Profile name"), {
     target: { value: "My university revision" },
   });
@@ -372,7 +439,328 @@ it("unsupported university upload creates an editable source-backed preview and 
   });
   fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
   await waitFor(() =>
-    expect(calls[1].profileName).toBe("My university revision"),
+    expect(calls.at(-1).profileName).toBe("My university revision"),
   );
-  expect(calls[1].template.durationMinutes).toBe(31);
+  expect(calls.at(-1).template.durationMinutes).toBe(31);
+});
+
+it("changing an assessment removes the previous preview before a new build", async () => {
+  const api: BuilderApi = async (input) => ({
+    proposalId: crypto.randomUUID(),
+    proposal: templateFromPreset(String(input.presetId)),
+  });
+  render(<ExamProfileBuilder {...ocr} api={api} />);
+  build();
+  await screen.findByRole("button", { name: "Edit profile" });
+  fireEvent.click(screen.getByRole("button", { name: "Change assessment" }));
+  expect(
+    screen.queryByRole("button", { name: "Save profile" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Edit profile" }),
+  ).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Paper"), {
+    target: { value: "paper_2" },
+  });
+  confirm();
+  expect(screen.getByRole("heading", { name: /Paper 2/ })).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Save profile" }),
+  ).not.toBeInTheDocument();
+});
+
+it("changing a saved board reveals cleared course and paper choices", () => {
+  render(<ExamProfileBuilder {...ocr} api={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Change details" }));
+  fireEvent.change(screen.getByLabelText("Exam board"), {
+    target: { value: "Pearson Edexcel" },
+  });
+  expect(screen.getByLabelText("Course variant")).toHaveValue("");
+  expect(screen.getByLabelText("Paper or assessment")).toHaveValue("");
+  confirm();
+  expect(screen.getByRole("alert")).toHaveTextContent(/course variants/);
+});
+
+it("switching the level to university updates the institution flow without Advanced", () => {
+  render(<ExamProfileBuilder {...ocr} api={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Change details" }));
+  fireEvent.change(screen.getByLabelText("Educational level"), {
+    target: { value: "Undergraduate / Bachelor's" },
+  });
+  expect(screen.getByLabelText("Institution or exam board")).toHaveValue("");
+  expect(screen.getByLabelText("Paper or assessment")).toBeInTheDocument();
+  expect(screen.queryByLabelText("Tier")).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Education stage")).toHaveValue("University");
+});
+
+it("switching accounts clears a prepared preview and closes the builder", async () => {
+  const closed = vi.fn();
+  const api: BuilderApi = async (input) => ({
+    proposalId: crypto.randomUUID(),
+    proposal: templateFromPreset(String(input.presetId)),
+  });
+  const view = render(
+    <ExamProfileBuilder
+      {...ocr}
+      accountId="owner-one"
+      onOpenChange={closed}
+      api={api}
+    />,
+  );
+  build();
+  await screen.findByRole("button", { name: "Edit profile" });
+  view.rerender(
+    <ExamProfileBuilder
+      {...ocr}
+      accountId="owner-two"
+      onOpenChange={closed}
+      api={api}
+    />,
+  );
+  expect(closed).toHaveBeenCalledWith(false);
+  expect(
+    screen.queryByRole("button", { name: "Save profile" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("img", { name: "Examly-approved preset" }),
+  ).not.toBeInTheDocument();
+});
+
+it("rejects oversized bundles before creating a source job", async () => {
+  const api = vi.fn();
+  render(
+    <ExamProfileBuilder
+      {...base}
+      educationalLevel="undergrad"
+      curriculumRegion="US"
+      examBoard="Example University"
+      api={api}
+    />,
+  );
+  fireEvent.change(screen.getByLabelText("Paper or assessment"), {
+    target: { value: "Final assessment" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Upload syllabus" }));
+  const arrayBuffer = vi.fn();
+  fireEvent.change(screen.getByLabelText("Syllabus or assessment brief"), {
+    target: {
+      files: [
+        {
+          name: "large.pdf",
+          type: "application/pdf",
+          size: 3_000_001,
+          arrayBuffer,
+        },
+      ],
+    },
+  });
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    /3 MB each and 6 MB in total/,
+  );
+  expect(arrayBuffer).not.toHaveBeenCalled();
+  expect(api).not.toHaveBeenCalled();
+});
+
+it("resuming a saved source request checks status without starting paid processing", async () => {
+  const jobId = crypto.randomUUID();
+  pending.read.mockResolvedValueOnce({ jobId });
+  const identity = templateFixture().identity;
+  const api = vi.fn(async (input: Record<string, unknown>) => {
+    expect(input).toEqual({ action: "source_status", jobId });
+    return {
+      job: {
+        jobId,
+        stage: "identifying" as const,
+        identity,
+        mode: "short_practice" as const,
+        progress: { completed: 0, total: 2 },
+        message: "Finding assessment rules",
+      },
+    };
+  });
+  render(
+    <ExamProfileBuilder
+      {...base}
+      educationalLevel="undergrad"
+      curriculumRegion="US"
+      examBoard="Example University"
+      api={api}
+    />,
+  );
+  await screen.findByRole("button", { name: "Resume request" });
+  expect(api).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Resume request" }));
+  await screen.findByRole("button", { name: "Continue processing" });
+  expect(api).toHaveBeenCalledTimes(1);
+});
+
+it("a lost source-preparation response keeps the same receipt for a free status check", async () => {
+  const calls: any[] = [];
+  const api: BuilderApi = async (input) => {
+    calls.push(input);
+    if (input.action === "prepare_source")
+      throw Error("Connection interrupted");
+    return {
+      job: {
+        jobId: String(input.jobId),
+        stage: "identifying",
+        identity: templateFixture().identity,
+        mode: "short_practice",
+        progress: { completed: 0, total: 2 },
+        message: "Finding assessment rules",
+      },
+    };
+  };
+  render(
+    <ExamProfileBuilder
+      {...base}
+      educationalLevel="undergrad"
+      curriculumRegion="US"
+      examBoard="Example University"
+      api={api}
+    />,
+  );
+  fireEvent.change(screen.getByLabelText("Paper or assessment"), {
+    target: { value: "Final assessment" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Upload syllabus" }));
+  const bytes = new TextEncoder().encode(syllabus);
+  fireEvent.change(screen.getByLabelText("Syllabus or assessment brief"), {
+    target: {
+      files: [
+        {
+          name: "brief.txt",
+          type: "text/plain",
+          size: bytes.length,
+          arrayBuffer: async () => bytes.buffer,
+        },
+      ],
+    },
+  });
+  await screen.findByRole("button", { name: "Read syllabus" });
+  fireEvent.click(screen.getByRole("button", { name: "Read syllabus" }));
+  await screen.findByText("Connection interrupted");
+  expect(pending.remember).toHaveBeenCalledWith("Biology", calls[0].requestId);
+  fireEvent.click(screen.getByRole("button", { name: "Resume request" }));
+  await screen.findByRole("button", { name: "Continue processing" });
+  expect(calls).toHaveLength(2);
+  expect(calls[1]).toEqual({
+    action: "source_status",
+    jobId: calls[0].requestId,
+  });
+  expect(pending.clear).not.toHaveBeenCalled();
+});
+
+it("a registered AI draft can close and resume its completed receipt without another proposal", async () => {
+  const evidence = resolveRegisteredSource("pearson-9bi0-01-issue4");
+  const proposal = {
+    proposalVersion: 1 as const,
+    promptVersion: 1 as const,
+    origin: "source_backed_ai" as const,
+    template: pearsonTemplate("full_mock"),
+    evidence,
+    evidenceVersion: await evidenceFingerprint(evidence),
+    presetId: null,
+    profileSettings: null,
+  };
+  const calls: any[] = [];
+  let resolveProposal: ((value: any) => void) | undefined;
+  let receipt = "";
+  const api: BuilderApi = async (input) => {
+    calls.push(input);
+    if (input.action === "propose") {
+      receipt = String(input.requestId);
+      return new Promise((resolve) => {
+        resolveProposal = resolve;
+      });
+    }
+    if (input.action === "source_status")
+      return {
+        job: {
+          jobId: receipt,
+          stage: "complete",
+          mode: "full_mock",
+          identity: proposal.template.identity,
+          progress: { completed: 1, total: 1 },
+          message: "Your profile is ready",
+          proposalId: receipt,
+          proposal,
+          canAdvance: false,
+        },
+      };
+    if (input.action === "save")
+      return { profile: { id: crypto.randomUUID() } };
+    throw Error("No paid stage may be repeated");
+  };
+  const props = {
+    ...base,
+    examBoard: "Pearson Edexcel",
+    courseId: "pearson_edexcel_alevel_biology_b_9bi0",
+    paperId: "9bi0_01",
+    initialMode: "full_mock" as const,
+    api,
+  };
+  const view = render(<ExamProfileBuilder {...props} />);
+  build();
+  await waitFor(() => expect(resolveProposal).toBeTypeOf("function"));
+  expect(pending.remember).toHaveBeenCalledWith("Biology", receipt);
+  fireEvent.click(
+    screen.getByRole("button", { name: "Close profile builder" }),
+  );
+  view.rerender(<ExamProfileBuilder {...props} open={false} />);
+  resolveProposal!({ proposalId: receipt, proposal });
+  await Promise.resolve();
+  expect(pending.clear).not.toHaveBeenCalled();
+  pending.read.mockResolvedValueOnce({ jobId: receipt });
+  view.rerender(<ExamProfileBuilder {...props} initialMode="short_practice" />);
+  await screen.findByRole("button", { name: "Resume request" });
+  fireEvent.click(screen.getByRole("button", { name: "Resume request" }));
+  await screen.findByRole("button", { name: "Edit profile" });
+  expect(calls.map((call) => call.action)).toEqual([
+    "propose",
+    "source_status",
+  ]);
+  expect(screen.getByText("Source-backed AI draft")).toBeInTheDocument();
+  expect(
+    screen.getByText("Full mock", { selector: "span" }),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Save profile" })).toBeEnabled();
+  expect(pending.clear).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
+  await waitFor(() =>
+    expect(pending.clear).toHaveBeenCalledWith("Biology", receipt),
+  );
+  expect(calls.at(-1).template.mode).toBe("full_mock");
+});
+
+it("a running legacy receipt offers free progress checks and cannot advance a new source stage", async () => {
+  const jobId = crypto.randomUUID();
+  pending.read.mockResolvedValueOnce({ jobId });
+  const api = vi.fn(async (input: Record<string, unknown>) => {
+    expect(input).toEqual({ action: "source_status", jobId });
+    return {
+      job: {
+        jobId,
+        stage: "drafting" as const,
+        mode: "short_practice" as const,
+        progress: { completed: 0, total: 1 },
+        message: "Your profile is still being prepared",
+        canAdvance: false,
+      },
+    };
+  });
+  render(<ExamProfileBuilder {...ocr} api={api} />);
+  await screen.findByRole("button", { name: "Resume request" });
+  fireEvent.click(screen.getByRole("button", { name: "Resume request" }));
+  await screen.findByRole("button", { name: "Check progress" });
+  expect(
+    screen.queryByRole("button", { name: "Continue processing" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Yes, build it" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Check progress" }));
+  await waitFor(() => expect(api).toHaveBeenCalledTimes(2));
+  expect(pending.clear).not.toHaveBeenCalled();
 });

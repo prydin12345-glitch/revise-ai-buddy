@@ -7,6 +7,7 @@ import {
   EDEXCEL_B_SPEC_URL,
   EDEXCEL_B_P1_TOPICS,
 } from "./edexcel-alevel-biology-b-scope.ts";
+import { AQA_SCIENCE_SOURCES } from "./profile-aqa-science-sources.ts";
 // Reviewed official-document facts; no questions/images and no runtime arbitrary fetch.
 const spec = "pearson-9bi0-issue4",
   paper = "pearson-9bi0-01-june2025";
@@ -180,18 +181,22 @@ export const SOURCE_REGISTRY = [
     evidence: PEARSON_B_P1_EVIDENCE,
     extractionVersion: 1,
   },
+  ...AQA_SCIENCE_SOURCES,
 ] as const;
 export function resolveRegisteredSource(
   id?: string,
   url?: string,
 ): ProfileEvidence {
-  if (url) validateSourceUrl(url);
   const byId = id ? SOURCE_REGISTRY.find((s) => s.id === id) : undefined;
-  const byUrl = url
-    ? SOURCE_REGISTRY.find((s) =>
-        s.evidence.documents.some((d) => d.url === url),
-      )
-    : undefined;
+  const urlMatches = url
+    ? SOURCE_REGISTRY.filter((s) => s.evidence.documents.some((d) => d.url === url))
+    : [];
+  // One specification can describe several papers/tiers. Its URL alone cannot
+  // choose a component; an exact source ID must disambiguate it.
+  if (!id && urlMatches.length > 1)
+    throw Error("Choose the course, paper and tier for this specification.");
+  const byUrl = byId && urlMatches.includes(byId) ? byId : urlMatches[0];
+  if (url && byUrl) validateSourceUrl(url, byUrl.approvedDomain);
   if (
     (id && !byId) ||
     (url && !byUrl) ||

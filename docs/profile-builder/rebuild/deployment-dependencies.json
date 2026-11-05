@@ -1,0 +1,73 @@
+{
+  "method": "esbuild metafile input intersection with modified/new function source files",
+  "entryPointsChecked": 39,
+  "affectedFunctions": [
+    {
+      "function": "extract-exam-questions",
+      "changedImports": [
+        "supabase/functions/_shared/profile-evidence.ts"
+      ]
+    },
+    {
+      "function": "generate-practice-questions",
+      "changedImports": [
+        "supabase/functions/_shared/profile-evidence.ts"
+      ]
+    },
+    {
+      "function": "get-practice-questions",
+      "changedImports": [
+        "supabase/functions/_shared/profile-evidence.ts"
+      ]
+    },
+    {
+      "function": "grade-practice-question",
+      "changedImports": [
+        "supabase/functions/_shared/profile-evidence.ts"
+      ]
+    },
+    {
+      "function": "profile-builder",
+      "changedImports": [
+        "supabase/functions/_shared/profile-aqa-science-sources.ts",
+        "supabase/functions/_shared/profile-assessment-catalogue.ts",
+        "supabase/functions/_shared/profile-builder-jobs.ts",
+        "supabase/functions/_shared/profile-document-index.ts",
+        "supabase/functions/_shared/profile-document-io.ts",
+        "supabase/functions/_shared/profile-evidence.ts",
+        "supabase/functions/_shared/profile-source-registry.ts",
+        "supabase/functions/profile-builder/index.ts"
+      ]
+    },
+    {
+      "function": "publish-exam",
+      "changedImports": [
+        "supabase/functions/_shared/profile-evidence.ts"
+      ]
+    },
+    {
+      "function": "save-exam-format",
+      "changedImports": [
+        "supabase/functions/_shared/profile-evidence.ts"
+      ]
+    },
+    {
+      "function": "save-exam-timer",
+      "changedImports": [
+        "supabase/functions/_shared/profile-evidence.ts"
+      ]
+    },
+    {
+      "function": "submit-exam",
+      "changedImports": [
+        "supabase/functions/_shared/profile-evidence.ts"
+      ]
+    },
+    {
+      "function": "upload-exam",
+      "changedImports": [
+        "supabase/functions/_shared/profile-evidence.ts"
+      ]
+    }
+  ]
+}
