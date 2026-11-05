@@ -1550,6 +1550,62 @@ export type Database = {
           },
         ]
       }
+      profile_builder_jobs: {
+        Row: {
+          active_ms: number
+          call_started: boolean
+          checkpoint: Json
+          created_at: string
+          expires_at: string
+          lease_token: string | null
+          lease_until: string | null
+          quota_reserved: boolean
+          request_id: string
+          revision: number
+          source_key: string
+          stage: string
+          user_id: string
+        }
+        Insert: {
+          active_ms?: number
+          call_started?: boolean
+          checkpoint: Json
+          created_at?: string
+          expires_at?: string
+          lease_token?: string | null
+          lease_until?: string | null
+          quota_reserved?: boolean
+          request_id: string
+          revision?: number
+          source_key: string
+          stage: string
+          user_id: string
+        }
+        Update: {
+          active_ms?: number
+          call_started?: boolean
+          checkpoint?: Json
+          created_at?: string
+          expires_at?: string
+          lease_token?: string | null
+          lease_until?: string | null
+          quota_reserved?: boolean
+          request_id?: string
+          revision?: number
+          source_key?: string
+          stage?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_builder_jobs_user_id_request_id_fkey"
+            columns: ["user_id", "request_id"]
+            isOneToOne: true
+            referencedRelation: "profile_builder_requests"
+            referencedColumns: ["user_id", "request_id"]
+          },
+        ]
+      }
       profile_builder_requests: {
         Row: {
           call_intents: number
@@ -3375,6 +3431,23 @@ export type Database = {
       }
     }
     Functions: {
+      acquire_profile_builder_job: {
+        Args: { p_owner: string; p_request: string }
+        Returns: Json
+      }
+      begin_profile_builder_job_call: {
+        Args: {
+          p_owner: string
+          p_request: string
+          p_revision: number
+          p_token: string
+        }
+        Returns: undefined
+      }
+      cached_profile_builder_source: {
+        Args: { p_owner: string; p_source_key: string }
+        Returns: Json
+      }
       can_read_exam_solutions: { Args: { p_exam_id: string }; Returns: boolean }
       claim_exam_marking: {
         Args: { p_exam_id: string; p_time_taken: number; p_user_id: string }
@@ -3403,6 +3476,19 @@ export type Database = {
           p_rows: Json
           p_source: string
           p_user_id: string
+        }
+        Returns: Json
+      }
+      commit_profile_builder_job: {
+        Args: {
+          p_checkpoint: Json
+          p_elapsed_ms: number
+          p_owner: string
+          p_proposal?: Json
+          p_request: string
+          p_revision: number
+          p_stage: string
+          p_token: string
         }
         Returns: Json
       }
@@ -3437,6 +3523,18 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      create_profile_builder_job: {
+        Args: {
+          p_checkpoint: Json
+          p_elapsed_ms: number
+          p_hash: string
+          p_owner: string
+          p_request: string
+          p_source_key: string
+          p_stage: string
+        }
+        Returns: Json
       }
       create_student_notification: {
         Args: {
@@ -3493,6 +3591,20 @@ export type Database = {
         }
         Returns: Json
       }
+      finish_profile_builder_job_call: {
+        Args: {
+          p_checkpoint: Json
+          p_elapsed_ms: number
+          p_owner: string
+          p_proposal?: Json
+          p_request: string
+          p_revision: number
+          p_stage: string
+          p_token: string
+          p_usage: Json
+        }
+        Returns: Json
+      }
       generate_student_code: {
         Args: { p_first_name: string; p_last_name: string }
         Returns: string
@@ -3523,6 +3635,14 @@ export type Database = {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
       }
+      profile_builder_job_json: {
+        Args: { p: Database["public"]["Tables"]["profile_builder_jobs"]["Row"] }
+        Returns: Json
+      }
+      read_profile_builder_job: {
+        Args: { p_owner: string; p_request: string }
+        Returns: Json
+      }
       record_profile_builder_call: {
         Args: { p_owner: string; p_request: string }
         Returns: undefined
@@ -3540,6 +3660,15 @@ export type Database = {
           p_user_id: string
         }
         Returns: Json
+      }
+      reserve_profile_builder_job: {
+        Args: {
+          p_owner: string
+          p_request: string
+          p_revision: number
+          p_token: string
+        }
+        Returns: undefined
       }
       save_builder_profile: {
         Args: {
