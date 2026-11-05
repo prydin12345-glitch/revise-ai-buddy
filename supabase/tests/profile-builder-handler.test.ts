@@ -44,7 +44,11 @@ beforeAll(async () => {
   });
   code = result.outputFiles[0].text;
 });
-function runtime(responses: unknown[] = [], userId = "owner") {
+function runtime(
+  responses: unknown[] = [],
+  userId = "owner",
+  jobRpc?: (name: string, args: any) => unknown,
+) {
   const receipts = new Map<string, any>(),
     profiles = new Map<string, any>(),
     costs: any[] = [],
@@ -94,6 +98,17 @@ function runtime(responses: unknown[] = [], userId = "owner") {
       return query;
     },
     async rpc(name: string, args: any) {
+      if (
+        jobRpc &&
+        /^(?:create|read|cached|acquire|commit|reserve|begin|finish)_profile_builder_(?:job|source)/.test(
+          name,
+        )
+      ) {
+        const result = await jobRpc(name, args);
+        return result && typeof result === "object" && "__rpcError" in result
+          ? { data: null, error: (result as any).__rpcError }
+          : { data: result, error: null };
+      }
       if (name === "reserve_ai_request") {
         quotas++;
         return { data: { allowed: true, reason: "ok" }, error: null };
@@ -323,4 +338,169 @@ it("client-forged origin/approval and foreign proposal save are rejected by the 
     ).status,
   ).toBe(404);
   expect(r.profiles.size).toBe(0);
+});
+
+it("new source-job actions authenticate before reading uploads or invoking any job RPC", async () => {
+  let reads = 0;
+  const r = runtime([], "owner", () => {
+    reads++;
+    return null;
+  });
+  const result = await r.call(
+    { action: "prepare_source", requestId: crypto.randomUUID() },
+    "invalid-token",
+  );
+  expect(result.status).toBe(401);
+  expect(reads).toBe(0);
+  expect(r.provider).toHaveLength(0);
+});
+it("job status is owner-scoped and never returns source text, accounting or internal checkpoints", async () => {
+  const jobId = crypto.randomUUID(),
+    identity = templateFixture().identity;
+  const calls: any[] = [];
+  const r = runtime([], "authenticated-owner", (name, args) => {
+    calls.push({ name, args });
+    expect(name).toBe("read_profile_builder_job");
+    return {
+      owner: "authenticated-owner",
+      id: jobId,
+      stage: "identifying",
+      revision: 1,
+      leaseToken: null,
+      quotaReserved: true,
+      callIntents: 1,
+      activeMs: 123,
+      data: {
+        version: 1,
+        requestedIdentity: identity,
+        identity,
+        mode: "short_practice",
+        documents: [
+          {
+            id: "private-doc",
+            checksum: "a".repeat(64),
+            pages: [{ page: 1, text: "PRIVATE SYLLABUS TEXT" }],
+          },
+        ],
+        chunks: [
+          {
+            id: "chunk1",
+            documentId: "private-doc",
+            pages: [{ page: 1, text: "PRIVATE SYLLABUS TEXT" }],
+            characterCount: 21,
+          },
+        ],
+        cursor: 0,
+        partials: [],
+        evidence: null,
+        needs: [],
+      },
+    };
+  });
+  const result = await r.call({ action: "source_status", jobId });
+  expect(result.status).toBe(200);
+  expect(result.body.job).toMatchObject({
+    jobId,
+    stage: "identifying",
+    mode: "short_practice",
+  });
+  expect(calls).toEqual([
+    {
+      name: "read_profile_builder_job",
+      args: { p_owner: "authenticated-owner", p_request: jobId },
+    },
+  ]);
+  expect(JSON.stringify(result.body)).not.toMatch(
+    /PRIVATE SYLLABUS|leaseToken|callIntents|checkpoint|documents/,
+  );
+  expect(r.provider).toHaveLength(0);
+  expect(r.quotas).toBe(0);
+});
+it("client-provided owners and extra job context are rejected by the authenticated handler", async () => {
+  let calls = 0;
+  const r = runtime([], "authenticated-owner", () => {
+    calls++;
+    return null;
+  });
+  const result = await r.call({
+    action: "source_status",
+    jobId: crypto.randomUUID(),
+    owner: "another-account",
+    checkpoint: { stage: "complete" },
+  });
+  expect(result.status).toBe(400);
+  expect(calls).toBe(0);
+  expect(r.provider).toHaveLength(0);
+});
+it("a receipt belonging to another account is unavailable without a model call", async () => {
+  const r = runtime([], "authenticated-owner", () => null);
+  const result = await r.call({
+    action: "source_status",
+    jobId: crypto.randomUUID(),
+  });
+  expect(result.status).toBe(404);
+  expect(result.body.error).toMatch(/not found in your account/);
+  expect(r.provider).toHaveLength(0);
+});
+
+it("restores a completed legacy proposal from its owned receipt without another model request", async () => {
+  const r = runtime([], "owner", () => null),
+    id = crypto.randomUUID();
+  const entry = APPROVAL_REGISTRY.find(
+    (e) => e.component === "H420/03" && e.mode === "full_mock",
+  )!;
+  const proposal = templateFromPreset(entry.id);
+  r.receipts.set("owner" + id, { state: "complete", result: proposal });
+  const result = await r.call({ action: "source_status", jobId: id });
+  expect(result.status).toBe(200);
+  expect(result.body.job).toMatchObject({
+    stage: "complete",
+    canAdvance: false,
+    proposalId: id,
+    proposal: { presetId: entry.id },
+  });
+  expect(r.provider).toHaveLength(0);
+  expect(r.quotas).toBe(0);
+});
+it("checking an unfinished legacy request cannot rerun its provider call", async () => {
+  const r = runtime([], "owner", () => null),
+    id = crypto.randomUUID();
+  r.receipts.set("owner" + id, { state: "running", result: null });
+  const result = await r.call({ action: "source_status", jobId: id });
+  expect(result.status).toBe(200);
+  expect(result.body.job).toMatchObject({
+    stage: "drafting",
+    canAdvance: false,
+  });
+  expect(result.body.job.proposal).toBeUndefined();
+  expect(r.provider).toHaveLength(0);
+  expect(r.quotas).toBe(0);
+});
+
+it("legacy receipt recovery works if the additive job RPC has not been installed yet", async () => {
+  const r = runtime([], "owner", () => ({ __rpcError: { code: "42883" } })),
+    id = crypto.randomUUID();
+  const entry = APPROVAL_REGISTRY.find(
+    (e) => e.component === "H420/03" && e.mode === "full_mock",
+  )!;
+  r.receipts.set("owner" + id, {
+    state: "complete",
+    result: templateFromPreset(entry.id),
+  });
+  const result = await r.call({ action: "source_status", jobId: id });
+  expect(result.status).toBe(200);
+  expect(result.body.job).toMatchObject({
+    stage: "complete",
+    canAdvance: false,
+    proposalId: id,
+  });
+  expect(r.provider).toHaveLength(0);
+});
+it("other job RPC failures cannot be mistaken for successful legacy recovery", async () => {
+  const r = runtime([], "owner", () => ({ __rpcError: { code: "08006" } })),
+    id = crypto.randomUUID();
+  const result = await r.call({ action: "source_status", jobId: id });
+  expect(result.status).toBe(503);
+  expect(result.body.job).toBeUndefined();
+  expect(r.provider).toHaveLength(0);
 });

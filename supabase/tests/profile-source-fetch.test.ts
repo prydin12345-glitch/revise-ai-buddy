@@ -7,6 +7,14 @@ import {
   sourceUrl,
 } from "../../scripts/profile-source-fetch.mjs";
 const address = { address: "93.184.216.34", family: 4 };
+it("limits AQA's official asset host to its reviewed public PDF project", () => {
+  expect(sourceUrl("https://cdn.sanity.io/files/p28bar15/green/e96b2cef624c0970b0f90d9678a438580aed0f65.pdf").hostname).toBe("cdn.sanity.io");
+  for (const url of [
+    "https://cdn.sanity.io/files/another-project/green/e96b2cef624c0970b0f90d9678a438580aed0f65.pdf",
+    "https://cdn.sanity.io/images/p28bar15/green/e96b2cef624c0970b0f90d9678a438580aed0f65.pdf",
+    "https://cdn.sanity.io/files/p28bar15/green/anything.pdf",
+  ]) expect(() => sourceUrl(url)).toThrow(/Unapproved/);
+});
 function fakeRequest(responses: any[], capture: any[] = []) {
   return (url: any, options: any, cb: any) => {
     const req = new EventEmitter() as any;

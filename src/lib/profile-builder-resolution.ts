@@ -13,6 +13,12 @@ import {
   type ProfileTemplate,
 } from "../../supabase/functions/_shared/profile-template";
 import { ALL_LEVELS, detectRegionKey } from "./educational-levels";
+import { REVIEWED_ASSESSMENT_COURSES } from "../../supabase/functions/_shared/profile-assessment-catalogue";
+
+export type BuilderCourse = Pick<
+  CourseCapability,
+  "id" | "label" | "specificationCode" | "tierMode" | "tiers" | "boards"
+>;
 
 export interface BuilderContext {
   subject: string;
@@ -76,7 +82,12 @@ export function builderInitialIdentity(c: BuilderContext): TemplateIdentity {
     stage,
     qualification,
     subject: c.subject,
-    organisation: c.board ?? "",
+    // A saved school exam-board preference does not identify a university.
+    organisation:
+      stage === "University" &&
+      BUILDER_BOARDS.some((board) => norm(board) === norm(c.board ?? ""))
+        ? ""
+        : (c.board ?? ""),
     course: "",
     component: c.paperId ?? "",
     specificationVersion: "",
@@ -91,7 +102,7 @@ export function builderInitialIdentity(c: BuilderContext): TemplateIdentity {
     identity.tier = c.tier as "foundation" | "higher";
   return identity;
 }
-export function builderCourses(i: TemplateIdentity): CourseCapability[] {
+export function builderCourses(i: TemplateIdentity): BuilderCourse[] {
   // A UK level must never be inferred from an international age-band setting.
   if (i.country && !["GB", "UK", "United Kingdom"].includes(i.country))
     return [];
@@ -101,15 +112,35 @@ export function builderCourses(i: TemplateIdentity): CourseCapability[] {
       : i.qualification === "A-level"
         ? "level3"
         : i.qualification;
-  return getCourseOptions({
+  const existing = getCourseOptions({
     subject: i.subject,
     examBoard: i.organisation,
     educationalTier: level,
   });
+  const reviewed = REVIEWED_ASSESSMENT_COURSES.filter(
+    (course) =>
+      course.subjectAliases.includes(norm(i.subject)) &&
+      norm(course.organisation) === norm(i.organisation) &&
+      course.qualification === i.qualification &&
+      (!i.country || ["GB", "UK", "United Kingdom"].includes(i.country)),
+  ).map((course) => ({
+    id: course.id,
+    label: course.label,
+    specificationCode: course.courseCode,
+    tierMode: "tiered" as const,
+    tiers: [...course.tiers],
+    boards: [norm(course.organisation)],
+  }));
+  return [
+    ...existing,
+    ...reviewed.filter(
+      (course) => !existing.some((item) => item.id === course.id),
+    ),
+  ];
 }
 export function builderSelectedCourse(
   i: TemplateIdentity,
-): CourseCapability | null {
+): BuilderCourse | null {
   const options = builderCourses(i);
   if (i.course)
     return (
@@ -121,10 +152,22 @@ export function builderSelectedCourse(
 }
 export function builderPapers(i: TemplateIdentity) {
   const course = builderSelectedCourse(i);
+  const reviewed = REVIEWED_ASSESSMENT_COURSES.find(
+    (item) => item.id === course?.id,
+  );
+  if (reviewed)
+    return reviewed.papers.map((paper) => ({
+      id: paper.id,
+      label: paper.label,
+      componentCode:
+        paper.components[
+          (i.tier ?? reviewed.tiers[0]) as keyof typeof paper.components
+        ] ?? "",
+    }));
   return biologyPaperOptions(course?.id).map((pack) => ({
     id: pack.paperId,
     label: pack.definition(i.tier ?? pack.tiers[0]).displayName,
-    pack,
+    componentCode: pack.definition(i.tier ?? pack.tiers[0]).componentCode,
   }));
 }
 export function builderNeedsTier(i: TemplateIdentity): boolean {
@@ -157,10 +200,7 @@ export function resolveBuilderChoice(
     throw Error("Which country or education system is your course in?");
   const papers = builderPapers(i);
   const paper = papers.find(
-    (p) =>
-      p.id === i.component ||
-      p.pack.definition(i.tier ?? p.pack.tiers[0]).componentCode ===
-        i.component,
+    (p) => p.id === i.component || p.componentCode === i.component,
   );
   if (!i.component.trim() || (papers.length && !paper))
     throw Error("Which paper or assessment are you preparing for?");
@@ -187,14 +227,17 @@ export function resolveBuilderChoice(
     };
   const source = SOURCE_REGISTRY.find(
     (s) =>
+      s.evidence.identity.country ===
+        (["UK", "United Kingdom"].includes(i.country) ? "GB" : i.country) &&
+      s.evidence.identity.qualification === i.qualification &&
+      (!!course || norm(s.evidence.identity.subject) === norm(i.subject)) &&
       (s.evidence.identity.organisation.toLowerCase() ===
         i.organisation.toLowerCase() ||
         course?.boards.includes(
           s.evidence.identity.organisation.toLowerCase(),
         )) &&
       s.evidence.identity.course === (course?.specificationCode ?? i.course) &&
-      s.evidence.identity.component ===
-        (paper?.pack.definition(tier).componentCode ?? i.component) &&
+      s.evidence.identity.component === (paper?.componentCode ?? i.component) &&
       (!i.specificationVersion ||
         s.evidence.identity.specificationVersion === i.specificationVersion) &&
       s.evidence.identity.tier === tier,
@@ -222,10 +265,7 @@ export function resolveBuilderChoice(
 export function builderAssessmentLabel(i: TemplateIdentity): string {
   const course = builderSelectedCourse(i),
     paper = builderPapers(i).find(
-      (p) =>
-        p.id === i.component ||
-        p.pack.definition(i.tier ?? p.pack.tiers[0]).componentCode ===
-          i.component,
+      (p) => p.id === i.component || p.componentCode === i.component,
     );
   const label = course?.label.replace(/\s*\((?:7402|1BI0|J247|J257)\)/g, "");
   const name = label

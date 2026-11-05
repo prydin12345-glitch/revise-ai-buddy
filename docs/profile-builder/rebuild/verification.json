@@ -1,0 +1,57 @@
+{
+  "baseCommit": "d07b081a40a5561c7100e7a7695c8eaeb76cea92",
+  "branch": "codex/profile-builder-rebuild",
+  "node": "24.19.0",
+  "packageLockUnchanged": true,
+  "approvalLedgerUnchanged": true,
+  "npmCi": {
+    "passed": true,
+    "packagesInstalled": 864
+  },
+  "npmRunCheck": {
+    "passed": true,
+    "testFiles": 158,
+    "tests": 2497,
+    "skipped": 0,
+    "testDurationSeconds": 70.32,
+    "edgeFunctionsBundled": 39,
+    "productionBuildSeconds": 12.34,
+    "typecheck": true,
+    "criticalLint": true
+  },
+  "biologyAudit": {
+    "passed": true,
+    "templates": 52
+  },
+  "approvalAudit": {
+    "passed": true,
+    "records": 52
+  },
+  "browser": {
+    "passed": true,
+    "matrixCases": 8,
+    "scenarioChecks": 72,
+    "sourceHashesMatch": true,
+    "browserVersion": "151.0.7922.173",
+    "realModelCalls": 0,
+    "backendRequests": 0
+  },
+  "migrationApplied": false,
+  "deploymentPerformed": false,
+  "websitePublished": false,
+  "liveLogin": false,
+  "liveDataChanged": false,
+  "warnings": [
+    "Existing package deprecations",
+    "Stale Browserslist data",
+    "Existing test DOM-nesting warnings",
+    "Pinned PDF parser standard-font test warning",
+    "Production chunks above500kB"
+  ],
+  "limits": [
+    "Chromium emulation, not physical iOS/iPadOS",
+    "Controlled providers and local SQL do not verify live backend activation or real AI output quality",
+    "New source jobs require review/application of the pending SQL and affected-function deployment",
+    "Runtime arbitrary URL research remains disabled; unregistered assessments may still require a readable source"
+  ]
+}

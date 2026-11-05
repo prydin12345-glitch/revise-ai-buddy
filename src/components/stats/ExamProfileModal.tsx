@@ -3,6 +3,7 @@ import {ProfileApprovalBadge} from "@/components/profiles/ExamlyApprovalBadge";
 import {evaluateApproval,approvedPreset} from "../../../supabase/functions/_shared/preset-approval";
 import { APPROVED_VISUAL_FILES } from "../../../supabase/functions/_shared/biology-visual-public";
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useWorkspaceSession } from "@/hooks/use-workspace-session";
 import {
   Dialog,
   DialogContent,
@@ -228,6 +229,8 @@ interface ExamProfileModalProps {
   subjectName: string;
   subjectColor: string;
   examBoard?: string | null;
+  /** Enter the assistant directly from a subject; the manual editor stays available. */
+  initialBuilder?: boolean;
   availableTopics: string[];
   onSave: (
     profileName: string,
@@ -275,11 +278,13 @@ export const ExamProfileModal = ({
   subjectName,
   subjectColor,
   examBoard,
+  initialBuilder = false,
   availableTopics,
   onSave,
   initialData,
 }: ExamProfileModalProps) => {
   const { preferences } = useUserPreferences();
+  const { ownerId } = useWorkspaceSession();
   const [builderOpen, setBuilderOpen] = useState(false);
   const userRegion = detectRegionKey(preferences?.curriculum_region);
   const [step, setStep] = useState<"basics" | "paper" | "layout" | "review">(
@@ -397,7 +402,7 @@ export const ExamProfileModal = ({
 
   useEffect(() => {
     if (open) {
-      setBuilderOpen(!!initialData?.profile_template);
+      setBuilderOpen(!!initialData?.profile_template || (!initialData && initialBuilder));
       setStep(initialData ? "review" : "basics");
       setAdvancedOpen(false);
       setStepError(null);
@@ -499,7 +504,7 @@ export const ExamProfileModal = ({
               storedDefinition.specificationVersion),
       );
     }
-  }, [open, initialData]);
+  }, [open, initialData, initialBuilder]);
 
   // Sync MCQ count between main slider and advanced settings
   useEffect(() => {
@@ -956,6 +961,7 @@ export const ExamProfileModal = ({
     (blueprintHasInvalidMarks ? "Give each question at least one mark." : null);
 
   if (builderOpen) return <ExamProfileBuilder open={open} onOpenChange={onOpenChange}
+    accountId={ownerId}
     subjectName={subjectName} examBoard={initialData?.exam_board||examBoard||preferences?.preferred_exam_board}
     educationalLevel={initialData?.educational_tier||finalTier||preferences?.preferred_educational_level}
     curriculumRegion={preferences?.curriculum_region} courseId={selectedCourseId} paperId={selectedPaperId}

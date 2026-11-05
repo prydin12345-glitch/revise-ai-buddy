@@ -3,6 +3,7 @@ import { it, expect, vi } from "vitest";
 import { getDocumentProxy } from "unpdf";
 import {
   extractPdfPages,
+  extractIndexedPdfPages,
   readLimitedBody,
 } from "../functions/_shared/profile-document-io";
 function pdf() {
@@ -46,6 +47,157 @@ it("parses a real PDF through the pinned parser with scripts/eval/font rendering
     useSystemFonts: false,
     useWorkerFetch: false,
   });
+});
+
+function readableDocument(texts: string[]) {
+  const cleanups = texts.map(() => vi.fn()),
+    destroy = vi.fn(async () => {}),
+    getPage = vi.fn(async (page: number) => ({
+      getTextContent: async () => ({ items: [{ str: texts[page - 1] }] }),
+      cleanup: cleanups[page - 1],
+    }));
+  return {
+    document: { numPages: texts.length, getPage, loadingTask: { destroy } },
+    cleanups,
+    destroy,
+    getPage,
+  };
+}
+it("indexes a complete ninety-page specification beyond the legacy text ceiling", async () => {
+  const fixture = readableDocument(
+    Array.from({ length: 90 }, (_, i) => "Page " + i + " " + "x".repeat(1500)),
+  );
+  const pages = await extractIndexedPdfPages(
+    pdf(),
+    async () => fixture.document,
+  );
+  expect(pages).toHaveLength(90);
+  expect(pages.reduce((n, page) => n + page.length, 0)).toBeGreaterThan(45000);
+  expect(fixture.getPage).toHaveBeenLastCalledWith(90);
+  expect(
+    fixture.cleanups.every((cleanup) => cleanup.mock.calls.length === 1),
+  ).toBe(true);
+  expect(fixture.destroy).toHaveBeenCalledOnce();
+});
+it("retains legacy extraction rejection while permitting the same indexed source", async () => {
+  const fixture = readableDocument(["x".repeat(46000)]);
+  await expect(
+    extractPdfPages(pdf(), async () => fixture.document),
+  ).rejects.toThrow(/shorter/);
+  await expect(
+    extractIndexedPdfPages(pdf(), async () => fixture.document),
+  ).resolves.toHaveLength(1);
+});
+it("allows 240 indexed pages and rejects page 241 before reading any content", async () => {
+  const atLimit = readableDocument(
+    Array.from({ length: 240 }, () => "Readable"),
+  );
+  await expect(
+    extractIndexedPdfPages(pdf(), async () => atLimit.document),
+  ).resolves.toHaveLength(240);
+  const tooMany = readableDocument(
+    Array.from({ length: 241 }, () => "Readable"),
+  );
+  await expect(
+    extractIndexedPdfPages(pdf(), async () => tooMany.document),
+  ).rejects.toThrow(/too many pages/);
+  expect(tooMany.getPage).not.toHaveBeenCalled();
+  expect(tooMany.destroy).toHaveBeenCalledOnce();
+});
+it("rejects oversized extracted text with cleanup rather than keeping a partial index", async () => {
+  const fixture = readableDocument(["x".repeat(300000), "x".repeat(300000)]);
+  await expect(
+    extractIndexedPdfPages(pdf(), async () => fixture.document),
+  ).rejects.toThrow(/shorter/);
+  expect(
+    fixture.cleanups.every((cleanup) => cleanup.mock.calls.length === 1),
+  ).toBe(true);
+  expect(fixture.destroy).toHaveBeenCalledOnce();
+});
+it("preserves heading line breaks without enabling document evaluation or external fetches", async () => {
+  let options: unknown;
+  const destroy = vi.fn(async () => {});
+  const pages = await extractIndexedPdfPages(
+    pdf(),
+    async (_bytes, provided) => {
+      options = provided;
+      return {
+        numPages: 1,
+        getPage: async () => ({
+          getTextContent: async () => ({
+            items: [
+              { str: "Paper 1", hasEOL: true },
+              { str: "Assessment rules", hasEOL: true },
+              { str: "90 marks" },
+            ],
+          }),
+        }),
+        loadingTask: { destroy },
+      };
+    },
+  );
+  expect(pages[0]).toBe("Paper 1\nAssessment rules\n90 marks ");
+  expect(options).toMatchObject({
+    isEvalSupported: false,
+    disableFontFace: true,
+    useSystemFonts: false,
+    useWorkerFetch: false,
+  });
+});
+it("keeps the original upload intact when the real parser transfers its working buffer", async () => {
+  const bytes = pdf(),
+    original = bytes.slice();
+  const pages = await extractIndexedPdfPages(
+    bytes,
+    async (working, options) =>
+      (await getDocumentProxy(working, options)) as any,
+  );
+  expect(pages[0]).toContain("Cells and Enzymes");
+  expect(bytes).toEqual(original);
+});
+it("gives a readable-text action for scanned PDFs and an unlock action for encrypted PDFs", async () => {
+  const empty = readableDocument(["  ", ""]);
+  await expect(
+    extractIndexedPdfPages(pdf(), async () => empty.document),
+  ).rejects.toThrow(/no readable text/);
+  expect(empty.destroy).toHaveBeenCalledOnce();
+  await expect(
+    extractIndexedPdfPages(pdf(), async () => {
+      const error = new Error("Need a password");
+      error.name = "PasswordException";
+      throw error;
+    }),
+  ).rejects.toThrow(/locked/);
+});
+it("rejects incorrect PDF signatures and oversized files without starting the parser", async () => {
+  const load = vi.fn();
+  await expect(
+    extractIndexedPdfPages(new TextEncoder().encode("hello"), load),
+  ).rejects.toThrow(/not a readable PDF/);
+  await expect(
+    extractIndexedPdfPages(new Uint8Array(3000001), load),
+  ).rejects.toThrow(/3 MB/);
+  expect(load).not.toHaveBeenCalled();
+});
+it("bounds a stalled page and destroys its parser after timing out", async () => {
+  const destroy = vi.fn(async () => {}),
+    cleanup = vi.fn();
+  await expect(
+    extractIndexedPdfPages(
+      pdf(),
+      async () => ({
+        numPages: 1,
+        getPage: async () => ({
+          getTextContent: async () => new Promise(() => {}),
+          cleanup,
+        }),
+        loadingTask: { destroy },
+      }),
+      5,
+    ),
+  ).rejects.toThrow(/timed out/);
+  expect(cleanup).toHaveBeenCalledOnce();
+  expect(destroy).toHaveBeenCalledOnce();
 });
 it("cleans up the actual parser loadingTask API on success and rejection", async () => {
   const destroy = vi.fn(async () => {}),

@@ -112,7 +112,7 @@ async function approvedReview(api: BuilderApi) {
   });
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   fireEvent.click(screen.getByRole("button", { name: "Yes, build it" }));
-  await screen.findByLabelText("Profile name");
+  await screen.findByRole("button", { name: "Edit profile" });
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Save profile" })).toBeEnabled(),
   );
@@ -149,6 +149,7 @@ it("approved OCR Paper 3 previews its actual marks, parts and an accessible star
 it("editing generation settings removes active approval, and explicit restore recovers it", async () => {
   const r = memoryApi();
   await approvedReview(r.api);
+  fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
   fireEvent.change(screen.getByLabelText("Time limit (minutes)"), {
     target: { value: "27" },
   });
@@ -168,6 +169,7 @@ it("editing generation settings removes active approval, and explicit restore re
 it("rename, confirmation and reopening preserve approval and saved provenance", async () => {
   const r = memoryApi();
   await approvedReview(r.api);
+  fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
   fireEvent.change(screen.getByLabelText("Profile name"), {
     target: { value: "My renamed paper" },
   });
@@ -181,6 +183,10 @@ it("rename, confirmation and reopening preserve approval and saved provenance", 
   render(
     <ExamProfileBuilder {...props} initialProfile={profile} api={r.api} />,
   );
+  expect(
+    screen.getByRole("heading", { name: "My renamed paper" }),
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
   expect(screen.getByLabelText("Profile name")).toHaveValue("My renamed paper");
   expect(
     screen.getByRole("img", { name: "Examly-approved preset" }),
@@ -189,6 +195,7 @@ it("rename, confirmation and reopening preserve approval and saved provenance", 
 it("invalid edited mark totals block confirmation rather than becoming generation-ready", async () => {
   const r = memoryApi();
   await approvedReview(r.api);
+  fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
   fireEvent.change(screen.getByLabelText("Total marks"), {
     target: { value: "21" },
   });
@@ -203,11 +210,15 @@ it("a source-backed unsupported course produces an editable draft with no star",
   });
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   fireEvent.click(screen.getByRole("button", { name: "Yes, build it" }));
-  await screen.findByLabelText("Profile name");
+  await screen.findByRole("button", { name: "Edit profile" });
   expect(screen.getByText("Source-backed AI draft")).toBeInTheDocument();
   expect(
     screen.queryByRole("img", { name: "Examly-approved preset" }),
   ).not.toBeInTheDocument();
+  expect(
+    screen.queryByLabelText("Topics — one per line"),
+  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
   expect(screen.getByLabelText("Topics — one per line")).toBeEnabled();
 });
 it("missing source requires explicit choice and never starts a model-backed proposal", () => {
@@ -225,8 +236,10 @@ it("missing source requires explicit choice and never starts a model-backed prop
     target: { value: "Final" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-  expect(screen.getByRole("button", { name: "Yes, build it" })).toBeDisabled();
-  expect(screen.getByText(/needs your syllabus/)).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Yes, build it" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole("alert")).toHaveTextContent(/Add your syllabus/);
   expect(r.calls).toHaveLength(0);
 });
 it("general practice opt-in is labelled honestly and full mock is disabled", () => {
@@ -235,17 +248,14 @@ it("general practice opt-in is labelled honestly and full mock is disabled", () 
     <ExamProfileBuilder
       {...props}
       subjectName="Physics"
-      curriculumRegion="GB"
-      educationalLevel="level2"
-      examBoard="AQA"
+      curriculumRegion="US"
+      educationalLevel="undergrad"
+      examBoard="Example University"
       api={r.api}
     />,
   );
   fireEvent.change(screen.getByLabelText("Paper or assessment"), {
     target: { value: "Paper 1" },
-  });
-  fireEvent.change(screen.getByLabelText("Tier"), {
-    target: { value: "higher" },
   });
   fireEvent.click(
     screen.getByRole("button", { name: "General practice without a syllabus" }),
@@ -257,7 +267,10 @@ it("general practice opt-in is labelled honestly and full mock is disabled", () 
     target: { value: "full_mock" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-  expect(screen.getByRole("button", { name: "Yes, build it" })).toBeDisabled();
+  expect(
+    screen.queryByRole("button", { name: "Yes, build it" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole("alert")).toHaveTextContent(/Choose Short practice/);
 });
 it("a cancelled in-flight response cannot reopen preview or save a profile", async () => {
   let resolve: any;
@@ -277,6 +290,7 @@ it("a cancelled in-flight response cannot reopen preview or save a profile", asy
   });
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   fireEvent.click(screen.getByRole("button", { name: "Yes, build it" }));
+  await waitFor(() => expect(typeof resolve).toBe("function"));
   fireEvent.click(
     screen.getByRole("button", { name: "Close profile builder" }),
   );
@@ -295,7 +309,7 @@ it("a cancelled in-flight response cannot reopen preview or save a profile", asy
   await waitFor(() => expect(closed).toHaveBeenCalledWith(false));
   expect(screen.queryByLabelText("Profile name")).not.toBeInTheDocument();
 });
-it("a transport retry preserves its idempotency key instead of creating another charged request", async () => {
+it("a transport interruption checks the original receipt without another proposal", async () => {
   const calls: any[] = [],
     api: BuilderApi = async (input) => {
       calls.push(input);
@@ -311,11 +325,12 @@ it("a transport retry preserves its idempotency key instead of creating another 
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   fireEvent.click(screen.getByRole("button", { name: "Yes, build it" }));
   await screen.findByText("Transport interrupted");
-  fireEvent.click(
-    screen.getByRole("button", { name: "Retry preparing profile" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Check progress" }));
   await waitFor(() => expect(calls).toHaveLength(2));
-  expect(calls[1].requestId).toBe(calls[0].requestId);
+  expect(calls[1]).toEqual({
+    action: "source_status",
+    jobId: calls[0].requestId,
+  });
 });
 it("revoked and source-backed badges never render the gold star", () => {
   render(<ExamlyApprovalBadge approval={{ status: "revoked", entry: null }} />);

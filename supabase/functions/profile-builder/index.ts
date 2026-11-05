@@ -11,10 +11,20 @@ import { corsHeaders } from "../_shared/cors-headers.ts";
 import {
   extractPdfPages,
   readLimitedBody,
+  extractIndexedPdfPages,
 } from "../_shared/profile-document-io.ts";
 import { canonical, checksum } from "../_shared/profile-template.ts";
 import { resolveSavedTemplate } from "../_shared/profile-template-context.ts";
 import { evaluateApproval } from "../_shared/preset-approval.ts";
+import {
+  sourceJobRequestSchema,
+  createProfileBuilderJobStore,
+  prepareSourceJob,
+  advanceSourceJob,
+  confirmSourceJob,
+  getSourceJob,
+  type SourceJobDeps,
+} from "../_shared/profile-builder-jobs.ts";
 const headers = {
   ...corsHeaders,
   "Content-Type": "application/json",
@@ -26,6 +36,7 @@ class SafeError extends Error {
   constructor(
     message: string,
     public status = 400,
+    public category?: "missing_backend",
   ) {
     super(message);
   }
@@ -49,31 +60,186 @@ Deno.serve(async (req) => {
     return reply({ error: "Sign in to build an exam profile." }, 401);
   const rpc = async (name: string, args: unknown) => {
     const { data, error } = await db.rpc(name, args);
-    if (error)
+    if (error) {
+      const missingBackend = /42883|42703|PGRST202|PGRST204/.test(error.code);
       throw new SafeError(
-        /42883|42703|PGRST202|PGRST204/.test(error.code)
+        missingBackend
           ? "Profile Builder needs its reviewed migration/backend deployment. Existing profiles are unchanged."
           : "Profile operation could not finish. Retry with the same request ID.",
         503,
+        missingBackend ? "missing_backend" : undefined,
       );
+    }
     return data;
   };
-  try {
-    const input = builderRequestSchema.parse(
-      JSON.parse(
-        new TextDecoder().decode(await readLimitedBody(req.body, 4_100_000)),
+  const key = Deno.env.get("LOVABLE_API_KEY");
+  const providerReady = () => {
+    if (!key)
+      throw new SafeError("The backend AI provider is not configured.", 503);
+  };
+  const model: SourceJobDeps["model"] = async (system, payload, budgetMs) => {
+    const deadline = Date.now() + budgetMs;
+    const response = await fetch(
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      {
+        method: "POST",
+        signal: AbortSignal.timeout(budgetMs),
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: JSON.stringify(payload) },
+          ],
+          max_tokens: 12000,
+          temperature: 0.2,
+          response_format: { type: "json_object" },
+        }),
+      },
+    );
+    if (!response.ok)
+      throw new SafeError(
+        "The provider could not finish. This request cannot repeat a paid call.",
+        502,
+      );
+    const data = JSON.parse(
+      new TextDecoder().decode(
+        await readLimitedBody(
+          response.body,
+          250_000,
+          Math.max(1, Math.min(45_000, deadline - Date.now())),
+        ),
       ),
     );
+    let value: unknown;
+    try {
+      value = JSON.parse(data.choices?.[0]?.message?.content ?? "");
+    } catch {
+      value = { invalidOutput: true };
+    }
+    const tokens = (v: unknown) =>
+      Number.isSafeInteger(Number(v)) &&
+      Number(v) >= 0 &&
+      Number(v) <= 10_000_000
+        ? Number(v)
+        : 0;
+    return {
+      value,
+      promptTokens: tokens(data.usage?.prompt_tokens),
+      completionTokens: tokens(data.usage?.completion_tokens),
+    };
+  };
+  try {
+    // Upload bundles are bounded again after decoding (3 MB/file, 6 MB total).
+    // The legacy propose schema keeps its original single-file byte limits.
+    const raw = JSON.parse(
+      new TextDecoder().decode(await readLimitedBody(req.body, 8_200_000)),
+    );
+    if (
+      [
+        "prepare_source",
+        "advance_source",
+        "confirm_source",
+        "source_status",
+      ].includes(raw?.action)
+    ) {
+      const request = sourceJobRequestSchema.parse(raw);
+      const deps: SourceJobDeps = {
+        store: createProfileBuilderJobStore(rpc),
+        providerReady,
+        parsePdf: (bytes) =>
+          extractIndexedPdfPages(bytes, getDocumentProxy as any),
+        model,
+      };
+      if (request.action === "source_status") {
+        let source = null;
+        try {
+          source = await deps.store.load(user.id, request.jobId);
+        } catch (error) {
+          // Receipt recovery also works during an incremental jobs rollout.
+          // Other RPC failures retain their diagnostic and cannot look complete.
+          if (
+            !(
+              error instanceof SafeError && error.category === "missing_backend"
+            )
+          )
+            throw error;
+        }
+        if (source && source.owner === user.id)
+          return reply({
+            job: await getSourceJob(user.id, request.jobId, deps, source),
+          });
+        // Older and catalogue-backed proposals already have durable receipts.
+        // Reading one can restore its result, but can never repeat provider work.
+        const { data: receipt, error } = await db
+          .from("profile_builder_requests")
+          .select("state,result")
+          .eq("user_id", user.id)
+          .eq("request_id", request.jobId)
+          .maybeSingle();
+        if (error)
+          throw new SafeError(
+            "Could not check this build. Resume the same request to try again.",
+            503,
+          );
+        if (!receipt)
+          throw new SafeError(
+            "This profile build was not found in your account.",
+            404,
+          );
+        if (receipt.state === "complete" && receipt.result?.template) {
+          const proposal = receipt.result as BuilderProposal;
+          prepareProfileSave(proposal, proposal.template);
+          return reply({
+            job: {
+              jobId: request.jobId,
+              stage: "complete",
+              canAdvance: false,
+              identity: proposal.template.identity,
+              mode: proposal.template.mode,
+              message: "Your profile is ready to review.",
+              progress: { completed: 1, total: 1 },
+              proposalId: request.jobId,
+              proposal,
+            },
+          });
+        }
+        return reply({
+          job: {
+            jobId: request.jobId,
+            stage: receipt.state === "running" ? "drafting" : "failed",
+            canAdvance: false,
+            mode: "short_practice",
+            message:
+              receipt.state === "running"
+                ? "Your profile is still processing. Check progress to retrieve the same request."
+                : "This build stopped safely. Your saved profiles are unchanged.",
+            progress: { completed: 0, total: 1 },
+            ...(receipt.state === "failed"
+              ? {
+                  needs: [
+                    "Review your choices and explicitly start a new build when you are ready.",
+                  ],
+                }
+              : {}),
+          },
+        });
+      }
+      const job =
+        request.action === "prepare_source"
+          ? await prepareSourceJob(user.id, request, deps)
+          : request.action === "advance_source"
+            ? await advanceSourceJob(user.id, request.jobId, deps)
+            : await confirmSourceJob(user.id, request.jobId, request, deps);
+      return reply({ job });
+    }
+    const input = builderRequestSchema.parse(raw);
     if (input.action === "propose") {
-      const key = Deno.env.get("LOVABLE_API_KEY");
       const proposal = await proposeProfile(user.id, input, {
-        providerReady: () => {
-          if (!key)
-            throw new SafeError(
-              "The backend AI provider is not configured.",
-              503,
-            );
-        },
+        providerReady,
         claim: (owner, id, hash) =>
           rpc("claim_profile_builder_request", {
             p_owner: owner,
@@ -126,56 +292,7 @@ Deno.serve(async (req) => {
           return data.result;
         },
         parsePdf: (b) => extractPdfPages(b, getDocumentProxy as any),
-        model: async (system, payload, budgetMs) => {
-          const response = await fetch(
-            "https://ai.gateway.lovable.dev/v1/chat/completions",
-            {
-              method: "POST",
-              signal: AbortSignal.timeout(budgetMs),
-              headers: {
-                Authorization: `Bearer ${key}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: "google/gemini-2.5-flash",
-                messages: [
-                  { role: "system", content: system },
-                  { role: "user", content: JSON.stringify(payload) },
-                ],
-                max_tokens: 12000,
-                temperature: 0.2,
-                response_format: { type: "json_object" },
-              }),
-            },
-          );
-          if (!response.ok)
-            throw new SafeError(
-              "The provider could not finish. This request cannot repeat a paid call.",
-              502,
-            );
-          const data = JSON.parse(
-            new TextDecoder().decode(
-              await readLimitedBody(response.body, 250_000, 45_000),
-            ),
-          );
-          let value: unknown;
-          try {
-            value = JSON.parse(data.choices?.[0]?.message?.content ?? "");
-          } catch {
-            value = { invalidOutput: true };
-          }
-          const tokens = (v: unknown) =>
-            Number.isSafeInteger(Number(v)) &&
-            Number(v) >= 0 &&
-            Number(v) <= 10_000_000
-              ? Number(v)
-              : 0;
-          return {
-            value,
-            promptTokens: tokens(data.usage?.prompt_tokens),
-            completionTokens: tokens(data.usage?.completion_tokens),
-          };
-        },
+        model,
       });
       return reply({ proposalId: input.requestId, proposal });
     }

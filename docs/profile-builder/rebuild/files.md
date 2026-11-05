@@ -1,0 +1,49 @@
+# Rebuild file inventory
+
+Exact files added or changed relative to `d07b081a`. No generated database types, dependency manifests, lockfile or applied migration files changed.
+
+- `docs/pending-migrations/20261104120000_profile_builder_jobs.sql`
+- `docs/profile-builder/README.md`
+- `docs/profile-builder/rebuild-sources.md`
+- `docs/profile-builder/rebuild.md`
+- `docs/profile-builder/rebuild/browser/README.md`
+- `docs/profile-builder/rebuild/browser/ipad-light-approved-summary.png`
+- `docs/profile-builder/rebuild/browser/laptop-dark-physics-confirmation.png`
+- `docs/profile-builder/rebuild/browser/laptop-dark-source-summary.png`
+- `docs/profile-builder/rebuild/browser/laptop-light-physics-choices.png`
+- `docs/profile-builder/rebuild/browser/phone-dark-approved-summary.png`
+- `docs/profile-builder/rebuild/browser/phone-dark-resume.png`
+- `docs/profile-builder/rebuild/browser/phone-light-edit-profile.png`
+- `docs/profile-builder/rebuild/browser/phone-light-source-confirmation.png`
+- `docs/profile-builder/rebuild/browser/results.json`
+- `docs/profile-builder/rebuild/deployment-dependencies.json`
+- `docs/profile-builder/rebuild/files.md`
+- `docs/profile-builder/rebuild/real-spec-parsing.json`
+- `docs/profile-builder/rebuild/rollout.md`
+- `docs/profile-builder/rebuild/verification.json`
+- `scripts/profile-source-fetch.mjs`
+- `src/components/profiles/ExamProfileBuilder.tsx`
+- `src/components/stats/ExamProfileModal.tsx`
+- `src/lib/profile-builder-client.ts`
+- `src/lib/profile-builder-resolution.ts`
+- `src/pages/SubjectDetail.tsx`
+- `src/test/profile-builder-catalogue.test.ts`
+- `src/test/profile-builder-client.test.ts`
+- `src/test/profile-builder-resolution.test.tsx`
+- `src/test/profile-builder.test.tsx`
+- `supabase/functions/_shared/profile-aqa-science-sources.ts`
+- `supabase/functions/_shared/profile-assessment-catalogue.ts`
+- `supabase/functions/_shared/profile-builder-jobs.ts`
+- `supabase/functions/_shared/profile-document-index.ts`
+- `supabase/functions/_shared/profile-document-io.ts`
+- `supabase/functions/_shared/profile-evidence.ts`
+- `supabase/functions/_shared/profile-source-registry.ts`
+- `supabase/functions/profile-builder/index.ts`
+- `supabase/tests/profile-assessment-catalogue.test.ts`
+- `supabase/tests/profile-builder-handler.test.ts`
+- `supabase/tests/profile-builder-jobs-db.test.ts`
+- `supabase/tests/profile-builder-jobs-fixtures.ts`
+- `supabase/tests/profile-builder-jobs.test.ts`
+- `supabase/tests/profile-document-index.test.ts`
+- `supabase/tests/profile-document-io.test.ts`
+- `supabase/tests/profile-source-fetch.test.ts`

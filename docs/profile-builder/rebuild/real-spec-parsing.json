@@ -1,0 +1,41 @@
+{
+  "source": "Pearson Edexcel Biology B specification Issue 4",
+  "bytes": 870460,
+  "pages": 96,
+  "extractedCharacters": 134398,
+  "selectedPages": [
+    1,
+    11,
+    12,
+    13,
+    17,
+    19,
+    22,
+    25,
+    27,
+    30,
+    33,
+    36,
+    53,
+    55,
+    63,
+    71,
+    83,
+    87,
+    88,
+    89,
+    90,
+    91,
+    92,
+    93
+  ],
+  "omittedPageCount": 72,
+  "chunkCharacters": [
+    8055
+  ],
+  "coverage": {
+    "complete": true
+  },
+  "literalSpans": true,
+  "elapsedLocalMs": 339
+}

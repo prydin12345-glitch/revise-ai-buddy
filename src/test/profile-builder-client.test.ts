@@ -1,10 +1,22 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { invokeProfileBuilder } from "@/lib/profile-builder-client";
-const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { functions: { invoke } },
+import {
+  invokeProfileBuilder,
+  readPendingBuilderJob,
+  rememberPendingBuilderJob,
+  clearPendingBuilderJob,
+} from "@/lib/profile-builder-client";
+const { invoke, getSession } = vi.hoisted(() => ({
+  invoke: vi.fn(),
+  getSession: vi.fn(),
 }));
-beforeEach(() => invoke.mockReset());
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: { functions: { invoke }, auth: { getSession } },
+}));
+beforeEach(() => {
+  invoke.mockReset();
+  getSession.mockReset();
+  localStorage.clear();
+});
 function http(status: number, body: unknown) {
   invoke.mockResolvedValue({
     data: null,
@@ -79,4 +91,73 @@ it("returns confirmed backend responses unchanged", async () => {
   const data = { proposalId: "receipt", proposal: { origin: "catalogue" } };
   invoke.mockResolvedValue({ data, error: null });
   expect(await invokeProfileBuilder({ action: "propose" })).toBe(data);
+});
+
+it("retains only an opaque job receipt and isolates pending builds by account and subject", async () => {
+  const first = crypto.randomUUID(),
+    second = crypto.randomUUID();
+  getSession.mockResolvedValue({
+    data: { session: { user: { id: "account-a" } } },
+  });
+  await rememberPendingBuilderJob("Physics", first);
+  await rememberPendingBuilderJob("Chemistry", second);
+  expect(await readPendingBuilderJob(" PHYSICS ")).toEqual({ jobId: first });
+  expect(await readPendingBuilderJob("Chemistry")).toEqual({ jobId: second });
+  const stored = JSON.parse(
+    localStorage.getItem(
+      "examly:profile-builder:pending:v1:account-a:physics",
+    )!,
+  );
+  expect(Object.keys(stored).sort()).toEqual(["expiresAt", "jobId"]);
+  getSession.mockResolvedValue({
+    data: { session: { user: { id: "account-b" } } },
+  });
+  expect(await readPendingBuilderJob("Physics")).toBeNull();
+  await clearPendingBuilderJob("Physics");
+  getSession.mockResolvedValue({
+    data: { session: { user: { id: "account-a" } } },
+  });
+  expect(await readPendingBuilderJob("Physics")).toEqual({ jobId: first });
+  await clearPendingBuilderJob("Physics", second);
+  expect(await readPendingBuilderJob("Physics")).toEqual({ jobId: first });
+  await clearPendingBuilderJob("Physics", first);
+  expect(await readPendingBuilderJob("Physics")).toBeNull();
+  expect(invoke).not.toHaveBeenCalled();
+});
+it("rejects expired, corrupt or malformed pending receipts without a backend call", async () => {
+  getSession.mockResolvedValue({
+    data: { session: { user: { id: "account-a" } } },
+  });
+  const key = "examly:profile-builder:pending:v1:account-a:physics";
+  for (const value of [
+    "not-json",
+    JSON.stringify({ jobId: "not-a-receipt", expiresAt: Date.now() + 1000 }),
+    JSON.stringify({ jobId: crypto.randomUUID(), expiresAt: Date.now() - 1 }),
+  ]) {
+    localStorage.setItem(key, value);
+    expect(await readPendingBuilderJob("Physics")).toBeNull();
+  }
+  getSession.mockResolvedValue({ data: { session: null } });
+  await rememberPendingBuilderJob("Physics", crypto.randomUUID());
+  expect(await readPendingBuilderJob("Physics")).toBeNull();
+  expect(localStorage.length).toBe(0);
+  expect(invoke).not.toHaveBeenCalled();
+});
+it("browser storage being unavailable never prevents receipt cleanup or profile saving", async () => {
+  getSession.mockResolvedValue({
+    data: { session: { user: { id: "account-a" } } },
+  });
+  const get = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+    throw Error("Storage disabled");
+  });
+  const set = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw Error("Storage disabled");
+  });
+  await expect(
+    rememberPendingBuilderJob("Physics", crypto.randomUUID()),
+  ).resolves.toBeUndefined();
+  await expect(readPendingBuilderJob("Physics")).resolves.toBeNull();
+  await expect(clearPendingBuilderJob("Physics")).resolves.toBeUndefined();
+  get.mockRestore();
+  set.mockRestore();
 });

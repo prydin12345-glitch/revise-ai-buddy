@@ -1,0 +1,226 @@
+{
+  "status": "PASS",
+  "browserVersion": "151.0.7922.173",
+  "syntheticOnly": true,
+  "realModelCalls": 0,
+  "backendRequests": 0,
+  "realLogins": 0,
+  "liveDataWrites": 0,
+  "fonts": {
+    "manrope": true,
+    "serif": true
+  },
+  "cases": [
+    {
+      "width": 1440,
+      "height": 1000,
+      "name": "laptop",
+      "theme": "light",
+      "scenarios": [
+        "direct subject entry bypasses manual setup",
+        "saved GCSE Physics board/paper/tier, reviewed source, no code entry",
+        "approved OCR H420/03 full mock,70 marks/90min,zero AI/quota,edit/restore/save/reopen",
+        "change assessment invalidates old preview",
+        "Edexcel A/B remains explicit and BiologyB untiered",
+        "96-page source,late assessment facts,identity confirmation,source-backed preview/edit/save/reopen",
+        "close/reopen resumes same owned receipt with free status check and no automatic model call",
+        "registered receipt resumes with free Check progress,canAdvance:false,no duplicate generation",
+        "unverified receipt resumes with free Check progress,canAdvance:false,no duplicate generation"
+      ],
+      "sourceParsing": {
+        "pages": 96,
+        "characters": 175856
+      }
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "name": "laptop",
+      "theme": "dark",
+      "scenarios": [
+        "direct subject entry bypasses manual setup",
+        "saved GCSE Physics board/paper/tier, reviewed source, no code entry",
+        "approved OCR H420/03 full mock,70 marks/90min,zero AI/quota,edit/restore/save/reopen",
+        "change assessment invalidates old preview",
+        "Edexcel A/B remains explicit and BiologyB untiered",
+        "96-page source,late assessment facts,identity confirmation,source-backed preview/edit/save/reopen",
+        "close/reopen resumes same owned receipt with free status check and no automatic model call",
+        "registered receipt resumes with free Check progress,canAdvance:false,no duplicate generation",
+        "unverified receipt resumes with free Check progress,canAdvance:false,no duplicate generation"
+      ],
+      "sourceParsing": {
+        "pages": 96,
+        "characters": 175856
+      }
+    },
+    {
+      "width": 834,
+      "height": 1112,
+      "name": "ipad",
+      "theme": "light",
+      "scenarios": [
+        "direct subject entry bypasses manual setup",
+        "saved GCSE Physics board/paper/tier, reviewed source, no code entry",
+        "approved OCR H420/03 full mock,70 marks/90min,zero AI/quota,edit/restore/save/reopen",
+        "change assessment invalidates old preview",
+        "Edexcel A/B remains explicit and BiologyB untiered",
+        "96-page source,late assessment facts,identity confirmation,source-backed preview/edit/save/reopen",
+        "close/reopen resumes same owned receipt with free status check and no automatic model call",
+        "registered receipt resumes with free Check progress,canAdvance:false,no duplicate generation",
+        "unverified receipt resumes with free Check progress,canAdvance:false,no duplicate generation"
+      ],
+      "sourceParsing": {
+        "pages": 96,
+        "characters": 175856
+      }
+    },
+    {
+      "width": 834,
+      "height": 1112,
+      "name": "ipad",
+      "theme": "dark",
+      "scenarios": [
+        "direct subject entry bypasses manual setup",
+        "saved GCSE Physics board/paper/tier, reviewed source, no code entry",
+        "approved OCR H420/03 full mock,70 marks/90min,zero AI/quota,edit/restore/save/reopen",
+        "change assessment invalidates old preview",
+        "Edexcel A/B remains explicit and BiologyB untiered",
+        "96-page source,late assessment facts,identity confirmation,source-backed preview/edit/save/reopen",
+        "close/reopen resumes same owned receipt with free status check and no automatic model call",
+        "registered receipt resumes with free Check progress,canAdvance:false,no duplicate generation",
+        "unverified receipt resumes with free Check progress,canAdvance:false,no duplicate generation"
+      ],
+      "sourceParsing": {
+        "pages": 96,
+        "characters": 175856
+      }
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "name": "phone",
+      "theme": "light",
+      "scenarios": [
+        "direct subject entry bypasses manual setup",
+        "saved GCSE Physics board/paper/tier, reviewed source, no code entry",
+        "approved OCR H420/03 full mock,70 marks/90min,zero AI/quota,edit/restore/save/reopen",
+        "change assessment invalidates old preview",
+        "Edexcel A/B remains explicit and BiologyB untiered",
+        "96-page source,late assessment facts,identity confirmation,source-backed preview/edit/save/reopen",
+        "close/reopen resumes same owned receipt with free status check and no automatic model call",
+        "registered receipt resumes with free Check progress,canAdvance:false,no duplicate generation",
+        "unverified receipt resumes with free Check progress,canAdvance:false,no duplicate generation"
+      ],
+      "sourceParsing": {
+        "pages": 96,
+        "characters": 175856
+      }
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "name": "phone",
+      "theme": "dark",
+      "scenarios": [
+        "direct subject entry bypasses manual setup",
+        "saved GCSE Physics board/paper/tier, reviewed source, no code entry",
+        "approved OCR H420/03 full mock,70 marks/90min,zero AI/quota,edit/restore/save/reopen",
+        "change assessment invalidates old preview",
+        "Edexcel A/B remains explicit and BiologyB untiered",
+        "96-page source,late assessment facts,identity confirmation,source-backed preview/edit/save/reopen",
+        "close/reopen resumes same owned receipt with free status check and no automatic model call",
+        "registered receipt resumes with free Check progress,canAdvance:false,no duplicate generation",
+        "unverified receipt resumes with free Check progress,canAdvance:false,no duplicate generation"
+      ],
+      "sourceParsing": {
+        "pages": 96,
+        "characters": 175856
+      }
+    },
+    {
+      "width": 320,
+      "height": 780,
+      "name": "narrow-phone",
+      "theme": "light",
+      "scenarios": [
+        "direct subject entry bypasses manual setup",
+        "saved GCSE Physics board/paper/tier, reviewed source, no code entry",
+        "approved OCR H420/03 full mock,70 marks/90min,zero AI/quota,edit/restore/save/reopen",
+        "change assessment invalidates old preview",
+        "Edexcel A/B remains explicit and BiologyB untiered",
+        "96-page source,late assessment facts,identity confirmation,source-backed preview/edit/save/reopen",
+        "close/reopen resumes same owned receipt with free status check and no automatic model call",
+        "registered receipt resumes with free Check progress,canAdvance:false,no duplicate generation",
+        "unverified receipt resumes with free Check progress,canAdvance:false,no duplicate generation"
+      ],
+      "sourceParsing": {
+        "pages": 96,
+        "characters": 175856
+      }
+    },
+    {
+      "width": 320,
+      "height": 780,
+      "name": "narrow-phone",
+      "theme": "dark",
+      "scenarios": [
+        "direct subject entry bypasses manual setup",
+        "saved GCSE Physics board/paper/tier, reviewed source, no code entry",
+        "approved OCR H420/03 full mock,70 marks/90min,zero AI/quota,edit/restore/save/reopen",
+        "change assessment invalidates old preview",
+        "Edexcel A/B remains explicit and BiologyB untiered",
+        "96-page source,late assessment facts,identity confirmation,source-backed preview/edit/save/reopen",
+        "close/reopen resumes same owned receipt with free status check and no automatic model call",
+        "registered receipt resumes with free Check progress,canAdvance:false,no duplicate generation",
+        "unverified receipt resumes with free Check progress,canAdvance:false,no duplicate generation"
+      ],
+      "sourceParsing": {
+        "pages": 96,
+        "characters": 175856
+      }
+    }
+  ],
+  "scenarioChecks": 72,
+  "screenshots": [
+    "laptop-light-physics-choices.png",
+    "laptop-dark-physics-confirmation.png",
+    "laptop-dark-source-summary.png",
+    "ipad-light-approved-summary.png",
+    "phone-light-source-confirmation.png",
+    "phone-light-edit-profile.png",
+    "phone-dark-approved-summary.png",
+    "phone-dark-resume.png"
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "failedRequests": [],
+  "blockedRequests": [],
+  "sourceHashes": {
+    "src/components/profiles/ExamProfileBuilder.tsx": "488d7a9603dce8db6956aafade726c5a734cdfcba73ffb508d6281a48058acc3",
+    "src/components/stats/ExamProfileModal.tsx": "f105b27c67509fb61cf89f4c503ba919896565de08a7f5e05a7b76adcae734b6",
+    "src/lib/profile-builder-client.ts": "288e858369e78382d74de6480e024df459c99bda96aad9c5f587eead9cdfee94",
+    "src/lib/profile-builder-resolution.ts": "adafa2286037347b616f2663749878e9a62cf2e304bb277f9974fc7d48fb0fc5",
+    "supabase/functions/_shared/profile-builder-jobs.ts": "19412cdc065e0d7d91fa3ab6735108bdf341f8d2118e748d1327a04a9b819c8b",
+    "supabase/functions/_shared/profile-document-index.ts": "f14253d091d3d7e8096cc2f28dc6e552479e2072b2f3cf1c86707f1093a93757",
+    "supabase/functions/_shared/profile-document-io.ts": "2c61be2bd3da753f4502d8546c830bac4e1de3ac130d9d8d4bd1f23719d47d38",
+    "supabase/functions/_shared/profile-evidence.ts": "2748c8c962593ac0fe489ddcfabe688f1fdc24af152a47277101d26224c45ffe",
+    "supabase/functions/_shared/profile-source-registry.ts": "67c6354387fb39e81eef33554262b117ce9d1f58aedc9c37ef96db52b43034a6",
+    "supabase/functions/_shared/profile-aqa-science-sources.ts": "776746d59c759a19af7f75d8b5d7937e45e70d2ca4194361478a09c563fe9a74",
+    "supabase/functions/_shared/profile-assessment-catalogue.ts": "7c351687755acf4b5c54300a0ce5956dd4a2487adc27cab741bd2e15701f3d80",
+    "src/index.css": "a89888358f0e5289e2a1d2e2fb577be42a1ae8e346e460eb5b74c43e3a69ee23",
+    "tailwind.config.ts": "f2efe5e06aa7451e0c4098ee14d239c11e254223cf43c16e4327ba7ca65d7340"
+  },
+  "limitations": [
+    "Chromium emulation, not physical iOS/iPadOS devices",
+    "Synthetic model replies do not verify paid provider quality",
+    "Memory persistence verifies frontend and shared service integration; SQL/RLS are verified separately by repository tests"
+  ],
+  "syntheticPdf": {
+    "pages": 96,
+    "bytes": 215475,
+    "extractedCharacters": 175856,
+    "assessmentPhysicalPage": 90,
+    "sha256": "46ac9d25005bbe23c46724931d9a735f6af75097a013489b6033dc4a4b863836",
+    "copyright": "Original synthetic test document; no official questions or datasets."
+  }
+}
