@@ -6,7 +6,7 @@
  * Private page text belongs only in the owned preparation receipt. Only an
  * explicitly reviewed public source pack may enter a shared catalogue.
  */
-export const DOCUMENT_INDEX_VERSION = 1;
+export const DOCUMENT_INDEX_VERSION = 2;
 export const INDEXED_DOCUMENT_LIMITS = {
   maxBytes: 3_000_000,
   maxPages: 240,
@@ -32,6 +32,131 @@ export interface DocumentSelection {
   componentAliases?: string[];
   subject?: string;
   course?: string;
+  qualification?: string;
+}
+export type SourceQualification = "AS" | "A-level";
+export interface QualificationFragment {
+  page: number;
+  text: string;
+  startOffset: number;
+  endOffset: number;
+  qualification?: SourceQualification;
+  qualificationReference?: { page: number; text: string };
+}
+export interface QualificationScope {
+  fragments: QualificationFragment[];
+  qualifications: SourceQualification[];
+  ambiguous: boolean;
+  reason?: string;
+}
+
+const qualificationKey = (value?: string): SourceQualification | undefined => {
+  const key = value
+    ?.trim()
+    .toLowerCase()
+    .replace(/[\u2010-\u2015]/g, "-");
+  if (key && /^(?:a[ -]?level|advanced level)$/.test(key)) return "A-level";
+  if (key && /^(?:as|as[ -]?level)$/.test(key)) return "AS";
+  return undefined;
+};
+function qualificationHeading(line: string): SourceQualification | undefined {
+  const text = line.trim().replace(/^\d+(?:\.\d+)*[.)]?\s*/, "");
+  // Mentions in prose, combined titles, and "A-level only" content annotations
+  // do not establish a section boundary. AS is intentionally uppercase: the
+  // chemical symbol As or the ordinary word "as" is not a qualification.
+  if (
+    text.length > 120 ||
+    /\b(?:and|only|students?|candidates?|will|should|must)\b/i.test(text)
+  )
+    return undefined;
+  const tail =
+    "(?:\\s+(?:assessment(?:s| overview)?|qualification|specification|physics|chemistry|biology))?(?:\\s*\\([A-Za-z0-9 ,/]+\\))?";
+  if (new RegExp("^AS(?:[- ]level)?" + tail + "$", "").test(text)) return "AS";
+  if (new RegExp("^A[\\s\\u2010-\\u2015-]*level" + tail + "$", "i").test(text))
+    return "A-level";
+  return undefined;
+}
+
+/**
+ * Scopes only explicit qualification headings. Fragments remain contiguous
+ * literal spans at their original physical pages, including shared-page
+ * AS/A-level sections. Neutral cover/general material stays unqualified.
+ */
+export function scopeDocumentQualification(
+  texts: string[],
+  qualification?: string,
+): QualificationScope {
+  const requested = qualificationKey(qualification),
+    fragments: QualificationFragment[] = [],
+    qualifications = new Set<SourceQualification>();
+  let current: SourceQualification | undefined,
+    reference: { page: number; text: string } | undefined;
+  texts.forEach((text, pageIndex) => {
+    const lines = text.split("\n");
+    let start = 0,
+      offset = 0;
+    const add = (end: number) => {
+      if (end <= start || !text.slice(start, end).trim()) return;
+      fragments.push({
+        page: pageIndex + 1,
+        text: text.slice(start, end),
+        startOffset: start,
+        endOffset: end,
+        ...(current
+          ? { qualification: current, qualificationReference: reference }
+          : {}),
+      });
+    };
+    lines.forEach((line) => {
+      const heading = qualificationHeading(line);
+      if (heading) {
+        add(offset);
+        start = offset;
+        current = heading;
+        reference = { page: pageIndex + 1, text: line.trim() };
+        qualifications.add(heading);
+      }
+      offset += line.length + 1;
+    });
+    add(text.length);
+  });
+  const combinedTitle = texts.some((text) =>
+    /\bAS\s+(?:and|&|\/)\s+A[\s\u2010-\u2015-]*level\b/i.test(text),
+  );
+  let reason: string | undefined;
+  if (qualifications.size > 1 && !requested)
+    reason = "Choose AS or A-level before using this combined specification.";
+  if (requested && qualifications.size && !qualifications.has(requested))
+    reason =
+      "The source qualification does not match your selected AS or A-level course.";
+  if (requested && combinedTitle && !qualifications.has(requested))
+    reason =
+      "We could not separate the AS and A-level assessment sections. Add the assessment overview for your qualification.";
+  // An unscoped comparison can contain two Paper 1 totals. Keep it visibly
+  // ambiguous instead of assigning its marks to whichever course was chosen.
+  if (
+    requested &&
+    (qualifications.size > 1 || combinedTitle) &&
+    fragments.some(
+      (fragment) =>
+        !fragment.qualification &&
+        /\b(?:paper|unit|component)\s*\d+\b/i.test(fragment.text) &&
+        /\b(?:\d+\s*marks?|marks?\s*[:\u2013-]?\s*\d+)\b/i.test(fragment.text),
+    )
+  )
+    reason ??=
+      "The source combines AS and A-level assessment rules without a clear qualification heading. Add the relevant assessment overview.";
+  return {
+    fragments: requested
+      ? fragments.filter(
+          (fragment) =>
+            !fragment.qualification || fragment.qualification === requested,
+        )
+      : fragments,
+    qualifications: [...qualifications],
+    ambiguous: !!reason,
+    ...(reason ? { reason } : {}),
+  };
 }
 export interface SourceDocumentIndex {
   version: typeof DOCUMENT_INDEX_VERSION;
@@ -176,15 +301,38 @@ export function indexDocumentPages(
   selection: DocumentSelection,
 ): SourceDocumentIndex {
   const pages = makePages(texts),
-    requested = requestedPattern(selection),
+    scope = scopeDocumentQualification(texts, selection.qualification),
+    allowed = new Map<number, Array<[number, number]>>();
+  for (const fragment of scope.fragments)
+    allowed.set(fragment.page, [
+      ...(allowed.get(fragment.page) ?? []),
+      [fragment.startOffset, fragment.endOffset],
+    ]);
+  // Masking is used only to locate candidate lines. Retrieval below always
+  // slices the original page at allowed offsets, so no invented whitespace or
+  // AS-only text can enter a supplied evidence excerpt.
+  const scanPages = pages.map((page) => {
+    let offset = 0,
+      text = "";
+    for (const [start, end] of allowed.get(page.page) ?? []) {
+      text += page.text.slice(offset, start).replace(/[^\r\n]/g, " ");
+      text += page.text.slice(start, end);
+      offset = end;
+    }
+    text += page.text.slice(offset).replace(/[^\r\n]/g, " ");
+    return { ...page, text };
+  });
+  const requested = requestedPattern(selection),
     total = pages.reduce((sum, page) => sum + page.text.length, 0),
-    matches = pages.filter((page) => requested.test(normalize(page.text))),
-    allComponents = new Set(pages.flatMap((page) => componentsIn(page.text))),
+    matches = scanPages.filter((page) => requested.test(normalize(page.text))),
+    allComponents = new Set(
+      scanPages.flatMap((page) => componentsIn(page.text)),
+    ),
     selected = new Map<number, Array<[number, number]>>(),
     warnings: string[] = [];
-  let reason: string | undefined;
+  let reason = scope.reason;
   const addPage = (page: SourceDocumentPage) =>
-    selected.set(page.page, [[0, page.text.length]]);
+    selected.set(page.page, [...(allowed.get(page.page) ?? [])]);
   const addWindow = (
     page: SourceDocumentPage,
     line: number,
@@ -203,7 +351,15 @@ export function indexDocumentPages(
       );
     selected.set(page.page, [
       ...(selected.get(page.page) ?? []),
-      [startOffset, endOffset],
+      ...(allowed.get(page.page) ?? [])
+        .map(
+          ([start, end]) =>
+            [Math.max(start, startOffset), Math.min(end, endOffset)] as [
+              number,
+              number,
+            ],
+        )
+        .filter(([start, end]) => end > start),
     ]);
   };
   const snippets = (page: SourceDocumentPage) => {
@@ -227,9 +383,9 @@ export function indexDocumentPages(
     INDEXED_DOCUMENT_LIMITS.maxChunkCharacters *
       INDEXED_DOCUMENT_LIMITS.maxChunks;
   if (!matches.length && allComponents.size)
-    reason = "Choose which paper this specification should follow.";
+    reason ??= "Choose which paper this specification should follow.";
   if (small) {
-    for (const page of pages) if (page.text.trim()) addPage(page);
+    for (const page of scanPages) if (page.text.trim()) addPage(page);
   } else {
     if (!matches.length)
       reason ??=
@@ -249,9 +405,9 @@ export function indexDocumentPages(
       }
     }
     // Identity/edition information usually appears on the first readable cover.
-    const first = pages.find((page) => page.text.trim());
+    const first = scanPages.find((page) => page.text.trim());
     if (first) addPage(first);
-    for (const page of pages) {
+    for (const page of scanPages) {
       const lines = pageLines(page.text),
         pageComponents = componentsIn(page.text);
       if (pageComponents.length && !requested.test(normalize(page.text)))
@@ -265,7 +421,7 @@ export function indexDocumentPages(
     }
     if (topicNumbers.size) {
       const foundTopics = new Set(
-        pages.flatMap((page) =>
+        scanPages.flatMap((page) =>
           pageLines(page.text).flatMap((line) => {
             const match = line.match(topicPattern);
             return match ? [Number(match[1])] : [];
@@ -310,8 +466,12 @@ export function indexDocumentPages(
         const mapped = printed.get(referenced),
           target = printed.size ? mapped?.[0] : referenced;
         if (
-          mapped?.length === 1 ||
-          (!printed.size && target && target >= 1 && target <= pages.length)
+          (mapped?.length === 1 ||
+            (!printed.size &&
+              target &&
+              target >= 1 &&
+              target <= pages.length)) &&
+          allowed.get(target!)?.length
         )
           addPage(pages[target! - 1]);
         else

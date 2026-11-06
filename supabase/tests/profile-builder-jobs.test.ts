@@ -2,6 +2,7 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   prepareSourceJob,
+  trustedDocumentSelection,
   advanceSourceJob,
   confirmSourceJob,
   getSourceJob,
@@ -490,4 +491,37 @@ describe("resumable source-backed profile jobs", () => {
     expect(r.receipts.size).toBe(2);
     expect(r.model).toHaveBeenCalledTimes(1);
   });
+});
+
+it("maps a canonical A-level component to reviewed human headings without accepting another course's aliases", () => {
+  const identity = {
+    country: "GB",
+    educationSystem: "England",
+    stage: "Secondary",
+    qualification: "A-level",
+    subject: "Physics",
+    organisation: "AQA",
+    course: "7408",
+    component: "7408/1",
+    specificationVersion: "v1.4-july-2026",
+    tier: "not_tiered" as const,
+  };
+  const selected = trustedDocumentSelection(identity);
+  expect(selected.component).toBe("7408/1");
+  expect(selected.componentAliases).toContain("Paper 1");
+  expect(selected.qualification).toBe("A-level");
+  expect(
+    trustedDocumentSelection({ ...identity, organisation: "OCR" })
+      .componentAliases,
+  ).toEqual([]);
+  expect(
+    trustedDocumentSelection({ ...identity, qualification: "GCSE" })
+      .componentAliases,
+  ).toEqual([]);
+  expect(
+    trustedDocumentSelection({
+      ...identity,
+      specificationVersion: "another version",
+    }).componentAliases,
+  ).toEqual([]);
 });

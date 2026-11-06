@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   cleanup,
   within,
@@ -27,6 +27,34 @@ import { evidenceFingerprint } from "../../supabase/functions/_shared/profile-ev
 import { identitySchema } from "../../supabase/functions/_shared/profile-template";
 import { resolveRegisteredSource } from "../../supabase/functions/_shared/profile-source-registry";
 
+const localInspection = vi.hoisted(() => ({ inspect: vi.fn() }));
+vi.mock("@/lib/inspect-profile-attachments", () => ({
+  inspectProfileAttachments: localInspection.inspect,
+}));
+beforeEach(() => {
+  localInspection.inspect.mockReset().mockResolvedValue({
+    version: 1,
+    candidates: [
+      {
+        id: "doc-final",
+        label: "Final assessment",
+        kind: "assessment",
+        aliases: ["Final assessment"],
+        references: [
+          {
+            documentId: "source",
+            checksum: "a".repeat(64),
+            page: 1,
+            quote: "Final assessment",
+          },
+        ],
+      },
+    ],
+    warnings: [],
+    needsManualEntry: false,
+    ambiguous: false,
+  });
+});
 const pending = vi.hoisted(() => ({
   read: vi.fn(
     async (_subject: string): Promise<{ jobId: string } | null> => null,
@@ -75,6 +103,27 @@ const confirm = () =>
 const build = () =>
   fireEvent.click(screen.getByRole("button", { name: "Yes, build it" }));
 
+const enterManualAssessment = (value: string) => {
+  fireEvent.change(screen.getByLabelText("Assessment"), {
+    target: { value: "__manual" },
+  });
+  fireEvent.change(screen.getByLabelText("Assessment name (manual)"), {
+    target: { value },
+  });
+};
+const chooseSourceAssessment = async () => {
+  await waitFor(() =>
+    expect(
+      screen.getByRole("option", { name: "Final assessment" }),
+    ).toBeInTheDocument(),
+  );
+  fireEvent.change(screen.getByLabelText("Assessment"), {
+    target: { value: "doc-final" },
+  });
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Read syllabus" })).toBeEnabled(),
+  );
+};
 it("GCSE Physics reuses saved level and asks for board, paper and tier without technical inputs", () => {
   render(
     <ExamProfileBuilder
@@ -86,7 +135,10 @@ it("GCSE Physics reuses saved level and asks for board, paper and tier without t
     />,
   );
   expect(screen.getByLabelText("Exam board")).toBeInTheDocument();
-  expect(screen.getByLabelText("Paper or assessment")).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Exam board"), {
+    target: { value: "AQA" },
+  });
+  expect(screen.getByLabelText("Paper")).toBeInTheDocument();
   expect(screen.getByLabelText("Tier")).toBeInTheDocument();
   expect(screen.queryByLabelText("Educational level")).not.toBeInTheDocument();
   expect(
@@ -199,9 +251,7 @@ it("explicit Biology A stays separate from Biology B and has no tier control", (
   fireEvent.change(screen.getByLabelText("Course variant"), {
     target: { value: "pearson_edexcel_alevel_biology_a_9bn0" },
   });
-  fireEvent.change(screen.getByLabelText("Paper or assessment"), {
-    target: { value: "Paper 1" },
-  });
+  enterManualAssessment("Paper 1");
   expect(screen.queryByLabelText("Tier")).not.toBeInTheDocument();
   expect(screen.getByLabelText("Course / specification code")).toHaveValue(
     "9BN0",
@@ -318,7 +368,9 @@ it("the existing editor passes saved Settings level, region and board into the b
     />,
   );
   fireEvent.click(screen.getByRole("button", { name: "Build profile for me" }));
-  expect(screen.getByText(/Using your saved GCSE level/)).toBeInTheDocument();
+  expect(
+    screen.getByText(/Using your saved GCSE settings/),
+  ).toBeInTheDocument();
   expect(screen.getByText("AQA · Physics")).toBeInTheDocument();
   expect(screen.queryByLabelText("Educational level")).not.toBeInTheDocument();
 });
@@ -389,9 +441,7 @@ it("an uploaded university syllabus discovers identity before confirmation and s
       api={api}
     />,
   );
-  fireEvent.change(screen.getByLabelText("Paper or assessment"), {
-    target: { value: "Final assessment" },
-  });
+
   fireEvent.click(screen.getByRole("button", { name: "Upload syllabus" }));
   expect(
     screen.queryByLabelText("Does everyone sit the same assessment?"),
@@ -409,7 +459,7 @@ it("an uploaded university syllabus discovers identity before confirmation and s
       ],
     },
   });
-  await screen.findByRole("button", { name: "Read syllabus" });
+  await chooseSourceAssessment();
   fireEvent.click(screen.getByRole("button", { name: "Read syllabus" }));
   await screen.findByRole("button", { name: "Yes, build it" });
   expect(calls.map((call) => call.action)).toEqual([
@@ -418,6 +468,10 @@ it("an uploaded university syllabus discovers identity before confirmation and s
   ]);
   expect(calls[0].identity.specificationVersion).toBe("Not verified");
   expect(calls[0].uploads).toHaveLength(1);
+  expect(Object.keys(calls[0].uploads[0]).sort()).toEqual([
+    "base64",
+    "contentType",
+  ]);
   expect(
     screen.queryByRole("navigation", { name: "Builder steps" }),
   ).not.toBeInTheDocument();
@@ -426,6 +480,9 @@ it("an uploaded university syllabus discovers identity before confirmation and s
   expect(
     screen.queryByRole("img", { name: "Examly-approved preset" }),
   ).not.toBeInTheDocument();
+  // Removing the local copy after a checked draft must not destroy its server receipt.
+  fireEvent.click(screen.getByRole("button", { name: "Remove brief.txt" }));
+  expect(screen.getByRole("button", { name: "Save profile" })).toBeEnabled();
   expect(screen.queryByLabelText("Profile name")).not.toBeInTheDocument();
   expect(
     screen.queryByLabelText("Time limit (minutes)"),
@@ -476,7 +533,7 @@ it("changing a saved board reveals cleared course and paper choices", () => {
     target: { value: "Pearson Edexcel" },
   });
   expect(screen.getByLabelText("Course variant")).toHaveValue("");
-  expect(screen.getByLabelText("Paper or assessment")).toHaveValue("");
+  expect(screen.getByLabelText("Assessment")).toHaveValue("");
   confirm();
   expect(screen.getByRole("alert")).toHaveTextContent(/course variants/);
 });
@@ -488,7 +545,7 @@ it("switching the level to university updates the institution flow without Advan
     target: { value: "Undergraduate / Bachelor's" },
   });
   expect(screen.getByLabelText("Institution or exam board")).toHaveValue("");
-  expect(screen.getByLabelText("Paper or assessment")).toBeInTheDocument();
+  expect(screen.getByLabelText("Assessment")).toBeInTheDocument();
   expect(screen.queryByLabelText("Tier")).not.toBeInTheDocument();
   expect(screen.getByLabelText("Education stage")).toHaveValue("University");
 });
@@ -537,9 +594,7 @@ it("rejects oversized bundles before creating a source job", async () => {
       api={api}
     />,
   );
-  fireEvent.change(screen.getByLabelText("Paper or assessment"), {
-    target: { value: "Final assessment" },
-  });
+
   fireEvent.click(screen.getByRole("button", { name: "Upload syllabus" }));
   const arrayBuffer = vi.fn();
   fireEvent.change(screen.getByLabelText("Syllabus or assessment brief"), {
@@ -555,7 +610,7 @@ it("rejects oversized bundles before creating a source job", async () => {
     },
   });
   expect(screen.getByRole("alert")).toHaveTextContent(
-    /3 MB each and 6 MB in total/,
+    /3 MB each and 6 MB together/,
   );
   expect(arrayBuffer).not.toHaveBeenCalled();
   expect(api).not.toHaveBeenCalled();
@@ -594,6 +649,38 @@ it("resuming a saved source request checks status without starting paid processi
   expect(api).toHaveBeenCalledTimes(1);
 });
 
+it("cancelling Start again keeps the builder and its unfinished request open", async () => {
+  pending.read.mockResolvedValueOnce({ jobId: crypto.randomUUID() });
+  const onOpenChange = vi.fn();
+  const api = vi.fn();
+  render(
+    <ExamProfileBuilder
+      {...base}
+      onOpenChange={onOpenChange}
+      educationalLevel="undergrad"
+      curriculumRegion="US"
+      examBoard="Example University"
+      api={api}
+    />,
+  );
+  await screen.findByRole("button", { name: "Resume request" });
+  fireEvent.click(screen.getByRole("button", { name: "Start again" }));
+  const confirmation = screen.getByRole("alertdialog");
+  fireEvent.pointerDown(
+    within(confirmation).getByRole("button", { name: "Keep current build" }),
+  );
+  fireEvent.click(
+    within(confirmation).getByRole("button", { name: "Keep current build" }),
+  );
+  await waitFor(() =>
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+  );
+  expect(screen.getByRole("button", { name: "Resume request" })).toBeVisible();
+  expect(onOpenChange).not.toHaveBeenCalled();
+  expect(pending.clear).not.toHaveBeenCalled();
+  expect(api).not.toHaveBeenCalled();
+});
+
 it("a lost source-preparation response keeps the same receipt for a free status check", async () => {
   const calls: any[] = [];
   const api: BuilderApi = async (input) => {
@@ -620,9 +707,7 @@ it("a lost source-preparation response keeps the same receipt for a free status 
       api={api}
     />,
   );
-  fireEvent.change(screen.getByLabelText("Paper or assessment"), {
-    target: { value: "Final assessment" },
-  });
+
   fireEvent.click(screen.getByRole("button", { name: "Upload syllabus" }));
   const bytes = new TextEncoder().encode(syllabus);
   fireEvent.change(screen.getByLabelText("Syllabus or assessment brief"), {
@@ -637,7 +722,7 @@ it("a lost source-preparation response keeps the same receipt for a free status 
       ],
     },
   });
-  await screen.findByRole("button", { name: "Read syllabus" });
+  await chooseSourceAssessment();
   fireEvent.click(screen.getByRole("button", { name: "Read syllabus" }));
   await screen.findByText("Connection interrupted");
   expect(pending.remember).toHaveBeenCalledWith("Biology", calls[0].requestId);
@@ -763,4 +848,120 @@ it("a running legacy receipt offers free progress checks and cannot advance a ne
   fireEvent.click(screen.getByRole("button", { name: "Check progress" }));
   await waitFor(() => expect(api).toHaveBeenCalledTimes(2));
   expect(pending.clear).not.toHaveBeenCalled();
+});
+
+it("keeps the selected A-level Physics paper visible when its separate Advanced code is invalid", async () => {
+  pending.read.mockResolvedValue(null);
+  const api = vi.fn();
+  render(
+    <ExamProfileBuilder
+      {...base}
+      subjectName="Physics"
+      examBoard="aqa"
+      api={api}
+    />,
+  );
+  expect(screen.getByText("AQA · Physics")).toBeVisible();
+  expect(screen.getByText(/Using your saved A-level settings/)).toBeVisible();
+  const paper = screen.getByLabelText("Paper");
+  fireEvent.change(paper, { target: { value: "paper_1" } });
+  expect(paper).toBeVisible();
+  expect(
+    within(paper).getByRole("option", { name: "Paper 1" }),
+  ).toBeInTheDocument();
+  const code = screen.getByLabelText("Paper / component code");
+  expect(code).toHaveValue("7408/1");
+  fireEvent.change(code, { target: { value: "7408/2" } });
+  expect(paper).toHaveValue("paper_1");
+  confirm();
+  expect(
+    screen
+      .getAllByRole("alert")
+      .some((node) => /does not match Paper 1/.test(node.textContent || "")),
+  ).toBe(true);
+  expect(api).not.toHaveBeenCalled();
+  fireEvent.change(code, { target: { value: "7408/1" } });
+  expect(paper).toHaveValue("paper_1");
+  expect(paper).toBeVisible();
+});
+
+it("retains visible source files after cancelled or invalid replacement and after choosing a source URL", async () => {
+  pending.read.mockResolvedValue(null);
+  const api = vi.fn();
+  render(
+    <ExamProfileBuilder
+      {...base}
+      curriculumRegion="US"
+      educationalLevel="undergrad"
+      examBoard="Example University"
+      api={api}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Upload syllabus" }));
+  const input = screen.getByLabelText("Syllabus or assessment brief");
+  const bytes = new TextEncoder().encode(syllabus);
+  const file = {
+    name: "retained-brief.txt",
+    type: "text/plain",
+    size: bytes.length,
+    arrayBuffer: async () => bytes.buffer,
+  };
+  fireEvent.change(input, { target: { files: [file] } });
+  await screen.findByText("retained-brief.txt");
+  await chooseSourceAssessment();
+  const inspected = localInspection.inspect.mock.calls.length;
+  fireEvent.change(input, { target: { files: [] } });
+  expect(screen.getByText("retained-brief.txt")).toBeVisible();
+  fireEvent.change(input, {
+    target: {
+      files: [
+        {
+          name: "oversize.pdf",
+          type: "application/pdf",
+          size: 3_000_001,
+          arrayBuffer: vi.fn(),
+        },
+      ],
+    },
+  });
+  expect(screen.getByText("retained-brief.txt")).toBeVisible();
+  expect(screen.getByText(/Your attached files are unchanged/)).toBeVisible();
+  fireEvent.change(screen.getByLabelText("Assessment mode"), {
+    target: { value: "full_mock" },
+  });
+  fireEvent.change(screen.getByLabelText("Official specification URL"), {
+    target: { value: "https://example.edu/brief.pdf" },
+  });
+  expect(screen.getByText("retained-brief.txt")).toBeVisible();
+  expect(screen.getByText("Not used for this build")).toBeVisible();
+  await Promise.resolve();
+  expect(localInspection.inspect).toHaveBeenCalledTimes(inspected);
+  expect(api).not.toHaveBeenCalled();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Remove retained-brief.txt" }),
+  );
+  expect(screen.queryByText("retained-brief.txt")).not.toBeInTheDocument();
+});
+
+it("requires the Physics Paper 3 option before a source request can start", () => {
+  pending.read.mockResolvedValue(null);
+  const api = vi.fn();
+  render(
+    <ExamProfileBuilder
+      {...base}
+      subjectName="Physics"
+      examBoard="AQA"
+      api={api}
+    />,
+  );
+  fireEvent.change(screen.getByLabelText("Paper"), {
+    target: { value: "paper_3" },
+  });
+  expect(screen.getByLabelText("Paper option")).toBeVisible();
+  expect(screen.getByLabelText("Paper")).toHaveValue("paper_3");
+  confirm();
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    /Choose the optional topic/,
+  );
+  expect(api).not.toHaveBeenCalled();
 });

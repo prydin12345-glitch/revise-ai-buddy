@@ -102,6 +102,14 @@ function memoryApi() {
   };
   return { api, calls, proposals, profiles };
 }
+const enterManualAssessment = (value: string) => {
+  fireEvent.change(screen.getByLabelText("Assessment"), {
+    target: { value: "__manual" },
+  });
+  fireEvent.change(screen.getByLabelText("Assessment name (manual)"), {
+    target: { value },
+  });
+};
 async function approvedReview(api: BuilderApi) {
   render(<ExamProfileBuilder {...props} api={api} />);
   fireEvent.change(screen.getByLabelText("Course variant"), {
@@ -232,9 +240,7 @@ it("missing source requires explicit choice and never starts a model-backed prop
       api={r.api}
     />,
   );
-  fireEvent.change(screen.getByLabelText("Paper or assessment"), {
-    target: { value: "Final" },
-  });
+  enterManualAssessment("Final");
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   expect(
     screen.queryByRole("button", { name: "Yes, build it" }),
@@ -254,9 +260,7 @@ it("general practice opt-in is labelled honestly and full mock is disabled", () 
       api={r.api}
     />,
   );
-  fireEvent.change(screen.getByLabelText("Paper or assessment"), {
-    target: { value: "Paper 1" },
-  });
+  enterManualAssessment("Paper 1");
   fireEvent.click(
     screen.getByRole("button", { name: "General practice without a syllabus" }),
   );

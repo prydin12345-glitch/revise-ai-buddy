@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback } from "react";
 import { Cookie, X, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -15,6 +15,27 @@ const defaultPrefs: CookiePreferences = {
   necessary: true,
   analytics: false,
   preferences: false,
+};
+
+// Radix dialogs expose role/data-state, but do not always set aria-modal.
+// Keep pending consent out of both the viewport and tab order while another
+// task owns the modal. Deferring does not save or imply a consent choice.
+const hasOpenDialog = () => {
+  if (typeof document === "undefined") return false;
+  return Array.from(
+    document.querySelectorAll<HTMLElement>(
+      '[role="dialog"], [role="alertdialog"], dialog[open]',
+    ),
+  ).some((dialog) => {
+    if (
+      dialog.getAttribute("aria-modal") === "false" ||
+      dialog.getAttribute("data-state") === "closed" ||
+      dialog.closest('[hidden], [aria-hidden="true"]')
+    )
+      return false;
+    const style = window.getComputedStyle(dialog);
+    return style.display !== "none" && style.visibility !== "hidden";
+  });
 };
 
 const readSaved = (): CookiePreferences => {
@@ -43,7 +64,32 @@ export const CookieConsent = () => {
   const [visible, setVisible] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [hasSaved, setHasSaved] = useState(false);
-  const [preferences, setPreferences] = useState<CookiePreferences>(defaultPrefs);
+  const [preferences, setPreferences] =
+    useState<CookiePreferences>(defaultPrefs);
+  const [dialogOpen, setDialogOpen] = useState(hasOpenDialog);
+
+  useLayoutEffect(() => {
+    if (!visible) return;
+    const update = () => setDialogOpen(hasOpenDialog());
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: [
+        "role",
+        "data-state",
+        "aria-modal",
+        "aria-hidden",
+        "hidden",
+        "open",
+        "style",
+        "class",
+      ],
+    });
+    return () => observer.disconnect();
+  }, [visible]);
 
   // First-visit auto-show
   useEffect(() => {
@@ -59,19 +105,21 @@ export const CookieConsent = () => {
   // Listen for global "open settings" requests
   useEffect(() => {
     const handler = () => {
-      setPreferences(readSaved());
-      setHasSaved(!!localStorage.getItem(COOKIE_KEY));
+      if (!visible || !showDetails) {
+        setPreferences(readSaved());
+        setHasSaved(!!localStorage.getItem(COOKIE_KEY));
+      }
       setShowDetails(true);
       setVisible(true);
     };
     window.addEventListener(OPEN_EVENT, handler);
     return () => window.removeEventListener(OPEN_EVENT, handler);
-  }, []);
+  }, [visible, showDetails]);
 
   const savePreferences = useCallback((prefs: CookiePreferences) => {
     localStorage.setItem(
       COOKIE_KEY,
-      JSON.stringify({ ...prefs, savedAt: new Date().toISOString() })
+      JSON.stringify({ ...prefs, savedAt: new Date().toISOString() }),
     );
     setHasSaved(true);
     setVisible(false);
@@ -86,7 +134,7 @@ export const CookieConsent = () => {
 
   const saveCustom = () => savePreferences(preferences);
 
-  if (!visible) return null;
+  if (!visible || dialogOpen) return null;
 
   const cookieRows: {
     key: keyof CookiePreferences;
@@ -228,7 +276,9 @@ export const CookieConsent = () => {
                     >
                       <span
                         className={`absolute top-0.5 w-5 h-5 rounded-full bg-card shadow-sm transition-transform ${
-                          cookie.value ? "translate-x-[22px]" : "translate-x-0.5"
+                          cookie.value
+                            ? "translate-x-[22px]"
+                            : "translate-x-0.5"
                         }`}
                       />
                     </button>
