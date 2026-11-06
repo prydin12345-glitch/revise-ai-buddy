@@ -1,0 +1,22 @@
+{
+  "physics-paper1-96-pages.pdf": {
+    "pages": 96,
+    "bytes": 310423,
+    "sha256": "ba38d2ba529bbdf2f91c583db3af5546bc9c1ec6229549db070a79e23445a88c"
+  },
+  "physics-paper2-96-pages.pdf": {
+    "pages": 96,
+    "bytes": 310423,
+    "sha256": "0bdf849ffd7781572e9c9cdb2da024a847eee6aa7d16cc6c3be5af195173fde3"
+  },
+  "physics-missing-dates-96-pages.pdf": {
+    "pages": 96,
+    "bytes": 310432,
+    "sha256": "284683f889b7ec365bddf9785972290300358d6ea4baaf42e6a9fbc05f926c68"
+  },
+  "physics-as-only-96-pages.pdf": {
+    "pages": 96,
+    "bytes": 310306,
+    "sha256": "63381f4f692c04625b8862fb5fbe4a3ce77adecd2d1ee670f45dfb7851576fff"
+  }
+}

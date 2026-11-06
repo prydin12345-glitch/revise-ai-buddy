@@ -232,3 +232,199 @@ it("does not interpret the ordinary word as or arsenic As as an AS qualification
   expect(result.qualifications).toEqual(["A-level"]);
   expect(result.ambiguous).toBe(false);
 });
+
+it.each([
+  "AS Physics",
+  "AS PHYSICS",
+  "AS Chemistry",
+  "AS Biology",
+  "AS Assessment Overview",
+  "AS-level Physics",
+])(
+  "keeps the uppercase AS identity while matching the rest of %s case-insensitively",
+  (heading) => {
+    const page = `${heading}\nPaper 1\n70 marks\n90 minutes`;
+    const alevel = indexDocumentPages([page], {
+      component: "Paper 1",
+      qualification: "A-level",
+    });
+    expect(alevel.coverage.complete).toBe(false);
+    expect(alevel.coverage.reason).toMatch(/qualification does not match/);
+    expect(alevel.chunks).toEqual([]);
+    const as = indexDocumentPages([page], {
+      component: "Paper 1",
+      qualification: "AS",
+    });
+    expect(as.coverage.complete).toBe(true);
+    expect(as.chunks.flatMap((chunk) => chunk.pages)).toEqual([
+      { page: 1, text: page },
+    ]);
+  },
+);
+
+it.each(["(Paper 1)", " (paper1) ", "paper_1", "（Paper 1）"])(
+  "resolves the exact legacy numbered selection %s without selecting another paper",
+  (component) => {
+    const pages = source();
+    const index = indexDocumentPages(pages, { component });
+    expect(index.coverage.complete).toBe(true);
+    expect(index.selectedPages).toContain(80);
+    expect(index.selectedPages).not.toContain(84);
+    for (const chunk of index.chunks)
+      for (const item of chunk.pages)
+        expect(pages[item.page - 1]).toContain(item.text);
+  },
+);
+
+it.each([
+  "AS and A-level Physics\nAS Paper 1 70 marks\nA-level Paper 1 85 marks",
+  "AS/A-level\nAS Paper 1: 70 marks | A-level Paper 1: 85 marks",
+  "A-level and AS\nAS\nA-level\nPaper 1 | Paper 1\n70 marks | 85 marks",
+  "AS | A-level\nPaper 1 | Paper 1\n70 marks | 85 marks",
+  "AS    A-level\nPaper 1 | Paper 1\n70 marks | 85 marks",
+])("fails closed for flattened combined qualification rows: %s", (page) => {
+  const result = indexDocumentPages([page], {
+    component: "7408/1",
+    componentAliases: ["Paper 1"],
+    qualification: "A-level",
+  });
+  expect(result.coverage.complete).toBe(false);
+  expect(result.coverage.reason).toMatch(/separate|separated|combines/);
+  expect(result.chunks).toEqual([]);
+});
+
+it("does not use an inline AS paper row for an A-level selection", () => {
+  const result = indexDocumentPages(["AS Paper 1\n70 marks\n90 minutes"], {
+    component: "Paper 1",
+    qualification: "A-level",
+  });
+  expect(result.coverage.complete).toBe(false);
+  expect(result.coverage.reason).toMatch(/AS\/A-level.*separated/);
+  expect(result.chunks).toEqual([]);
+});
+
+it("requires an explicit AS/A-level selection for a combined column overview", () => {
+  const result = indexDocumentPages(
+    ["AS | A-level\nPaper 1 | Paper 1\n70 marks | 85 marks"],
+    { component: "Paper 1" },
+  );
+  expect(result.coverage.complete).toBe(false);
+  expect(result.coverage.reason).toMatch(/Choose AS or A-level/);
+  expect(result.chunks).toEqual([]);
+});
+
+it("does not let a prior A-level heading scope a later flattened AS/A-level comparison", () => {
+  const pages = source();
+  pages[0] = "A-level Physics\nSpecification";
+  pages[79] =
+    "Assessment overview\nAS Paper 1 70 marks\nA-level Paper 1 85 marks";
+  const result = indexDocumentPages(pages, {
+    component: "7408/1",
+    componentAliases: ["Paper 1"],
+    qualification: "A-level",
+  });
+  expect(result.coverage.complete).toBe(false);
+  expect(result.coverage.reason).toMatch(/AS\/A-level.*separated/);
+  expect(result.chunks).toEqual([]);
+});
+
+it("keeps explicitly separated qualified rows literal and excludes the other qualification", () => {
+  const page =
+    "AS and A-level Physics\n2.2 AS\nAS Paper 1\n70 marks\n2.3 A-level\nA-level Paper 1\n85 marks";
+  const result = indexDocumentPages([page], {
+    component: "7408/1",
+    componentAliases: ["Paper 1"],
+    qualification: "A-level",
+  });
+  expect(result.coverage.complete).toBe(true);
+  const selected = result.chunks.flatMap((chunk) => chunk.pages);
+  expect(selected.map((item) => item.text).join("\n")).toContain("85 marks");
+  expect(selected.map((item) => item.text).join("\n")).not.toContain(
+    "70 marks",
+  );
+  for (const item of selected) expect(page).toContain(item.text);
+});
+
+it("requires an exact named option code and never treats its parent code as a suffix wildcard", () => {
+  const pages = source();
+  pages[79] = "A-level\nAstrophysics\n7408/3BA\n35 marks";
+  pages[83] = "Medical physics\n7408/3BB\nTotal marks: 35";
+  const selected = indexDocumentPages(pages, {
+    component: "7408/3BA",
+    qualification: "A-level",
+  });
+  expect(selected.coverage.complete).toBe(true);
+  expect(selected.selectedPages).toContain(80);
+  expect(selected.selectedPages).not.toContain(84);
+  for (const component of ["7408/3", "7408/3A", "7408/3BC"]) {
+    const rejected = indexDocumentPages(pages, {
+      component,
+      qualification: "A-level",
+    });
+    expect(rejected.coverage.complete).toBe(false);
+    expect(rejected.chunks).toEqual([]);
+  }
+});
+
+it.each([
+  { component: "7408/3BA", componentAliases: ["Astrophysics"] },
+  {
+    component: "7408/3",
+    componentAliases: ["Paper 3", "Astrophysics", "7408/3BA"],
+  },
+])(
+  "excludes an unselected option's labelled page even when it has a shared parent heading: %s",
+  (selection) => {
+    const pages = source();
+    pages[79] = "A-level\nPaper 3\nAstrophysics\n7408/3BA\nTotal marks: 35";
+    pages[83] = "Paper 3\nMedical physics\n7408/3BB\nTotal marks: 35";
+    const index = indexDocumentPages(pages, {
+      ...selection,
+      qualification: "A-level",
+      excludedComponentCodes: ["7408/3BB", "7408/3BC", "7408/3BD", "7408/3BE"],
+    });
+    expect(index.coverage.complete).toBe(true);
+    expect(index.selectedPages).toContain(80);
+    expect(index.selectedPages).not.toContain(84);
+    const text = index.chunks
+      .flatMap((chunk) => chunk.pages)
+      .map((page) => page.text)
+      .join("\n");
+    expect(text).toContain("7408/3BA");
+    expect(text).not.toContain("7408/3BB");
+    expect(text).not.toContain("Medical physics");
+    for (const page of index.chunks.flatMap((chunk) => chunk.pages))
+      expect(pages[page.page - 1]).toContain(page.text);
+  },
+);
+
+it("does not retrieve a combined selected/unselected option page as verified evidence", () => {
+  const page =
+    "A-level\nPaper 3\nAstrophysics 7408/3BA 35 marks\nMedical physics 7408/3BB 35 marks";
+  const index = indexDocumentPages([page], {
+    component: "7408/3BA",
+    componentAliases: ["Astrophysics"],
+    excludedComponentCodes: ["7408/3BB"],
+    qualification: "A-level",
+  });
+  expect(index.coverage.complete).toBe(false);
+  expect(index.coverage.reason).toMatch(
+    /selected and unselected optional sections/,
+  );
+  expect(index.chunks).toEqual([]);
+});
+
+it("asks for the selected option source instead of choosing a different option", () => {
+  const index = indexDocumentPages(
+    ["A-level\nPaper 3\nMedical physics\n7408/3BB\nTotal marks: 35"],
+    {
+      component: "7408/3",
+      componentAliases: ["Paper 3", "Astrophysics", "7408/3BA"],
+      excludedComponentCodes: ["7408/3BB"],
+      qualification: "A-level",
+    },
+  );
+  expect(index.coverage.complete).toBe(false);
+  expect(index.coverage.reason).toMatch(/different optional topic/);
+  expect(index.chunks).toEqual([]);
+});

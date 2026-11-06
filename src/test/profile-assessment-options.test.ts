@@ -60,6 +60,22 @@ describe("assessment names and technical identities", () => {
       ),
     ).toBe(false);
   });
+  it("preserves teaching-date context for source verification while resolving the known assessment", () => {
+    const version = "First teaching 2015, first exams 2017";
+    const resolved = resolveBuilderChoice(
+      { ...physics(), component: "Paper 1", specificationVersion: version },
+      "short_practice",
+    );
+    expect(resolved.identity).toMatchObject({
+      qualification: "A-level",
+      organisation: "AQA",
+      course: "7408",
+      component: "7408/1",
+      specificationVersion: version,
+    });
+    expect(resolved.presetId).toBe("");
+    expect(resolved.sourceId).toBe("");
+  });
   it.each([
     "Paper 1",
     "paper 1",

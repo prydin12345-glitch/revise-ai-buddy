@@ -1,0 +1,53 @@
+{
+  "date": "2026-11-06",
+  "baseline": "5a7ce0b05a32ef4593869b2109d29971af7e5bf2",
+  "node": "24.19.0",
+  "npm": "11.9.0",
+  "packageLockChanged": false,
+  "checks": {
+    "npm ci": "PASS",
+    "npm run check": {
+      "status": "PASS",
+      "testFiles": 164,
+      "tests": 2654,
+      "edgeFunctionsBundled": 39,
+      "typecheck": "PASS",
+      "criticalLint": "PASS",
+      "productionBuild": "PASS"
+    },
+    "node scripts/audit-biology.mjs": {
+      "status": "PASS",
+      "templates": 52,
+      "blocked": 0
+    },
+    "node scripts/audit-profile-coverage.mjs": {
+      "status": "PASS",
+      "presets": 52,
+      "failures": 0,
+      "legacyPendingLayouts": 32
+    },
+    "git diff --check": "PASS"
+  },
+  "browser": {
+    "report": "browser/browser-results.json",
+    "status": "PASS",
+    "cases": 8,
+    "scenarios": 64,
+    "sourceStyleHashes": 91
+  },
+  "existingDiagnostics": [
+    "Dependency deprecation notices from unchanged lockfile",
+    "Stale Browserslist data",
+    "Zod annotation-position warning",
+    "Production chunk-size advisory",
+    "Legacy response-dialog DOM-nesting warnings in existing response-flow tests",
+    "Pinned PDF parser standardFontDataUrl warnings",
+    "Expected negative-path diagnostics from quota, context-forgery, persistence and response-save tests"
+  ],
+  "realModelCalls": 0,
+  "liveLogins": 0,
+  "liveDataWrites": 0,
+  "liveMigrationsApplied": 0,
+  "deployments": 0,
+  "publicationPerformed": false
+}

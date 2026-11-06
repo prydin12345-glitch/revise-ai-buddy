@@ -145,7 +145,9 @@ it("GCSE Physics reuses saved level and asks for board, paper and tier without t
     screen.getByLabelText("Course / specification code").closest("details"),
   ).not.toHaveAttribute("open");
   expect(
-    screen.getByLabelText("Specification / cohort version").closest("details"),
+    screen
+      .getByLabelText("Specification version / teaching dates (optional)")
+      .closest("details"),
   ).not.toHaveAttribute("open");
 });
 it("a complete saved OCR Paper 3 choice opens one confirmation and makes no request beforehand", () => {
@@ -338,6 +340,24 @@ it("advanced specification override cannot silently retain the approved preset",
   expect(r.presetId).toBe("");
   expect(r.sourceId).toBe("");
   expect(r.identity.specificationVersion).toBe("different-cohort");
+});
+it("clear teaching and first-exam dates do not block an otherwise exact approved course", () => {
+  const i = builderInitialIdentity({
+    subject: "Biology",
+    board: "OCR",
+    level: "level3",
+    region: "GB",
+    courseId: ocr.courseId,
+    paperId: "paper_3",
+  });
+  const normal = resolveBuilderChoice(i, "short_practice");
+  const hinted = resolveBuilderChoice(
+    { ...i, specificationVersion: "First teaching 2015, first exams 2017" },
+    "short_practice",
+  );
+  expect(hinted.presetId).toBe(normal.presetId);
+  expect(hinted.identity).toEqual(normal.identity);
+  expect(hinted.presetId).not.toBe("");
 });
 it("saved board and tier stay visible in the summary and can be changed deliberately", () => {
   render(
@@ -964,4 +984,244 @@ it("requires the Physics Paper 3 option before a source request can start", () =
     /Choose the optional topic/,
   );
   expect(api).not.toHaveBeenCalled();
+});
+
+it("keeps the upload, date context and mode while a targeted source choice corrects the paper before an explicit retry", async () => {
+  pending.read.mockResolvedValue(null);
+  const dates = "First teaching 2015, first exams 2017";
+  const calls: Record<string, any>[] = [];
+  const api: BuilderApi = async (input) => {
+    calls.push(input);
+    expect(input.action).toBe("prepare_source");
+    return {
+      job: {
+        jobId: String(input.requestId),
+        stage: calls.length === 1 ? "needs_details" : "ready",
+        mode: "full_mock",
+        identity: {
+          ...identitySchema.parse(input.identity),
+          specificationVersion: "v1.4-july-2026",
+        },
+        progress: { completed: 0, total: 1 },
+        message: "We need a little more assessment information.",
+        ...(calls.length === 1
+          ? {
+              needs: ["Which assessment in this source are you preparing for?"],
+              assessmentChoices: [
+                {
+                  id: "wrong-course",
+                  label: "Paper 2",
+                  kind: "paper",
+                  componentCode: "7407/2",
+                },
+                {
+                  id: "source-paper-two",
+                  label: "Paper 2",
+                  kind: "paper",
+                  componentCode: "7408/2",
+                },
+              ],
+            }
+          : {}),
+      },
+    };
+  };
+  render(
+    <ExamProfileBuilder
+      {...base}
+      subjectName="Physics"
+      examBoard="aqa"
+      api={api}
+    />,
+  );
+  fireEvent.change(screen.getByLabelText("Paper"), {
+    target: { value: "paper_1" },
+  });
+  fireEvent.change(screen.getByLabelText("Assessment mode"), {
+    target: { value: "full_mock" },
+  });
+  fireEvent.change(
+    screen.getByLabelText("Specification version / teaching dates (optional)"),
+    { target: { value: dates } },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Upload syllabus" }));
+  const bytes = new TextEncoder().encode(
+    "A-level\nPaper 2\n7408/2\n85 marks\nTime allowed 2 hours",
+  );
+  fireEvent.change(screen.getByLabelText("Syllabus or assessment brief"), {
+    target: {
+      files: [
+        {
+          name: "physics-spec.txt",
+          type: "text/plain",
+          size: bytes.length,
+          arrayBuffer: async () => bytes.buffer,
+        },
+      ],
+    },
+  });
+  await screen.findByText("physics-spec.txt");
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Read syllabus" })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Read syllabus" }));
+  const recovery = await screen.findByLabelText(
+    "Assessment found in your source",
+  );
+  expect(
+    screen.queryByText("We need a little more assessment information."),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getAllByText(
+      "Which assessment in this source are you preparing for?",
+    ),
+  ).toHaveLength(1);
+  expect(calls).toHaveLength(1);
+  expect(calls[0].identity).toMatchObject({
+    qualification: "A-level",
+    organisation: "AQA",
+    course: "7408",
+    component: "7408/1",
+    specificationVersion: dates,
+  });
+  fireEvent.change(recovery, { target: { value: "wrong-course" } });
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    /does not match your selected course/,
+  );
+  expect(screen.getByLabelText("Paper")).toHaveValue("paper_1");
+  expect(calls).toHaveLength(1);
+  expect(screen.getByRole("button", { name: "Read syllabus" })).toBeDisabled();
+  await waitFor(() =>
+    expect(
+      screen.getByRole("group", { name: "Assessment clarification" }),
+    ).toHaveFocus(),
+  );
+  expect(
+    screen.queryByText("We need a source for this course"),
+  ).not.toBeInTheDocument();
+  fireEvent.change(recovery, { target: { value: "source-paper-two" } });
+  expect(
+    screen.queryByLabelText("Assessment found in your source"),
+  ).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Paper")).toHaveValue("paper_2");
+  expect(screen.getByLabelText("Assessment mode")).toHaveValue("full_mock");
+  expect(
+    screen.getByLabelText("Specification version / teaching dates (optional)"),
+  ).toHaveValue(dates);
+  expect(screen.getByText("physics-spec.txt")).toBeVisible();
+  expect(calls).toHaveLength(1);
+  expect(pending.clear).toHaveBeenCalledWith("Physics", calls[0].requestId);
+  fireEvent.click(screen.getByRole("button", { name: "Read syllabus" }));
+  await screen.findByRole("button", { name: "Yes, build it" });
+  expect(calls).toHaveLength(2);
+  expect(calls[1].identity).toMatchObject({
+    component: "7408/2",
+    specificationVersion: dates,
+  });
+  expect(calls[1].mode).toBe("full_mock");
+  expect(calls[1].uploads).toEqual(calls[0].uploads);
+  expect(calls[1].requestId).not.toBe(calls[0].requestId);
+});
+
+it("a named option source choice preserves Astrophysics and cannot silently switch to another option", async () => {
+  pending.read.mockResolvedValue(null);
+  const calls: Record<string, any>[] = [];
+  const api: BuilderApi = async (input) => {
+    calls.push(input);
+    if (calls.length > 1)
+      return {
+        job: {
+          jobId: String(input.requestId),
+          stage: "ready",
+          mode: "short_practice",
+          identity: identitySchema.parse(input.identity),
+          progress: { completed: 1, total: 2 },
+          message: "Ready to confirm.",
+        },
+      };
+    return {
+      job: {
+        jobId: String(input.requestId),
+        stage: "needs_details",
+        mode: "short_practice",
+        identity: identitySchema.parse(input.identity),
+        progress: { completed: 0, total: 1 },
+        message: "We need a little more assessment information.",
+        needs: ["Which assessment in this source are you preparing for?"],
+        assessmentChoices: [
+          {
+            id: "medical",
+            label: "Medical physics",
+            kind: "component",
+            componentCode: "7408/3BB",
+          },
+          {
+            id: "astro",
+            label: "Astrophysics",
+            kind: "component",
+            componentCode: "7408/3BA",
+          },
+        ],
+      },
+    };
+  };
+  render(
+    <ExamProfileBuilder
+      {...base}
+      subjectName="Physics"
+      examBoard="AQA"
+      api={api}
+    />,
+  );
+  fireEvent.change(screen.getByLabelText("Paper"), {
+    target: { value: "paper_3" },
+  });
+  fireEvent.change(screen.getByLabelText("Paper option"), {
+    target: { value: "astrophysics" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Upload syllabus" }));
+  const bytes = new TextEncoder().encode(
+    "A-level\nComponent: Astrophysics\n7408/3BA\n35 marks",
+  );
+  fireEvent.change(screen.getByLabelText("Syllabus or assessment brief"), {
+    target: {
+      files: [
+        {
+          name: "astro.txt",
+          type: "text/plain",
+          size: bytes.length,
+          arrayBuffer: async () => bytes.buffer,
+        },
+      ],
+    },
+  });
+  await screen.findByText("astro.txt");
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Read syllabus" })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Read syllabus" }));
+  const recovery = await screen.findByLabelText(
+    "Assessment found in your source",
+  );
+  expect(calls[0].identity.module).toBe("Astrophysics");
+  fireEvent.change(recovery, { target: { value: "medical" } });
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    /does not match your selected course/,
+  );
+  expect(screen.getByLabelText("Paper option")).toHaveValue("astrophysics");
+  expect(calls).toHaveLength(1);
+  fireEvent.change(recovery, { target: { value: "astro" } });
+  expect(screen.getByLabelText("Paper")).toHaveValue("paper_3");
+  expect(screen.getByLabelText("Paper option")).toHaveValue("astrophysics");
+  expect(screen.getByText("astro.txt")).toBeVisible();
+  expect(calls).toHaveLength(1);
+  fireEvent.click(screen.getByRole("button", { name: "Read syllabus" }));
+  await screen.findByRole("button", { name: "Yes, build it" });
+  expect(calls).toHaveLength(2);
+  expect(calls[1].identity).toMatchObject({
+    component: "7408/3",
+    module: "Astrophysics",
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Change details" }));
+  expect(screen.getByLabelText("Paper option")).toHaveValue("astrophysics");
 });

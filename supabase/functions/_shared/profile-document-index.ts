@@ -6,7 +6,7 @@
  * Private page text belongs only in the owned preparation receipt. Only an
  * explicitly reviewed public source pack may enter a shared catalogue.
  */
-export const DOCUMENT_INDEX_VERSION = 2;
+export const DOCUMENT_INDEX_VERSION = 3;
 export const INDEXED_DOCUMENT_LIMITS = {
   maxBytes: 3_000_000,
   maxPages: 240,
@@ -30,6 +30,8 @@ export interface SourceDocumentChunk {
 export interface DocumentSelection {
   component: string;
   componentAliases?: string[];
+  /** Server-derived codes for unselected options, never client-supplied aliases. */
+  excludedComponentCodes?: string[];
   subject?: string;
   course?: string;
   qualification?: string;
@@ -71,10 +73,54 @@ function qualificationHeading(line: string): SourceQualification | undefined {
     return undefined;
   const tail =
     "(?:\\s+(?:assessment(?:s| overview)?|qualification|specification|physics|chemistry|biology))?(?:\\s*\\([A-Za-z0-9 ,/]+\\))?";
-  if (new RegExp("^AS(?:[- ]level)?" + tail + "$", "").test(text)) return "AS";
+  if (
+    text.startsWith("AS") &&
+    new RegExp("^AS(?:[- ]level)?" + tail + "$", "i").test(text)
+  )
+    return "AS";
   if (new RegExp("^A[\\s\\u2010-\\u2015-]*level" + tail + "$", "i").test(text))
     return "A-level";
   return undefined;
+}
+
+/**
+ * A flattened comparison can put both column headings before either column's
+ * paper rows, or qualify each row inline. Neither shape establishes the
+ * contiguous section boundaries used below. Keep those rows out of evidence
+ * until the caller supplies a qualification-specific overview.
+ */
+function qualificationAssessmentRows(text: string): Set<SourceQualification> {
+  const rows = new Set<SourceQualification>();
+  for (const match of text.matchAll(
+    /(?:^|[\n|;])\s*(AS(?:[- ]level)?|A[\s\u2010-\u2015-]*level)\s*[:\u2013\u2014|-]?\s+(?=(?:paper|unit|component)\s*\d)/gim,
+  )) {
+    const raw = match[1];
+    if (/^AS(?:[- ]level)?$/.test(raw)) rows.add("AS");
+    else if (/^A[\s\u2010-\u2015-]*level$/i.test(raw)) rows.add("A-level");
+  }
+  return rows;
+}
+
+function adjacentQualificationColumns(text: string): boolean {
+  const lines = text.split("\n");
+  let previous: SourceQualification | undefined;
+  let assessmentBetween = false;
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    const heading = qualificationHeading(line);
+    if (heading) {
+      if (previous && previous !== heading && !assessmentBetween) {
+        const rest = lines.slice(index + 1).join("\n");
+        if (/\b(?:paper|unit|component)\s*\d+\b/i.test(rest)) return true;
+      }
+      previous = heading;
+      assessmentBetween = false;
+    } else if (
+      /\b(?:paper|unit|component)\s*\d+\b|\b\d+\s*marks?\b/i.test(line)
+    )
+      assessmentBetween = true;
+  }
+  return false;
 }
 
 /**
@@ -120,11 +166,17 @@ export function scopeDocumentQualification(
     });
     add(text.length);
   });
-  const combinedTitle = texts.some((text) =>
-    /\bAS\s+(?:and|&|\/)\s+A[\s\u2010-\u2015-]*level\b/i.test(text),
+  const combinedTitle = texts.some(
+    (text) =>
+      /\b(?:AS\s*(?:and|&|\/|\|)\s*A[\s\u2010-\u2015-]*level|A[\s\u2010-\u2015-]*level\s*(?:and|&|\/|\|)\s*AS)\b/i.test(
+        text,
+      ) ||
+      /^\s*(?:AS[ \t]+A[ \t\u2010-\u2015-]*level|A[ \t\u2010-\u2015-]*level[ \t]+AS)\s*$/m.test(
+        text,
+      ),
   );
   let reason: string | undefined;
-  if (qualifications.size > 1 && !requested)
+  if ((qualifications.size > 1 || combinedTitle) && !requested)
     reason = "Choose AS or A-level before using this combined specification.";
   if (requested && qualifications.size && !qualifications.has(requested))
     reason =
@@ -132,6 +184,17 @@ export function scopeDocumentQualification(
   if (requested && combinedTitle && !qualifications.has(requested))
     reason =
       "We could not separate the AS and A-level assessment sections. Add the assessment overview for your qualification.";
+  if (
+    requested &&
+    (texts.some(adjacentQualificationColumns) ||
+      fragments.some((fragment) => {
+        const rows = qualificationAssessmentRows(fragment.text);
+        const expected = fragment.qualification ?? requested;
+        return [...rows].some((row) => row !== expected);
+      }))
+  )
+    reason =
+      "The source has AS/A-level assessment rows that could not be safely separated. Add the assessment overview for your selected qualification.";
   // An unscoped comparison can contain two Paper 1 totals. Keep it visibly
   // ambiguous instead of assigning its marks to whichever course was chosen.
   if (
@@ -170,8 +233,10 @@ export interface SourceDocumentIndex {
 
 const normalize = (value: string) =>
   value
+    .normalize("NFKC")
     .toLowerCase()
     .replace(/[\u2010-\u2015_]/g, " ")
+    .replace(/\b(paper|unit|component)\s*(\d{1,3}[a-z]?)\b/g, "$1 $2")
     .replace(/\s+/g, " ")
     .trim();
 const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -179,6 +244,7 @@ const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 // substring of the original page, including text-file CRLF line endings.
 const pageLines = (text: string) => text.split("\n");
 const componentPattern = /\b(?:paper|unit|component)\s+(\d{1,2}(?:[a-z])?)\b/gi;
+const componentCodePattern = /\b[A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]{0,2}\b/g;
 const topicPattern = /^\s*(?:Topic|Module)\s+(\d{1,2})\b/i;
 const rulePattern =
   /^(?:assessment(?:\s+(?:overview|information|objectives|requirements|guidance))?\s*$|(?:appendix\s+\d+\s*[:.\u2013-]\s*)?(?:qualification at a glance|(?:mathematical|maths|practical|experimental)\s+(?:skills|requirements)|command words|mark(?:ing)?\s+scheme(?:\s+conventions)?|(?:total\s+)?marks|duration|time allowed|calculator(?:s|\s+policy)?|answer all questions|all questions are compulsory|tier(?:s|ing)?|(?:this (?:paper|assessment) is )?untiered)\b)/i;
@@ -192,6 +258,16 @@ function componentsIn(text: string) {
 }
 function requestedPattern(selection: DocumentSelection) {
   const values = [selection.component, ...(selection.componentAliases ?? [])]
+    // Legacy clients wrapped visible paper names in parentheses. Unwrap only
+    // a complete numbered identity; arbitrary names/codes are never guessed.
+    .map((value) =>
+      value
+        .normalize("NFKC")
+        .replace(
+          /^\s*\(\s*((?:paper|unit|component)\s*\d{1,3}[a-z]?)\s*\)\s*$/i,
+          "$1",
+        ),
+    )
     .map(normalize)
     .filter(Boolean);
   if (!values.length) throw Error("Choose the paper or assessment first.");
@@ -308,6 +384,41 @@ export function indexDocumentPages(
       ...(allowed.get(fragment.page) ?? []),
       [fragment.startOffset, fragment.endOffset],
     ]);
+  const exactCode = (value: string) => {
+    const code = value.normalize("NFKC").trim().toLowerCase();
+    return /^[a-z0-9]{3,12}\/\d{1,3}[a-z]{0,2}$/.test(code) ? code : null;
+  };
+  const positiveCodes = new Set(
+    [selection.component, ...(selection.componentAliases ?? [])]
+      .map(exactCode)
+      .filter((code): code is string => code !== null),
+  );
+  const excludedCodes = new Set(
+    (selection.excludedComponentCodes ?? [])
+      .map(exactCode)
+      .filter((code): code is string => code !== null),
+  );
+  const excludedOptionPages = new Set<number>();
+  let optionAmbiguity: string | undefined;
+  if (excludedCodes.size)
+    for (const page of pages) {
+      const text = (allowed.get(page.page) ?? [])
+        .map(([start, end]) => page.text.slice(start, end))
+        .join("\n");
+      const codes = new Set(
+        [...text.matchAll(componentCodePattern)].map((match) =>
+          match[0].toLowerCase(),
+        ),
+      );
+      if (![...codes].some((code) => excludedCodes.has(code))) continue;
+      if ([...codes].some((code) => positiveCodes.has(code)))
+        optionAmbiguity ??=
+          "The source lists selected and unselected optional sections on the same page. Add an overview for your selected option so their assessment rules can be separated.";
+      else {
+        excludedOptionPages.add(page.page);
+        allowed.delete(page.page);
+      }
+    }
   // Masking is used only to locate candidate lines. Retrieval below always
   // slices the original page at allowed offsets, so no invented whitespace or
   // AS-only text can enter a supplied evidence excerpt.
@@ -330,7 +441,7 @@ export function indexDocumentPages(
     ),
     selected = new Map<number, Array<[number, number]>>(),
     warnings: string[] = [];
-  let reason = scope.reason;
+  let reason = scope.reason ?? optionAmbiguity;
   const addPage = (page: SourceDocumentPage) =>
     selected.set(page.page, [...(allowed.get(page.page) ?? [])]);
   const addWindow = (
@@ -382,6 +493,9 @@ export function indexDocumentPages(
     total <=
     INDEXED_DOCUMENT_LIMITS.maxChunkCharacters *
       INDEXED_DOCUMENT_LIMITS.maxChunks;
+  if (!matches.length && excludedOptionPages.size)
+    reason ??=
+      "The source shows a different optional topic. Add the assessment overview or brief for the option you selected.";
   if (!matches.length && allComponents.size)
     reason ??= "Choose which paper this specification should follow.";
   if (small) {
@@ -409,8 +523,12 @@ export function indexDocumentPages(
     if (first) addPage(first);
     for (const page of scanPages) {
       const lines = pageLines(page.text),
-        pageComponents = componentsIn(page.text);
-      if (pageComponents.length && !requested.test(normalize(page.text)))
+        pageComponents = componentsIn(page.text),
+        codedComponents = [...page.text.matchAll(componentCodePattern)];
+      if (
+        (pageComponents.length || codedComponents.length) &&
+        !requested.test(normalize(page.text))
+      )
         continue;
       lines.forEach((line, index) => {
         if (rulePattern.test(line.trim())) addWindow(page, index);

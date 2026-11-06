@@ -80,6 +80,7 @@ import {
   builderValidateComponentCode,
 } from "@/lib/profile-builder-resolution";
 import { ALL_LEVELS } from "@/lib/educational-levels";
+import { classifySpecificationVersion } from "../../../supabase/functions/_shared/profile-version-context";
 
 interface Props {
   open: boolean;
@@ -187,6 +188,8 @@ export function ExamProfileBuilder({
   const [codeEdited, setCodeEdited] = useState(false);
   const [restartOpen, setRestartOpen] = useState(false);
   const [sourceJob, setSourceJob] = useState<SourceJobView | null>(null);
+  const clarificationPanel = useRef<HTMLDivElement>(null);
+  const builderBody = useRef<HTMLDivElement>(null);
   const [pendingJobId, setPendingJobId] = useState<string | null>(null);
   const sourceRequest = useRef<{ payload: string; id: string } | null>(null);
   const [proposal, setProposal] = useState<BuilderProposal | null>(null);
@@ -196,6 +199,31 @@ export function ExamProfileBuilder({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  useEffect(() => {
+    const panel = clarificationPanel.current,
+      body = builderBody.current;
+    if (
+      !open ||
+      busy ||
+      sourceJob?.stage !== "needs_details" ||
+      !panel ||
+      !body
+    )
+      return;
+    panel.focus({ preventScroll: true });
+    const padding =
+      Number.parseFloat(window.getComputedStyle(body).paddingTop) || 0;
+    body.scrollTo?.({
+      top: Math.max(
+        0,
+        body.scrollTop +
+          panel.getBoundingClientRect().top -
+          body.getBoundingClientRect().top -
+          padding,
+      ),
+      behavior: "auto",
+    });
+  }, [open, busy, sourceJob?.jobId, sourceJob?.stage]);
   const previousAccount = useRef(accountId);
   const run = useRef(0),
     request = useRef<{ payload: string; id: string } | null>(null),
@@ -893,7 +921,7 @@ export function ExamProfileBuilder({
     : selectedDocument
       ? selectedDocument.kind[0].toUpperCase() + selectedDocument.kind.slice(1)
       : "Assessment";
-  const chooseAssessment = (value: string) => {
+  const chooseAssessment = (value: string, preserveModule = false) => {
     invalidatePreview();
     setError("");
     if (value === "__manual") {
@@ -917,8 +945,96 @@ export function ExamProfileBuilder({
     setIdentity((previous) => ({
       ...previous,
       component: known?.id ?? found?.componentCode ?? found?.label ?? "",
-      module: undefined,
+      module: preserveModule ? previous.module : undefined,
     }));
+  };
+  const chooseSourceRecoveryAssessment = (value: string) => {
+    const choice = sourceJob?.assessmentChoices?.find(
+      (candidate) => candidate.id === value,
+    );
+    if (!choice) return;
+    const discovered = discovery?.candidates.find(
+      (candidate) =>
+        candidate.id === choice.id ||
+        (choice.componentCode
+          ? candidate.componentCode === choice.componentCode
+          : candidate.label === choice.label),
+    );
+    let known = builderFindAssessment(
+      identity,
+      choice.componentCode || choice.label,
+    );
+    if (!known && choice.componentCode) {
+      const matchingOptions = papers.filter((paper) =>
+        paper.requiredOptions?.some(
+          (option) =>
+            (option.id === identity.module ||
+              option.label === identity.module) &&
+            option.componentCodes.some(
+              (code) =>
+                code.replace(/\s/g, "").toLowerCase() ===
+                choice.componentCode?.replace(/\s/g, "").toLowerCase(),
+            ),
+        ),
+      );
+      if (matchingOptions.length === 1) known = matchingOptions[0];
+    }
+    if (!known && !choice.componentCode) {
+      for (const alias of discovered?.aliases ?? []) {
+        known = builderFindAssessment(identity, alias);
+        if (known) break;
+      }
+      const numbered = choice.label.match(/^(Paper|Unit|Component)\s+\d+\b/i);
+      if (!known && numbered?.[1].toLowerCase() === choice.kind)
+        known = builderFindAssessment(identity, numbered[0]);
+    }
+    if (papers.length && !known) {
+      setError(
+        "This assessment does not match your selected course. Check the course or source document.",
+      );
+      return;
+    }
+    if (known) {
+      chooseAssessment(known.id, selectedPaper?.id === known.id);
+    } else {
+      const candidate = discovered ?? {
+        ...choice,
+        aliases: [
+          choice.label,
+          ...(choice.componentCode ? [choice.componentCode] : []),
+        ],
+        references: [],
+      };
+      invalidatePreview();
+      setDiscovery((previous) => ({
+        version: 1,
+        candidates: [
+          ...(previous?.candidates ?? []).filter(
+            (item) => item.id !== candidate.id,
+          ),
+          candidate,
+        ],
+        warnings: previous?.warnings ?? [],
+        ambiguous: previous?.ambiguous ?? false,
+        needsManualEntry: false,
+      }));
+      setManualAssessment(false);
+      setAssessmentId(candidate.id);
+      setAssessmentName(candidate.label);
+      setComponentCode(candidate.componentCode ?? "");
+      setCodeEdited(false);
+      setIdentity((previous) => ({
+        ...previous,
+        component: candidate.componentCode ?? candidate.label,
+        module:
+          previous.component === (candidate.componentCode ?? candidate.label)
+            ? previous.module
+            : undefined,
+      }));
+      setError("");
+    }
+    setSourceChoice("upload");
+    setStep("details");
   };
   const effectiveCode = codeEdited
     ? componentCode
@@ -1027,7 +1143,16 @@ export function ExamProfileBuilder({
           "Choose Short practice for an unverified draft, or add a source for a Full mock.",
         );
       if (!resolved.presetId && sourceChoice === "upload") {
-        void prepareSource(resolved.identity);
+        void prepareSource({
+          ...resolved.identity,
+          // A date hint belongs to this request's source context. It must not
+          // become an exact catalogue version or be lost on source resolution.
+          specificationVersion:
+            classifySpecificationVersion(identity.specificationVersion).kind ===
+            "timeline"
+              ? identity.specificationVersion
+              : resolved.identity.specificationVersion,
+        });
         return;
       }
       setIdentity(resolved.identity);
@@ -1097,6 +1222,7 @@ export function ExamProfileBuilder({
             </div>
           </DialogHeader>
           <div
+            ref={builderBody}
             className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6"
             aria-busy={busy}
           >
@@ -1164,19 +1290,48 @@ export function ExamProfileBuilder({
             )}
             {sourceJob && step !== "review" && (
               <div
-                className="space-y-2 rounded-xl border border-border bg-muted/35 p-4"
+                ref={clarificationPanel}
+                tabIndex={sourceJob.stage === "needs_details" ? -1 : undefined}
+                role={sourceJob.stage === "needs_details" ? "group" : undefined}
+                aria-label={
+                  sourceJob.stage === "needs_details"
+                    ? "Assessment clarification"
+                    : undefined
+                }
+                className="space-y-2 rounded-xl border border-border bg-muted/35 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                 aria-live="polite"
               >
-                <p className="text-sm font-medium">{sourceJob.message}</p>
-                {sourceJob.progress.total > 0 && (
-                  <progress
-                    className="h-1.5 w-full accent-primary"
-                    aria-label="Syllabus processing progress"
-                    max={sourceJob.progress.total}
-                    value={sourceJob.progress.completed}
-                  />
-                )}
-                {sourceJob.needs?.length ? (
+                <p className="text-sm font-medium">
+                  {sourceJob.assessmentChoices?.length
+                    ? (sourceJob.needs?.[0] ??
+                      "Which assessment in this source are you preparing for?")
+                    : sourceJob.message}
+                </p>
+                {sourceJob.progress.total > 0 &&
+                  sourceJob.stage !== "needs_details" && (
+                    <progress
+                      className="h-1.5 w-full accent-primary"
+                      aria-label="Syllabus processing progress"
+                      max={sourceJob.progress.total}
+                      value={sourceJob.progress.completed}
+                    />
+                  )}
+                {sourceJob.assessmentChoices?.length ? (
+                  <Field label="Assessment found in your source">
+                    {select(
+                      "",
+                      chooseSourceRecoveryAssessment,
+                      [
+                        ["", "Choose an assessment"],
+                        ...sourceJob.assessmentChoices.map(
+                          (choice) =>
+                            [choice.id, choice.label] as [string, string],
+                        ),
+                      ],
+                      "Assessment found in your source",
+                    )}
+                  </Field>
+                ) : sourceJob.needs?.length ? (
                   <ul className="space-y-1 text-sm text-muted-foreground">
                     {sourceJob.needs.map((need) => (
                       <li key={need}>{need}</li>
@@ -1466,7 +1621,11 @@ export function ExamProfileBuilder({
                   {!!selectedPaper?.requiredOptions?.length && (
                     <Field label="Paper option">
                       {select(
-                        identity.module ?? "",
+                        selectedPaper.requiredOptions.find(
+                          (option) =>
+                            option.id === identity.module ||
+                            option.label === identity.module,
+                        )?.id ?? "",
                         (value) => changeIdentity("module", value || null),
                         [
                           ["", "Choose your option"],
@@ -1514,28 +1673,35 @@ export function ExamProfileBuilder({
                 {sourceChoicesReady && needEvidence && (
                   <section className="space-y-3 border-t border-border pt-4">
                     <h2 className="text-base font-semibold">
-                      We need a source for this course
+                      {sourceChoice === "upload" && uploads.length
+                        ? "Assessment source"
+                        : "We need a source for this course"}
                     </h2>
                     <p className="text-sm text-muted-foreground">
-                      Upload your full specification or assessment brief. We’ll
-                      find the relevant assessment details for you.
+                      {sourceChoice === "upload" && uploads.length
+                        ? sourceJob?.stage === "needs_details"
+                          ? "Your files are still attached. Check the assessment details above."
+                          : "Your files are attached and ready to check."
+                        : "Upload your full specification or assessment brief. We’ll find the relevant assessment details for you."}
                     </p>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={
-                          sourceChoice === "upload" ? "default" : "outline"
-                        }
-                        onClick={() => {
-                          invalidatePreview();
-                          setSourceChoice("upload");
-                          setError("");
-                        }}
-                      >
-                        Upload syllabus
-                      </Button>
-                    </div>
+                    {!(sourceChoice === "upload" && uploads.length) && (
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={
+                            sourceChoice === "upload" ? "default" : "outline"
+                          }
+                          onClick={() => {
+                            invalidatePreview();
+                            setSourceChoice("upload");
+                            setError("");
+                          }}
+                        >
+                          Upload syllabus
+                        </Button>
+                      </div>
+                    )}
                     <details className="text-sm">
                       <summary className="cursor-pointer text-xs text-muted-foreground">
                         Other options
@@ -1603,7 +1769,7 @@ export function ExamProfileBuilder({
                           ["course", "Course / specification code"],
                           [
                             "specificationVersion",
-                            "Specification / cohort version",
+                            "Specification version / teaching dates (optional)",
                           ],
                         ] as const
                       ).map(([key, label]) => (
@@ -1614,7 +1780,27 @@ export function ExamProfileBuilder({
                             onChange={(e) =>
                               changeIdentity(key, e.target.value)
                             }
+                            placeholder={
+                              key === "specificationVersion"
+                                ? "Leave blank to resolve from your source"
+                                : undefined
+                            }
+                            aria-describedby={
+                              key === "specificationVersion"
+                                ? "builder-version-context-hint"
+                                : undefined
+                            }
                           />
+                          {key === "specificationVersion" && (
+                            <p
+                              id="builder-version-context-hint"
+                              className="text-xs text-muted-foreground"
+                            >
+                              Dates help identify your course. Examly verifies
+                              the specification version from its catalogue or
+                              your source.
+                            </p>
+                          )}
                         </Field>
                       ))}
                       <Field label="Paper / component code">
@@ -2363,7 +2549,12 @@ export function ExamProfileBuilder({
             </Button>
             {legacyRunning ? null : step === "details" ? (
               <Button
-                disabled={busy || attachments.busy || discoveryBusy}
+                disabled={
+                  busy ||
+                  attachments.busy ||
+                  discoveryBusy ||
+                  sourceJob?.stage === "needs_details"
+                }
                 onClick={reviewChoice}
               >
                 {sourceChoice === "upload" && uploads.length

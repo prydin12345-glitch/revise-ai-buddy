@@ -27,6 +27,15 @@ import {
 import { assessmentMetadataCourses } from "./profile-assessment-options.ts";
 import { getCourseOptions } from "./assessment-tier.ts";
 import { biologyPaperOptions } from "./biology-course-packs.ts";
+import {
+  discoverSourceAssessments,
+  normaliseAssessmentAlias,
+} from "./profile-assessment-discovery.ts";
+import {
+  classifySpecificationVersion,
+  isSpecificationVersionHint,
+  specificationVersionsEquivalent,
+} from "./profile-version-context.ts";
 
 const uuid = z.string().uuid();
 const modeSchema = z.enum(["short_practice", "full_mock", "custom"]);
@@ -66,6 +75,12 @@ export type SourceJobStage =
   | "complete"
   | "needs_details"
   | "failed";
+export interface SourceAssessmentChoice {
+  id: string;
+  label: string;
+  kind: "paper" | "unit" | "component" | "assessment";
+  componentCode?: string;
+}
 export interface SourceJobView {
   jobId: string;
   stage: SourceJobStage;
@@ -74,6 +89,7 @@ export interface SourceJobView {
   progress: { completed: number; total: number };
   message: string;
   needs?: string[];
+  assessmentChoices?: SourceAssessmentChoice[];
   proposalId?: string;
   proposal?: BuilderProposal;
   /** Legacy receipt status can be retrieved but cannot run a new source stage. */
@@ -104,6 +120,7 @@ export interface SourceJobData {
   partials: ProfileEvidence[];
   evidence: ProfileEvidence | null;
   needs: string[];
+  assessmentChoices?: SourceAssessmentChoice[];
   invalidDraft?: unknown;
   draftError?: string;
   invalidExtraction?: unknown;
@@ -254,6 +271,9 @@ export function sourceJobView(r: SourceJobRecord): SourceJobView {
       !r.data.intakePending &&
       ["reading", "identifying", "drafting"].includes(r.stage),
     ...(r.data.needs.length ? { needs: r.data.needs } : {}),
+    ...(r.stage === "needs_details" && r.data.assessmentChoices?.length
+      ? { assessmentChoices: r.data.assessmentChoices }
+      : {}),
     ...(r.stage === "complete" && r.data.proposal
       ? { proposalId: r.id, proposal: r.data.proposal }
       : {}),
@@ -309,7 +329,9 @@ export function trustedDocumentSelection(
   identity: TemplateIdentity,
 ): DocumentSelection {
   const key = (value: string) => value.trim().toLowerCase().replace(/\s+/g, ""),
-    aliases = new Set<string>();
+    aliases = new Set<string>(),
+    excludedCodes = new Set<string>();
+  let component = identity.component;
   for (const course of assessmentMetadataCourses(identity)) {
     if (
       ![course.id, course.courseCode].some(
@@ -317,22 +339,58 @@ export function trustedDocumentSelection(
       )
     )
       continue;
-    if (
-      ![
-        "",
-        "not verified",
-        "unknown",
-        course.specificationVersion.toLowerCase(),
-      ].includes(identity.specificationVersion.trim().toLowerCase())
-    )
-      continue;
-    const paper = course.papers.find((paper) =>
-      [paper.id, paper.componentCode].some(
-        (value) => key(value) === key(identity.component),
+    const aliasKey = (value: string) =>
+      normaliseAssessmentAlias(value.replace(/_/g, " "));
+    const paper = course.papers.find((paper) => {
+      const option = paper.requiredOptions?.find((option) =>
+        [option.id, option.label].some(
+          (value) => aliasKey(value) === aliasKey(identity.module ?? ""),
+        ),
+      );
+      return [
+        paper.id,
+        paper.componentCode,
+        ...paper.aliases,
+        ...(option?.componentCodes ?? []),
+      ].some((value) => aliasKey(value) === aliasKey(identity.component));
+    });
+    if (!paper || identity.tier !== "not_tiered") continue;
+    const sameVersion =
+      isSpecificationVersionHint(identity.specificationVersion) ||
+      specificationVersionsEquivalent(
+        identity.specificationVersion,
+        course.specificationVersion,
+      );
+    const option = paper.requiredOptions?.find((option) =>
+      [option.id, option.label].some(
+        (value) => aliasKey(value) === aliasKey(identity.module ?? ""),
       ),
     );
-    if (!paper || identity.tier !== "not_tiered") continue;
-    for (const alias of [paper.label, ...paper.aliases]) aliases.add(alias);
+    const exactSection =
+      /\//.test(identity.component) &&
+      key(identity.component) !== key(paper.componentCode);
+    // A numbered heading identifies the selected component, not its edition.
+    // A real version constraint is checked against literal source evidence later.
+    for (const alias of [paper.label, ...paper.aliases])
+      if (
+        !exactSection &&
+        (sameVersion || /^(?:paper|unit|component)\s*\d+$/i.test(alias))
+      )
+        aliases.add(alias);
+    if (option && sameVersion) {
+      aliases.add(option.label);
+      for (const code of option.componentCodes ?? []) aliases.add(code);
+      if (!exactSection && paper.componentCode === "7408/3")
+        aliases.add("7408/3A");
+    }
+    if (option) {
+      for (const other of paper.requiredOptions ?? [])
+        if (other.id !== option.id)
+          for (const code of other.componentCodes ?? [])
+            excludedCodes.add(code);
+    }
+    // Legacy wrapped names are canonicalised only inside this exact course.
+    if (!/\//.test(identity.component)) component = paper.componentCode;
   }
   if (["GB", "UK", "United Kingdom"].includes(identity.country)) {
     const course = getCourseOptions({
@@ -369,13 +427,89 @@ export function trustedDocumentSelection(
     }
   }
   return {
-    component: identity.component,
+    component,
     componentAliases: [...aliases].sort(),
+    ...(excludedCodes.size
+      ? { excludedComponentCodes: [...excludedCodes].sort() }
+      : {}),
     subject: identity.subject,
     course: identity.course,
     qualification: identity.qualification,
   };
 }
+
+function requiredModuleProblem(identity: TemplateIdentity): string | null {
+  const key = (value: string) =>
+    normaliseAssessmentAlias(value.replace(/_/g, " "));
+  for (const course of assessmentMetadataCourses(identity)) {
+    if (
+      ![course.id, course.courseCode].some(
+        (value) => key(value) === key(identity.course),
+      )
+    )
+      continue;
+    const paper = course.papers.find((paper) =>
+      [
+        paper.id,
+        paper.componentCode,
+        ...paper.aliases,
+        ...(paper.requiredOptions?.flatMap((option) => [
+          ...(option.componentCodes ?? []),
+        ]) ?? []),
+      ].some((value) => key(value) === key(identity.component)),
+    );
+    if (!paper?.requiredOptions?.length) return null;
+    const option = paper.requiredOptions.find((option) =>
+      [option.id, option.label].some(
+        (value) => key(value) === key(identity.module ?? ""),
+      ),
+    );
+    if (!option)
+      return `Which optional topic do you study for ${paper.label}? Choose it before reading this assessment.`;
+    if (
+      /\//.test(identity.component) &&
+      key(identity.component) !== key(paper.componentCode) &&
+      !option.componentCodes?.some(
+        (value) => key(value) === key(identity.component),
+      )
+    )
+      return "The selected paper section does not match your optional topic. Choose the matching section or option.";
+  }
+  return null;
+}
+
+function sameSelectedModule(
+  identity: TemplateIdentity,
+  value: string,
+): boolean {
+  const key = (text: string) =>
+    text
+      .trim()
+      .toLowerCase()
+      .replace(/[_\s]+/g, "");
+  const previous = identity.module ?? "";
+  if (key(previous) === key(value)) return true;
+  for (const course of assessmentMetadataCourses(identity)) {
+    if (
+      ![course.id, course.courseCode].some(
+        (course) => key(course) === key(identity.course),
+      )
+    )
+      continue;
+    for (const paper of course.papers) {
+      const option = paper.requiredOptions?.find((option) =>
+        [option.id, option.label].some((alias) => key(alias) === key(previous)),
+      );
+      if (
+        option &&
+        [option.id, option.label].some((alias) => key(alias) === key(value))
+      )
+        return true;
+    }
+  }
+  return false;
+}
+
 export async function prepareSourceJob(
   owner: string,
   input: Extract<SourceJobRequest, { action: "prepare_source" }>,
@@ -439,7 +573,19 @@ export async function prepareSourceJob(
   const data: SourceJobData = {
     version: 1,
     requestedIdentity: input.identity,
-    identity: input.identity,
+    identity: {
+      ...input.identity,
+      organisation:
+        input.identity.organisation.trim().toLowerCase() === "aqa"
+          ? "AQA"
+          : input.identity.organisation,
+      component: trustedDocumentSelection(input.identity).component,
+      specificationVersion:
+        classifySpecificationVersion(input.identity.specificationVersion)
+          .kind === "timeline"
+          ? "Not verified"
+          : input.identity.specificationVersion,
+    },
     mode: input.mode,
     documents,
     chunks: [],
@@ -497,16 +643,26 @@ export async function prepareSourceJob(
           );
         documents[i].pages = pages.map((text, n) => ({ page: n + 1, text }));
       }
+      let componentMissing = false,
+        qualificationAmbiguous = false;
       for (const doc of documents) {
         const index = indexDocumentPages(
           doc.pages.map((p) => p.text),
           trustedDocumentSelection(input.identity),
         );
-        if (!index.coverage.complete)
+        if (!index.coverage.complete) {
+          componentMissing ||=
+            /Choose which paper|could not locate this assessment/i.test(
+              index.coverage.reason ?? "",
+            );
+          qualificationAmbiguous ||= /\bAS\b|A-level|qualification/i.test(
+            index.coverage.reason ?? "",
+          );
           data.needs.push(
             index.coverage.reason ??
               "We could not identify all the pages for this assessment. Add its assessment brief.",
           );
+        }
         data.chunks.push(
           ...index.chunks.map((c) => ({
             id: `${doc.id}-${c.id}`,
@@ -520,10 +676,46 @@ export async function prepareSourceJob(
         data.needs.push(
           "The selected assessment information needs more processing than this build allows. Add a focused assessment brief alongside the specification.",
         );
-      if (!data.chunks.length)
+      if (!data.chunks.length && !data.needs.length)
         data.needs.push(
-          "We could not find readable assessment information in these documents.",
+          "Your documents were read, but no assessment rules could be located. Add the assessment overview or brief.",
         );
+      if (componentMissing && !qualificationAmbiguous) {
+        const found = await discoverSourceAssessments(
+          documents.map((doc) => ({
+            id: doc.id,
+            checksum: doc.checksum,
+            pages: doc.pages.map((page) => page.text),
+          })),
+          input.identity,
+        );
+        if (!found.ambiguous && found.candidates.length) {
+          data.assessmentChoices = found.candidates
+            .filter(
+              (candidate) =>
+                !requiredModuleProblem({
+                  ...input.identity,
+                  component: candidate.componentCode ?? candidate.label,
+                }),
+            )
+            .map(({ id, label, kind, componentCode }) => ({
+              id,
+              label,
+              kind,
+              ...(componentCode ? { componentCode } : {}),
+            }));
+          if (data.assessmentChoices.length)
+            data.needs = [
+              "Which assessment in your source are you preparing for?",
+            ];
+        }
+      }
+      data.needs = [...new Set(data.needs)];
+      const moduleProblem = requiredModuleProblem(input.identity);
+      if (moduleProblem) {
+        data.needs = [moduleProblem];
+        delete data.assessmentChoices;
+      }
       if (data.needs.length) stage = "needs_details";
     }
     // Full pages are parsed and scanned locally, not retained in the job. Only
@@ -587,6 +779,7 @@ const extractionSchema = z
     identityClaims: z.array(identityClaimSchema).max(20),
   })
   .strict();
+class SourceIdentityConflict extends Error {}
 function checkExtracted(
   raw: unknown,
   data: SourceJobData,
@@ -684,12 +877,24 @@ function checkExtracted(
       );
     if (
       key === "specificationVersion" &&
-      !["", "not verified", "unknown"].includes(
-        data.requestedIdentity.specificationVersion.trim().toLowerCase(),
+      !isSpecificationVersionHint(
+        data.requestedIdentity.specificationVersion,
+      ) &&
+      !specificationVersionsEquivalent(
+        data.requestedIdentity.specificationVersion,
+        String(next),
       )
     )
-      throw Error(
-        "The document describes a different specification version. Check your course choices.",
+      throw new SourceIdentityConflict(
+        `Your source identifies specification ${String(next)}, while your details request ${data.requestedIdentity.specificationVersion}. Check the version or choose the matching source.`,
+      );
+    if (
+      key === "module" &&
+      data.requestedIdentity.module &&
+      !sameSelectedModule(data.requestedIdentity, String(next))
+    )
+      throw new SourceIdentityConflict(
+        "The source describes a different optional topic or module. Check the selected option and source.",
       );
     if (key === "component") {
       const requested = data.requestedIdentity.component,
@@ -709,7 +914,14 @@ function checkExtracted(
           "The document describes a different paper. Check your component choice.",
         );
     }
-    if (data.partials.length && previous !== data.requestedIdentity[key])
+    if (
+      data.partials.length &&
+      previous !== data.requestedIdentity[key] &&
+      !(
+        key === "specificationVersion" &&
+        specificationVersionsEquivalent(String(previous), String(next))
+      )
+    )
       throw Error(
         "The documents disagree about the course version or component.",
       );
@@ -888,10 +1100,21 @@ export async function advanceSourceJob(
       const chunk = data.chunks[data.cursor];
       result = await deps.model(
         EXTRACTION_SYSTEM +
-          " Return {evidence,identityClaims}. Use only the supplied snippets. Preserve known subject, board, level and country. Discover course/component/version only with literal identityClaims referencing supplied locations; never invent a code. Unknown details retain the requested value. Prefix every location ID with the chunk ID so later batches can merge. Extract partial facts only; unsupported facts remain null/unknown. Upload document IDs/checksums are fixed below.",
+          " Return {evidence,identityClaims}. Use only the supplied snippets. Preserve known subject, board, level and country. Discover course/component/version only with literal identityClaims referencing supplied locations; never invent a code. UserContext contains unverified student notes, not source evidence: never cite these notes or use them to restore missing source dates. Teaching dates do not establish a specification issue. Unknown details retain the requested value. Prefix every location ID with the chunk ID so later batches can merge. Extract partial facts only; unsupported facts remain null/unknown. Upload document IDs/checksums are fixed below.",
         {
           schema: z.toJSONSchema(extractionSchema),
           identity: data.identity,
+          ...(classifySpecificationVersion(
+            data.requestedIdentity.specificationVersion,
+          ).kind === "timeline"
+            ? {
+                userContext: {
+                  specificationDates:
+                    data.requestedIdentity.specificationVersion,
+                  authority: "user_context_not_source_evidence",
+                },
+              }
+            : {}),
           chunkId: chunk.id,
           evidenceLimits: {
             maxLocationsPerDocument: Math.floor(40 / data.chunks.length),
@@ -920,6 +1143,7 @@ export async function advanceSourceJob(
       try {
         evidence = checkExtracted(result.value, data, chunk);
       } catch (error) {
+        if (error instanceof SourceIdentityConflict) throw error;
         if (
           data.chunks.length === 1 &&
           r.callIntents === 0 &&
@@ -1022,16 +1246,19 @@ export async function advanceSourceJob(
         usage(),
       ),
     );
-  } catch {
+  } catch (error) {
     data.needs = [
-      result
-        ? "We could not verify the assessment details returned from this source. Check the specification version and assessment instructions."
-        : callStarted
-          ? "The source service could not finish. This request will not repeat a possibly charged call. Your saved profiles are unchanged."
-          : "The AI service is unavailable. Your saved profiles are unchanged.",
+      error instanceof SourceIdentityConflict
+        ? error.message
+        : result
+          ? "We could not verify the assessment details returned from this source. Check the specification version and assessment instructions."
+          : callStarted
+            ? "The source service could not finish. This request will not repeat a possibly charged call. Your saved profiles are unchanged."
+            : "The AI service is unavailable. Your saved profiles are unchanged.",
     ];
     const change: Commit = {
-      stage: "failed",
+      stage:
+        error instanceof SourceIdentityConflict ? "needs_details" : "failed",
       data,
       elapsedMs: Date.now() - started,
     };
