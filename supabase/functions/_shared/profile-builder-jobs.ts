@@ -19,7 +19,14 @@ import {
   type ProfileEvidence,
 } from "./profile-evidence.ts";
 import type { BuilderProposal } from "./profile-builder-service.ts";
-import { indexDocumentPages } from "./profile-document-index.ts";
+import {
+  DOCUMENT_INDEX_VERSION,
+  indexDocumentPages,
+  type DocumentSelection,
+} from "./profile-document-index.ts";
+import { assessmentMetadataCourses } from "./profile-assessment-options.ts";
+import { getCourseOptions } from "./assessment-tier.ts";
+import { biologyPaperOptions } from "./biology-course-packs.ts";
 
 const uuid = z.string().uuid();
 const modeSchema = z.enum(["short_practice", "full_mock", "custom"]);
@@ -296,6 +303,79 @@ function packChunks(chunks: SourceChunk[]): SourceChunk[] {
   }
   return out;
 }
+
+/** Human headings come only from explicit catalogue identity, never a client alias. */
+export function trustedDocumentSelection(
+  identity: TemplateIdentity,
+): DocumentSelection {
+  const key = (value: string) => value.trim().toLowerCase().replace(/\s+/g, ""),
+    aliases = new Set<string>();
+  for (const course of assessmentMetadataCourses(identity)) {
+    if (
+      ![course.id, course.courseCode].some(
+        (value) => key(value) === key(identity.course),
+      )
+    )
+      continue;
+    if (
+      ![
+        "",
+        "not verified",
+        "unknown",
+        course.specificationVersion.toLowerCase(),
+      ].includes(identity.specificationVersion.trim().toLowerCase())
+    )
+      continue;
+    const paper = course.papers.find((paper) =>
+      [paper.id, paper.componentCode].some(
+        (value) => key(value) === key(identity.component),
+      ),
+    );
+    if (!paper || identity.tier !== "not_tiered") continue;
+    for (const alias of [paper.label, ...paper.aliases]) aliases.add(alias);
+  }
+  if (["GB", "UK", "United Kingdom"].includes(identity.country)) {
+    const course = getCourseOptions({
+      subject: identity.subject,
+      examBoard: identity.organisation,
+      educationalTier: identity.qualification,
+    }).find((course) =>
+      [course.id, course.specificationCode].some(
+        (value) => value && key(value) === key(identity.course),
+      ),
+    );
+    if (course && identity.tier && course.tiers.includes(identity.tier)) {
+      const matches = biologyPaperOptions(course.id).filter(
+        (pack) =>
+          pack.curriculum.qualification === identity.qualification &&
+          pack.tiers.includes(identity.tier!) &&
+          [pack.paperId, pack.definition(identity.tier).componentCode].some(
+            (value) => value && key(value) === key(identity.component),
+          ),
+      );
+      if (matches.length === 1) {
+        const definition = matches[0].definition(identity.tier),
+          numbered = definition.displayName.match(
+            /\b(?:Paper|Unit|Component)\s+\d+\b.*$/i,
+          )?.[0],
+          named = definition.displayName.match(
+            /\b(?:Breadth|Depth|Unified)\s+(?:in\s+)?biology\b/i,
+          )?.[0];
+        if (numbered) aliases.add(numbered);
+        if (named) aliases.add(named);
+        if (numbered)
+          aliases.add(numbered.match(/^(?:Paper|Unit|Component)\s+\d+\b/i)![0]);
+      }
+    }
+  }
+  return {
+    component: identity.component,
+    componentAliases: [...aliases].sort(),
+    subject: identity.subject,
+    course: identity.course,
+    qualification: identity.qualification,
+  };
+}
 export async function prepareSourceJob(
   owner: string,
   input: Extract<SourceJobRequest, { action: "prepare_source" }>,
@@ -347,6 +427,8 @@ export async function prepareSourceJob(
   const sourceKey = await checksum(
     canonical({
       version: 1,
+      indexVersion: DOCUMENT_INDEX_VERSION,
+      selection: trustedDocumentSelection(input.identity),
       identity: input.identity,
       documents: documents.map((d, i) => ({
         checksum: d.checksum,
@@ -418,11 +500,7 @@ export async function prepareSourceJob(
       for (const doc of documents) {
         const index = indexDocumentPages(
           doc.pages.map((p) => p.text),
-          {
-            component: input.identity.component,
-            subject: input.identity.subject,
-            course: input.identity.course,
-          },
+          trustedDocumentSelection(input.identity),
         );
         if (!index.coverage.complete)
           data.needs.push(

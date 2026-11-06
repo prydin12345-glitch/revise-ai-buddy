@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   indexDocumentPages,
+  scopeDocumentQualification,
   INDEXED_DOCUMENT_LIMITS,
 } from "../functions/_shared/profile-document-index";
 
@@ -189,4 +190,45 @@ describe("component-aware document indexing", () => {
       indexDocumentPages(["", "   "], { component: "Paper 1" }),
     ).toThrow(/readable text/);
   });
+});
+
+it("separates AS and A-level marks on a shared physical page without inventing excerpts", () => {
+  const page =
+    "AS and A-level Physics\n2.2 AS\nPaper 1\n70 marks\n90 minutes\n2.3 A-level\nPaper 1\n85 marks\n120 minutes\nTopic 1: Measurements";
+  const result = indexDocumentPages([page], {
+    component: "7408/1",
+    componentAliases: ["Paper 1"],
+    qualification: "A-level",
+  });
+  expect(result.coverage.complete).toBe(true);
+  const text = result.chunks
+    .flatMap((chunk) => chunk.pages)
+    .map((item) => item.text)
+    .join(" ");
+  expect(text).toContain("85 marks");
+  expect(text).not.toContain("70 marks");
+  for (const chunk of result.chunks)
+    for (const item of chunk.pages) {
+      expect(item.page).toBe(1);
+      expect(page).toContain(item.text);
+    }
+});
+it("refuses combined assessment totals with no separable qualification headings", () => {
+  const page =
+    "AS and A-level Physics\nPaper 1: comparison\nAS 70 marks; A-level 85 marks";
+  const result = indexDocumentPages([page], {
+    component: "Paper 1",
+    qualification: "A-level",
+  });
+  expect(result.coverage.complete).toBe(false);
+  expect(result.chunks).toEqual([]);
+  expect(result.coverage.reason).toMatch(/separate|combines/);
+});
+it("does not interpret the ordinary word as or arsenic As as an AS qualification heading", () => {
+  const source = [
+    "A-level\nPaper 1\nArsenic has the symbol As\nAs\nas\n85 marks",
+  ];
+  const result = scopeDocumentQualification(source, "A-level");
+  expect(result.qualifications).toEqual(["A-level"]);
+  expect(result.ambiguous).toBe(false);
 });
