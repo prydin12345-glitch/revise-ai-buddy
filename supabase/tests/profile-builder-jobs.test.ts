@@ -523,5 +523,5 @@ it("maps a canonical A-level component to reviewed human headings without accept
       ...identity,
       specificationVersion: "another version",
     }).componentAliases,
-  ).toEqual([]);
+  ).toContain("Paper 1");
 });

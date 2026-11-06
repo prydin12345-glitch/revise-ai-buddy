@@ -13,6 +13,30 @@ const doc = (
 ): AssessmentDiscoveryDocument => ({ id, checksum: hash.repeat(64), pages });
 
 describe("source assessment discovery without AI", () => {
+  it("keeps two-letter optional section codes distinct without accepting code prefixes", async () => {
+    const result = await discoverSourceAssessments(
+      [
+        doc([
+          "A-level\nAssessment overview\nComponent: Astrophysics\n7408/3BA\n35 marks\nComponent: Medical physics\n7408/3BB\n35 marks",
+        ]),
+      ],
+      { qualification: "A-level", course: "7408" },
+    );
+    expect(
+      result.candidates.map((candidate) => candidate.componentCode),
+    ).toEqual(["7408/3BA", "7408/3BB"]);
+    expect(
+      result.candidates.flatMap((candidate) => candidate.aliases),
+    ).not.toContain("7408/3B");
+    const invalid = await discoverSourceAssessments(
+      [doc(["A-level\nComponent: Invalid option\n7408/3BAA\n35 marks"])],
+      { qualification: "A-level", course: "7408" },
+    );
+    expect(
+      invalid.candidates.every((candidate) => !candidate.componentCode),
+    ).toBe(true);
+  });
+
   it("finds numbered papers, units and components with separate literal codes", async () => {
     const source = doc([
       "Assessment overview\nPaper 1: Biological processes (H420/01)\n100 marks\nUnit 2 — Organisms and Biodiversity\nComponent 03: Practical skills (H420/03)",

@@ -15,6 +15,10 @@ import {
 import { ALL_LEVELS, detectRegionKey } from "./educational-levels";
 import { REVIEWED_ASSESSMENT_COURSES } from "../../supabase/functions/_shared/profile-assessment-catalogue";
 import {
+  isSpecificationVersionHint,
+  specificationVersionsEquivalent,
+} from "../../supabase/functions/_shared/profile-version-context";
+import {
   ASSESSMENT_METADATA_COURSES,
   assessmentMetadataCourses,
   type AssessmentKind,
@@ -343,8 +347,11 @@ export function resolveBuilderChoice(
       e.paper === paper?.id &&
       e.tier === tier &&
       e.mode === mode &&
-      (!i.specificationVersion ||
-        e.specificationVersion === i.specificationVersion),
+      (isSpecificationVersionHint(i.specificationVersion) ||
+        specificationVersionsEquivalent(
+          e.specificationVersion,
+          i.specificationVersion,
+        )),
   );
   if (entries.length === 1)
     return {
@@ -365,8 +372,11 @@ export function resolveBuilderChoice(
         )) &&
       s.evidence.identity.course === (course?.specificationCode ?? i.course) &&
       s.evidence.identity.component === (paper?.componentCode ?? i.component) &&
-      (!i.specificationVersion ||
-        s.evidence.identity.specificationVersion === i.specificationVersion) &&
+      (isSpecificationVersionHint(i.specificationVersion) ||
+        specificationVersionsEquivalent(
+          s.evidence.identity.specificationVersion,
+          i.specificationVersion,
+        )) &&
       s.evidence.identity.tier === tier,
   );
   if (source)

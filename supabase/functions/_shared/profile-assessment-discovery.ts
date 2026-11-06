@@ -58,9 +58,9 @@ export function normaliseAssessmentAlias(value: string): string {
     .replace(/\s+/g, " ");
 }
 
-const explicitComponentCode = /\b([A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]?)\b/;
+const explicitComponentCode = /\b([A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]{0,2})\b/;
 const numberedHeading =
-  /^(?:(?:\d+(?:\.\d+)*[.)]?)\s+)?(paper|unit|component)\s*(?:no\.?\s*)?([A-Za-z]?\d{1,3}[A-Za-z]?)(?=$|\s|[:(\u2013\u2014-])\s*(.*)$/i;
+  /^(?:(?:\d+(?:\.\d+)*[.)]?)\s+)?(paper|unit|component)\s*(?:no\.?\s*)?([A-Za-z]?\d{1,3}[A-Za-z]{0,2})(?=$|\s|[:(\u2013\u2014-])\s*(.*)$/i;
 const labelledAssessment =
   /^(assessment|examination|exam|test|component|unit)(?:\s+(?:title|name))?\s*[:\u2013\u2014-]\s*(.+)$/i;
 const namedAssessment =
@@ -107,13 +107,13 @@ function codeNear(
     if (!line || numberedHeading.test(line) || labelledAssessment.test(line))
       break;
     const code = line.match(
-      /^(?:(?:paper|unit|component|assessment)\s+code\s*:\s*|\()?([A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]?)\)?$/i,
+      /^(?:(?:paper|unit|component|assessment)\s+code\s*:\s*|\()?([A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]{0,2})\)?$/i,
     );
     if (code) return { code: code[1], line: lines[index + offset] };
   }
   const previous = lines[index - 1]?.trim();
   const previousCode = previous?.match(
-    /^(?:(?:paper|unit|component|assessment)\s+code\s*:\s*|\()?([A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]?)\)?$/i,
+    /^(?:(?:paper|unit|component|assessment)\s+code\s*:\s*|\()?([A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]{0,2})\)?$/i,
   );
   if (previousCode) return { code: previousCode[1], line: lines[index - 1] };
   return {};
