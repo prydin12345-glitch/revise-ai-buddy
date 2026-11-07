@@ -55,8 +55,15 @@ interface LineChartProps {
   className?: string;
 }
 
+export const axisLabels = (c: any): { xLabel?: string; yLabel?: string } => ({
+  xLabel: c?.xLabel || c?.xAxisLabel || undefined,
+  yLabel: c?.yLabel || c?.yAxisLabel || undefined,
+});
+
 export const LineChart = ({ chartData, className = '' }: LineChartProps) => {
-  const { datasets, xLabel, yLabel, caption, domainX, domainY } = chartData;
+  const { datasets, caption, domainX, domainY } = chartData;
+  // Generated graphs sometimes name their axes xAxisLabel/yAxisLabel.
+  const { xLabel, yLabel } = axisLabels(chartData);
   const isMulti = datasets.length > 3;
   const chartHeight = isMulti ? 400 : 320;
 

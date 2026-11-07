@@ -18,6 +18,7 @@ import { AiCallBudget, AiBudgetExhaustedError, usageTokens } from "../_shared/ai
 import { plannedPartKey, planGroupBatches, mergeBatchRows, missingPlannedParts, describeRejections, batchIdentityInstructions, batchIdentityDiagnostic, type MergeRejection } from "../_shared/guided-batching.ts";
 import { GenerationResponseError, parseGenerationContent, providerHttpError, generationFailureDetail } from '../_shared/generation-response.ts';
 import { requestQuestionRepair, saveQuestionRepairs, describeRepairDiagnostics } from '../_shared/question-repair.ts';
+import { repeatedConceptDefects, coveredTasksNote } from '../_shared/paper-repetition.ts';
 import type { RepairDiagnostic } from '../_shared/prepare-group-repair.ts';
 import { normalizeGeneratedQuestion } from '../_shared/model-question-normalization.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -2890,7 +2891,11 @@ async function generateGuidedPaper(
     const previous = [...new Set(batch.map(p => p.parentId))].flatMap(parent => identityRejections.get(parent) ?? []);
     const statisticsNotes=ocrPaper3StatisticsInstructions(plan,batch,'chart_data');
     const sharedNotes=paper3SharedDataInstructions(plan,batch,'chart_data');
-    const prompt = (typeNotes ? `${basePrompt}\n${typeNotes}` : basePrompt)+(statisticsNotes?'\n'+statisticsNotes:'')+(sharedNotes?'\n'+sharedNotes:'')+visualContext+'\n'+batchIdentityInstructions(batch,previous);
+    const batchParents = new Set(batch.map((p: any) => p.parentId));
+    const elsewhere = plan.parts.filter(p => !batchParents.has(p.parentId))
+      .map(p => produced.get(plannedPartKey(p.questionNumber))).filter(Boolean);
+    const covered = isGenericPlan(plan) ? coveredTasksNote(elsewhere) : '';
+    const prompt = (typeNotes ? `${basePrompt}\n${typeNotes}` : basePrompt)+(statisticsNotes?'\n'+statisticsNotes:'')+(sharedNotes?'\n'+sharedNotes:'')+visualContext+(covered?'\n'+covered:'')+'\n'+batchIdentityInstructions(batch,previous);
     let data: any;
     try {
       data = await callAI(apiKey, systemPrompt, prompt, hasResourcePack, aiBudget, label);
@@ -3107,6 +3112,7 @@ function normalizeQNum(qNum: string): string {
 
 const MAX_ATTEMPTS_PER_GROUP = 3;
 const MAX_REPAIR_CALLS_PER_REQUEST = 8;
+const MAX_REPETITION_REPAIRS = 2;
 // Whole-request ceilings shared by batched generation, completion, Flash/Pro
 // fallbacks and repairs. The per-group repair limits above are unchanged.
 const MAX_AI_CALLS_PER_REQUEST = 26;
@@ -3217,7 +3223,45 @@ async function enforceAnswerability(
   if (await normaliseCharts(drafts)) drafts = await load();
   let result = validateQuestionCandidates(drafts, planExpectations);
 
+  // Best-effort pass for repeated concepts, run only on a paper that already
+  // passes the gate. It never fails generation: a fix is saved only when the
+  // whole paper still passes afterwards and the repeat is gone.
+  const reduceRepetition = async (current: any[]): Promise<any[]> => {
+    let rows = current;
+    if (!plan || !isGenericPlan(plan)) return rows;
+    for (let call = 0; call < MAX_REPETITION_REPAIRS; call++) {
+      const repeats = repeatedConceptDefects(rows);
+      if (!repeats.length || aiBudget.exhausted()) break;
+      console.warn(`[repetition] ${repeats.map(r => r.detail).join(' | ')}`);
+      const target = rows.find((r: any) => String(r.id ?? r.question_number) === repeats[0].partId);
+      if (!target) break;
+      const groupId = String(target.root_question_number ?? target.parent_question_number ?? String(target.question_number).match(/^\d+/)?.[0]);
+      const group = rows.filter((d: any) => String(d.root_question_number ?? d.parent_question_number ?? String(d.question_number).match(/^\d+/)?.[0]) === groupId);
+      const ids = new Set(group.map((r: any) => String(r.id ?? r.question_number)));
+      const groupRepeats = repeats.filter(r => ids.has(r.partId));
+      aiBudget.reserve(`repetition group ${groupId}`);
+      let outcome;
+      try {
+        outcome = await requestQuestionRepair({
+          group, subject, scope, plan,
+          defects: groupRepeats.map(r => `Q${rows.find((x: any) => String(x.id ?? x.question_number) === r.partId)?.question_number}: repeated_concept — ${r.detail}`).join('; '),
+          mode: 'full_group',
+          targetNumbers: new Set<string>(group.filter((r: any) => groupRepeats.some(d => d.partId === String(r.id ?? r.question_number))).map((r: any) => String(r.question_number))),
+        }, apiKey);
+      } catch (e) { console.warn(`[repetition] repair call failed: ${(e as Error).message}`); break; }
+      if (!outcome.ok) { console.warn(`[repetition] repair rejected; keeping the passing paper`); break; }
+      const proposed = rows.map((r: any) => ({ ...r, ...(outcome.replacements[String(r.question_number)] ?? {}) }));
+      const stillOk = validateQuestionCandidates(proposed, planExpectations).ok;
+      const fewer = repeatedConceptDefects(proposed).length < repeats.length;
+      if (!stillOk || !fewer) { console.warn('[repetition] proposed fix not used (would break the paper or did not remove the repeat)'); break; }
+      await saveQuestionRepairs(supabase, draftId, group, outcome.replacements);
+      rows = await load();
+    }
+    return rows;
+  };
+
   if (result.ok) {
+    drafts = await reduceRepetition(drafts);
     await persistCanonicalResources(drafts);
     console.log(`Answerability gate passed (contract v${CONTRACT_VERSION}, ${drafts.length} parts)`);
     return;
@@ -3291,6 +3335,7 @@ async function enforceAnswerability(
     }).eq('id', draftId);
     throw new Error(message);
   }
+  drafts = await reduceRepetition(drafts);
   await persistCanonicalResources(drafts);
   console.log(`Answerability gate passed after ${callsUsed} repair call(s)`);
 }
