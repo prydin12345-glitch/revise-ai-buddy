@@ -1562,7 +1562,9 @@ export async function answerSourceJob(
   const answer = entries[0][1]?.trim() ?? "";
   if (
     !answer ||
-    (item.choices?.length &&
+    // Page answers may be ranges/lists; selectedSourcePages validates them.
+    (item.field !== "source_pages" &&
+      item.choices?.length &&
       !item.choices.some((choice) => choice.value === answer))
   )
     throw Error("Choose one of the assessment options shown for this source.");

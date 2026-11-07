@@ -98,3 +98,22 @@ describe("student topic edits", () => {
     expect(next.sections[0].groups[0].parts.map((p) => p.topic)).toEqual(["Waves", "Electricity"]);
   });
 });
+
+import { render, screen, fireEvent } from "@testing-library/react";
+import { BuilderFollowupQuestions } from "@/components/profiles/BuilderFollowupQuestions";
+
+describe("page follow-up question", () => {
+  it("accepts a typed range like 8-10 even when suggested pages exist", () => {
+    let sent: Record<string, string> | null = null;
+    render(
+      <BuilderFollowupQuestions
+        jobId="j" summary={[]} onChange={() => {}}
+        onAnswer={(a) => (sent = a)}
+        items={[{ field: "source_pages", question: "Which PDF page?", choices: [{ value: "1:9", label: "Page 9" }] }]}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Which PDF page?"), { target: { value: "8-10" } });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(sent).toEqual({ source_pages: "8-10" });
+  });
+});

@@ -105,7 +105,70 @@ export function BuilderFollowupQuestions({
                   >
                     {item.question}
                   </label>
-                  {item.choices?.length ? (
+                  {item.field === "source_pages" ? (
+                    <div className="min-w-0 space-y-2">
+                      <Input
+                        id={inputId}
+                        value={answers[item.field] ?? ""}
+                        maxLength={180}
+                        inputMode="numeric"
+                        placeholder="e.g. 8-10 or 8, 9, 12"
+                        onChange={(event) =>
+                          setAnswers((previous) => ({
+                            ...previous,
+                            [item.field]: event.target.value,
+                          }))
+                        }
+                        className="min-h-11"
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Type one page, a range like 8-10, or several pages
+                        separated by commas (up to 10 pages).
+                      </p>
+                      {!!item.choices?.length && (
+                        <div className="flex flex-wrap gap-1.5">
+                          <span className="w-full text-xs text-muted-foreground">
+                            Suggested pages — tap to add:
+                          </span>
+                          {item.choices.map((choice) => (
+                            <Button
+                              key={choice.value}
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="min-h-9"
+                              onClick={() =>
+                                setAnswers((previous) => {
+                                  // One PDF: show plain page numbers.
+                                  const page = item.choices!.every((c) =>
+                                    c.value.startsWith("1:"),
+                                  )
+                                    ? choice.value.slice(2)
+                                    : choice.value;
+                                  const current = (previous[item.field] ?? "")
+                                    .split(",")
+                                    .map((s) => s.trim())
+                                    .filter(Boolean);
+                                  return current.includes(choice.value)
+                                    ? previous
+                                    : {
+                                        ...previous,
+                                        [item.field]: [
+                                          ...current,
+                                          choice.value,
+                                        ].join(", "),
+                                      };
+                                })
+                              }
+                            >
+                              {choice.label}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : item.choices?.length ? (
                     <select
                       id={inputId}
                       value={answers[item.field] ?? ""}
