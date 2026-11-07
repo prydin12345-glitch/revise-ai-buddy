@@ -255,7 +255,10 @@ Deno.serve(async (req) => {
             db,
             owner,
             "profile_builder",
-            { dailyLimit: 10, burstLimit: 3 },
+            // Temporary testing exemption for the owner's test account.
+            owner === "9160693a-bcb8-4bc6-9e10-d587cae18db0"
+              ? { dailyLimit: 1000, burstLimit: 1000 }
+              : { dailyLimit: 10, burstLimit: 3 },
           );
           if (!r.allowed) throw new SafeError(r.message, r.status ?? 429);
         },
