@@ -2,14 +2,12 @@ import { canonical, checksum } from "./profile-template.ts";
 import {
   INDEXED_DOCUMENT_LIMITS,
   scopeDocumentQualification,
+  type AssessmentScopeResolution,
 } from "./profile-document-index.ts";
 
-export const ASSESSMENT_DISCOVERY_VERSION = 1;
+export const ASSESSMENT_DISCOVERY_VERSION = 2;
 export type SourceAssessmentKind =
-  | "paper"
-  | "unit"
-  | "component"
-  | "assessment";
+  "paper" | "unit" | "component" | "assessment";
 export interface AssessmentDiscoveryDocument {
   id: string;
   checksum: string;
@@ -37,6 +35,7 @@ export interface AssessmentDiscoveryScope {
   course?: string;
   organisation?: string;
   subject?: string;
+  sourcePages?: number[];
 }
 export interface AssessmentDiscoveryResult {
   version: typeof ASSESSMENT_DISCOVERY_VERSION;
@@ -45,6 +44,7 @@ export interface AssessmentDiscoveryResult {
   needsManualEntry: boolean;
   /** The source exposes conflicting labels/codes that must not be guessed. */
   ambiguous: boolean;
+  resolution?: AssessmentScopeResolution;
 }
 
 /** Presentation aliases only: no fuzzy matching between different assessments. */
@@ -127,6 +127,10 @@ function cleanHeadingTail(tail: string): string {
     withoutCode.replace(/^[\s:(\u2013\u2014-]+|[\s)\u2013\u2014-]+$/g, ""),
   );
   if (!label || metadataLine.test(label)) return "";
+  // Flattened weighting tables contain "Paper 1  Paper 2" column headers
+  // and "Paper 1  85  x1  85" rows. These are not alternative paper titles.
+  if (numberedHeading.test(label) || /^\d+(?:[.,]\d+)?(?:\s|$)/.test(label))
+    return "";
   // Sentences referring to a paper are not dropdown options.
   if (
     /^(?:and|or|is|are|will|may|must|can|should|includes?|covers?|assesses?|requires?|contains?|consists?|has|uses?|contributes?|accounts?|examines?|tests?)\b/i.test(
@@ -341,14 +345,22 @@ export async function discoverSourceAssessments(
   }
   const warnings: string[] = [];
   let qualificationAmbiguity = false;
+  let resolution: AssessmentScopeResolution | undefined;
   const found = documents
     .flatMap((document) => {
       const scoped = scopeDocumentQualification(
         document.pages,
         scope.qualification,
+        scope.course,
+        scope.sourcePages,
       );
+      if (scoped.excludedCourses?.length)
+        warnings.push(
+          "Some source components belong to a different course code and were not offered for this selection.",
+        );
       if (scoped.ambiguous) {
         qualificationAmbiguity = true;
+        resolution ??= scoped.resolution;
         if (scoped.reason) warnings.push(scoped.reason);
         // A known qualification must not receive choices from an unpartitioned
         // AS/A-level comparison table. The student can supply its assessment brief.
@@ -365,6 +377,14 @@ export async function discoverSourceAssessments(
                   document,
                   fragment.qualificationReference.page,
                   fragment.qualificationReference.text,
+                ),
+              ]);
+            if (fragment.courseReference)
+              mergeReferences(assessment.references, [
+                literalReference(
+                  document,
+                  fragment.courseReference.page,
+                  fragment.courseReference.text,
                 ),
               ]);
             return assessment;
@@ -473,6 +493,12 @@ export async function discoverSourceAssessments(
     warnings.push(
       "The sources list more than one version or component for the same assessment name. Check the matching course and source before choosing.",
     );
+  if (ambiguous && !resolution)
+    resolution = {
+      field: "source",
+      question:
+        "Which PDF page shows the assessment overview for your selected course?",
+    };
   if (collapsed.length > 50)
     return {
       version: ASSESSMENT_DISCOVERY_VERSION,
@@ -527,5 +553,6 @@ export async function discoverSourceAssessments(
     warnings: [...new Set(warnings)],
     needsManualEntry: !candidates.length,
     ambiguous,
+    ...(resolution ? { resolution } : {}),
   };
 }

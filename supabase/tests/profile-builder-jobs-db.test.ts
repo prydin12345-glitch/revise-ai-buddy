@@ -1,13 +1,20 @@
 // @vitest-environment node
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
-import { beforeAll, afterAll, beforeEach, it, expect } from "vitest";
+import { beforeAll, afterAll, beforeEach, it, expect, vi } from "vitest";
 import {
+  advanceSourceJob,
+  answerSourceJob,
+  confirmSourceJob,
   createProfileBuilderJobStore,
+  sourceJobView,
   type SourceJobRecord,
   type SourceJobData,
+  type SourceJobStage,
 } from "../functions/_shared/profile-builder-jobs";
 import {
+  ownerEvidence,
+  syllabus,
   templateFixture,
   universityIdentity,
 } from "./profile-builder-fixtures";
@@ -342,4 +349,294 @@ it("reading intake uses the unchanged cheap 120-request daily receipt limit", as
     [limited],
   );
   expect(count.rows[0].n).toBe(0);
+});
+
+it("persists a targeted question as a resumable ready checkpoint with an ordinary SQL lease", async () => {
+  const initial = await create();
+  const leased = await acquire(initial);
+  await store.reserve(leased);
+  await store.beginCall(leased);
+  const checkpoint = {
+    ...leased.data,
+    cursor: 1,
+    missingItems: [
+      {
+        field: "assessment",
+        question: "Which assessment are you preparing for?",
+        choices: [{ value: "final", label: "Final assessment" }],
+      },
+    ],
+  } as SourceJobData;
+  const saved = await store.finishCall(
+    leased,
+    { stage: "ready", data: checkpoint, elapsedMs: 3 },
+    { promptTokens: 11, completionTokens: 7, outcome: "provider_success" },
+  );
+
+  expect(saved.stage).toBe("ready");
+  expect(saved.revision).toBe(1);
+  expect(sourceJobView(saved)).toMatchObject({
+    stage: "needs_details",
+    revision: 1,
+    missingItems: checkpoint.missingItems,
+    canAdvance: false,
+  });
+  const answering = await acquire(saved);
+  expect(answering.leaseToken).toBeTruthy();
+  expect(answering.revision).toBe(1);
+  expect(answering.data.missingItems).toEqual(checkpoint.missingItems);
+  expect((await acquire(saved)).leaseToken).toBeNull();
+
+  const resumed = await store.commit(answering, {
+    stage: "identifying",
+    data: { ...answering.data, missingItems: [] },
+    elapsedMs: 1,
+  });
+  expect(resumed.id).toBe(initial.id);
+  expect(resumed.revision).toBe(2);
+  expect(resumed.callIntents).toBe(1);
+  expect(resumed.quotaReserved).toBe(true);
+  expect(resumed.activeMs).toBe(4);
+  expect(resumed.data.cursor).toBe(1);
+  const reservations = await db.query<{ count: number }>(
+    "select count(*)::int count from ai_request_reservations where user_id=$1",
+    [owner],
+  );
+  expect(reservations.rows[0].count).toBe(1);
+  const receipt = await db.query<{ state: string; result: unknown }>(
+    "select state,result from profile_builder_requests where user_id=$1 and request_id=$2",
+    [owner, initial.id],
+  );
+  expect(receipt.rows[0]).toEqual({ state: "running", result: null });
+});
+
+it("cannot confirm a ready checkpoint that still has a targeted question, even with valid-looking evidence", async () => {
+  const leased = await acquire(await create());
+  const checkpoint = {
+    ...leased.data,
+    evidence: await ownerEvidence(),
+    missingItems: [
+      {
+        field: "assessment",
+        question: "Which assessment are you preparing for?",
+        choices: [{ value: "final", label: "Final assessment" }],
+      },
+    ],
+  } as SourceJobData;
+  const saved = await store.commit(leased, {
+    stage: "ready",
+    data: checkpoint,
+    elapsedMs: 0,
+  });
+  const deps = {
+    store,
+    parsePdf: vi.fn(async () => []),
+    model: vi.fn(async () => {
+      throw Error("A targeted-question checkpoint must not call the provider.");
+    }),
+  };
+  await expect(
+    confirmSourceJob(
+      owner,
+      saved.id,
+      { identity: saved.data.identity, mode: saved.data.mode },
+      deps,
+    ),
+  ).rejects.toThrow(/answer|question|detail|source/i);
+  const after = await store.load(owner, saved.id);
+  expect(after?.stage).toBe("ready");
+  expect(after?.revision).toBe(saved.revision);
+  expect(after?.callIntents).toBe(0);
+  expect(after?.data.missingItems).toEqual(checkpoint.missingItems);
+  expect(deps.model).not.toHaveBeenCalled();
+  expect(deps.parsePdf).not.toHaveBeenCalled();
+});
+
+it("keeps legacy needs_details terminal and private under the unchanged production RPCs", async () => {
+  const leased = await acquire(await create());
+  const saved = await store.commit(leased, {
+    stage: "needs_details",
+    data: { ...leased.data, needs: ["Add the qualification-specific overview."] },
+    elapsedMs: 0,
+  });
+  expect((await acquire(saved)).leaseToken).toBeNull();
+  expect((await acquire(saved)).revision).toBe(saved.revision);
+  await expect(
+    store.commit(saved, {
+      stage: "identifying",
+      data: saved.data,
+      elapsedMs: 0,
+    }),
+  ).rejects.toThrow(/lease/);
+  expect(await store.load(other, saved.id)).toBeNull();
+  await expect(store.acquire(other, saved.id)).rejects.toThrow();
+  expect((await store.load(owner, saved.id))?.stage).toBe("needs_details");
+  await expect(
+    client("select commit_profile_builder_job($1,$2,$3,$4,$5,$6,$7,$8)", [
+      owner,
+      saved.id,
+      null,
+      saved.revision,
+      "identifying",
+      JSON.stringify(saved.data),
+      0,
+      null,
+    ]),
+  ).rejects.toThrow(/permission/);
+});
+
+/** A competing operation commits after the service reads, before it acquires. */
+function racingStore(
+  change: (record: SourceJobRecord) => {
+    stage: SourceJobStage;
+    data: SourceJobData;
+  },
+) {
+  let raced = false;
+  return {
+    ...store,
+    async acquire(who: string, id: string) {
+      if (!raced) {
+        raced = true;
+        const competing = await store.acquire(who, id);
+        expect(competing.leaseToken).toBeTruthy();
+        await store.commit(competing, { ...change(competing), elapsedMs: 0 });
+      }
+      return store.acquire(who, id);
+    },
+  };
+}
+
+function unpaidDeps(jobStore = store) {
+  return {
+    store: jobStore,
+    parsePdf: vi.fn(async () => []),
+    model: vi.fn(async () => {
+      throw Error("A local question transition must not call the provider.");
+    }),
+  };
+}
+
+it("releases a newly acquired SQL lease when a competing answer already advanced the question revision", async () => {
+  const leased = await acquire(await create());
+  const checkpoint: SourceJobData = {
+    ...leased.data,
+    retainedDocuments: [
+      {
+        id: "upload-1",
+        checksum: "e".repeat(64),
+        pages: [{ page: 1, text: syllabus }],
+      },
+    ],
+    assessmentChoices: [{ id: "final", label: "Final", kind: "assessment" }],
+    missingItems: [
+      {
+        field: "assessment",
+        question: "Which assessment are you preparing for?",
+        choices: [{ value: "final", label: "Final" }],
+      },
+    ],
+  };
+  const saved = await store.commit(leased, {
+    stage: "ready",
+    data: checkpoint,
+    elapsedMs: 0,
+  });
+  const deps = unpaidDeps(
+    racingStore((record) => ({
+      stage: "identifying",
+      data: { ...record.data, missingItems: [], needs: [] },
+    })),
+  );
+  const view = await answerSourceJob(
+    owner,
+    saved.id,
+    { revision: saved.revision, answers: { assessment: "final" } },
+    deps,
+  );
+  expect(view.stage).toBe("identifying");
+  expect(view.revision).toBe(saved.revision + 2);
+  const after = await store.load(owner, saved.id);
+  expect(after?.stage).toBe("identifying");
+  expect(after?.leaseToken).toBeNull();
+  expect(after?.callIntents).toBe(0);
+  expect((await store.acquire(owner, saved.id)).leaseToken).toBeTruthy();
+  expect(deps.model).not.toHaveBeenCalled();
+  expect(deps.parsePdf).not.toHaveBeenCalled();
+});
+
+it("a stale confirmation cannot skip a new targeted question or retain its SQL lease", async () => {
+  const leased = await acquire(await create());
+  const saved = await store.commit(leased, {
+    stage: "ready",
+    data: { ...leased.data, evidence: await ownerEvidence() },
+    elapsedMs: 0,
+  });
+  const deps = unpaidDeps(
+    racingStore((record) => ({
+      stage: "ready",
+      data: {
+        ...record.data,
+        missingItems: [
+          { field: "source_pages", question: "Which page has the assessment overview?" },
+        ],
+      },
+    })),
+  );
+  const view = await confirmSourceJob(
+    owner,
+    saved.id,
+    { identity: saved.data.identity, mode: saved.data.mode },
+    deps,
+  );
+  expect(view.stage).toBe("needs_details");
+  expect(view.missingItems?.[0].field).toBe("source_pages");
+  expect((await store.load(owner, saved.id))?.leaseToken).toBeNull();
+  expect((await store.acquire(owner, saved.id)).leaseToken).toBeTruthy();
+  expect(deps.model).not.toHaveBeenCalled();
+});
+
+it("a confirmation uses the same identity snapshot after acquiring its real SQL lease", async () => {
+  const leased = await acquire(await create());
+  const saved = await store.commit(leased, {
+    stage: "ready",
+    data: { ...leased.data, evidence: await ownerEvidence() },
+    elapsedMs: 0,
+  });
+  const deps = unpaidDeps(
+    racingStore((record) => ({
+      stage: "ready",
+      data: { ...record.data, mode: "custom" },
+    })),
+  );
+  const view = await confirmSourceJob(
+    owner,
+    saved.id,
+    { identity: saved.data.identity, mode: saved.data.mode },
+    deps,
+  );
+  expect(view.stage).toBe("ready");
+  expect(view.mode).toBe("custom");
+  expect((await store.load(owner, saved.id))?.leaseToken).toBeNull();
+  expect((await store.acquire(owner, saved.id)).leaseToken).toBeTruthy();
+  expect(deps.model).not.toHaveBeenCalled();
+});
+
+it("an advance racing a question checkpoint releases its SQL lease without starting a call", async () => {
+  const initial = await create();
+  const deps = unpaidDeps(
+    racingStore((record) => ({
+      stage: "ready",
+      data: {
+        ...record.data,
+        missingItems: [{ field: "source", question: "Can you add the assessment overview?" }],
+      },
+    })),
+  );
+  const view = await advanceSourceJob(owner, initial.id, deps);
+  expect(view.stage).toBe("needs_details");
+  expect((await store.load(owner, initial.id))?.leaseToken).toBeNull();
+  expect((await store.acquire(owner, initial.id)).leaseToken).toBeTruthy();
+  expect(deps.model).not.toHaveBeenCalled();
+  expect(deps.parsePdf).not.toHaveBeenCalled();
 });

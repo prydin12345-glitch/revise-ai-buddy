@@ -13,6 +13,178 @@ const doc = (
 ): AssessmentDiscoveryDocument => ({ id, checksum: hash.repeat(64), pages });
 
 describe("source assessment discovery without AI", () => {
+  it("does not invent conflicting paper titles from flattened assessment-weighting tables", async () => {
+    const result = await discoverSourceAssessments(
+      [
+        doc([
+          "AS and A-level Physics\nAS\nAssessments\nPaper 1\n70 marks\nA-level\nAssessments\nPaper 1\n85 marks\nPaper 2\n85 marks\nPaper 3\n80 marks",
+          "Weighting of assessment objectives\nPaper 1   Paper 2\nAO1   34   32\nPaper 1   Paper 2   Paper 3\nAO2   38   53   35\nAS\nComponent Maximum raw mark Scaling factor Maximum scaled mark\nPaper 1   70   x1   70\nPaper 2   70   x1   70",
+          "A-level\nComponent Maximum raw mark Scaling factor Maximum scaled mark\nPaper 1   85   x1   85\nPaper 2   85   x1   85\nPaper 3   80   x1   80",
+        ]),
+      ],
+      { qualification: "A-level", course: "7408", subject: "Physics" },
+    );
+    expect(result.ambiguous).toBe(false);
+    expect(result.candidates.map((candidate) => candidate.label)).toEqual([
+      "Paper 1",
+      "Paper 2",
+      "Paper 3",
+    ]);
+    expect(result.warnings.join()).not.toContain(
+      "more than one version or component",
+    );
+  });
+  it.each([
+    ["AQA", "Physics", "7407", "7408"],
+    ["AQA", "Biology", "7401", "7402"],
+    ["AQA", "Chemistry", "7404", "7405"],
+    ["OCR", "Biology A", "H020", "H420"],
+    ["OCR", "Chemistry A", "H032", "H432"],
+    ["Pearson Edexcel", "Economics A", "8EC0", "9EC0"],
+    ["WJEC", "Psychology", "2290", "1290"],
+  ])(
+    "scopes %s %s coded combined-spec assessments to the selected course",
+    async (organisation, subject, asCode, alevelCode) => {
+      const source = doc([
+        `AS and A-level ${subject}\nAssessment overview\nPaper 1: Foundations (${asCode}/01)\n70 marks\n90 minutes\nPaper 1: Advanced concepts (${alevelCode}/01)\n85 marks\n120 minutes`,
+      ]);
+      const result = await discoverSourceAssessments([source], {
+        organisation,
+        subject,
+        qualification: "A-level",
+        course: alevelCode,
+      });
+      expect(result.ambiguous).toBe(false);
+      expect(result.candidates).toHaveLength(1);
+      expect(result.candidates[0]).toMatchObject({
+        label: "Paper 1 — Advanced concepts",
+        componentCode: `${alevelCode}/01`,
+      });
+      expect(
+        result.candidates[0].references.every((ref) =>
+          source.pages[ref.page - 1].includes(ref.quote),
+        ),
+      ).toBe(true);
+      expect(
+        result.candidates[0].references.some((ref) =>
+          ref.quote.includes(asCode + "/"),
+        ),
+      ).toBe(false);
+    },
+  );
+
+  it("ignores GCSE separate-science components in an explicitly selected combined-science course", async () => {
+    const result = await discoverSourceAssessments(
+      [
+        doc([
+          "GCSE science assessment overview\nPaper 1: Biology (8461/1)\n100 marks\nPaper 1: Combined biology (8464/1)\n70 marks",
+        ]),
+      ],
+      { qualification: "GCSE", course: "8464", subject: "Combined Science" },
+    );
+    expect(result.ambiguous).toBe(false);
+    expect(
+      result.candidates.map((candidate) => candidate.componentCode),
+    ).toEqual(["8464/1"]);
+  });
+  it("does not assign unlabelled combined/separate GCSE science totals to the selected course", async () => {
+    const result = await discoverSourceAssessments(
+      [
+        doc([
+          "GCSE Combined and Separate Science\nPaper 1\n70 marks\nPaper 1\n100 marks",
+        ]),
+      ],
+      { qualification: "GCSE", course: "8464" },
+    );
+    expect(result.ambiguous).toBe(true);
+    expect(result.candidates).toEqual([]);
+    expect(result.resolution?.field).toBe("source");
+  });
+
+  it("uses exact WJEC course-heading anchors without guessing from non-slash component prefixes", async () => {
+    const result = await discoverSourceAssessments(
+      [
+        doc([
+          "GCSE Combined and Separate Science\nGCSE Combined Science (3430QS)\nPaper 1: Biology (3430U10-1)\n60 marks\nGCSE Biology (3400QS)\nPaper 1: Biology (3400U10-1)\n80 marks",
+        ]),
+      ],
+      { qualification: "GCSE", course: "3430QS", organisation: "WJEC" },
+    );
+    expect(result.ambiguous).toBe(false);
+    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0].label).toContain("3430U10-1");
+    expect(
+      result.candidates[0].references.some((ref) => ref.quote.includes("3400")),
+    ).toBe(false);
+    expect(result.candidates[0].componentCode).toBeUndefined();
+  });
+
+  it("uses qualification/course heading spans for uncoded assessment rows", async () => {
+    const result = await discoverSourceAssessments(
+      [
+        doc([
+          "AS Geography (7036)\nPaper 1: Physical geography\n80 marks\nA-level Geography (7037)\nPaper 1: Physical geography\n120 marks",
+        ]),
+      ],
+      { qualification: "A-level", course: "7037", subject: "Geography" },
+    );
+    expect(result.ambiguous).toBe(false);
+    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0].qualification).toBe("A-level");
+    expect(
+      result.candidates[0].references.some(
+        (ref) => ref.quote === "A-level Geography (7037)",
+      ),
+    ).toBe(true);
+    expect(
+      result.candidates[0].references.some((ref) =>
+        ref.quote.includes("AS Geography"),
+      ),
+    ).toBe(false);
+  });
+
+  it("returns one structured follow-up for undecidable combined tables without losing the source", async () => {
+    const source = doc([
+        "AS and A-level Physics\nPaper 1\n70 marks\nPaper 1\n85 marks",
+      ]),
+      original = structuredClone(source);
+    const result = await discoverSourceAssessments([source], {
+      qualification: "A-level",
+      course: "7408",
+    });
+    expect(result.ambiguous).toBe(true);
+    expect(result.resolution).toEqual({
+      field: "source",
+      question:
+        "Which PDF page shows the assessment overview for your selected course?",
+    });
+    expect(result.candidates).toEqual([]);
+    expect(source).toEqual(original);
+  });
+
+  it("does not let a selected code override an explicitly contradictory qualification heading", async () => {
+    const result = await discoverSourceAssessments(
+      [doc(["AS Physics\nPaper 1 (7408/1)\n70 marks"])],
+      { qualification: "A-level", course: "7408" },
+    );
+    expect(result.ambiguous).toBe(true);
+    expect(result.candidates).toEqual([]);
+    expect(result.warnings.join()).toMatch(/conflicting source headings/);
+  });
+
+  it("does not split unknown flattened columns by their position or mark total", async () => {
+    const result = await discoverSourceAssessments(
+      [
+        doc([
+          "AS (7407)\nA-level (7408)\nPaper 1 | Paper 1\n70 marks | 85 marks",
+        ]),
+      ],
+      { qualification: "A-level", course: "7408" },
+    );
+    expect(result.ambiguous).toBe(true);
+    expect(result.candidates).toEqual([]);
+  });
+
   it("keeps two-letter optional section codes distinct without accepting code prefixes", async () => {
     const result = await discoverSourceAssessments(
       [

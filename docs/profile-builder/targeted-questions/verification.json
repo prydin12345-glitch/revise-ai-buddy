@@ -1,0 +1,70 @@
+{
+  "verificationDate": "2026-11-07",
+  "baseline": "e61a9a19d9fbe2a4b9b2a90a930991c5dccbcda6",
+  "node": "24.19.0",
+  "npm": "11.9.0",
+  "packageLockChanged": false,
+  "checks": {
+    "npm ci": {
+      "status": "PASS",
+      "cache": "/tmp/examly-npm-cache"
+    },
+    "npm run check": {
+      "status": "PASS",
+      "testFiles": 171,
+      "tests": 2837,
+      "edgeFunctions": 39,
+      "typecheck": "PASS",
+      "criticalLint": "PASS",
+      "productionBuild": "PASS",
+      "buildSeconds": 19.1
+    },
+    "biologyAudit": {
+      "status": "PASS",
+      "templates": 52,
+      "blocked": 0
+    },
+    "profileCoverageAudit": {
+      "status": "PASS",
+      "presets": 52,
+      "failed": 0,
+      "pendingLegacyLayouts": 32
+    },
+    "git diff --check": "PASS"
+  },
+  "officialPdfIndexing": {
+    "status": "PASS",
+    "physicalPageCounts": [
+      94,
+      96
+    ],
+    "paperSelections": 6,
+    "officialTextCommitted": false,
+    "report": "official-index-results.json"
+  },
+  "browser": {
+    "status": "PASS",
+    "cases": 8,
+    "scenarios": 56,
+    "sourceStyleHashes": 97,
+    "chromium": "151.0.7922.173",
+    "report": "browser/browser-results.json"
+  },
+  "diagnostics": [
+    "Initial npm ci could not write the default cache outside workspace; retry with a writable task cache succeeded without lockfile changes.",
+    "Existing locked dependency deprecation notices.",
+    "Stale Browserslist data, Zod annotation and chunk-size warnings.",
+    "Existing response-dialog DOM-nesting and pinned-parser standard-font diagnostics.",
+    "Expected negative-path quota/context/persistence diagnostics."
+  ],
+  "realModelCalls": 0,
+  "liveLogins": 0,
+  "liveWrites": 0,
+  "liveMigrationsApplied": 0,
+  "deployments": 0,
+  "publicationPerformed": false,
+  "migrationRequired": false,
+  "functionsRequiringDeployment": [
+    "profile-builder"
+  ]
+}

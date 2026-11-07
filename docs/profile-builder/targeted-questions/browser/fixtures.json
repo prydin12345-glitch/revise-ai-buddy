@@ -1,0 +1,27 @@
+{
+  "unpartitioned-combined.pdf": {
+    "pages": 1,
+    "bytes": 824,
+    "sha256": "c44e56a555045c37ced8901566a10e1415ae6a78163bf983f2e7d6b3198cf380"
+  },
+  "page-choice-combined-96-pages.pdf": {
+    "pages": 96,
+    "bytes": 301663,
+    "sha256": "348c3661ed27cd839acdfc1827a028dd7deff2447ba07c2ace529dc96c6b29ee"
+  },
+  "combined-physics-96-pages.pdf": {
+    "pages": 96,
+    "bytes": 301594,
+    "sha256": "2126e6c163f8a3d12b07a6338b0cd0e65f0a9483b98157b6ff44421cab6f2dc4"
+  },
+  "paper2-physics-96-pages.pdf": {
+    "pages": 96,
+    "bytes": 301594,
+    "sha256": "2a64f5183c762b37640534baa10abc0ac157f9166069ee678cfb30719684b303"
+  },
+  "physics-optional-96-pages.pdf": {
+    "pages": 96,
+    "bytes": 301703,
+    "sha256": "45c34fef3344cc24ec95aadade6c91f6b80aed4328b0061d4bf5d0a09b264437"
+  }
+}

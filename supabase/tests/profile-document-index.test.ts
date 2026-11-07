@@ -320,6 +320,165 @@ it("separates AS and A-level marks on a shared physical page without inventing e
       expect(page).toContain(item.text);
     }
 });
+
+it.each([
+  ["Physics", "7407", "7408"],
+  ["Biology", "7401", "7402"],
+  ["Chemistry", "7404", "7405"],
+  ["Economics", "8EC0", "9EC0"],
+])(
+  "retains only literal coded %s spans from a combined specification",
+  (subject, asCode, alevelCode) => {
+    const page = `AS and A-level ${subject}\nAssessment overview\nPaper 1 (${asCode}/01)\n70 marks\n90 minutes\nPaper 1 (${alevelCode}/01)\n85 marks\n120 minutes`;
+    const index = indexDocumentPages([page], {
+      component: `${alevelCode}/01`,
+      componentAliases: ["Paper 1"],
+      course: alevelCode,
+      qualification: "A-level",
+    });
+    expect(index.coverage.complete).toBe(true);
+    const snippets = index.chunks.flatMap((chunk) => chunk.pages);
+    expect(snippets.map((item) => item.text).join("\n")).toContain("85 marks");
+    expect(snippets.map((item) => item.text).join("\n")).not.toContain(
+      "70 marks",
+    );
+    for (const item of snippets) {
+      expect(item.page).toBe(1);
+      expect(page).toContain(item.text);
+    }
+  },
+);
+
+it("uses explicit course headings for separate and combined GCSE science without importing other totals", () => {
+  const page =
+    "GCSE Biology (8461)\nPaper 1\n100 marks\nGCSE Combined Science (8464)\nPaper 1\n70 marks";
+  const index = indexDocumentPages([page], {
+    component: "Paper 1",
+    qualification: "GCSE",
+    course: "8464",
+  });
+  expect(index.coverage.complete).toBe(true);
+  const text = index.chunks
+    .flatMap((chunk) => chunk.pages)
+    .map((item) => item.text)
+    .join("\n");
+  expect(text).toContain("70 marks");
+  expect(text).not.toContain("100 marks");
+});
+
+it("returns a targeted source question for unpartitioned tables instead of assigning AS marks to A-level", () => {
+  const page = "AS and A-level Physics\nPaper 1\n70 marks\nPaper 1\n85 marks";
+  const index = indexDocumentPages([page], {
+    component: "7408/1",
+    componentAliases: ["Paper 1"],
+    qualification: "A-level",
+    course: "7408",
+  });
+  expect(index.coverage.complete).toBe(false);
+  expect(index.chunks).toEqual([]);
+  expect(index.resolution).toMatchObject({
+    field: "source",
+    question: expect.stringContaining("PDF page"),
+  });
+  expect(index.pages[0].text).toBe(page);
+});
+
+it("can focus retained pages only after full-document qualification scoping", () => {
+  const pages = [
+    "AS and A-level Physics\nPaper 1\n70 marks\nPaper 1\n85 marks",
+    "A-level Physics\nPaper 1\n85 marks\n120 minutes",
+  ];
+  const selection = {
+    component: "7408/1",
+    componentAliases: ["Paper 1"],
+    qualification: "A-level",
+    course: "7408",
+  };
+  expect(indexDocumentPages(pages, selection).coverage.complete).toBe(false);
+  const narrowed = indexDocumentPages(pages, {
+    ...selection,
+    sourcePages: [2],
+  });
+  expect(narrowed.coverage.complete).toBe(true);
+  expect(narrowed.selectedPages).toEqual([2]);
+  expect(narrowed.pages.map((page) => page.text)).toEqual(pages);
+  expect(narrowed.chunks.flatMap((chunk) => chunk.pages)).toEqual([
+    { page: 2, text: pages[1] },
+  ]);
+  const unresolved = indexDocumentPages(pages, {
+    ...selection,
+    sourcePages: [1],
+  });
+  expect(unresolved.coverage.complete).toBe(false);
+  expect(unresolved.chunks).toEqual([]);
+});
+
+it("cannot make a flattened table qualified by selecting its physical page", () => {
+  const page =
+    "AS (7407)\nA-level (7408)\nPaper 1 | Paper 1\n70 marks | 85 marks";
+  expect(
+    indexDocumentPages([page], {
+      component: "Paper 1",
+      course: "7408",
+      qualification: "A-level",
+      sourcePages: [1],
+    }).coverage.complete,
+  ).toBe(false);
+});
+
+it("does not inherit a flattened qualification column into the next physical page", () => {
+  const pages = [
+    "AS (7407)\nA-level (7408)",
+    "Paper 1 | Paper 1\n70 marks | 85 marks",
+  ];
+  for (const sourcePages of [undefined, [2]]) {
+    const index = indexDocumentPages(pages, {
+      component: "Paper 1",
+      qualification: "A-level",
+      course: "7408",
+      sourcePages,
+    });
+    expect(index.coverage.complete).toBe(false);
+    expect(index.chunks).toEqual([]);
+  }
+});
+
+it("does not confuse a distant cover qualification with adjacent AS/A-level table columns", () => {
+  const pages = [
+    "A-level Physics\nCourse 7408\nFor teaching from onwards",
+    ...Array.from(
+      { length: 8 },
+      (_, i) => `Supporting material ${i}\n${"x".repeat(900)}`,
+    ),
+    "AS\nPaper 1\n70 marks; 90 minutes\nA-level\nPaper 1\n85 marks; 120 minutes",
+  ];
+  const index = indexDocumentPages(pages, {
+    component: "7408/1",
+    componentAliases: ["Paper 1"],
+    qualification: "A-level",
+    course: "7408",
+  });
+  expect(index.coverage.complete).toBe(true);
+  const text = index.chunks
+    .flatMap((chunk) => chunk.pages)
+    .map((page) => page.text)
+    .join("\n");
+  expect(text).toContain("85 marks");
+  expect(text).not.toContain("70 marks");
+});
+
+it.each([[], [0], [2], [1, 1], [1.1]].map((sourcePages) => ({ sourcePages })))(
+  "rejects invalid clarification page selection %j",
+  ({ sourcePages }) => {
+    expect(() =>
+      indexDocumentPages(["A-level\nPaper 1\n85 marks"], {
+        component: "Paper 1",
+        qualification: "A-level",
+        sourcePages,
+      }),
+    ).toThrow(/valid physical PDF pages/);
+  },
+);
 it("refuses combined assessment totals with no separable qualification headings", () => {
   const page =
     "AS and A-level Physics\nPaper 1: comparison\nAS 70 marks; A-level 85 marks";

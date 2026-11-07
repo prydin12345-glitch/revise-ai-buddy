@@ -1,0 +1,110 @@
+[
+  {
+    "subject": "physics",
+    "course": "7408",
+    "paper": 1,
+    "physicalPages": 94,
+    "candidates": [
+      "Paper 1",
+      "Paper 2",
+      "Paper 3"
+    ],
+    "ambiguous": false,
+    "coverage": {
+      "complete": true
+    },
+    "chunkCount": 1,
+    "chars": 7262,
+    "literal": true
+  },
+  {
+    "subject": "physics",
+    "course": "7408",
+    "paper": 2,
+    "physicalPages": 94,
+    "candidates": [
+      "Paper 1",
+      "Paper 2",
+      "Paper 3"
+    ],
+    "ambiguous": false,
+    "coverage": {
+      "complete": true
+    },
+    "chunkCount": 1,
+    "chars": 6983,
+    "literal": true
+  },
+  {
+    "subject": "physics",
+    "course": "7408",
+    "paper": 3,
+    "physicalPages": 94,
+    "candidates": [
+      "Paper 1",
+      "Paper 2",
+      "Paper 3"
+    ],
+    "ambiguous": false,
+    "coverage": {
+      "complete": true
+    },
+    "chunkCount": 1,
+    "chars": 7081,
+    "literal": true
+  },
+  {
+    "subject": "chemistry",
+    "course": "7405",
+    "paper": 1,
+    "physicalPages": 96,
+    "candidates": [
+      "Paper 1",
+      "Paper 2",
+      "Paper 3"
+    ],
+    "ambiguous": false,
+    "coverage": {
+      "complete": true
+    },
+    "chunkCount": 1,
+    "chars": 4622,
+    "literal": true
+  },
+  {
+    "subject": "chemistry",
+    "course": "7405",
+    "paper": 2,
+    "physicalPages": 96,
+    "candidates": [
+      "Paper 1",
+      "Paper 2",
+      "Paper 3"
+    ],
+    "ambiguous": false,
+    "coverage": {
+      "complete": true
+    },
+    "chunkCount": 1,
+    "chars": 4567,
+    "literal": true
+  },
+  {
+    "subject": "chemistry",
+    "course": "7405",
+    "paper": 3,
+    "physicalPages": 96,
+    "candidates": [
+      "Paper 1",
+      "Paper 2",
+      "Paper 3"
+    ],
+    "ambiguous": false,
+    "coverage": {
+      "complete": true
+    },
+    "chunkCount": 1,
+    "chars": 4581,
+    "literal": true
+  }
+]
