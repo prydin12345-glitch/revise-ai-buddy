@@ -38,7 +38,7 @@ const assessment = (paper = 1, version: string | null = literalVersion) =>
     "Mechanics and Waves.",
     "Short structured answers.",
     "Answer all questions.",
-    "No calculator allowed.",
+    "A scientific calculator is allowed.",
   ].join("\n");
 
 function longPages(block = assessment()) {
@@ -99,12 +99,15 @@ async function evidenceFor(payload: any, block: string, version: string) {
   evidence.facts.topics = ["Mechanics", "Waves"];
   evidence.facts.marks = 85;
   evidence.facts.durationMinutes = 120;
+  // Physics fixtures must not inherit the unrelated institutional no-calculator
+  // rule from ownerEvidence: real 7408/1 permits scientific calculators.
+  evidence.facts.calculator = "allowed";
   evidence.claims = [
     ["marks", "85 marks"],
     ["durationMinutes", "120 minutes"],
     ["topics", "Mechanics and Waves"],
     ["tier", "untiered"],
-    ["calculator", "No calculator allowed"],
+    ["calculator", "A scientific calculator is allowed"],
     ["formats", "Short structured answers"],
     ["selection", "Answer all questions"],
   ].map(([field, quote]) => ({

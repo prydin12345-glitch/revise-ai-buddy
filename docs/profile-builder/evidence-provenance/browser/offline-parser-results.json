@@ -1,0 +1,29 @@
+{
+  "realModelCalls": 0,
+  "reports": [
+    {
+      "name": "physics-spec-96-pages.pdf",
+      "pages": 96,
+      "characters": 259811,
+      "lateAssessmentPage": 90,
+      "containsUntieredClaim": false,
+      "containsAnswerAllInstruction": false,
+      "containsCalculatorPermission": false,
+      "containsMathsMention": true,
+      "containsOptionalInstruction": false,
+      "containsCompleteMathsSentence": true
+    },
+    {
+      "name": "physics-optional-96-pages.pdf",
+      "pages": 96,
+      "characters": 259896,
+      "lateAssessmentPage": 90,
+      "containsUntieredClaim": false,
+      "containsAnswerAllInstruction": false,
+      "containsCalculatorPermission": false,
+      "containsMathsMention": true,
+      "containsOptionalInstruction": true,
+      "containsCompleteMathsSentence": true
+    }
+  ]
+}

@@ -1,0 +1,142 @@
+{
+  "method": "Intersect git modified/new server module paths with esbuild metafile inputs for every actual Edge Function entry point; URL and npm runtime imports remain external.",
+  "baselineCommit": "d267ffe879c9f8a9d1d78d0f088652db1c446446",
+  "generatedOn": "2026-11-07",
+  "runtimeExternals": [
+    "https://*",
+    "http://*",
+    "npm:*"
+  ],
+  "changedServerModules": [
+    "supabase/functions/_shared/profile-builder-diagnostics.ts",
+    "supabase/functions/_shared/profile-builder-jobs.ts",
+    "supabase/functions/_shared/profile-builder-service.ts",
+    "supabase/functions/_shared/profile-catalogue-evidence.ts",
+    "supabase/functions/_shared/profile-document-index.ts",
+    "supabase/functions/_shared/profile-evidence-ingestion.ts",
+    "supabase/functions/_shared/profile-evidence.ts",
+    "supabase/functions/_shared/profile-reviewed-assessment-rules.ts"
+  ],
+  "entryPointsChecked": 39,
+  "checkedEntryPoints": [
+    "supabase/functions/ai-tutor-chat/index.ts",
+    "supabase/functions/analyze-exam/index.ts",
+    "supabase/functions/auto-schedule-goal/index.ts",
+    "supabase/functions/backfill-graph-questions/index.ts",
+    "supabase/functions/calculate-spaced-repetition/index.ts",
+    "supabase/functions/classify-subject/index.ts",
+    "supabase/functions/cleanup-expired-files/index.ts",
+    "supabase/functions/complete-tutor-onboarding/index.ts",
+    "supabase/functions/delete-account/index.ts",
+    "supabase/functions/derive-exam-topics/index.ts",
+    "supabase/functions/detect-missed-tasks/index.ts",
+    "supabase/functions/explain-answer/index.ts",
+    "supabase/functions/export-user-data/index.ts",
+    "supabase/functions/extract-exam-questions/index.ts",
+    "supabase/functions/extract-resource-pack/index.ts",
+    "supabase/functions/generate-practice-questions/index.ts",
+    "supabase/functions/generate-rationale/index.ts",
+    "supabase/functions/generate-resource-pack/index.ts",
+    "supabase/functions/generate-student-pdf/index.ts",
+    "supabase/functions/get-exam-questions/index.ts",
+    "supabase/functions/get-practice-questions/index.ts",
+    "supabase/functions/grade-practice-question/index.ts",
+    "supabase/functions/mcp/index.ts",
+    "supabase/functions/notifications-api/index.ts",
+    "supabase/functions/polish-question/index.ts",
+    "supabase/functions/profile-builder/index.ts",
+    "supabase/functions/publish-exam/index.ts",
+    "supabase/functions/question-response/index.ts",
+    "supabase/functions/regenerate-question/index.ts",
+    "supabase/functions/sanitise-questions/index.ts",
+    "supabase/functions/save-exam-format/index.ts",
+    "supabase/functions/save-exam-progress/index.ts",
+    "supabase/functions/save-exam-timer/index.ts",
+    "supabase/functions/send-due-date-reminders/index.ts",
+    "supabase/functions/submit-exam/index.ts",
+    "supabase/functions/submit-student-answer/index.ts",
+    "supabase/functions/suggest-subject-topics/index.ts",
+    "supabase/functions/update-study-streak/index.ts",
+    "supabase/functions/upload-exam/index.ts"
+  ],
+  "affectedFunctions": [
+    {
+      "function": "extract-exam-questions",
+      "changedImports": [
+        "supabase/functions/_shared/profile-catalogue-evidence.ts",
+        "supabase/functions/_shared/profile-evidence.ts"
+      ]
+    },
+    {
+      "function": "generate-practice-questions",
+      "changedImports": [
+        "supabase/functions/_shared/profile-catalogue-evidence.ts",
+        "supabase/functions/_shared/profile-evidence.ts"
+      ]
+    },
+    {
+      "function": "get-practice-questions",
+      "changedImports": [
+        "supabase/functions/_shared/profile-catalogue-evidence.ts",
+        "supabase/functions/_shared/profile-evidence.ts"
+      ]
+    },
+    {
+      "function": "grade-practice-question",
+      "changedImports": [
+        "supabase/functions/_shared/profile-catalogue-evidence.ts",
+        "supabase/functions/_shared/profile-evidence.ts"
+      ]
+    },
+    {
+      "function": "profile-builder",
+      "changedImports": [
+        "supabase/functions/_shared/profile-builder-diagnostics.ts",
+        "supabase/functions/_shared/profile-builder-jobs.ts",
+        "supabase/functions/_shared/profile-builder-service.ts",
+        "supabase/functions/_shared/profile-catalogue-evidence.ts",
+        "supabase/functions/_shared/profile-document-index.ts",
+        "supabase/functions/_shared/profile-evidence-ingestion.ts",
+        "supabase/functions/_shared/profile-evidence.ts",
+        "supabase/functions/_shared/profile-reviewed-assessment-rules.ts"
+      ]
+    },
+    {
+      "function": "publish-exam",
+      "changedImports": [
+        "supabase/functions/_shared/profile-catalogue-evidence.ts",
+        "supabase/functions/_shared/profile-evidence.ts"
+      ]
+    },
+    {
+      "function": "save-exam-format",
+      "changedImports": [
+        "supabase/functions/_shared/profile-catalogue-evidence.ts",
+        "supabase/functions/_shared/profile-evidence.ts"
+      ]
+    },
+    {
+      "function": "save-exam-timer",
+      "changedImports": [
+        "supabase/functions/_shared/profile-catalogue-evidence.ts",
+        "supabase/functions/_shared/profile-evidence.ts"
+      ]
+    },
+    {
+      "function": "submit-exam",
+      "changedImports": [
+        "supabase/functions/_shared/profile-catalogue-evidence.ts",
+        "supabase/functions/_shared/profile-evidence.ts"
+      ]
+    },
+    {
+      "function": "upload-exam",
+      "changedImports": [
+        "supabase/functions/_shared/profile-catalogue-evidence.ts",
+        "supabase/functions/_shared/profile-evidence.ts"
+      ]
+    }
+  ],
+  "changedServerModulesNotImportedByEdgeFunctions": [],
+  "deploymentPerformed": false
+}

@@ -1,0 +1,52 @@
+{
+  "verificationDate": "2026-11-07",
+  "baseline": "d267ffe879c9f8a9d1d78d0f088652db1c446446",
+  "node": "24.19.0",
+  "npm": "11.9.0",
+  "packageLockChanged": false,
+  "checks": {
+    "npm ci": "PASS",
+    "npm run check": {
+      "status": "PASS",
+      "testFiles": 168,
+      "tests": 2776,
+      "edgeFunctions": 39,
+      "typecheck": "PASS",
+      "criticalLint": "PASS",
+      "productionBuild": "PASS"
+    },
+    "biologyAudit": {
+      "status": "PASS",
+      "templates": 52,
+      "blocked": 0
+    },
+    "profileCoverageAudit": {
+      "status": "PASS",
+      "entries": 52,
+      "failed": 0,
+      "pendingLegacyLayouts": 32
+    },
+    "git diff --check": "PASS"
+  },
+  "browser": {
+    "status": "PASS",
+    "cases": 8,
+    "scenarios": 64,
+    "sourceStyleHashes": 96,
+    "report": "browser/browser-results.json"
+  },
+  "diagnostics": [
+    "Unchanged dependency deprecation notices",
+    "Stale Browserslist data",
+    "Zod annotation and build chunk-size warnings",
+    "Existing response-dialog DOM-nesting warnings",
+    "Pinned PDF parser standard-font warnings",
+    "Expected negative-path diagnostics in quota/context/persistence tests"
+  ],
+  "realModelCalls": 0,
+  "liveLogins": 0,
+  "liveWrites": 0,
+  "liveMigrationsApplied": 0,
+  "deployments": 0,
+  "publicationPerformed": false
+}

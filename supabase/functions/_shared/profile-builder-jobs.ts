@@ -10,7 +10,7 @@ import {
   type ProfileTemplate,
 } from "./profile-template.ts";
 import {
-  evidenceSchema,
+  modelEvidenceSchema,
   validateEvidence,
   validateEvidenceTemplate,
   evidenceFingerprint,
@@ -36,6 +36,14 @@ import {
   isSpecificationVersionHint,
   specificationVersionsEquivalent,
 } from "./profile-version-context.ts";
+import { completeOwnedAssessmentEvidence } from "./profile-evidence-ingestion.ts";
+import { resolveCatalogueTier } from "./profile-catalogue-evidence.ts";
+import { resolveReviewedAssessmentRules } from "./profile-reviewed-assessment-rules.ts";
+import {
+  sourceValidationRecord,
+  type SourceValidationIssue,
+  type SourceValidationRecord,
+} from "./profile-builder-diagnostics.ts";
 
 const uuid = z.string().uuid();
 const modeSchema = z.enum(["short_practice", "full_mock", "custom"]);
@@ -90,6 +98,20 @@ export interface SourceJobView {
   message: string;
   needs?: string[];
   assessmentChoices?: SourceAssessmentChoice[];
+  validationIssues?: SourceValidationIssue[];
+  reviewedFacts?: {
+    tier?: {
+      value: "not_tiered";
+      source: "assessment_catalogue";
+      courseId: string;
+    };
+    assessmentInstructions?: {
+      rulePackId: string;
+      selection: "all_compulsory";
+      calculator: "allowed";
+      sourceUrls: string[];
+    };
+  };
   proposalId?: string;
   proposal?: BuilderProposal;
   /** Legacy receipt status can be retrieved but cannot run a new source stage. */
@@ -125,6 +147,7 @@ export interface SourceJobData {
   draftError?: string;
   invalidExtraction?: unknown;
   extractionError?: string;
+  validationIssues?: SourceValidationRecord[];
   proposal?: BuilderProposal;
   /** Intake has a cheap receipt but no persisted raw file to replay. */
   intakePending?: boolean;
@@ -257,6 +280,22 @@ export function sourceJobView(r: SourceJobRecord): SourceJobView {
     needs_details: "We need a little more assessment information.",
     failed: "This build stopped safely. Your saved profiles are unchanged.",
   };
+  const evidence = r.data.evidence;
+  const tier = evidence?.catalogueFacts?.[0];
+  const rules = evidence && resolveReviewedAssessmentRules(evidence.identity);
+  const hasRules =
+    rules &&
+    evidence.facts.selection === rules.facts.selection &&
+    evidence.facts.calculator === rules.facts.calculator &&
+    !evidence.conflicts.length &&
+    rules.documents.every((reviewed) =>
+      evidence.documents.some(
+        (document) =>
+          document.id === reviewed.id &&
+          document.checksum === reviewed.checksum &&
+          document.url === reviewed.url,
+      ),
+    );
   return {
     jobId: r.id,
     stage: r.stage,
@@ -271,6 +310,45 @@ export function sourceJobView(r: SourceJobRecord): SourceJobView {
       !r.data.intakePending &&
       ["reading", "identifying", "drafting"].includes(r.stage),
     ...(r.data.needs.length ? { needs: r.data.needs } : {}),
+    ...(r.data.validationIssues?.length
+      ? {
+          validationIssues: r.data.validationIssues.map(
+            ({ attempt, stage, code, field, message }) => ({
+              attempt,
+              stage,
+              code,
+              ...(field ? { field } : {}),
+              message,
+            }),
+          ),
+        }
+      : {}),
+    ...(tier || hasRules
+      ? {
+          reviewedFacts: {
+            ...(tier
+              ? {
+                  tier: {
+                    value: tier.value,
+                    source: tier.source,
+                    courseId: tier.courseId,
+                  },
+                }
+              : {}),
+            ...(hasRules
+              ? {
+                  assessmentInstructions: {
+                    rulePackId: rules.id,
+                    ...rules.facts,
+                    sourceUrls: rules.documents
+                      .map((document) => document.url!)
+                      .filter(Boolean),
+                  },
+                }
+              : {}),
+          },
+        }
+      : {}),
     ...(r.stage === "needs_details" && r.data.assessmentChoices?.length
       ? { assessmentChoices: r.data.assessmentChoices }
       : {}),
@@ -562,6 +640,18 @@ export async function prepareSourceJob(
     canonical({
       version: 1,
       indexVersion: DOCUMENT_INDEX_VERSION,
+      provenancePolicyVersion: 1,
+      catalogueTier: resolveCatalogueTier(input.identity),
+      reviewedRules: (() => {
+        const rules = resolveReviewedAssessmentRules(input.identity);
+        return rules
+          ? {
+              id: rules.id,
+              version: rules.version,
+              checksums: rules.documents.map((document) => document.checksum),
+            }
+          : null;
+      })(),
       selection: trustedDocumentSelection(input.identity),
       identity: input.identity,
       documents: documents.map((d, i) => ({
@@ -775,7 +865,7 @@ const identityClaimSchema = z
   .strict();
 const extractionSchema = z
   .object({
-    evidence: evidenceSchema,
+    evidence: modelEvidenceSchema,
     identityClaims: z.array(identityClaimSchema).max(20),
   })
   .strict();
@@ -786,16 +876,16 @@ function checkExtracted(
   chunk: SourceChunk,
 ): ProfileEvidence {
   const parsed = extractionSchema.parse(raw),
-    e = validateEvidence(parsed.evidence);
+    uploaded = parsed.evidence;
   const suppliedIds = new Set(chunk.sources.map((s) => s.documentId));
   if (
-    e.documents.length !== suppliedIds.size ||
-    e.documents.some((d) => !suppliedIds.has(d.id))
+    uploaded.documents.length !== suppliedIds.size ||
+    uploaded.documents.some((d) => !suppliedIds.has(d.id))
   )
     throw Error(
       "Every supplied document must be represented in the assessment evidence.",
     );
-  for (const document of e.documents) {
+  for (const document of uploaded.documents) {
     const doc = data.documents.find((d) => d.id === document.id);
     const suppliedPages = chunk.sources
       .filter((s) => s.documentId === document.id)
@@ -821,10 +911,13 @@ function checkExtracted(
   }
   const batches = data.chunks.length;
   if (
-    e.claims.length > Math.floor(60 / batches) ||
-    e.documents.some((d) => d.locations.length > Math.floor(40 / batches))
+    uploaded.claims.length > Math.floor(60 / batches) ||
+    uploaded.documents.some(
+      (d) => d.locations.length > Math.floor(40 / batches),
+    )
   )
     throw Error("The evidence needs fewer, more precise source references.");
+  const e = completeOwnedAssessmentEvidence(uploaded);
   const mutable = new Set([
     "course",
     "component",
@@ -840,6 +933,14 @@ function checkExtracted(
     const previous = data.identity[key],
       next = e.identity[key];
     if (previous === next) continue;
+    if (
+      key === "tier" &&
+      previous === null &&
+      next === "not_tiered" &&
+      e.catalogueFacts?.length &&
+      resolveCatalogueTier(e.identity)
+    )
+      continue;
     if (next === undefined)
       throw Error("A saved assessment detail was removed during reading.");
     if (!mutable.has(key) || (key === "tier" && previous !== null))
@@ -927,6 +1028,8 @@ function checkExtracted(
       );
   }
   for (const document of e.documents) {
+    // Reviewed server documents keep stable references across reading chunks.
+    if (document.authority === "official_registered") continue;
     const aliases = new Map(
       document.locations.map((l, i) => [l.id, `${chunk.id}-loc-${i + 1}`]),
     );
@@ -1091,6 +1194,19 @@ export async function advanceSourceJob(
       throw Error("The returned draft exceeded the supported review size.");
     return value;
   };
+  const rememberValidation = (
+    error: unknown,
+    stage: SourceValidationIssue["stage"],
+  ) => {
+    const issue = sourceValidationRecord(error, stage, r.callIntents + 1);
+    data.validationIssues = [
+      ...(data.validationIssues ?? []).filter(
+        (previous) =>
+          previous.attempt !== issue.attempt || previous.stage !== issue.stage,
+      ),
+      issue,
+    ].slice(-3);
+  };
   try {
     deps.providerReady?.();
     await deps.store.reserve(r);
@@ -1100,10 +1216,24 @@ export async function advanceSourceJob(
       const chunk = data.chunks[data.cursor];
       result = await deps.model(
         EXTRACTION_SYSTEM +
-          " Return {evidence,identityClaims}. Use only the supplied snippets. Preserve known subject, board, level and country. Discover course/component/version only with literal identityClaims referencing supplied locations; never invent a code. UserContext contains unverified student notes, not source evidence: never cite these notes or use them to restore missing source dates. Teaching dates do not establish a specification issue. Unknown details retain the requested value. Prefix every location ID with the chunk ID so later batches can merge. Extract partial facts only; unsupported facts remain null/unknown. Upload document IDs/checksums are fixed below.",
+          " Return {evidence,identityClaims}. Use only the supplied uploaded snippets for document quotations. Preserve known subject, board, level and country. Discover course/component/version only with literal identityClaims referencing supplied locations; never invent a code. UserContext contains unverified student notes, not source evidence: never cite these notes or use them to restore missing source dates. Teaching dates do not establish a specification issue. ReviewedContext contains server-resolved course facts and paper-cover instructions that the server adds separately; do not invent PDF quotes for those facts, do not nominate catalogueFacts or official documents. Keep a source-unknown tier null and source-unknown calculator/selection unknown. Facts stated directly by an active specification are normative even if recorded as observed. Never interpret a maths-skills calculator example as permission for this exam. If a requirement is incomplete in the supplied text, leave it null rather than completing its sentence. Unknown identity details retain the requested value. Prefix every location ID with the chunk ID so later batches can merge. Extract partial facts only; unsupported facts remain null/unknown. Upload document IDs/checksums are fixed below.",
         {
           schema: z.toJSONSchema(extractionSchema),
           identity: data.identity,
+          reviewedContext: {
+            tier: resolveCatalogueTier(data.identity),
+            assessmentRules: (() => {
+              const rules = resolveReviewedAssessmentRules(data.identity);
+              return rules
+                ? {
+                    id: rules.id,
+                    version: rules.version,
+                    facts: rules.facts,
+                    sourceUrls: rules.documents.map((document) => document.url),
+                  }
+                : null;
+            })(),
+          },
           ...(classifySpecificationVersion(
             data.requestedIdentity.specificationVersion,
           ).kind === "timeline"
@@ -1118,7 +1248,8 @@ export async function advanceSourceJob(
           chunkId: chunk.id,
           evidenceLimits: {
             maxLocationsPerDocument: Math.floor(40 / data.chunks.length),
-            maxClaims: Math.floor(60 / data.chunks.length),
+            // Reserve two final-evidence references for reviewed instructions.
+            maxClaims: Math.floor(58 / data.chunks.length),
           },
           documents: chunk.sources.map((s) => ({
             id: s.documentId,
@@ -1143,6 +1274,7 @@ export async function advanceSourceJob(
       try {
         evidence = checkExtracted(result.value, data, chunk);
       } catch (error) {
+        rememberValidation(error, "extraction");
         if (error instanceof SourceIdentityConflict) throw error;
         if (
           data.chunks.length === 1 &&
@@ -1215,6 +1347,7 @@ export async function advanceSourceJob(
       compileTemplate(template);
       validateEvidenceTemplate(template, data.evidence);
     } catch (error) {
+      rememberValidation(error, "draft");
       if (r.callIntents + 1 < 3 && data.invalidDraft === undefined) {
         data.invalidDraft = boundedInvalid(result.value);
         data.draftError = (error as Error).message.slice(0, 500);
@@ -1247,11 +1380,22 @@ export async function advanceSourceJob(
       ),
     );
   } catch (error) {
+    if (
+      result &&
+      !data.validationIssues?.some(
+        (issue) => issue.attempt === r.callIntents + 1,
+      )
+    )
+      rememberValidation(
+        error,
+        r.stage === "drafting" ? "draft" : "extraction",
+      );
     data.needs = [
       error instanceof SourceIdentityConflict
         ? error.message
         : result
-          ? "We could not verify the assessment details returned from this source. Check the specification version and assessment instructions."
+          ? (data.validationIssues?.at(-1)?.message ??
+            "We could not verify the assessment details returned from this source.")
           : callStarted
             ? "The source service could not finish. This request will not repeat a possibly charged call. Your saved profiles are unchanged."
             : "The AI service is unavailable. Your saved profiles are unchanged.",
