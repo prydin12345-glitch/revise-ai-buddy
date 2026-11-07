@@ -1,0 +1,99 @@
+{
+  "realModelCalls": 0,
+  "reports": [
+    {
+      "name": "combined-physics-96-pages.pdf",
+      "physicalPages": 96,
+      "characters": 257118,
+      "component": "7408/1",
+      "coverage": {
+        "complete": true
+      },
+      "chunks": 1,
+      "selectedCharacters": 733,
+      "selectedPages": [
+        1,
+        90,
+        91
+      ],
+      "discovery": {
+        "ambiguous": false,
+        "candidates": [
+          {
+            "label": "Paper 1",
+            "componentCode": "7408/1"
+          }
+        ]
+      },
+      "ASFactsExcluded": true
+    },
+    {
+      "name": "paper2-physics-96-pages.pdf",
+      "physicalPages": 96,
+      "characters": 257118,
+      "component": "7408/2",
+      "coverage": {
+        "complete": true
+      },
+      "chunks": 1,
+      "selectedCharacters": 733,
+      "selectedPages": [
+        1,
+        90,
+        91
+      ],
+      "discovery": {
+        "ambiguous": false,
+        "candidates": [
+          {
+            "label": "Paper 2",
+            "componentCode": "7408/2"
+          }
+        ]
+      },
+      "ASFactsExcluded": true
+    },
+    {
+      "name": "unpartitioned-combined.pdf",
+      "physicalPages": 1,
+      "characters": 181,
+      "component": "7408/1",
+      "coverage": {
+        "complete": false,
+        "reason": "We could not separate the AS and A-level assessment sections. Add the assessment overview for your qualification."
+      },
+      "chunks": 0,
+      "selectedCharacters": 0,
+      "selectedPages": [
+        1
+      ],
+      "discovery": {
+        "ambiguous": true,
+        "candidates": []
+      },
+      "ASFactsExcluded": null
+    },
+    {
+      "name": "page-choice-combined-96-pages.pdf",
+      "physicalPages": 96,
+      "characters": 257173,
+      "component": "7408/1",
+      "sourcePages": [
+        90
+      ],
+      "coverage": {
+        "complete": true
+      },
+      "chunks": 1,
+      "selectedCharacters": 330,
+      "selectedPages": [
+        90
+      ],
+      "discovery": {
+        "ambiguous": true,
+        "candidates": []
+      },
+      "ASFactsExcluded": true
+    }
+  ]
+}

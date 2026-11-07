@@ -22,6 +22,7 @@ import {
   prepareSourceJob,
   advanceSourceJob,
   confirmSourceJob,
+  answerSourceJob,
   getSourceJob,
   type SourceJobDeps,
 } from "../_shared/profile-builder-jobs.ts";
@@ -146,6 +147,7 @@ Deno.serve(async (req) => {
         "advance_source",
         "confirm_source",
         "source_status",
+        "answer_source",
       ].includes(raw?.action)
     ) {
       const request = sourceJobRequestSchema.parse(raw);
@@ -163,11 +165,9 @@ Deno.serve(async (req) => {
         } catch (error) {
           // Receipt recovery also works during an incremental jobs rollout.
           // Other RPC failures retain their diagnostic and cannot look complete.
-          if (
-            !(
-              error instanceof SafeError && error.category === "missing_backend"
-            )
-          )
+          if (!(
+            error instanceof SafeError && error.category === "missing_backend"
+          ))
             throw error;
         }
         if (source && source.owner === user.id)
@@ -235,7 +235,9 @@ Deno.serve(async (req) => {
           ? await prepareSourceJob(user.id, request, deps)
           : request.action === "advance_source"
             ? await advanceSourceJob(user.id, request.jobId, deps)
-            : await confirmSourceJob(user.id, request.jobId, request, deps);
+            : request.action === "answer_source"
+              ? await answerSourceJob(user.id, request.jobId, request, deps)
+              : await confirmSourceJob(user.id, request.jobId, request, deps);
       return reply({ job });
     }
     const input = builderRequestSchema.parse(raw);

@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { useBuilderAttachments } from "@/hooks/useBuilderAttachments";
 import { BuilderAttachments } from "./BuilderAttachments";
 import { BuilderEvidenceDetails } from "./BuilderEvidenceDetails";
-import type { AssessmentDiscoveryResult } from "../../../supabase/functions/_shared/profile-assessment-discovery";
+import { BuilderFollowupQuestions } from "./BuilderFollowupQuestions";
+import {
+  ASSESSMENT_DISCOVERY_VERSION,
+  type AssessmentDiscoveryResult,
+} from "../../../supabase/functions/_shared/profile-assessment-discovery";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -189,6 +193,9 @@ export function ExamProfileBuilder({
   const [codeEdited, setCodeEdited] = useState(false);
   const [restartOpen, setRestartOpen] = useState(false);
   const [sourceJob, setSourceJob] = useState<SourceJobView | null>(null);
+  const [changingClarification, setChangingClarification] = useState(false);
+  const [replacingSource, setReplacingSource] = useState(false);
+  const [continuingClarification, setContinuingClarification] = useState(false);
   const clarificationPanel = useRef<HTMLDivElement>(null);
   const builderBody = useRef<HTMLDivElement>(null);
   const [pendingJobId, setPendingJobId] = useState<string | null>(null);
@@ -232,6 +239,7 @@ export function ExamProfileBuilder({
     busy,
     sourceJob?.jobId,
     sourceJob?.stage,
+    sourceJob?.revision,
     sourceJob?.validationIssues?.length,
   ]);
   const previousAccount = useRef(accountId);
@@ -245,6 +253,9 @@ export function ExamProfileBuilder({
     setNotice("");
     setEditing(false);
     setSourceJob(null);
+    setChangingClarification(false);
+    setReplacingSource(false);
+    setContinuingClarification(false);
     setPendingJobId(null);
     sourceRequest.current = null;
     request.current = null;
@@ -269,8 +280,7 @@ export function ExamProfileBuilder({
     if (!open) return;
     setSourceId("");
     const ctx = initialProfile?.profile_template as
-      | SavedTemplateContext
-      | undefined;
+      SavedTemplateContext | undefined;
     if (ctx?.version === 1 && ctx.resolved_by === "server") {
       setProposal(proposalFromContext(ctx));
       setProposalId(ctx.proposalId ?? "");
@@ -372,7 +382,12 @@ export function ExamProfileBuilder({
     };
   }, [open, subjectName, accountId]);
   useEffect(() => {
-    if (sourceJob?.stage === "ready" || sourceJob?.stage === "complete") return;
+    if (
+      sourceJob?.stage === "ready" ||
+      sourceJob?.stage === "complete" ||
+      (sourceJob?.stage === "needs_details" && sourceJob.missingItems?.length)
+    )
+      return;
     if (!open || !attachments.files.length) {
       setDiscovery(null);
       setDiscoveryBusy(false);
@@ -444,6 +459,9 @@ export function ExamProfileBuilder({
     setNotice("");
     attachments.markForRecheck();
     setSourceJob(null);
+    setChangingClarification(false);
+    setReplacingSource(false);
+    setContinuingClarification(false);
     if (pendingJobId)
       void clearPendingBuilderJob(subjectName, pendingJobId).catch(() => {});
     setPendingJobId(null);
@@ -558,9 +576,14 @@ export function ExamProfileBuilder({
     }
   };
   const readUpload = async (files?: FileList | File[]) => {
+    const sourceFollowup =
+      replacingSource ||
+      (sourceJob?.stage === "needs_details" &&
+        sourceJob.missingItems?.[0]?.field === "source");
     const changed = await attachments.selectFiles(files);
     if (!changed) return;
     invalidatePreview();
+    setReplacingSource(sourceFollowup);
     setSourceChoice("upload");
     setSourceId("");
     setSourceUrl("");
@@ -584,6 +607,32 @@ export function ExamProfileBuilder({
     setSourceJob(job);
     setPendingJobId(job.jobId);
     setMode(job.mode);
+    if (
+      job.identity &&
+      (job.stage === "ready" ||
+        (job.stage === "needs_details" && job.missingItems?.length))
+    ) {
+      setIdentity(job.identity);
+      const selected = builderFindAssessment(
+        job.identity,
+        job.identity.component,
+      );
+      const discovered = discovery?.candidates.find(
+        (candidate) =>
+          candidate.componentCode === job.identity?.component ||
+          candidate.label === job.identity?.component,
+      );
+      setAssessmentId(selected?.id ?? discovered?.id ?? "");
+      setAssessmentName(
+        selected?.label ?? discovered?.label ?? job.identity.component,
+      );
+      setComponentCode(
+        selected?.componentCode ?? discovered?.componentCode ?? "",
+      );
+      setCodeEdited(false);
+      setManualAssessment(!selected && !discovered);
+      setSourceChoice("upload");
+    }
     if (job.stage === "ready" && job.identity) {
       attachments.setStatus("checked");
       setIdentity(job.identity);
@@ -602,8 +651,12 @@ export function ExamProfileBuilder({
         previous.trim() ? previous : builderAssessmentLabel(next.identity),
       );
     }
-    if (job.stage === "failed" || job.stage === "needs_details")
-      attachments.setStatus("error");
+    if (job.stage === "needs_details") {
+      setChangingClarification(false);
+      setStep("details");
+      attachments.setStatus(job.missingItems?.length ? "checked" : "error");
+    }
+    if (job.stage === "failed") attachments.setStatus("error");
     if (job.stage === "failed") setError(job.message);
   };
   const advanceJob = async (job: SourceJobView, generation: number) => {
@@ -634,6 +687,7 @@ export function ExamProfileBuilder({
       );
   };
   const prepareSource = async (resolvedIdentity: TemplateIdentity) => {
+    setReplacingSource(false);
     const payload = {
       action: "prepare_source",
       identity: resolvedIdentity,
@@ -695,6 +749,44 @@ export function ExamProfileBuilder({
         );
     } finally {
       if (generation === run.current) setBusy(false);
+    }
+  };
+  const answerMissing = async (answers: Record<string, string>) => {
+    if (
+      sourceJob?.stage !== "needs_details" ||
+      typeof sourceJob.revision !== "number"
+    )
+      return;
+    const generation = ++run.current;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    setContinuingClarification(true);
+    try {
+      const response = await api({
+        action: "answer_source",
+        jobId: sourceJob.jobId,
+        revision: sourceJob.revision,
+        answers,
+      });
+      if (generation !== run.current) return;
+      if (!response.job)
+        throw Error(
+          "No updated source status was returned. Resume the same request to check its progress.",
+        );
+      await advanceJob(response.job, generation);
+    } catch (e) {
+      if (generation === run.current)
+        setError(
+          e instanceof Error
+            ? e.message
+            : "Could not check this answer. Your files and completed reading are kept.",
+        );
+    } finally {
+      if (generation === run.current) {
+        setBusy(false);
+        setContinuingClarification(false);
+      }
     }
   };
   const confirmSource = async () => {
@@ -1017,7 +1109,7 @@ export function ExamProfileBuilder({
       };
       invalidatePreview();
       setDiscovery((previous) => ({
-        version: 1,
+        version: ASSESSMENT_DISCOVERY_VERSION,
         candidates: [
           ...(previous?.candidates ?? []).filter(
             (item) => item.id !== candidate.id,
@@ -1194,6 +1286,25 @@ export function ExamProfileBuilder({
       ))}
     </select>
   );
+  const missingItems =
+    sourceJob?.stage === "needs_details" &&
+    typeof sourceJob.revision === "number"
+      ? (sourceJob.missingItems ?? [])
+      : [];
+  const focusedFollowup =
+    !changingClarification && (missingItems.length > 0 || replacingSource);
+  const hideKnownForm = focusedFollowup || continuingClarification;
+  const focusedSource =
+    focusedFollowup && (replacingSource || missingItems[0]?.field === "source");
+  const summaryIdentity = sourceJob?.identity ?? identity;
+  const clarificationItems = replacingSource
+    ? [
+        {
+          field: "source",
+          question: "Choose a readable specification or assessment brief.",
+        },
+      ]
+    : missingItems;
   const legacyRunning =
     sourceJob?.canAdvance === false && sourceJob.stage === "drafting";
   return (
@@ -1266,11 +1377,13 @@ export function ExamProfileBuilder({
                   ? "Saving your profile…"
                   : presetId
                     ? "Preparing your approved profile…"
-                    : sourceChoice === "unverified"
-                      ? "Building your unverified practice draft…"
-                      : sourceChoice === "upload" && step === "details"
-                        ? "Reading your syllabus…"
-                        : "Building your source-backed draft…"}
+                    : continuingClarification
+                      ? "Checking your answer…"
+                      : sourceChoice === "unverified"
+                        ? "Building your unverified practice draft…"
+                        : sourceChoice === "upload" && step === "details"
+                          ? "Reading your syllabus…"
+                          : "Building your source-backed draft…"}
               </p>
             )}
             {pendingJobId && !sourceJob && !busy && step !== "review" && (
@@ -1298,7 +1411,7 @@ export function ExamProfileBuilder({
                 </div>
               </div>
             )}
-            {sourceJob && step !== "review" && (
+            {sourceJob && step !== "review" && !focusedFollowup && (
               <div
                 ref={clarificationPanel}
                 tabIndex={
@@ -1396,18 +1509,121 @@ export function ExamProfileBuilder({
                 {notice}
               </p>
             )}
-            <BuilderAttachments
-              files={attachments.files}
-              busy={attachments.busy}
-              error={attachments.readError}
-              active={sourceChoice === "upload" && !exactPreset}
-              showPicker={step === "details" && sourceChoice === "upload"}
-              disabled={busy}
-              onSelect={readUpload}
-              onRemove={removeAttachment}
-              onClear={clearAttachments}
-            />
-            {attachments.files.length > 0 &&
+            {focusedFollowup && (
+              <div
+                ref={clarificationPanel}
+                tabIndex={-1}
+                role="group"
+                aria-label="Assessment clarification"
+                className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+              >
+                <BuilderFollowupQuestions
+                  key={sourceJob?.jobId ?? "replacement-source"}
+                  jobId={sourceJob?.jobId ?? "replacement-source"}
+                  items={clarificationItems}
+                  summary={[
+                    {
+                      label: "Subject",
+                      value:
+                        builderCourses(summaryIdentity).length > 1
+                          ? (builderSelectedCourse(summaryIdentity)?.label ??
+                            summaryIdentity.subject)
+                          : summaryIdentity.subject,
+                    },
+                    { label: "Level", value: summaryIdentity.qualification },
+                    {
+                      label: "Exam board",
+                      value: builderBoardLabel(summaryIdentity.organisation),
+                    },
+                    {
+                      label: "Assessment",
+                      value:
+                        builderFindAssessment(
+                          summaryIdentity,
+                          summaryIdentity.component,
+                        )?.label ?? summaryIdentity.component,
+                    },
+                    {
+                      label: "Tier",
+                      value:
+                        summaryIdentity.tier === "not_tiered"
+                          ? "Untiered"
+                          : summaryIdentity.tier === "higher"
+                            ? "Higher"
+                            : summaryIdentity.tier === "foundation"
+                              ? "Foundation"
+                              : "",
+                    },
+                    {
+                      label: "Practice",
+                      value:
+                        mode === "full_mock"
+                          ? "Full mock"
+                          : mode === "short_practice"
+                            ? "Short practice"
+                            : "Custom assessment",
+                    },
+                  ]}
+                  busy={busy}
+                  onAnswer={(answers) => void answerMissing(answers)}
+                  onChange={() => {
+                    setChangingClarification(true);
+                    setReplacingSource(false);
+                    setChangeKnown(true);
+                    setStep("details");
+                  }}
+                  sourcePicker={
+                    focusedSource ? (
+                      <div className="space-y-3">
+                        <BuilderAttachments
+                          files={attachments.files}
+                          busy={attachments.busy}
+                          error={attachments.readError}
+                          active
+                          showPicker
+                          disabled={busy}
+                          onSelect={readUpload}
+                          onRemove={removeAttachment}
+                          onClear={clearAttachments}
+                        />
+                        <Button
+                          type="button"
+                          disabled={
+                            busy ||
+                            attachments.busy ||
+                            discoveryBusy ||
+                            !uploads.length ||
+                            !replacingSource
+                          }
+                          onClick={() => void prepareSource(identity)}
+                        >
+                          Read syllabus
+                        </Button>
+                      </div>
+                    ) : undefined
+                  }
+                />
+              </div>
+            )}
+            {!focusedSource && (
+              <BuilderAttachments
+                files={attachments.files}
+                busy={attachments.busy}
+                error={attachments.readError}
+                active={sourceChoice === "upload" && !exactPreset}
+                showPicker={
+                  !hideKnownForm &&
+                  step === "details" &&
+                  sourceChoice === "upload"
+                }
+                disabled={busy || hideKnownForm}
+                onSelect={readUpload}
+                onRemove={removeAttachment}
+                onClear={clearAttachments}
+              />
+            )}
+            {!hideKnownForm &&
+              attachments.files.length > 0 &&
               sourceChoice !== "upload" &&
               !exactPreset &&
               step === "details" && (
@@ -1427,23 +1643,35 @@ export function ExamProfileBuilder({
                   Use attached files
                 </Button>
               )}
-            {discoveryBusy && (
+            {!focusedFollowup && discoveryBusy && (
               <p role="status" className="text-sm text-muted-foreground">
                 Finding assessment names in your attached files…
               </p>
             )}
-            {discoveryError && (
+            {!focusedFollowup && discoveryError && (
               <p role="alert" className="text-sm text-destructive">
                 {discoveryError} Your files are still attached.
               </p>
             )}
-            {discovery?.warnings.length && step === "details" ? (
+            {!focusedFollowup &&
+            discovery?.warnings.length &&
+            step === "details" ? (
               <p className="text-xs text-muted-foreground">
                 {discovery.warnings[0]}
               </p>
             ) : null}
-            {legacyRunning ? null : step === "details" ? (
+            {legacyRunning || hideKnownForm ? null : step === "details" ? (
               <fieldset disabled={busy} className="min-w-0 space-y-5">
+                {changingClarification && missingItems.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    onClick={() => setChangingClarification(false)}
+                  >
+                    Back to question
+                  </Button>
+                )}
                 <p className="text-sm text-muted-foreground">
                   {identity.qualification
                     ? `Using your saved ${identity.qualification} settings`
@@ -1909,7 +2137,10 @@ export function ExamProfileBuilder({
                                 // qualification and course (never GCSE for A-level).
                                 return (
                                   same(id.subject, subjectName) &&
-                                  same(id.qualification, identity.qualification) &&
+                                  same(
+                                    id.qualification,
+                                    identity.qualification,
+                                  ) &&
                                   (!identity.course ||
                                     !/^\w*\d/.test(identity.course) ||
                                     same(id.course, identity.course))
@@ -2552,7 +2783,9 @@ export function ExamProfileBuilder({
               variant="ghost"
               disabled={busy}
               onClick={() => {
-                if (legacyRunning) {
+                if (focusedFollowup) {
+                  close();
+                } else if (legacyRunning) {
                   close();
                 } else if (step === "review") {
                   const discardedReceipt =
@@ -2572,7 +2805,7 @@ export function ExamProfileBuilder({
                 }
               }}
             >
-              {legacyRunning
+              {legacyRunning || focusedFollowup
                 ? "Close"
                 : step === "details"
                   ? "Manual editor"
@@ -2580,7 +2813,7 @@ export function ExamProfileBuilder({
                     ? "Cancel"
                     : "Change details"}
             </Button>
-            {legacyRunning ? null : step === "details" ? (
+            {legacyRunning || hideKnownForm ? null : step === "details" ? (
               <Button
                 disabled={
                   busy ||

@@ -1,0 +1,278 @@
+{
+  "status": "PASS",
+  "browserVersion": "151.0.7922.173",
+  "syntheticOnly": true,
+  "realModelCalls": 0,
+  "backendRequests": 0,
+  "realLogins": 0,
+  "liveDataWrites": 0,
+  "cases": [
+    {
+      "width": 1440,
+      "height": 1000,
+      "name": "laptop",
+      "theme": "light",
+      "scenarios": [
+        "Combined 96-page AS/A-level source resolves the chosen A-level course and Paper 1 without exposing AS marks or topics to extraction, then reaches the editable 85-mark/120-minute preview",
+        "A missing assessment shows one source-backed choice with locked details and a retained file; answering continues the same job with one PDF parse and no duplicate extraction",
+        "A controlled two-item owner-scoped response renders dependent questions one at a time, keeps the upload and hides unrelated form fields; answering both resumes the real indexed service",
+        "Choosing the explicit A-level overview page bypasses an unrelated inseparable comparison page while reusing the same parsed source, job and strict literal evidence checks",
+        "An inseparable mixed AS/A-level table asks for focused source information; selecting the still-inseparable page requests a separate overview, retains the upload and blocks generation without a model call or invented row assignment",
+        "A genuinely different specification edition remains blocked after one accounted extraction, with the upload retained and no silent version override",
+        "Existing OCR A-level Biology A Paper 3 approved preset retains its gold badge with no model calls or quota reservation"
+      ]
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "name": "laptop",
+      "theme": "dark",
+      "scenarios": [
+        "Combined 96-page AS/A-level source resolves the chosen A-level course and Paper 1 without exposing AS marks or topics to extraction, then reaches the editable 85-mark/120-minute preview",
+        "A missing assessment shows one source-backed choice with locked details and a retained file; answering continues the same job with one PDF parse and no duplicate extraction",
+        "A controlled two-item owner-scoped response renders dependent questions one at a time, keeps the upload and hides unrelated form fields; answering both resumes the real indexed service",
+        "Choosing the explicit A-level overview page bypasses an unrelated inseparable comparison page while reusing the same parsed source, job and strict literal evidence checks",
+        "An inseparable mixed AS/A-level table asks for focused source information; selecting the still-inseparable page requests a separate overview, retains the upload and blocks generation without a model call or invented row assignment",
+        "A genuinely different specification edition remains blocked after one accounted extraction, with the upload retained and no silent version override",
+        "Existing OCR A-level Biology A Paper 3 approved preset retains its gold badge with no model calls or quota reservation"
+      ]
+    },
+    {
+      "width": 834,
+      "height": 1112,
+      "name": "ipad",
+      "theme": "light",
+      "scenarios": [
+        "Combined 96-page AS/A-level source resolves the chosen A-level course and Paper 1 without exposing AS marks or topics to extraction, then reaches the editable 85-mark/120-minute preview",
+        "A missing assessment shows one source-backed choice with locked details and a retained file; answering continues the same job with one PDF parse and no duplicate extraction",
+        "A controlled two-item owner-scoped response renders dependent questions one at a time, keeps the upload and hides unrelated form fields; answering both resumes the real indexed service",
+        "Choosing the explicit A-level overview page bypasses an unrelated inseparable comparison page while reusing the same parsed source, job and strict literal evidence checks",
+        "An inseparable mixed AS/A-level table asks for focused source information; selecting the still-inseparable page requests a separate overview, retains the upload and blocks generation without a model call or invented row assignment",
+        "A genuinely different specification edition remains blocked after one accounted extraction, with the upload retained and no silent version override",
+        "Existing OCR A-level Biology A Paper 3 approved preset retains its gold badge with no model calls or quota reservation"
+      ]
+    },
+    {
+      "width": 834,
+      "height": 1112,
+      "name": "ipad",
+      "theme": "dark",
+      "scenarios": [
+        "Combined 96-page AS/A-level source resolves the chosen A-level course and Paper 1 without exposing AS marks or topics to extraction, then reaches the editable 85-mark/120-minute preview",
+        "A missing assessment shows one source-backed choice with locked details and a retained file; answering continues the same job with one PDF parse and no duplicate extraction",
+        "A controlled two-item owner-scoped response renders dependent questions one at a time, keeps the upload and hides unrelated form fields; answering both resumes the real indexed service",
+        "Choosing the explicit A-level overview page bypasses an unrelated inseparable comparison page while reusing the same parsed source, job and strict literal evidence checks",
+        "An inseparable mixed AS/A-level table asks for focused source information; selecting the still-inseparable page requests a separate overview, retains the upload and blocks generation without a model call or invented row assignment",
+        "A genuinely different specification edition remains blocked after one accounted extraction, with the upload retained and no silent version override",
+        "Existing OCR A-level Biology A Paper 3 approved preset retains its gold badge with no model calls or quota reservation"
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "name": "phone",
+      "theme": "light",
+      "scenarios": [
+        "Combined 96-page AS/A-level source resolves the chosen A-level course and Paper 1 without exposing AS marks or topics to extraction, then reaches the editable 85-mark/120-minute preview",
+        "A missing assessment shows one source-backed choice with locked details and a retained file; answering continues the same job with one PDF parse and no duplicate extraction",
+        "A controlled two-item owner-scoped response renders dependent questions one at a time, keeps the upload and hides unrelated form fields; answering both resumes the real indexed service",
+        "Choosing the explicit A-level overview page bypasses an unrelated inseparable comparison page while reusing the same parsed source, job and strict literal evidence checks",
+        "An inseparable mixed AS/A-level table asks for focused source information; selecting the still-inseparable page requests a separate overview, retains the upload and blocks generation without a model call or invented row assignment",
+        "A genuinely different specification edition remains blocked after one accounted extraction, with the upload retained and no silent version override",
+        "Existing OCR A-level Biology A Paper 3 approved preset retains its gold badge with no model calls or quota reservation"
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "name": "phone",
+      "theme": "dark",
+      "scenarios": [
+        "Combined 96-page AS/A-level source resolves the chosen A-level course and Paper 1 without exposing AS marks or topics to extraction, then reaches the editable 85-mark/120-minute preview",
+        "A missing assessment shows one source-backed choice with locked details and a retained file; answering continues the same job with one PDF parse and no duplicate extraction",
+        "A controlled two-item owner-scoped response renders dependent questions one at a time, keeps the upload and hides unrelated form fields; answering both resumes the real indexed service",
+        "Choosing the explicit A-level overview page bypasses an unrelated inseparable comparison page while reusing the same parsed source, job and strict literal evidence checks",
+        "An inseparable mixed AS/A-level table asks for focused source information; selecting the still-inseparable page requests a separate overview, retains the upload and blocks generation without a model call or invented row assignment",
+        "A genuinely different specification edition remains blocked after one accounted extraction, with the upload retained and no silent version override",
+        "Existing OCR A-level Biology A Paper 3 approved preset retains its gold badge with no model calls or quota reservation"
+      ]
+    },
+    {
+      "width": 320,
+      "height": 780,
+      "name": "narrow-phone",
+      "theme": "light",
+      "scenarios": [
+        "Combined 96-page AS/A-level source resolves the chosen A-level course and Paper 1 without exposing AS marks or topics to extraction, then reaches the editable 85-mark/120-minute preview",
+        "A missing assessment shows one source-backed choice with locked details and a retained file; answering continues the same job with one PDF parse and no duplicate extraction",
+        "A controlled two-item owner-scoped response renders dependent questions one at a time, keeps the upload and hides unrelated form fields; answering both resumes the real indexed service",
+        "Choosing the explicit A-level overview page bypasses an unrelated inseparable comparison page while reusing the same parsed source, job and strict literal evidence checks",
+        "An inseparable mixed AS/A-level table asks for focused source information; selecting the still-inseparable page requests a separate overview, retains the upload and blocks generation without a model call or invented row assignment",
+        "A genuinely different specification edition remains blocked after one accounted extraction, with the upload retained and no silent version override",
+        "Existing OCR A-level Biology A Paper 3 approved preset retains its gold badge with no model calls or quota reservation"
+      ]
+    },
+    {
+      "width": 320,
+      "height": 780,
+      "name": "narrow-phone",
+      "theme": "dark",
+      "scenarios": [
+        "Combined 96-page AS/A-level source resolves the chosen A-level course and Paper 1 without exposing AS marks or topics to extraction, then reaches the editable 85-mark/120-minute preview",
+        "A missing assessment shows one source-backed choice with locked details and a retained file; answering continues the same job with one PDF parse and no duplicate extraction",
+        "A controlled two-item owner-scoped response renders dependent questions one at a time, keeps the upload and hides unrelated form fields; answering both resumes the real indexed service",
+        "Choosing the explicit A-level overview page bypasses an unrelated inseparable comparison page while reusing the same parsed source, job and strict literal evidence checks",
+        "An inseparable mixed AS/A-level table asks for focused source information; selecting the still-inseparable page requests a separate overview, retains the upload and blocks generation without a model call or invented row assignment",
+        "A genuinely different specification edition remains blocked after one accounted extraction, with the upload retained and no silent version override",
+        "Existing OCR A-level Biology A Paper 3 approved preset retains its gold badge with no model calls or quota reservation"
+      ]
+    }
+  ],
+  "scenarioChecks": 56,
+  "screenshots": [
+    "laptop-light-combined-profile-preview.png",
+    "laptop-dark-approved-regression.png",
+    "ipad-light-targeted-assessment.png",
+    "phone-light-dependent-question.png",
+    "phone-dark-targeted-assessment.png",
+    "narrow-phone-dark-page-question.png"
+  ],
+  "fixtures": {
+    "unpartitioned-combined.pdf": {
+      "pages": 1,
+      "bytes": 824,
+      "sha256": "c44e56a555045c37ced8901566a10e1415ae6a78163bf983f2e7d6b3198cf380"
+    },
+    "page-choice-combined-96-pages.pdf": {
+      "pages": 96,
+      "bytes": 301663,
+      "sha256": "348c3661ed27cd839acdfc1827a028dd7deff2447ba07c2ace529dc96c6b29ee"
+    },
+    "combined-physics-96-pages.pdf": {
+      "pages": 96,
+      "bytes": 301594,
+      "sha256": "2126e6c163f8a3d12b07a6338b0cd0e65f0a9483b98157b6ff44421cab6f2dc4"
+    },
+    "paper2-physics-96-pages.pdf": {
+      "pages": 96,
+      "bytes": 301594,
+      "sha256": "2a64f5183c762b37640534baa10abc0ac157f9166069ee678cfb30719684b303"
+    },
+    "physics-optional-96-pages.pdf": {
+      "pages": 96,
+      "bytes": 301703,
+      "sha256": "45c34fef3344cc24ec95aadade6c91f6b80aed4328b0061d4bf5d0a09b264437"
+    }
+  },
+  "errors": [],
+  "consoleErrors": [],
+  "failedRequests": [],
+  "blockedRequests": [],
+  "sourceHashes": {
+    "src/components/CookieConsent.tsx": "08280e666f180888935c5982320610fe0d3010c4ac458bb5537b232b3c170613",
+    "src/components/exams/AssessmentTierSelector.tsx": "120d0912ce0ba997bb239879a056d2b59ea82508e472a7126b30160517aae3a1",
+    "src/components/exams/BiologyCourseSelector.tsx": "b27aca615c3e57946b0ca210b9bd660987d28910f6ca0591740742b36df8b19f",
+    "src/components/exams/BiologyPaperSelector.tsx": "fa0dc00383ae55910612ba5297744f88df1fb997c89e91ea0816275e5a0811b1",
+    "src/components/exams/PaperModeSelector.tsx": "1022900afd17659475fbb5b55745a4a056b0cd49047951832bbe53968f87b145",
+    "src/components/exams/SelectorDetails.tsx": "5acf1e50d971435d86a9193e9f2e683722f78e16111e3b2ae55445882e24155f",
+    "src/components/profiles/BuilderAttachments.tsx": "21db4250ff5959401e9b68622294fdceb0693f90dc7c456b4d14e67f9f4779e0",
+    "src/components/profiles/BuilderEvidenceDetails.tsx": "0b8d6d342cc88d7f8ae9ae97664ddf32431682c6e14b93c25f23722fbf5554f7",
+    "src/components/profiles/BuilderFollowupQuestions.tsx": "a2557f3acb9edbdd406800e8aa1f68ba1c45036cf7ed8e3040b36220c4b111b0",
+    "src/components/profiles/ExamProfileBuilder.tsx": "9b26e499d9d70977dcaa8000034213ea48d050924ca1127f9d299c38a4be33a3",
+    "src/components/profiles/ExamlyApprovalBadge.tsx": "7c8d38494e21d0a3a63c943cb0d2449eabd01331c1e0c5607b1ea322035c6517",
+    "src/components/stats/ExamProfileAdvanced.tsx": "e6a7fcfdb617aa394e432802977457d8f7f3eadd769122ca566d7331e46c8193",
+    "src/components/stats/ExamProfileModal.tsx": "f105b27c67509fb61cf89f4c503ba919896565de08a7f5e05a7b76adcae734b6",
+    "src/components/stats/profile/ProfileLayoutEditor.tsx": "04f1eb84d87a167ea73dda350544ac0690cc99f819d838b601abcaa92f2ef57e",
+    "src/components/stats/profile/ProfilePaperPreview.tsx": "26af5432729bc8e791a1da611815dd22e5a870f9a26907bdc71be5ef942877bf",
+    "src/components/stats/profile/ProfileTimeLimit.tsx": "5d87c1bd4daa7463322f4be0168ce08fb9e5d320574b9ab40fe9d81051c0dccd",
+    "src/components/stats/profile/ProfileTopicBrowser.tsx": "6ed075d9f9e3112a0e13064250bf99d422eaf0325ceed07e2b1c358ab79eaa3c",
+    "src/components/ui/alert-dialog.tsx": "82d2c4e2c3225766d761312820538ada1a1cf189450525b519042a42c7d32996",
+    "src/components/ui/button.tsx": "d9772163d053ae2247393c135d4139ab64239252d0475a4516198c3733fddb8a",
+    "src/components/ui/collapsible.tsx": "fbe07841b794e0d7d08e87ddaaafadf1dc0c63ecc8389cd2c5b4a0a3f5500df1",
+    "src/components/ui/dialog.tsx": "72435ac38e13c2ce94f4a9f261f6c1c22a0db47902868337eeea64d0c892f3e1",
+    "src/components/ui/input.tsx": "59eff0926e90a7c5b6bd782e8d9220658c9b60672411411cada8e17096341a64",
+    "src/components/ui/label.tsx": "d5dc9497cbb28a5401b864bd44a15f010c302584fbe8e07e015dbe443f103753",
+    "src/components/ui/switch.tsx": "99cda942c2d215d8f25dd33ae06ed1278bcf912b262ed0e907b04f35881ac507",
+    "src/hooks/use-workspace-session.ts": "41253250c1dec75a1bf6182e7ebad69adb106dfe1a13784003fdbc3faa8c726a",
+    "src/hooks/useBuilderAttachments.ts": "3fc65e2591ebdfb062e5490d45de9fef5e55e857089e241fd3de08018b0e209f",
+    "src/hooks/useUserPreferences.ts": "0145b5b2f13968cca6f0a97e678c214e62c2e7b7cd9d580e83742fb88db2524d",
+    "src/index.css": "a89888358f0e5289e2a1d2e2fb577be42a1ae8e346e460eb5b74c43e3a69ee23",
+    "src/lib/assessment-tier.ts": "6d4b7ddd8f996a485a3543f5c5366f735657540fc11334d4dd4895f9bb9daffd",
+    "src/lib/biology-paper-contract.ts": "f273c857c599bb3c0b5d71b08d6a416b6ea094dee1a7791ce5d5d3bcaa4745ad",
+    "src/lib/educational-levels.ts": "be6d4cde26db26c14b8e46f2b852887fdecc7449e48045127b2c59fdfdc4e33a",
+    "src/lib/inspect-profile-attachments.ts": "d7a74141a44066033839843eba60504250b7a8b39318d36dccf6a68789c04102",
+    "src/lib/paperPresets.ts": "bd6a3dd0e9cffea21219800f0051c56845060c5121c727ec64994c64517c7d84",
+    "src/lib/profile-builder-client.ts": "288e858369e78382d74de6480e024df459c99bda96aad9c5f587eead9cdfee94",
+    "src/lib/profile-builder-resolution.ts": "13492ed2d2eeb7cc3077abef0c21a1be7038f4ba3f6e59c4fa55a9020c865217",
+    "src/lib/subtopic-dictionary.ts": "238a4fcbfa1f6e9ef0a10eac65c99537cc3b3e1acab64975645f3fbde21c4f2d",
+    "src/lib/topicSuggestions.ts": "08fdb7996e9f36ea631ba5ceb9806bf7af8c43a0a7b310a5725140e33ff7be54",
+    "src/lib/utils.ts": "d1f1e0d62cb8d8d1e04c26e14de842d8a151f75812d81b046c65b5d1fe8e4b27",
+    "src/styles/mathquill-custom.css": "57f5596396cd06475c5a1010b803f9cc25b90090162a3016cc0ffe03fd160673",
+    "src/styles/workspace.css": "b493b932949a23980387985bd2fa90f8615a1afc9c2fa0fc5a065118f1b7f45b",
+    "supabase/functions/_shared/aqa-alevel-biology-contract.ts": "c9a2364db5d29302f7e60b3ef18f0d6044934537f877831e79e64af537855367",
+    "supabase/functions/_shared/aqa-alevel-biology-paper2-contract.ts": "a7d7165bc88be05340015322122b2fae458028a32f14a098a2a21204f97ad84a",
+    "supabase/functions/_shared/aqa-alevel-biology-paper2-scope.ts": "696aedec86bdb62ad551dc537ac656f85a2118e463741ecd54a98bb575684945",
+    "supabase/functions/_shared/aqa-alevel-biology-paper3-contract.ts": "4cdd219fccb76d327ee2dc0887b1c7f97031b6b2cec9ca971d73355afbef45b9",
+    "supabase/functions/_shared/aqa-alevel-biology-paper3-scope.ts": "a855f779240f0906eb8e81d02be98256308a99d5964359b447cefb6be761c1fc",
+    "supabase/functions/_shared/aqa-alevel-biology-scope.ts": "420375feb5e50e4055fff2bacdb3ab50761e26f519223c8f11188aa0cec540c9",
+    "supabase/functions/_shared/aqa-biology-contract.ts": "12abc2b3c1430b11b32621cc5350a9de7c2188e3d5565f0aa56f728d7cc6600a",
+    "supabase/functions/_shared/aqa-biology-paper2.ts": "13ed3cf9537de5ea2d8dc6308f6cf1e9624f4f7b826f0fdf0f3d98d71a3e2d5e",
+    "supabase/functions/_shared/assessment-tier.ts": "0b446b70f32bc79ecb1af330e56e96d066cd99034d9ceb430cec8d87e8553795",
+    "supabase/functions/_shared/biology-course-packs.ts": "cf26e4cbc7ebbfd6d0b0123e20640dfb53996553983bb0c495a7ade7f75ad418",
+    "supabase/functions/_shared/biology-paper-contract.ts": "7d2fa10ab28c3ed8f5c158cbd9761bca803696ff084cab6c37aa041346261bda",
+    "supabase/functions/_shared/biology-visual-plan.ts": "d1010f6ed72750aebcfacb696c0366e7e49a4bee861a048ede237528bf08b3e7",
+    "supabase/functions/_shared/biology-visual-public.ts": "2bac4b91ebf92279334824cea74f48d11ed366050b3aa2525b7c0ea84968a826",
+    "supabase/functions/_shared/course-selection.ts": "04a86b677d6033891530abed0cc967ae4ffe80e06e0902ce4341e4b9cc0695dc",
+    "supabase/functions/_shared/edexcel-alevel-biology-b-contract.ts": "ed31a0ca16f55913ae46b360fbdfccb50a3828c4a81f7aec5235cc9e41ab138b",
+    "supabase/functions/_shared/edexcel-alevel-biology-b-scope.ts": "73bb65fda0a54fe70efeb69d2ba8d7e30a2011dfcc6f8ecfcf4517be1ef3ae7b",
+    "supabase/functions/_shared/edexcel-biology-contract.ts": "084a2a8d0115b083cd206765cb91f392b88fda4ad767a4907179649da845058f",
+    "supabase/functions/_shared/edexcel-biology-scope.ts": "370864bc88c3a7107e5b57853c1184c819e0befbca574d13ca7af883faf469bb",
+    "supabase/functions/_shared/ocr-alevel-biology-contract.ts": "20fe12adede57828f038ebf925b40d232e219d57c2cd51a524680ac3bb706dae",
+    "supabase/functions/_shared/ocr-alevel-biology-paper2-contract.ts": "aa9f8fbae4dc1c47ec79111fcb253aa2fff023065d7142c6ec124645a0e9c1f9",
+    "supabase/functions/_shared/ocr-alevel-biology-paper2-scope.ts": "c629bf197f3a31be26d0f9829df20db9713f81481b34cb73333195282aa24381",
+    "supabase/functions/_shared/ocr-alevel-biology-paper2-v2-contract.ts": "5395fabe3a990d8325456f8eb7bb9964d39c405e0ea6dcf235aa04a3b5399159",
+    "supabase/functions/_shared/ocr-alevel-biology-paper3-contract.ts": "0757836e0d52765a3c7b7d98384f71d7bff749fff944e87c8b08ea8cfe9fad31",
+    "supabase/functions/_shared/ocr-alevel-biology-paper3-scope.ts": "3af9e001caa9b80545f7a3211d6699fd1a023285b7c97110a12d53e02786e475",
+    "supabase/functions/_shared/ocr-alevel-biology-scope.ts": "e7524fa5f6dd46fda0208e8547b880cea268a1b2e64f9868583f96600a9ef686",
+    "supabase/functions/_shared/ocr-biology-contract.ts": "ca17821f36aa29dd2e6f4589f6094a731b0e0bdca4fcb3cbdcb6cc5e04d3601d",
+    "supabase/functions/_shared/ocr-biology-scope.ts": "97ee43aa039be33c5b3db045b413f8515d18da7baf038a1cf7bbf12eb97884cd",
+    "supabase/functions/_shared/ocr21c-biology-contract.ts": "90e95b083b321678c0e5aa43940470140e0b0ae3c558f84fbac26b733086e19e",
+    "supabase/functions/_shared/ocr21c-biology-scope.ts": "75161ec00fd6b6424c2899bf9f65a626e26b76361e5e1c08eb9a878ce0138fbf",
+    "supabase/functions/_shared/paper-contract-types.ts": "c0fe7f8b83228619b04dabfa2028d6bb78f06dfbf3446c01d6de71d7f20bab7c",
+    "supabase/functions/_shared/preset-approval-records.ts": "962be1d58d23dfcfe3437c4159186542d7b9792064af153299a894cdd4f81ea7",
+    "supabase/functions/_shared/preset-approval.ts": "00a9bc5fdbbc54d47cb03e0774ff0215a7d7cb1959f530a2353ddb1895546ff2",
+    "supabase/functions/_shared/profile-aqa-science-sources.ts": "776746d59c759a19af7f75d8b5d7937e45e70d2ca4194361478a09c563fe9a74",
+    "supabase/functions/_shared/profile-assessment-catalogue.ts": "7c351687755acf4b5c54300a0ce5956dd4a2487adc27cab741bd2e15701f3d80",
+    "supabase/functions/_shared/profile-assessment-discovery.ts": "945870b5cbcd7b1699ef96eb0bc252f4d999f59f330b370b7798f6047bc07344",
+    "supabase/functions/_shared/profile-assessment-options.ts": "942ea8446934b394bc042d1ead1da466d9fa122e03930a54b2624089bd6014e2",
+    "supabase/functions/_shared/profile-builder-diagnostics.ts": "39c8b5996f19dc9fb9bfd7d8747792180087db67c047b7e51958e279d9a520f3",
+    "supabase/functions/_shared/profile-builder-jobs.ts": "2be7fdff9661cda2363efc2f8867cd08c9b70a114851a848073c99e07fd7c96a",
+    "supabase/functions/_shared/profile-builder-service.ts": "d248aa0f2b1596be969488f8aa3d190c5d931db3c6d2bb7b02567180b17cf82d",
+    "supabase/functions/_shared/profile-catalogue-evidence.ts": "128696d1e07ba2e04fd1a3b64dd637b29fbb1cf648ea7851b323db4fb06c6e27",
+    "supabase/functions/_shared/profile-document-index.ts": "eeefb1415840f56f334ecbb11a7be2d42b7c65b3e04ff14c0a66f4821a470939",
+    "supabase/functions/_shared/profile-document-io.ts": "2c61be2bd3da753f4502d8546c830bac4e1de3ac130d9d8d4bd1f23719d47d38",
+    "supabase/functions/_shared/profile-evidence-ingestion.ts": "bef8f03c569aa620b4ad1cb9e23378ddbbb71a500b5e89e8873359d0cbeb973b",
+    "supabase/functions/_shared/profile-evidence.ts": "4b6b8f83ebe7cbaf004912c284e8ddf3feb1c49a05810e1b28219eeea50a89b0",
+    "supabase/functions/_shared/profile-fingerprint.ts": "2a0c2aaf5b57cdfefd813caa8999cf250552bed138cdcf9220683012e21ae79f",
+    "supabase/functions/_shared/profile-reviewed-assessment-rules.ts": "ed592faf98243d6c4730080804fd27cec8b53e3895f4c5c7a63b3f471000de7e",
+    "supabase/functions/_shared/profile-source-registry.ts": "67c6354387fb39e81eef33554262b117ce9d1f58aedc9c37ef96db52b43034a6",
+    "supabase/functions/_shared/profile-template-context.ts": "85a2691ba93d3f4e9794a3574228d1cc9ed64d78ad26783c7aa1995e579b69d6",
+    "supabase/functions/_shared/profile-template.ts": "5cb761999320fbb6c51da773bbe12e2f465258a528cbcc3f1b07a12099516829",
+    "supabase/functions/_shared/profile-version-context.ts": "a353c4b499ec9f67a54d8d558c615f7e154ec442d6e282479661a0fb92fe997c",
+    "supabase/functions/_shared/question-resource-instructions.ts": "7d493c597c2b3398306f939893da5cd3bf285c0aaf5e51381e5ec435c905d054",
+    "supabase/functions/_shared/response-format-policy.ts": "8b16d20f440498a9776d6cd447c029fc258531a20cf1f85ccc50c5f25b87621c",
+    "supabase/functions/_shared/wjec-biology-contract.ts": "e2c12d574b4315a5e1959a9ef912a753ee67b734cb2bf122d4d1d36d65b7795c",
+    "supabase/functions/_shared/wjec-biology-scope.ts": "ea2ec3dd91fa49db5e90c97f15abceea7fae7c0164a1578be8a0e75965c989f6",
+    "supabase/functions/_shared/wjec-biology-specification.ts": "76b68b60d0b46404e7bb67414f48fbbd1031fe2d7a08da920876977ed6feec40",
+    "supabase/tests/profile-builder-fixtures.ts": "eeafb0dddece14f2662887dd031c7ed2cd192b9ba23761f8bcb2fcb696ad2143",
+    "tailwind.config.ts": "f2efe5e06aa7451e0c4098ee14d239c11e254223cf43c16e4327ba7ca65d7340"
+  },
+  "limitations": [
+    "Chromium viewport emulation rather than physical iOS/iPadOS",
+    "Providers and persistence are synthetic; real extraction quality and live rollout remain unverified",
+    "Two-item UI response is controlled while real same-job assessment continuation is separately exercised",
+    "Original generated fixtures contain no official questions, diagrams, answers or datasets"
+  ],
+  "verificationDate": "2026-11-07",
+  "sourceHashesVerifiedAgainstFinalTree": true
+}

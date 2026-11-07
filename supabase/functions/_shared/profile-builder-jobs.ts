@@ -67,6 +67,22 @@ export const sourceJobRequestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("source_status"), jobId: uuid }).strict(),
   z
     .object({
+      action: z.literal("answer_source"),
+      jobId: uuid,
+      revision: z.number().int().min(0),
+      answers: z
+        .partialRecord(
+          z.enum(["assessment", "module", "source_pages", "source"]),
+          z.string().trim().min(1).max(180),
+        )
+        .refine(
+          (answers) => Object.keys(answers).length === 1,
+          "Answer the current question only.",
+        ),
+    })
+    .strict(),
+  z
+    .object({
       action: z.literal("confirm_source"),
       jobId: uuid,
       identity: identitySchema,
@@ -89,9 +105,16 @@ export interface SourceAssessmentChoice {
   kind: "paper" | "unit" | "component" | "assessment";
   componentCode?: string;
 }
+export interface SourceMissingItem {
+  field: "assessment" | "module" | "source_pages" | "source";
+  question: string;
+  choices?: Array<{ value: string; label: string }>;
+}
 export interface SourceJobView {
   jobId: string;
   stage: SourceJobStage;
+  revision?: number;
+  missingItems?: SourceMissingItem[];
   identity?: TemplateIdentity;
   mode: ProfileTemplate["mode"];
   progress: { completed: number; total: number };
@@ -134,7 +157,13 @@ interface SourceChunk {
 export interface SourceJobData {
   version: 1;
   requestedIdentity: TemplateIdentity;
+  /** Explicit follow-up intent; never evidence and never the immutable intake hash. */
+  selectionIdentity?: TemplateIdentity;
   identity: TemplateIdentity;
+  /** Private bounded parsed text retained for deterministic same-job re-indexing. */
+  retainedDocuments?: SourceDocument[];
+  missingItems?: SourceMissingItem[];
+  answeredPages?: string[];
   mode: ProfileTemplate["mode"];
   documents: SourceDocument[];
   chunks: SourceChunk[];
@@ -294,6 +323,10 @@ const terminal = new Set<SourceJobStage>([
   "needs_details",
 ]);
 export function sourceJobView(r: SourceJobRecord): SourceJobView {
+  // SQL already leases ready checkpoints. Missing questions are a guarded ready
+  // substate, exposed as needs_details; legacy terminal records are not revived.
+  const awaiting = r.stage === "ready" && !!r.data.missingItems?.length;
+  const publicStage = awaiting ? "needs_details" : r.stage;
   const messages: Record<SourceJobStage, string> = {
     reading: "Reading your syllabus…",
     identifying: "Finding your assessment rules…",
@@ -321,14 +354,16 @@ export function sourceJobView(r: SourceJobRecord): SourceJobView {
     );
   return {
     jobId: r.id,
-    stage: r.stage,
+    stage: publicStage,
+    revision: r.revision,
+    ...(awaiting ? { missingItems: r.data.missingItems } : {}),
     identity: r.data.identity,
     mode: r.data.mode,
     progress: {
       completed: r.data.cursor + (r.stage === "complete" ? 1 : 0),
       total: r.data.chunks.length + 1,
     },
-    message: messages[r.stage],
+    message: messages[publicStage],
     canAdvance:
       !r.data.intakePending &&
       ["reading", "identifying", "drafting"].includes(r.stage),
@@ -372,7 +407,7 @@ export function sourceJobView(r: SourceJobRecord): SourceJobView {
           },
         }
       : {}),
-    ...(r.stage === "needs_details" && r.data.assessmentChoices?.length
+    ...(publicStage === "needs_details" && r.data.assessmentChoices?.length
       ? { assessmentChoices: r.data.assessmentChoices }
       : {}),
     ...(r.stage === "complete" && r.data.proposal
@@ -423,6 +458,253 @@ function packChunks(chunks: SourceChunk[]): SourceChunk[] {
     } else out.push({ ...c, sources: structuredClone(c.sources) });
   }
   return out;
+}
+
+const RETAINED_SOURCE_BYTES = 1_600_000;
+function retainReadDocuments(data: SourceJobData, documents: SourceDocument[]) {
+  // Check the whole representation; never keep a silent prefix of a large PDF.
+  if (
+    new TextEncoder().encode(JSON.stringify(documents)).length <=
+    RETAINED_SOURCE_BYTES
+  )
+    data.retainedDocuments = structuredClone(documents);
+}
+function cachedSelectionMatches(
+  requested: TemplateIdentity,
+  cached: TemplateIdentity,
+): boolean {
+  const key = (value?: string | null) => normaliseAssessmentAlias(value ?? "");
+  for (const field of [
+    "country",
+    "educationSystem",
+    "stage",
+    "qualification",
+    "subject",
+    "organisation",
+  ] as const)
+    if (key(requested[field]) !== key(cached[field])) return false;
+  const unknown = (value: string) => !value || value === "Not verified";
+  if (
+    !unknown(requested.course) &&
+    requested.course !== `${requested.qualification} ${requested.subject}` &&
+    key(requested.course) !== key(cached.course)
+  )
+    return false;
+  if (
+    key(trustedDocumentSelection(requested).component) !==
+    key(trustedDocumentSelection(cached).component)
+  )
+    return false;
+  if (requested.tier !== null && requested.tier !== cached.tier) return false;
+  if (
+    !isSpecificationVersionHint(requested.specificationVersion) &&
+    !specificationVersionsEquivalent(
+      requested.specificationVersion,
+      cached.specificationVersion,
+    )
+  )
+    return false;
+  if (
+    requested.institution &&
+    key(requested.institution) !== key(cached.institution)
+  )
+    return false;
+  if (requested.module && !sameSelectedModule(requested, cached.module ?? ""))
+    return false;
+  return true;
+}
+function moduleQuestion(
+  identity: TemplateIdentity,
+): SourceMissingItem | undefined {
+  if (!requiredModuleProblem(identity)) return undefined;
+  const key = (value: string) =>
+    normaliseAssessmentAlias(value.replace(/_/g, " "));
+  for (const course of assessmentMetadataCourses(identity)) {
+    if (
+      ![course.id, course.courseCode].some(
+        (value) => key(value) === key(identity.course),
+      )
+    )
+      continue;
+    const paper = course.papers.find((paper) =>
+      [
+        paper.id,
+        paper.componentCode,
+        ...paper.aliases,
+        ...(paper.requiredOptions?.flatMap(
+          (option) => option.componentCodes ?? [],
+        ) ?? []),
+      ].some((value) => key(value) === key(identity.component)),
+    );
+    if (paper?.requiredOptions?.length)
+      return {
+        field: "module",
+        question: `Which optional topic do you study for ${paper.label}?`,
+        choices: paper.requiredOptions.map((option) => ({
+          value: option.id,
+          label: option.label,
+        })),
+      };
+  }
+}
+function sourceQuestion(
+  data: SourceJobData,
+  question?: string,
+): SourceMissingItem {
+  return {
+    field: "source",
+    question:
+      question ??
+      `Can you add the assessment overview for ${data.identity.qualification} ${data.identity.subject}, ${data.identity.component}?`,
+  };
+}
+function pageQuestion(
+  data: SourceJobData,
+  documents: SourceDocument[],
+  question?: string,
+): SourceMissingItem {
+  const choices = documents.flatMap((document, i) =>
+    document.pages
+      .filter((page) =>
+        /\b(?:paper|component|unit)\s*\d|assessment (?:overview|structure)|qualification at a glance/i.test(
+          page.text,
+        ),
+      )
+      .map((page) => ({
+        value: `${i + 1}:${page.page}`,
+        label: `${documents.length > 1 ? `Document ${i + 1} · ` : ""}Page ${page.page}`,
+      })),
+  );
+  return {
+    field: "source_pages",
+    question:
+      question ??
+      `Which PDF page shows the assessment overview for your ${data.identity.qualification} ${data.identity.subject} course?`,
+    ...(choices.length > 0 && choices.length <= 50 ? { choices } : {}),
+  };
+}
+async function sourceQuestions(
+  data: SourceJobData,
+  documents: SourceDocument[],
+  problems: { componentMissing: boolean; qualificationAmbiguous: boolean },
+): Promise<SourceMissingItem[]> {
+  const items: SourceMissingItem[] = [];
+  const found = await discoverSourceAssessments(
+    documents.map((document) => ({
+      id: document.id,
+      checksum: document.checksum,
+      pages: document.pages.map((page) => page.text),
+    })),
+    data.identity,
+  );
+  if (problems.qualificationAmbiguous || found.ambiguous) {
+    return [
+      data.answeredPages?.length
+        ? sourceQuestion(
+            data,
+            "Can you add a separate assessment overview for the course you selected? These pages still mix assessments that cannot be separated safely.",
+          )
+        : pageQuestion(data, documents),
+    ];
+  }
+  if (problems.componentMissing && found.candidates.length) {
+    data.assessmentChoices = found.candidates.map(
+      ({ id, label, kind, componentCode }) => ({
+        id,
+        label,
+        kind,
+        ...(componentCode ? { componentCode } : {}),
+      }),
+    );
+    items.push({
+      field: "assessment",
+      question: "Which assessment in your source are you preparing for?",
+      choices: data.assessmentChoices.map((choice) => ({
+        value: choice.id,
+        label: choice.label,
+      })),
+    });
+  } else if (problems.componentMissing) {
+    items.push({
+      field: "assessment",
+      question: "What is the assessment name shown in your syllabus?",
+    });
+  }
+  const module = moduleQuestion(data.identity);
+  if (module) items.push(module);
+  if (!items.length)
+    items.push(
+      data.answeredPages?.length
+        ? sourceQuestion(data)
+        : pageQuestion(data, documents),
+    );
+  return items;
+}
+function evidenceSourceQuestions(data: SourceJobData): SourceMissingItem[] {
+  // A student's answer cannot establish missing marks/time/rules. Ask where the
+  // source states them; all facts still pass the same extraction/quote gates.
+  const question = data.needs[0];
+  const capacity = extractionCapacity(data);
+  return [
+    data.retainedDocuments?.length &&
+    !data.answeredPages?.length &&
+    capacity.maxClaims > 0 &&
+    capacity.maxLocationsPerDocument > 0 &&
+    !data.evidence?.conflicts.length &&
+    data.evidence?.facts.selection !== "optional"
+      ? pageQuestion(
+          data,
+          data.retainedDocuments,
+          question
+            ? `Which PDF page has this information? ${question}`
+            : undefined,
+        )
+      : sourceQuestion(data, question),
+  ];
+}
+function extractionCapacity(data: SourceJobData, chunk?: SourceChunk) {
+  const parts = data.partials;
+  const claimed = new Set(
+    parts.flatMap((part) => part.claims.map((claim) => canonical(claim))),
+  );
+  const documentIds =
+    chunk?.sources.map((source) => source.documentId) ??
+    data.documents.map((document) => document.id);
+  const locationSlots = documentIds.map(
+    (id) =>
+      40 -
+      new Set(
+        parts.flatMap((part) =>
+          part.documents
+            .filter((document) => document.id === id)
+            .flatMap((document) =>
+              document.locations.map((location) => location.id),
+            ),
+        ),
+      ).size,
+  );
+  return {
+    maxLocationsPerDocument: Math.max(
+      0,
+      Math.min(
+        Math.floor(40 / Math.max(1, data.chunks.length)),
+        ...locationSlots,
+      ),
+    ),
+    maxClaims: Math.max(
+      0,
+      Math.min(
+        Math.floor(58 / Math.max(1, data.chunks.length)),
+        60 - claimed.size,
+      ),
+    ),
+  };
+}
+function checkedCheckpoint(data: SourceJobData) {
+  if (new TextEncoder().encode(JSON.stringify(data)).length > 2_200_000)
+    throw Error(
+      "These sources exceed the supported reading size. Add a focused assessment overview.",
+    );
 }
 
 /** Human headings come only from explicit catalogue identity, never a client alias. */
@@ -663,6 +945,7 @@ export async function prepareSourceJob(
     canonical({
       version: 1,
       indexVersion: DOCUMENT_INDEX_VERSION,
+      followupPolicyVersion: 1,
       provenancePolicyVersion: 1,
       catalogueTier: resolveCatalogueTier(input.identity),
       reviewedRules: (() => {
@@ -725,14 +1008,7 @@ export async function prepareSourceJob(
   if (!leased.leaseToken || leased.stage !== "reading") return view(leased);
   const processingStarted = Date.now();
   try {
-    const cached = await deps.store.cached(owner, sourceKey);
-    let stage: SourceJobStage = "identifying";
-    if (cached) {
-      data.evidence = validateEvidence(cached);
-      data.identity = data.evidence.identity;
-      data.needs = missingRequirements(data);
-      stage = data.needs.length ? "needs_details" : "ready";
-    } else {
+    const readDocuments = async () => {
       for (let i = 0; i < input.uploads.length; i++) {
         const u = input.uploads[i],
           bytes = Uint8Array.from(atob(u.base64), (c) => c.charCodeAt(0));
@@ -756,6 +1032,23 @@ export async function prepareSourceJob(
           );
         documents[i].pages = pages.map((text, n) => ({ page: n + 1, text }));
       }
+    };
+    const candidateCache = await deps.store.cached(owner, sourceKey);
+    // A resumed job keeps its original receipt/source key. Never serve evidence
+    // reselected for another paper under the original cache identity.
+    const cached =
+      candidateCache &&
+      cachedSelectionMatches(input.identity, candidateCache.identity)
+        ? candidateCache
+        : null;
+    let stage: SourceJobStage = "identifying";
+    if (cached) {
+      data.evidence = validateEvidence(cached);
+      data.identity = data.evidence.identity;
+      data.needs = missingRequirements(data);
+      stage = data.needs.length ? "needs_details" : "ready";
+    } else {
+      await readDocuments();
       let componentMissing = false,
         qualificationAmbiguous = false;
       for (const doc of documents) {
@@ -829,10 +1122,34 @@ export async function prepareSourceJob(
         data.needs = [moduleProblem];
         delete data.assessmentChoices;
       }
-      if (data.needs.length) stage = "needs_details";
+      if (data.needs.length) {
+        data.missingItems = await sourceQuestions(data, documents, {
+          componentMissing,
+          qualificationAmbiguous,
+        });
+        stage = "ready";
+      }
+      retainReadDocuments(data, documents);
+      if (data.missingItems?.length && !data.retainedDocuments)
+        data.missingItems = [
+          sourceQuestion(
+            data,
+            "Can you add a smaller assessment overview? The full source is too large to retain for follow-up questions.",
+          ),
+        ];
     }
-    // Full pages are parsed and scanned locally, not retained in the job. Only
-    // bounded literal retrieval excerpts are needed for source validation/resume.
+    if (cached && data.needs.length) {
+      // Cached facts alone do not retain the original page index. Parse the
+      // supplied bytes once so this new request can answer a page question
+      // without losing its reading or repeating an extraction automatically.
+      await readDocuments();
+      retainReadDocuments(data, documents);
+      data.partials = [data.evidence!];
+      data.missingItems = evidenceSourceQuestions(data);
+      stage = "ready";
+    }
+    // Raw bytes never enter the checkpoint. Bounded private parsed text supports
+    // same-job clarification; only public questions/choices leave this API.
     data.documents = documents.map((doc) => ({ ...doc, pages: [] }));
     if (new TextEncoder().encode(JSON.stringify(data)).length > 2_200_000)
       throw Error(
@@ -900,6 +1217,7 @@ function checkExtracted(
 ): ProfileEvidence {
   const parsed = extractionSchema.parse(raw),
     uploaded = parsed.evidence;
+  const selected = data.selectionIdentity ?? data.requestedIdentity;
   const suppliedIds = new Set(chunk.sources.map((s) => s.documentId));
   if (
     uploaded.documents.length !== suppliedIds.size ||
@@ -992,9 +1310,9 @@ function checkExtracted(
       ![
         "",
         "Not verified",
-        `${data.requestedIdentity.qualification} ${data.requestedIdentity.subject}`,
-      ].includes(String(data.requestedIdentity.course)) &&
-      next !== data.requestedIdentity.course
+        `${selected.qualification} ${selected.subject}`,
+      ].includes(String(selected.course)) &&
+      next !== selected.course
     )
       throw Error(
         "The document's course differs from your selected qualification.",
@@ -1014,14 +1332,14 @@ function checkExtracted(
       );
     if (
       key === "module" &&
-      data.requestedIdentity.module &&
-      !sameSelectedModule(data.requestedIdentity, String(next))
+      selected.module &&
+      !sameSelectedModule(selected, String(next))
     )
       throw new SourceIdentityConflict(
         "The source describes a different optional topic or module. Check the selected option and source.",
       );
     if (key === "component") {
-      const requested = data.requestedIdentity.component,
+      const requested = selected.component,
         found = String(next);
       const number = (v: string) =>
         v.match(/(?:paper|unit|component)\s*0*(\d+)\b/i)?.[1] ??
@@ -1040,7 +1358,7 @@ function checkExtracted(
     }
     if (
       data.partials.length &&
-      previous !== data.requestedIdentity[key] &&
+      previous !== selected[key] &&
       !(
         key === "specificationVersion" &&
         specificationVersionsEquivalent(String(previous), String(next))
@@ -1144,6 +1462,265 @@ function missingRequirements(data: SourceJobData): string[] {
   }
   return needs;
 }
+/** Parse physical page selections as retrieval intent, never as evidence. */
+function selectedSourcePages(
+  value: string,
+  documents: SourceDocument[],
+): Map<string, Set<number>> {
+  const selected = new Map<string, Set<number>>();
+  for (const token of value
+    .split(/[,;]/)
+    .map((part) => part.trim())
+    .filter(Boolean)) {
+    const match = token.match(/^(?:(\d+):)?(\d+)(?:\s*[-–]\s*(\d+))?$/);
+    if (!match)
+      throw Error(
+        "Choose a PDF page or a short page range, such as 9 or 9–10.",
+      );
+    const documentIndex = match[1]
+      ? Number(match[1]) - 1
+      : documents.length === 1
+        ? 0
+        : -1;
+    const document = documents[documentIndex],
+      start = Number(match[2]),
+      end = Number(match[3] ?? match[2]);
+    if (
+      !document ||
+      start < 1 ||
+      end < start ||
+      end - start > 9 ||
+      end > document.pages.length
+    )
+      throw Error("Choose physical pages that exist in your attached PDF.");
+    const pages = selected.get(document.id) ?? new Set<number>();
+    for (let page = start; page <= end; page++) pages.add(page);
+    selected.set(document.id, pages);
+  }
+  if (
+    !selected.size ||
+    [...selected.values()].reduce((n, pages) => n + pages.size, 0) > 10
+  )
+    throw Error("Choose up to ten physical PDF pages for this question.");
+  return selected;
+}
+
+export async function answerSourceJob(
+  owner: string,
+  id: string,
+  input: {
+    revision: number;
+    answers: Partial<Record<SourceMissingItem["field"], string>>;
+  },
+  deps: SourceJobDeps,
+): Promise<SourceJobView> {
+  sourceJobRequestSchema.parse({
+    action: "answer_source",
+    jobId: id,
+    ...input,
+  });
+  const snapshot = await owned(owner, id, deps);
+  // A late/repeated answer retrieves the newer state. It cannot run paid work.
+  if (snapshot.revision !== input.revision) return view(snapshot);
+  if (snapshot.stage !== "ready" || !snapshot.data.missingItems?.length)
+    throw Error(
+      "This build has no resumable question. Check progress or change the source.",
+    );
+  const item = snapshot.data.missingItems[0],
+    entries = Object.entries(input.answers);
+  if (entries.length !== 1 || entries[0][0] !== item.field)
+    throw Error("Answer the current assessment question only.");
+  const answer = entries[0][1]?.trim() ?? "";
+  if (
+    !answer ||
+    (item.choices?.length &&
+      !item.choices.some((choice) => choice.value === answer))
+  )
+    throw Error("Choose one of the assessment options shown for this source.");
+  if (item.field === "source")
+    throw Error(
+      "Add the relevant assessment source. Typed answers cannot replace source evidence.",
+    );
+  const data = structuredClone(snapshot.data),
+    documents = data.retainedDocuments;
+  if (!documents?.length)
+    throw Error(
+      "This older build cannot resume reading. Keep your files attached and read the focused assessment source again.",
+    );
+  if (item.field === "assessment") {
+    if (snapshot.callIntents)
+      throw Error(
+        "Changing the assessment after extraction needs a fresh source check.",
+      );
+    const chosen = data.assessmentChoices?.find(
+      (choice) => choice.id === answer,
+    );
+    const component = chosen?.componentCode ?? chosen?.label ?? answer;
+    if (
+      !chosen &&
+      !documents.some((doc) =>
+        doc.pages.some((page) => {
+          const lines = page.text.split("\n");
+          return lines.some(
+            (line, index) =>
+              norm(line).toLowerCase() === norm(component).toLowerCase() &&
+              !/^(?:marks?|duration|time|calculator|answer|instructions?|topics?|\d+\s*(?:marks?|minutes?|hours?))\b/i.test(
+                component,
+              ) &&
+              /\b(?:assessment|examination|exam|test|paper|unit|component|marks?|minutes?|hours?)\b/i.test(
+                lines.slice(Math.max(0, index - 2), index + 3).join("\n"),
+              ),
+          );
+        }),
+      )
+    )
+      throw Error(
+        "This assessment heading was not found in your attached source. Add its assessment overview.",
+      );
+    // Refine intent only; source evidence still has to prove the actual identity.
+    const old = data.identity.component;
+    data.identity.component = component;
+    if (old !== component) delete data.identity.module;
+    data.selectionIdentity = { ...data.identity };
+  } else if (item.field === "module") {
+    if (snapshot.callIntents)
+      throw Error(
+        "Changing the optional topic after extraction needs a fresh source check.",
+      );
+    const allowed = moduleQuestion(data.identity)?.choices;
+    if (!allowed?.some((choice) => choice.value === answer))
+      throw Error("Choose the optional topic for your selected assessment.");
+    data.identity.module = answer;
+    data.selectionIdentity = { ...data.identity };
+  }
+  const pageSelection =
+    item.field === "source_pages"
+      ? selectedSourcePages(answer, documents)
+      : undefined;
+  if (pageSelection)
+    data.answeredPages = [...(data.answeredPages ?? []), answer].slice(-3);
+  const r = await deps.store.acquire(owner, id);
+  if (!r.leaseToken) return view(r);
+  if (r.stage !== "ready" || r.revision !== input.revision)
+    return view(
+      await deps.store.commit(r, {
+        stage: r.stage,
+        data: r.data,
+        elapsedMs: 0,
+      }),
+    );
+  const started = Date.now();
+  // All input checks above happen before acquiring. After a lease is obtained,
+  // every path commits or releases it via the normal RPC.
+  try {
+    delete data.missingItems;
+    delete data.assessmentChoices;
+    data.needs = [];
+    const pendingChunks: SourceChunk[] = [];
+    let componentMissing = false,
+      qualificationAmbiguous = false;
+    for (const document of documents) {
+      const selection = trustedDocumentSelection(data.identity);
+      const chosen = snapshot.data.assessmentChoices?.find(
+        (choice) => choice.id === answer,
+      );
+      if (chosen && chosen.componentCode === data.identity.component)
+        selection.componentAliases = [
+          ...new Set([...(selection.componentAliases ?? []), chosen.label]),
+        ];
+      if (pageSelection)
+        selection.sourcePages = [...(pageSelection.get(document.id) ?? [])];
+      // Full-document scope is established before optional page filtering. The
+      // reader requires literal course/qualification anchors to bypass a mixed
+      // comparison elsewhere; a student's page choice supplies no authority.
+      if (pageSelection && !selection.sourcePages?.length) continue;
+      const index = indexDocumentPages(
+        document.pages.map((page) => page.text),
+        selection,
+      );
+      if (!index.coverage.complete) {
+        componentMissing ||=
+          /Choose which paper|could not locate this assessment/i.test(
+            index.coverage.reason ?? "",
+          );
+        qualificationAmbiguous ||= /\bAS\b|A-level|qualification|course/i.test(
+          index.coverage.reason ?? "",
+        );
+        data.needs.push(
+          index.coverage.reason ??
+            "Add the assessment overview for this course.",
+        );
+      }
+      for (const chunk of index.chunks) {
+        const pages = pageSelection
+          ? chunk.pages.filter((page) =>
+              pageSelection.get(document.id)?.has(page.page),
+            )
+          : chunk.pages;
+        if (!pages.length) continue;
+        pendingChunks.push({
+          id: `${document.id}-followup-${r.revision}-${chunk.id}`,
+          sources: [{ documentId: document.id, pages }],
+          characterCount: pages.reduce((n, p) => n + p.text.length, 0),
+        });
+      }
+    }
+    const module = moduleQuestion(data.identity);
+    if (module) data.needs.push(requiredModuleProblem(data.identity)!);
+    const packed = packChunks(pendingChunks);
+    const capacity = extractionCapacity(data);
+    if (!capacity.maxClaims || !capacity.maxLocationsPerDocument)
+      data.needs.push(
+        "This build has used its source-reference capacity. Add a focused assessment overview in a new build.",
+      );
+    if (!packed.length && !data.needs.length)
+      data.needs.push(
+        "We could not locate this assessment in those pages. Add its assessment overview.",
+      );
+    if (
+      packed.length + data.cursor > 2 ||
+      snapshot.callIntents + packed.length + 1 > 3
+    )
+      data.needs.push(
+        "These pages need more processing than this build allows. Add a focused assessment overview in a new build.",
+      );
+    let stage: SourceJobStage = "identifying";
+    if (data.needs.length) {
+      data.missingItems = await sourceQuestions(data, documents, {
+        componentMissing,
+        qualificationAmbiguous,
+      });
+      // A repeated page answer cannot turn inseparable rows into evidence.
+      if (pageSelection)
+        data.missingItems = [sourceQuestion(data, data.needs[0])];
+      stage = "ready";
+    } else {
+      const completed = data.chunks.slice(0, data.cursor);
+      data.chunks = [...completed, ...packed];
+      data.evidence = null;
+      delete data.invalidExtraction;
+      delete data.extractionError;
+    }
+    checkedCheckpoint(data);
+    return view(
+      await deps.store.commit(r, {
+        stage,
+        data,
+        elapsedMs: Date.now() - started,
+      }),
+    );
+  } catch (error) {
+    // Preserve the last valid checkpoint and its question if local clarification
+    // could not be applied. No call intent or quota has been consumed here.
+    await deps.store.commit(r, {
+      stage: "ready",
+      data: r.data,
+      elapsedMs: Date.now() - started,
+    });
+    throw error;
+  }
+}
+
 export async function confirmSourceJob(
   owner: string,
   id: string,
@@ -1153,7 +1730,11 @@ export async function confirmSourceJob(
   const snapshot = await owned(owner, id, deps);
   if (snapshot.stage === "drafting" || snapshot.stage === "complete")
     return view(snapshot);
-  if (snapshot.stage !== "ready" || !snapshot.data.evidence)
+  if (
+    snapshot.stage !== "ready" ||
+    snapshot.data.missingItems?.length ||
+    !snapshot.data.evidence
+  )
     throw Error("Read the assessment source before confirming this build.");
   if (
     canonical(choice.identity) !== canonical(snapshot.data.identity) ||
@@ -1163,7 +1744,22 @@ export async function confirmSourceJob(
       "These choices differ from the source you reviewed. Change details and read the source again.",
     );
   const r = await deps.store.acquire(owner, id);
-  if (r.stage !== "ready" || !r.leaseToken) return view(r);
+  if (!r.leaseToken) return view(r);
+  if (
+    r.stage !== "ready" ||
+    r.data.missingItems?.length ||
+    !r.data.evidence ||
+    r.revision !== snapshot.revision ||
+    canonical(choice.identity) !== canonical(r.data.identity) ||
+    choice.mode !== r.data.mode
+  )
+    return view(
+      await deps.store.commit(r, {
+        stage: r.stage,
+        data: r.data,
+        elapsedMs: 0,
+      }),
+    );
   return view(
     await deps.store.commit(r, {
       stage: "drafting",
@@ -1181,8 +1777,15 @@ export async function advanceSourceJob(
   if (terminal.has(snapshot.stage) || snapshot.stage === "ready")
     return view(snapshot);
   const r = await deps.store.acquire(owner, id);
-  if (!r.leaseToken || terminal.has(r.stage) || r.stage === "ready")
-    return view(r);
+  if (!r.leaseToken) return view(r);
+  if (terminal.has(r.stage) || r.stage === "ready")
+    return view(
+      await deps.store.commit(r, {
+        stage: r.stage,
+        data: r.data,
+        elapsedMs: 0,
+      }),
+    );
   const started = Date.now(),
     data = structuredClone(r.data);
   if (data.intakePending) {
@@ -1272,11 +1875,7 @@ export async function advanceSourceJob(
               }
             : {}),
           chunkId: chunk.id,
-          evidenceLimits: {
-            maxLocationsPerDocument: Math.floor(40 / data.chunks.length),
-            // Reserve two final-evidence references for reviewed instructions.
-            maxClaims: Math.floor(58 / data.chunks.length),
-          },
+          evidenceLimits: extractionCapacity(data, chunk),
           documents: chunk.sources.map((s) => ({
             id: s.documentId,
             checksum: data.documents.find((d) => d.id === s.documentId)!
@@ -1328,7 +1927,10 @@ export async function advanceSourceJob(
       if (data.cursor === data.chunks.length) {
         data.evidence = mergeEvidence(data.partials, data.identity);
         data.needs = missingRequirements(data);
-        stage = data.needs.length ? "needs_details" : "ready";
+        if (data.needs.length)
+          data.missingItems = evidenceSourceQuestions(data);
+        else delete data.missingItems;
+        stage = "ready";
       }
       return view(
         await deps.store.finishCall(
@@ -1398,6 +2000,8 @@ export async function advanceSourceJob(
       profileSettings: null,
     };
     data.proposal = proposal;
+    delete data.retainedDocuments;
+    delete data.missingItems;
     return view(
       await deps.store.finishCall(
         r,
@@ -1422,15 +2026,16 @@ export async function advanceSourceJob(
         : error instanceof SourceQuotaUnavailable
           ? SOURCE_QUOTA_MESSAGE
           : result
-          ? (data.validationIssues?.at(-1)?.message ??
-            "We could not verify the assessment details returned from this source.")
-          : callStarted
-            ? "The source service could not finish. This request will not repeat a possibly charged call. Your saved profiles are unchanged."
-            : "The AI service is unavailable. Your saved profiles are unchanged.",
+            ? (data.validationIssues?.at(-1)?.message ??
+              "We could not verify the assessment details returned from this source.")
+            : callStarted
+              ? "The source service could not finish. This request will not repeat a possibly charged call. Your saved profiles are unchanged."
+              : "The AI service is unavailable. Your saved profiles are unchanged.",
     ];
+    if (error instanceof SourceIdentityConflict)
+      data.missingItems = [sourceQuestion(data, data.needs[0])];
     const change: Commit = {
-      stage:
-        error instanceof SourceIdentityConflict ? "needs_details" : "failed",
+      stage: error instanceof SourceIdentityConflict ? "ready" : "failed",
       data,
       elapsedMs: Date.now() - started,
     };

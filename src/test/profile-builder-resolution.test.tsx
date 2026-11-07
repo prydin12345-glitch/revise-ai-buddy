@@ -1225,3 +1225,148 @@ it("a named option source choice preserves Astrophysics and cannot silently swit
   fireEvent.click(screen.getByRole("button", { name: "Change details" }));
   expect(screen.getByLabelText("Paper option")).toHaveValue("astrophysics");
 });
+
+it("shows one missing question, retains the upload and read, and continues the same server job", async () => {
+  pending.read.mockResolvedValue(null);
+  const calls: Record<string, any>[] = [];
+  let receipt = "",
+    savedIdentity: ReturnType<typeof identitySchema.parse>;
+  const missing = [
+    {
+      field: "assessment" as const,
+      question: "Which assessment in your source should we use?",
+      choices: [{ value: "document-paper-2", label: "Paper 2" }],
+    },
+    {
+      field: "source_pages" as const,
+      question: "Which PDF pages describe this assessment?",
+    },
+  ];
+  const api: BuilderApi = async (input) => {
+    calls.push(input);
+    if (input.action === "prepare_source") {
+      receipt = String(input.requestId);
+      savedIdentity = identitySchema.parse(input.identity);
+      return {
+        job: {
+          jobId: receipt,
+          stage: "needs_details",
+          revision: 7,
+          identity: savedIdentity,
+          mode: "short_practice",
+          progress: { completed: 0, total: 1 },
+          message: "One detail is missing.",
+          missingItems: missing,
+        },
+      };
+    }
+    expect(input.action).toBe("answer_source");
+    expect(input.jobId).toBe(receipt);
+    expect(input).not.toHaveProperty("uploads");
+    if (calls.length === 2) {
+      expect(input.revision).toBe(7);
+      expect(input.answers).toEqual({ assessment: "document-paper-2" });
+      savedIdentity = { ...savedIdentity, component: "7408/2" };
+      return {
+        job: {
+          jobId: receipt,
+          stage: "needs_details",
+          revision: 8,
+          identity: savedIdentity,
+          mode: "short_practice",
+          progress: { completed: 0, total: 1 },
+          message: "One detail is missing.",
+          missingItems: [missing[1]],
+        },
+      };
+    }
+    expect(input.revision).toBe(8);
+    expect(input.answers).toEqual({ source_pages: "9-10" });
+    return {
+      job: {
+        jobId: receipt,
+        stage: "ready",
+        revision: 9,
+        identity: savedIdentity,
+        mode: "short_practice",
+        progress: { completed: 1, total: 2 },
+        message: "Ready to confirm.",
+      },
+    };
+  };
+  render(
+    <ExamProfileBuilder
+      {...base}
+      subjectName="Physics"
+      examBoard="AQA"
+      api={api}
+    />,
+  );
+  fireEvent.change(screen.getByLabelText("Paper"), {
+    target: { value: "paper_1" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Upload syllabus" }));
+  const bytes = new TextEncoder().encode(
+    "A-level\nPaper 2\n7408/2\n85 marks\n2 hours",
+  );
+  fireEvent.change(screen.getByLabelText("Syllabus or assessment brief"), {
+    target: {
+      files: [
+        {
+          name: "combined-spec.txt",
+          type: "text/plain",
+          size: bytes.length,
+          arrayBuffer: async () => bytes.buffer,
+        },
+      ],
+    },
+  });
+  await screen.findByText("combined-spec.txt");
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Read syllabus" })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Read syllabus" }));
+  const question = await screen.findByLabelText(missing[0].question);
+  const inspections = localInspection.inspect.mock.calls.length;
+  expect(screen.getAllByRole("combobox")).toHaveLength(1);
+  expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  expect(screen.queryByLabelText(missing[1].question)).not.toBeInTheDocument();
+  expect(
+    screen.queryByLabelText("Paper / component code"),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Assessment mode")).not.toBeInTheDocument();
+  expect(
+    screen.queryByLabelText("Syllabus or assessment brief"),
+  ).not.toBeInTheDocument();
+  expect(screen.getByText("combined-spec.txt")).toBeVisible();
+  expect(
+    screen.getByRole("button", { name: "Remove combined-spec.txt" }),
+  ).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Change" }));
+  expect(screen.getByLabelText("Paper")).toHaveValue("paper_1");
+  fireEvent.click(screen.getByRole("button", { name: "Back to question" }));
+  expect(calls).toHaveLength(1);
+  expect(pending.clear).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText(missing[0].question), {
+    target: { value: "document-paper-2" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  const pages = await screen.findByLabelText(missing[1].question);
+  expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  expect(screen.getAllByRole("textbox")).toHaveLength(1);
+  expect(screen.getByText("combined-spec.txt")).toBeVisible();
+  fireEvent.change(pages, { target: { value: "9-10" } });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  await screen.findByRole("button", { name: "Yes, build it" });
+  expect(
+    screen.getByRole("heading", { name: /We’ll build.*Paper 2/ }),
+  ).toBeVisible();
+  expect(calls.map((call) => call.action)).toEqual([
+    "prepare_source",
+    "answer_source",
+    "answer_source",
+  ]);
+  expect(localInspection.inspect).toHaveBeenCalledTimes(inspections);
+  expect(pending.clear).not.toHaveBeenCalled();
+  expect(screen.getByText("combined-spec.txt")).toBeVisible();
+});

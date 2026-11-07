@@ -6,7 +6,7 @@
  * Private page text belongs only in the owned preparation receipt. Only an
  * explicitly reviewed public source pack may enter a shared catalogue.
  */
-export const DOCUMENT_INDEX_VERSION = 4;
+export const DOCUMENT_INDEX_VERSION = 5;
 export const INDEXED_DOCUMENT_LIMITS = {
   maxBytes: 3_000_000,
   maxPages: 240,
@@ -35,6 +35,8 @@ export interface DocumentSelection {
   subject?: string;
   course?: string;
   qualification?: string;
+  /** Physical source pages selected in a clarification; never a trust grant. */
+  sourcePages?: number[];
 }
 export type SourceQualification = "AS" | "A-level";
 export interface QualificationFragment {
@@ -44,12 +46,21 @@ export interface QualificationFragment {
   endOffset: number;
   qualification?: SourceQualification;
   qualificationReference?: { page: number; text: string };
+  course?: string;
+  courseReference?: { page: number; text: string };
+}
+export interface AssessmentScopeResolution {
+  field: "qualification" | "course" | "source";
+  question: string;
+  choices?: Array<{ value: string; label: string }>;
 }
 export interface QualificationScope {
   fragments: QualificationFragment[];
   qualifications: SourceQualification[];
   ambiguous: boolean;
   reason?: string;
+  resolution?: AssessmentScopeResolution;
+  excludedCourses?: string[];
 }
 
 const qualificationKey = (value?: string): SourceQualification | undefined => {
@@ -71,8 +82,13 @@ function qualificationHeading(line: string): SourceQualification | undefined {
     /\b(?:and|only|students?|candidates?|will|should|must)\b/i.test(text)
   )
     return undefined;
+  // Subject/board names are presentation, not an allow-list of sciences. A
+  // short standalone heading may identify any AS/A-level subject, but prose,
+  // comparison columns and component rows must not create section boundaries.
+  if (/\b(?:paper|unit|component)\s*\d|[|;]|\b\d+\s*marks?\b/i.test(text))
+    return undefined;
   const tail =
-    "(?:\\s+(?:assessment(?:s| overview)?|qualification|specification|physics|chemistry|biology))?(?:\\s*\\([A-Za-z0-9 ,/]+\\))?";
+    "(?:\\s+[A-Za-z][A-Za-z &'-]{0,80})?(?:\\s*\\([A-Za-z0-9 ,/]+\\))?";
   if (
     text.startsWith("AS") &&
     new RegExp("^AS(?:[- ]level)?" + tail + "$", "i").test(text)
@@ -104,7 +120,8 @@ function qualificationAssessmentRows(text: string): Set<SourceQualification> {
 function adjacentQualificationColumns(text: string): boolean {
   const lines = text.split("\n");
   let previous: SourceQualification | undefined;
-  let assessmentBetween = false;
+  let assessmentBetween = false,
+    gap = 0;
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
     const heading = qualificationHeading(line);
@@ -115,12 +132,45 @@ function adjacentQualificationColumns(text: string): boolean {
       }
       previous = heading;
       assessmentBetween = false;
+      gap = 0;
     } else if (
       /\b(?:paper|unit|component)\s*\d+\b|\b\d+\s*marks?\b/i.test(line)
     )
       assessmentBetween = true;
+    else if (++gap > 2 || line.length > 180) previous = undefined;
   }
   return false;
+}
+
+function qualificationColumnAnchors(texts: string[]) {
+  const unsafe = new Set<string>();
+  let previous: { qualification: SourceQualification; key: string } | undefined,
+    assessmentBetween = false,
+    gap = 0;
+  texts.forEach((text, page) =>
+    text.split("\n").forEach((line) => {
+      const qualification = qualificationHeading(line);
+      if (qualification) {
+        const key = `${page + 1}:${line.trim()}`;
+        if (
+          previous &&
+          previous.qualification !== qualification &&
+          !assessmentBetween
+        ) {
+          unsafe.add(previous.key);
+          unsafe.add(key);
+        }
+        previous = { qualification, key };
+        assessmentBetween = false;
+        gap = 0;
+      } else if (
+        /\b(?:paper|unit|component)\s*\d+\b|\b\d+\s*marks?\b/i.test(line)
+      )
+        assessmentBetween = true;
+      else if (++gap > 2 || line.length > 180) previous = undefined;
+    }),
+  );
+  return unsafe;
 }
 
 /**
@@ -128,7 +178,7 @@ function adjacentQualificationColumns(text: string): boolean {
  * literal spans at their original physical pages, including shared-page
  * AS/A-level sections. Neutral cover/general material stays unqualified.
  */
-export function scopeDocumentQualification(
+function scopeQualificationHeadings(
   texts: string[],
   qualification?: string,
 ): QualificationScope {
@@ -186,7 +236,7 @@ export function scopeDocumentQualification(
       "We could not separate the AS and A-level assessment sections. Add the assessment overview for your qualification.";
   if (
     requested &&
-    (texts.some(adjacentQualificationColumns) ||
+    (adjacentQualificationColumns(texts.join("\n")) ||
       fragments.some((fragment) => {
         const rows = qualificationAssessmentRows(fragment.text);
         const expected = fragment.qualification ?? requested;
@@ -221,6 +271,335 @@ export function scopeDocumentQualification(
     ...(reason ? { reason } : {}),
   };
 }
+
+const literalComponentCode = /\b([A-Za-z0-9]{3,12})\/\d{1,3}[A-Za-z]{0,2}\b/g;
+const assessmentRow =
+  /^(?:(?:AS(?:[- ]level)?|A[\s\u2010-\u2015-]*level)\s+)?(?:paper|unit|component)\s*(?:no\.?\s*)?[A-Za-z]?\d|^(?:assessment|examination|exam|test|component|unit)(?:\s+(?:title|name))?\s*[:\u2013\u2014-]/i;
+const exactCourseCode = (value?: string) => {
+  const text = value?.normalize("NFKC").trim();
+  return text && /^[A-Za-z0-9]{3,12}$/.test(text) && /\d/.test(text)
+    ? text.toLowerCase()
+    : undefined;
+};
+const inlineQualification = (line: string) => {
+  if (/^AS(?:[- ]level)?\s+(?:paper|unit|component)\b/.test(line.trim()))
+    return "AS" as const;
+  if (
+    /^A[\s\u2010-\u2015-]*level\s+(?:paper|unit|component)\b/i.test(line.trim())
+  )
+    return "A-level" as const;
+  return undefined;
+};
+
+/** Literal course headings and explicitly coded assessment rows form spans.
+ * A selected course code never supplies the meaning of an unlabelled table
+ * column: every retained assessment block still needs its own source anchor.
+ */
+function courseBlocks(texts: string[], requested: string) {
+  const fragments: QualificationFragment[] = [],
+    courses = new Set<string>();
+  let sectionQualification: SourceQualification | undefined,
+    sectionReference: { page: number; text: string } | undefined,
+    sectionCourse: string | undefined,
+    sectionCourseReference: { page: number; text: string } | undefined,
+    currentQualification: SourceQualification | undefined,
+    currentQualificationReference: { page: number; text: string } | undefined,
+    currentCourse: string | undefined,
+    currentCourseReference: { page: number; text: string } | undefined,
+    ambiguous = false;
+  const columnPages = new Set<number>(),
+    columnAnchors = qualificationColumnAnchors(texts);
+  texts.forEach((text, pageIndex) => {
+    const page = pageIndex + 1,
+      lines = text.split("\n");
+    if (adjacentQualificationColumns(text)) columnPages.add(page);
+    let start = 0,
+      offset = 0;
+    const add = (end: number) => {
+      if (end <= start || !text.slice(start, end).trim()) return;
+      fragments.push({
+        page,
+        text: text.slice(start, end),
+        startOffset: start,
+        endOffset: end,
+        ...(currentQualification
+          ? {
+              qualification: currentQualification,
+              qualificationReference: currentQualificationReference,
+            }
+          : {}),
+        ...(currentCourse
+          ? { course: currentCourse, courseReference: currentCourseReference }
+          : {}),
+      });
+    };
+    lines.forEach((line, index) => {
+      const value = line.trim(),
+        heading = qualificationHeading(line);
+      const headingCode =
+        value.match(
+          /^(?:course|qualification|specification)\s+code\s*:\s*([A-Za-z0-9]{3,12})\s*$/i,
+        )?.[1] ??
+        (/^(?:AS(?:[- ]level)?|A[\s\u2010-\u2015-]*level|GCSE|GCE)\b/i.test(
+          value,
+        )
+          ? value.match(/\(([A-Za-z0-9]{3,12})\)\s*$/)?.[1]
+          : undefined);
+      const courseHeading = exactCourseCode(headingCode);
+      const isRow = assessmentRow.test(value),
+        codes = new Set<string>();
+      if (isRow || /^[A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]{0,2}$/.test(value)) {
+        for (const match of value.matchAll(literalComponentCode))
+          codes.add(match[1].toLowerCase());
+        if (!codes.size && isRow)
+          for (
+            let next = index + 1;
+            next <= Math.min(index + 2, lines.length - 1);
+            next++
+          ) {
+            const following = lines[next].trim();
+            if (
+              !following ||
+              assessmentRow.test(following) ||
+              qualificationHeading(following)
+            )
+              break;
+            const code = following.match(
+              /^(?:(?:paper|unit|component|assessment)\s+code\s*:\s*|\()?([A-Za-z0-9]{3,12})\/\d{1,3}[A-Za-z]{0,2}\)?$/i,
+            );
+            if (code) {
+              codes.add(code[1].toLowerCase());
+              break;
+            }
+          }
+      }
+      const continuesCodedRow =
+        !isRow &&
+        !heading &&
+        !courseHeading &&
+        codes.size === 1 &&
+        currentCourse === [...codes][0];
+      if (
+        heading ||
+        courseHeading ||
+        isRow ||
+        (codes.size && !continuesCodedRow)
+      ) {
+        add(offset);
+        start = offset;
+        if (heading || courseHeading) {
+          if (heading) {
+            sectionQualification = heading;
+            sectionReference = { page, text: value };
+          } else if (/^(?:GCSE|GCE)\b/i.test(value)) {
+            sectionQualification = undefined;
+            sectionReference = undefined;
+          }
+          sectionCourse = courseHeading;
+          sectionCourseReference = courseHeading
+            ? { page, text: value }
+            : undefined;
+          if (courseHeading) courses.add(courseHeading);
+        }
+        if (codes.size > 1) ambiguous = true;
+        const inline = inlineQualification(value);
+        currentCourse = codes.size === 1 ? [...codes][0] : sectionCourse;
+        currentCourseReference =
+          codes.size === 1 ? { page, text: value } : sectionCourseReference;
+        currentQualification = inline ?? sectionQualification;
+        currentQualificationReference = inline
+          ? { page, text: value }
+          : sectionReference;
+        // In a flattened heading row, position is not a qualification anchor.
+        // A row's literal course/component code can still settle its identity.
+        if (codes.size === 1 && columnPages.has(page) && !inline) {
+          currentQualification = undefined;
+          currentQualificationReference = undefined;
+        }
+        for (const code of codes) courses.add(code);
+      }
+      offset += line.length + 1;
+    });
+    add(text.length);
+  });
+  const assessmentFragments = fragments.filter((fragment) =>
+    fragment.text
+      .split("\n")
+      .some(
+        (line) =>
+          assessmentRow.test(line.trim()) ||
+          /^[A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]{0,2}\s*$/.test(line.trim()),
+      ),
+  );
+  const unresolved = assessmentFragments.some(
+    (fragment) =>
+      (!fragment.course &&
+        (!fragment.qualification || columnPages.has(fragment.page))) ||
+      (columnPages.has(fragment.page) &&
+        !fragment.courseReference?.text.match(literalComponentCode)) ||
+      (!!fragment.qualificationReference &&
+        columnAnchors.has(
+          `${fragment.qualificationReference.page}:${fragment.qualificationReference.text}`,
+        ) &&
+        !fragment.courseReference?.text.match(literalComponentCode)),
+  );
+  return {
+    fragments,
+    courses,
+    ambiguous: ambiguous || unresolved,
+    matched: courses.has(requested),
+  };
+}
+
+export function scopeDocumentQualification(
+  texts: string[],
+  qualification?: string,
+  course?: string,
+  sourcePages?: number[],
+): QualificationScope {
+  const base = scopeQualificationHeadings(texts, qualification),
+    requested = qualificationKey(qualification),
+    requestedCourse = exactCourseCode(course);
+  let result = base;
+  const mixedScience = texts.some((text) =>
+    text
+      .split("\n")
+      .some(
+        (line) =>
+          line.length <= 180 &&
+          /^\s*(?:\d+(?:\.\d+)*[.)]?\s+)?GCSE\b/i.test(line) &&
+          /\bcombined\b/i.test(line) &&
+          /\b(?:separate|single|triple)\b/i.test(line),
+      ),
+  );
+  if (mixedScience)
+    result = {
+      ...base,
+      ambiguous: true,
+      reason:
+        "The source combines separate and combined GCSE science assessments without clear course-code headings. Add the matching assessment overview.",
+    };
+  if (requestedCourse) {
+    const scoped = courseBlocks(texts, requestedCourse);
+    if (scoped.courses.size) {
+      const contradiction = scoped.fragments.some(
+        (fragment) =>
+          fragment.course === requestedCourse &&
+          requested &&
+          fragment.qualification &&
+          fragment.qualification !== requested,
+      );
+      const explicitMismatch = !scoped.matched;
+      const reason = contradiction
+        ? "The selected course code and qualification have conflicting source headings. Add the matching assessment overview."
+        : explicitMismatch
+          ? "The source course code does not match your selected course. Add its assessment overview or change the course."
+          : scoped.ambiguous
+            ? (base.reason ??
+              "The source contains assessment rows without a clear course or qualification anchor. Add the relevant assessment overview.")
+            : undefined;
+      result = {
+        fragments: scoped.fragments.filter(
+          (fragment) =>
+            (!fragment.course || fragment.course === requestedCourse) &&
+            (!requested ||
+              !fragment.qualification ||
+              fragment.qualification === requested),
+        ),
+        qualifications: base.qualifications,
+        ambiguous: !!reason,
+        ...(reason ? { reason } : {}),
+        ...(scoped.matched && scoped.courses.size > 1
+          ? {
+              excludedCourses: [...scoped.courses].filter(
+                (value) => value !== requestedCourse,
+              ),
+            }
+          : {}),
+      };
+    }
+  }
+  if (sourcePages) {
+    if (
+      !sourcePages.length ||
+      sourcePages.length > 24 ||
+      new Set(sourcePages).size !== sourcePages.length ||
+      sourcePages.some(
+        (page) => !Number.isInteger(page) || page < 1 || page > texts.length,
+      )
+    )
+      throw Error("Choose between one and 24 valid physical PDF pages.");
+    // Selection narrows already-scoped literal spans. It must not remove the
+    // other column first and thereby make an unlabelled row appear qualified.
+    const columnAnchors = qualificationColumnAnchors(texts),
+      selected = new Set(sourcePages),
+      fragments = result.fragments.filter((fragment) =>
+        selected.has(fragment.page),
+      );
+    const rows = fragments.filter((fragment) =>
+      fragment.text.split("\n").some((line) => assessmentRow.test(line.trim())),
+    );
+    const safelyAnchored =
+      rows.length > 0 &&
+      rows.every((fragment) => {
+        const anchored =
+          (requestedCourse && fragment.course === requestedCourse) ||
+          (requested && fragment.qualification === requested);
+        if (!anchored) return false;
+        if (
+          fragment.qualificationReference &&
+          columnAnchors.has(
+            `${fragment.qualificationReference.page}:${fragment.qualificationReference.text}`,
+          ) &&
+          !fragment.courseReference?.text.match(literalComponentCode)
+        )
+          return false;
+        const inline = qualificationAssessmentRows(fragment.text);
+        if (requested && [...inline].some((value) => value !== requested))
+          return false;
+        if (
+          adjacentQualificationColumns(texts[fragment.page - 1]) &&
+          !fragment.courseReference?.text.match(literalComponentCode)
+        )
+          return false;
+        return fragment.text.split("\n").every((line) => {
+          if (!assessmentRow.test(line.trim())) return true;
+          const codes = [...line.matchAll(literalComponentCode)].map((match) =>
+            match[1].toLowerCase(),
+          );
+          return (
+            new Set(codes).size <= 1 &&
+            (!requestedCourse ||
+              codes.every((code) => code === requestedCourse))
+          );
+        });
+      });
+    const reason = safelyAnchored
+      ? undefined
+      : (result.reason ??
+        "The selected pages do not clearly identify your course's assessment overview. Add a focused assessment brief.");
+    result = { ...result, fragments, ambiguous: !!reason };
+    if (reason) result.reason = reason;
+    else delete result.reason;
+  }
+  if (!result.ambiguous) return result;
+  const choices = base.qualifications.map((value) => ({ value, label: value }));
+  return {
+    ...result,
+    resolution:
+      !requested && choices.length > 1
+        ? {
+            field: "qualification",
+            question: "Which qualification are you studying?",
+            choices,
+          }
+        : {
+            field: "source",
+            question:
+              "Which PDF page shows the assessment overview for your selected course?",
+          },
+  };
+}
 export interface SourceDocumentIndex {
   version: typeof DOCUMENT_INDEX_VERSION;
   pages: SourceDocumentPage[];
@@ -229,6 +608,7 @@ export interface SourceDocumentIndex {
   omittedPages: number[];
   coverage: { complete: boolean; reason?: string };
   warnings: string[];
+  resolution?: AssessmentScopeResolution;
 }
 
 const normalize = (value: string) =>
@@ -385,7 +765,7 @@ function packPages(pages: Array<{ page: number; text: string }>) {
   for (const page of pages) {
     // An unusually dense single page is split at character boundaries. Every
     // piece retains its physical page and must validate against that full page.
-    for (let offset = 0; offset < page.text.length; ) {
+    for (let offset = 0; offset < page.text.length;) {
       if (chunk.characterCount === INDEXED_DOCUMENT_LIMITS.maxChunkCharacters) {
         chunks.push(chunk);
         chunk = {
@@ -421,7 +801,12 @@ export function indexDocumentPages(
   selection: DocumentSelection,
 ): SourceDocumentIndex {
   const pages = makePages(texts),
-    scope = scopeDocumentQualification(texts, selection.qualification),
+    scope = scopeDocumentQualification(
+      texts,
+      selection.qualification,
+      selection.course,
+      selection.sourcePages,
+    ),
     allowed = new Map<number, Array<[number, number]>>();
   for (const fragment of scope.fragments)
     allowed.set(fragment.page, [
@@ -667,5 +1052,6 @@ export function indexDocumentPages(
       .map((page) => page.page),
     coverage: reason ? { complete: false, reason } : { complete: true },
     warnings,
+    ...(scope.resolution ? { resolution: scope.resolution } : {}),
   };
 }
