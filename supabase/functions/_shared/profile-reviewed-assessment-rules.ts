@@ -93,6 +93,42 @@ const assessmentAlias = (value: string) =>
  * must reject a conflict instead of overwriting an uploaded fact. A date hint
  * does not supply or change a specification version.
  */
+/**
+ * Paper 2 covers (June 2025, corroborated by June 2024) carry the same two
+ * instruction lines on physical page 1. Paper 3 has optional sections and is
+ * deliberately excluded.
+ */
+const paper2SourceId = "aqa-7408-02-june2025-cover-reviewed";
+const physicsPaper2: ReviewedAssessmentRules = {
+  id: "aqa-7408-02-reviewed-cover-rules-v1",
+  version: 1,
+  documents: [
+    {
+      id: paper2SourceId,
+      checksum:
+        "40c45784bf6d9d8284d910541658dfdfb07572642ed4b173bbe6bcd9e64eadfd",
+      title: "AQA A-level Physics Paper 2 (7408/2), June 2025 cover",
+      url: "https://cdn.sanity.io/files/p28bar15/green/1c8e44133f577fe928eee7acf56fb667cecd11e1.pdf",
+      version: "June 2025 sitting",
+      kind: "past_paper",
+      authority: "official_registered",
+      retrievedOn: "2026-11-07",
+      state: "active",
+      applicableCohort:
+        "7408/2; reviewed cover instructions for the current Version 1.4 July 2026 qualification; compare future covers",
+      locations: [
+        { id: "paper2-all-questions", page: 1, section: "Instructions", text: selection },
+        { id: "paper2-calculator-use", page: 1, section: "Information", text: calculator },
+      ],
+    },
+  ],
+  facts: { selection: "all_compulsory", calculator: "allowed" },
+  claims: [
+    { field: "selection", documentId: paper2SourceId, locationId: "paper2-all-questions", quote: selection, rule: "mandatory" },
+    { field: "calculator", documentId: paper2SourceId, locationId: "paper2-calculator-use", quote: calculator, rule: "mandatory" },
+  ],
+};
+
 export function resolveReviewedAssessmentRules(
   identity: TemplateIdentity,
 ): ReviewedAssessmentRules | null {
@@ -102,7 +138,6 @@ export function resolveReviewedAssessmentRules(
     identity.qualification !== "A-level" ||
     normalise(identity.subject) !== "physics" ||
     !["7408", "aqa_alevel_physics_7408"].includes(normalise(identity.course)) ||
-    !["paper 1", "7408/1"].includes(assessmentAlias(identity.component)) ||
     (identity.tier !== null && identity.tier !== "not_tiered") ||
     (!isSpecificationVersionHint(identity.specificationVersion) &&
       !specificationVersionsEquivalent(
@@ -112,5 +147,10 @@ export function resolveReviewedAssessmentRules(
   )
     return null;
 
-  return structuredClone(physicsPaper1);
+  const component = assessmentAlias(identity.component);
+  if (["paper 1", "7408/1"].includes(component))
+    return structuredClone(physicsPaper1);
+  if (["paper 2", "7408/2"].includes(component))
+    return structuredClone(physicsPaper2);
+  return null;
 }

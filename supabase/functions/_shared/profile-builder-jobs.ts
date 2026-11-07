@@ -1393,14 +1393,25 @@ function mergeEvidence(
   const e = structuredClone(parts[0]);
   e.identity = identity;
   for (let i = 1; i < parts.length; i++) {
-    const p = parts[i];
+    const p = structuredClone(parts[i]);
     for (const d of p.documents) {
       const existing = e.documents.find((x) => x.id === d.id);
       if (existing) {
         for (const l of d.locations) {
           const collision = existing.locations.find((x) => x.id === l.id);
-          if (collision && canonical(collision) !== canonical(l))
-            throw Error("Source locations disagree between reading batches.");
+          if (collision && canonical(collision) !== canonical(l)) {
+            // Follow-up reads can reuse a location label for a different
+            // passage. Keep both passages under distinct ids, never fail.
+            let n = 2,
+              id = `${l.id}-b${i}`;
+            while (existing.locations.some((x) => x.id === id))
+              id = `${l.id}-b${i}-${n++}`;
+            for (const c of p.claims)
+              if (c.documentId === d.id && c.locationId === l.id)
+                c.locationId = id;
+            existing.locations.push({ ...l, id });
+            continue;
+          }
           if (!collision) existing.locations.push(l);
         }
       } else e.documents.push(d);
@@ -1445,6 +1456,7 @@ function nameSectionTopics(
   const documents = data.retainedDocuments ?? data.documents;
   if (documents?.some((d) => d.pages?.length))
     e = validateEvidence(expandSectionTopics(e, documents));
+  e = fillFormatsFromCitedBlock(e);
   const named = e.facts.topics.filter((t) => !isSectionReferenceTopic(t));
   if (data.answeredPages?.length && named.length && named.length < e.facts.topics.length) {
     e = structuredClone(e);
@@ -1452,6 +1464,54 @@ function nameSectionTopics(
     e = validateEvidence(e);
   }
   return e;
+}
+/**
+ * If the reader cited an assessment block for marks/time/topics but skipped
+ * its question-format sentence, recover that sentence from the same cited
+ * passage. The quote is literal and passes the normal format validator.
+ */
+export function fillFormatsFromCitedBlock(
+  evidence: ProfileEvidence,
+): ProfileEvidence {
+  if (evidence.facts.formats.length) return evidence;
+  const cited = new Set(
+    evidence.claims
+      .filter((c) => ["marks", "durationMinutes", "topics"].includes(c.field))
+      .map((c) => `${c.documentId}\u0000${c.locationId}`),
+  );
+  const sentence =
+    /[^.\n]*(?:short|long)[\s-]+answer[^.\n]*|[^.\n]*multiple[\s-]choice[^.\n]*/i;
+  for (const d of evidence.documents) {
+    if (d.authority !== "owner_supplied" || d.state !== "active") continue;
+    for (const l of d.locations) {
+      if (!cited.has(`${d.id}\u0000${l.id}`)) continue;
+      const flat = l.text.replace(/\s+/g, " ");
+      const m = flat.match(sentence);
+      if (!m) continue;
+      const quote = m[0].trim().slice(0, 200);
+      const formats: ProfileEvidence["facts"]["formats"] = [];
+      if (/multiple[\s-]choice/i.test(quote)) formats.push("mcq_single");
+      if (/short[\s-]+(?:and[\s-]+long[\s-]+)?answer|short answer/i.test(quote))
+        formats.push("short_answer");
+      if (/long[\s-]+answer/i.test(quote)) formats.push("long_form");
+      if (!formats.length) continue;
+      const e = structuredClone(evidence);
+      e.facts.formats = formats;
+      e.claims.push({
+        field: "formats",
+        documentId: d.id,
+        locationId: l.id,
+        quote,
+        rule: "mandatory",
+      });
+      try {
+        return validateEvidence(e);
+      } catch {
+        return evidence;
+      }
+    }
+  }
+  return evidence;
 }
 function missingRequirements(data: SourceJobData): string[] {
   const e = data.evidence!;
