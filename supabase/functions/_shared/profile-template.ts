@@ -37,6 +37,8 @@ export const templateSchema = z
     marks: z.number().int().min(1).max(300),
     durationMinutes: z.number().int().min(1).max(360),
     topics: z.array(label).min(1).max(80),
+    /** Topics the student added that the source did not list. Absent on older templates. */
+    addedTopics: z.array(label).max(40).optional(),
     calculator: z.enum(["allowed", "not_allowed", "unknown"]),
     sections: z
       .array(

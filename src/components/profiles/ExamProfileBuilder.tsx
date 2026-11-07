@@ -70,6 +70,8 @@ import {
   resolveRegisteredSource,
 } from "../../../supabase/functions/_shared/profile-source-registry";
 import { ExamlyApprovalBadge } from "./ExamlyApprovalBadge";
+import { applyTopicEdit } from "@/lib/profile-topic-edits";
+import { isSectionReferenceTopic } from "../../../supabase/functions/_shared/profile-topic-sections";
 import {
   builderInitialIdentity,
   builderCourses,
@@ -2339,8 +2341,19 @@ export function ExamProfileBuilder({
                         className="max-w-full rounded-md bg-muted px-2 py-1 text-xs"
                       >
                         {topic}
+                        {template.addedTopics?.includes(topic) && (
+                          <span className="ml-1 text-primary">
+                            · Added by you
+                          </span>
+                        )}
                       </span>
                     ))}
+                    {template.topics.some(isSectionReferenceTopic) && (
+                      <p className="w-full text-xs text-destructive">
+                        Some topics are only section numbers. Edit the topics
+                        and type the real topic names so exams can target them.
+                      </p>
+                    )}
                     {template.topics.length > 6 && (
                       <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
                         +{template.topics.length - 6} more
@@ -2393,16 +2406,25 @@ export function ExamProfileBuilder({
                       <textarea
                         aria-label="Topics — one per line"
                         className={`${fieldClass} min-h-24`}
-                        value={template.topics.join("\n")}
-                        onChange={(e) =>
-                          edit((t) => {
-                            t.topics = e.target.value
-                              .split("\n")
-                              .map((s) => s.trim())
-                              .filter(Boolean);
-                          })
-                        }
+                        defaultValue={template.topics.join("\n")}
+                        onChange={(e) => {
+                          const lines = e.target.value.split("\n");
+                          // Uncontrolled box keeps blank lines while typing.
+                          if (!template) return;
+                          setTemplate(
+                            applyTopicEdit(
+                              template,
+                              lines,
+                              proposal?.evidence?.facts.topics ?? null,
+                            ),
+                          );
+                          setError("");
+                        }}
                       />
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Add anything the reader missed, or remove topics that
+                        are wrong. Topics you add are marked “Added by you”.
+                      </p>
                     </Field>
                   </div>
                 )}

@@ -12,6 +12,7 @@ import {
   validateEvidence,
   validateEvidenceTemplate,
   evidenceSchema,
+  assertTopicScope,
 } from "./profile-evidence.ts";
 import { z } from "zod";
 import { fingerprint } from "./profile-fingerprint.ts";
@@ -125,10 +126,14 @@ export function templateSnapshotPlan(raw: unknown) {
       throw Error("Frozen evidence binding changed.");
     if (
       canonical(t.identity) !== canonical(evidence.identity) ||
-      t.identity.tier !== evidence.facts.tier ||
-      t.topics.some((topic) => !evidence.facts.topics.includes(topic))
+      t.identity.tier !== evidence.facts.tier
     )
       throw Error("Frozen template scope differs from saved evidence.");
+    try {
+      assertTopicScope(t, evidence.facts.topics);
+    } catch {
+      throw Error("Frozen template scope differs from saved evidence.");
+    }
     if (
       t.mode === "full_mock" &&
       (t.marks !== evidence.facts.marks ||
@@ -152,6 +157,7 @@ export function templateSnapshotInstructions(ctx: Record<string, any>) {
     JSON.stringify({
       identity: t.identity,
       topics: t.topics,
+      ...(t.addedTopics?.length ? { studentAddedTopics: t.addedTopics } : {}),
       mode: t.mode,
       calculator: t.calculator,
       designDecisions: t.designDecisions,

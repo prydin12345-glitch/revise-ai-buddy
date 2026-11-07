@@ -37,6 +37,11 @@ import {
   specificationVersionsEquivalent,
 } from "./profile-version-context.ts";
 import { completeOwnedAssessmentEvidence } from "./profile-evidence-ingestion.ts";
+import {
+  expandSectionTopics,
+  isSectionReferenceTopic,
+  SECTION_TOPIC_NEED,
+} from "./profile-topic-sections.ts";
 import { resolveCatalogueTier } from "./profile-catalogue-evidence.ts";
 import { resolveReviewedAssessmentRules } from "./profile-reviewed-assessment-rules.ts";
 import {
@@ -1427,11 +1432,35 @@ function mergeEvidence(
   }
   return validateEvidence(e);
 }
+/**
+ * Turn "Sections 1 - 5" style topics into named, quote-backed headings from
+ * the same upload. After a student points to a page, a pointer that now has
+ * named topics beside it is dropped as redundant.
+ */
+function nameSectionTopics(
+  evidence: ProfileEvidence,
+  data: SourceJobData,
+): ProfileEvidence {
+  let e = evidence;
+  const documents = data.retainedDocuments ?? data.documents;
+  if (documents?.some((d) => d.pages?.length))
+    e = validateEvidence(expandSectionTopics(e, documents));
+  const named = e.facts.topics.filter((t) => !isSectionReferenceTopic(t));
+  if (data.answeredPages?.length && named.length && named.length < e.facts.topics.length) {
+    e = structuredClone(e);
+    e.facts.topics = named;
+    e = validateEvidence(e);
+  }
+  return e;
+}
 function missingRequirements(data: SourceJobData): string[] {
   const e = data.evidence!;
   const needs: string[] = [];
   if (!e.facts.topics.length)
     needs.push("Add the syllabus page listing this paper's topics.");
+  // Safety net: section numbers alone give exam generation nothing to target.
+  else if (e.facts.topics.some(isSectionReferenceTopic))
+    needs.push(SECTION_TOPIC_NEED);
   if (e.identity.tier !== e.facts.tier)
     needs.push(
       "The source must confirm the tier selected for this assessment, or explicitly say it is untiered.",
@@ -1925,7 +1954,10 @@ export async function advanceSourceJob(
       data.cursor++;
       let stage: SourceJobStage = "identifying";
       if (data.cursor === data.chunks.length) {
-        data.evidence = mergeEvidence(data.partials, data.identity);
+        data.evidence = nameSectionTopics(
+          mergeEvidence(data.partials, data.identity),
+          data,
+        );
         data.needs = missingRequirements(data);
         if (data.needs.length)
           data.missingItems = evidenceSourceQuestions(data);
@@ -1967,6 +1999,8 @@ export async function advanceSourceJob(
     let template: ProfileTemplate;
     try {
       template = templateSchema.parse(result.value);
+      // Only a student can add topics beyond the source; a draft cannot.
+      delete template.addedTopics;
       if (
         canonical(template.identity) !== canonical(data.identity) ||
         template.mode !== data.mode

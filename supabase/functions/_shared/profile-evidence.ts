@@ -322,6 +322,26 @@ export function validateEvidence(raw: unknown): ProfileEvidence {
   }
   return e;
 }
+/**
+ * Template topics must come from the source, or be explicitly recorded as
+ * student additions. Additions never masquerade as source-backed topics.
+ */
+export function assertTopicScope(
+  t: Pick<ProfileTemplate, "topics" | "addedTopics">,
+  sourceTopics: string[],
+) {
+  const added = t.addedTopics ?? [];
+  if (
+    added.some((x) => sourceTopics.includes(x) || !t.topics.includes(x)) ||
+    new Set(added).size !== added.length
+  )
+    throw Error("Added topics must be new topics included in this profile.");
+  if (
+    !sourceTopics.length ||
+    t.topics.some((x) => !sourceTopics.includes(x) && !added.includes(x))
+  )
+    throw Error("Template topics are outside source scope.");
+}
 export function validateEvidenceTemplate(
   t: ProfileTemplate,
   e: ProfileEvidence,
@@ -336,11 +356,7 @@ export function validateEvidenceTemplate(
     t.identity.tier !== e.facts.tier
   )
     throw Error("Template course/tier conflicts with source evidence.");
-  if (
-    !e.facts.topics.length ||
-    t.topics.some((x) => !e.facts.topics.includes(x))
-  )
-    throw Error("Template topics are outside source scope.");
+  assertTopicScope(t, e.facts.topics);
   if (
     t.mode === "full_mock" &&
     (e.facts.marks === null ||

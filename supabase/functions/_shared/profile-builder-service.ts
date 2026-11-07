@@ -385,6 +385,7 @@ export async function proposeProfile(
       template: ProfileTemplate;
     const validate = (v: unknown) => {
       const t = templateSchema.parse(v);
+      delete t.addedTopics;
       if (
         canonical(t.identity) !== canonical(input.identity) ||
         t.mode !== input.mode
