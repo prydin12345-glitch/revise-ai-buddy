@@ -357,18 +357,15 @@ export function validateEvidenceTemplate(
   )
     throw Error("Template course/tier conflicts with source evidence.");
   assertTopicScope(t, e.facts.topics);
-  if (
-    t.mode === "full_mock" &&
-    (e.facts.marks === null ||
-      e.facts.durationMinutes === null ||
-      e.facts.tier === null ||
-      e.facts.selection === "unknown" ||
-      !e.facts.formats.length)
-  )
+  // Tier must be known. Marks, time, formats and selection the source omits
+  // are student-reviewed layout choices; stated ones must still match.
+  if (t.mode === "full_mock" && e.facts.tier === null)
     throw Error("Full mock requirements are unknown.");
   if (
     t.mode === "full_mock" &&
-    (t.marks !== e.facts.marks || t.durationMinutes !== e.facts.durationMinutes)
+    ((e.facts.marks !== null && t.marks !== e.facts.marks) ||
+      (e.facts.durationMinutes !== null &&
+        t.durationMinutes !== e.facts.durationMinutes))
   )
     throw Error("Full mock totals/duration contradict the source.");
   if (e.facts.calculator !== "unknown" && t.calculator !== e.facts.calculator)

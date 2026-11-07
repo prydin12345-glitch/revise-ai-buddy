@@ -1513,6 +1513,31 @@ export function fillFormatsFromCitedBlock(
   }
   return evidence;
 }
+/** Paper-structure facts a student may set themselves if the source omits them. */
+export function structureGaps(e: ProfileEvidence) {
+  const gaps: Array<{ need: string; warning: string }> = [];
+  if (e.facts.marks === null)
+    gaps.push({
+      need: "Add the paper cover or assessment page showing the total marks.",
+      warning: "total marks",
+    });
+  if (e.facts.durationMinutes === null)
+    gaps.push({
+      need: "Add the assessment page showing the duration.",
+      warning: "time allowed",
+    });
+  if (!e.facts.formats.length)
+    gaps.push({
+      need: "Add the assessment page showing the question formats.",
+      warning: "question types",
+    });
+  if (e.facts.selection === "unknown")
+    gaps.push({
+      need: "Add the assessment instructions showing which questions to answer.",
+      warning: "which questions to answer",
+    });
+  return gaps;
+}
 function missingRequirements(data: SourceJobData): string[] {
   const e = data.evidence!;
   const needs: string[] = [];
@@ -1534,20 +1559,15 @@ function missingRequirements(data: SourceJobData): string[] {
       "This assessment uses question choices that need a reviewed Examly adapter.",
     );
   if (data.mode === "full_mock") {
-    if (e.facts.marks === null)
-      needs.push(
-        "Add the paper cover or assessment page showing the total marks.",
-      );
-    if (e.facts.durationMinutes === null)
-      needs.push("Add the assessment page showing the duration.");
     if (e.facts.tier === null)
       needs.push(
         "Add a source confirming the assessment tier, or that it is untiered.",
       );
-    if (e.facts.selection === "unknown" || !e.facts.formats.length)
-      needs.push(
-        "Add the assessment instructions showing question formats and which questions to answer.",
-      );
+    // Structure details: ask for a page once. If the source still does not
+    // state them, continue and let the student fill them in when reviewing.
+    const gaps = structureGaps(e);
+    if (gaps.length && !data.answeredPages?.length && data.retainedDocuments?.length)
+      needs.push(...gaps.map((g) => g.need));
   }
   return needs;
 }
@@ -2070,6 +2090,11 @@ export async function advanceSourceJob(
         throw Error("The draft changed the assessment you confirmed.");
       compileTemplate(template);
       validateEvidenceTemplate(template, data.evidence);
+      const gaps = structureGaps(data.evidence).map((g) => g.warning);
+      if (gaps.length && template.warnings.length < 20)
+        template.warnings.push(
+          `Your source did not state the ${gaps.join(", ")}. We used a sensible layout — check these under Edit before saving.`,
+        );
     } catch (error) {
       rememberValidation(error, "draft");
       if (r.callIntents + 1 < 3 && data.invalidDraft === undefined) {

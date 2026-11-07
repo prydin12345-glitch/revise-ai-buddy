@@ -136,8 +136,9 @@ export function templateSnapshotPlan(raw: unknown) {
     }
     if (
       t.mode === "full_mock" &&
-      (t.marks !== evidence.facts.marks ||
-        t.durationMinutes !== evidence.facts.durationMinutes)
+      ((evidence.facts.marks !== null && t.marks !== evidence.facts.marks) ||
+        (evidence.facts.durationMinutes !== null &&
+          t.durationMinutes !== evidence.facts.durationMinutes))
     )
       throw Error("Frozen full mock differs from source totals.");
     if (

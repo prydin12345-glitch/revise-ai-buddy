@@ -36,3 +36,37 @@ describe("question formats from the cited assessment block", () => {
     expect(fillFormatsFromCitedBlock(e).facts.formats).toEqual(["mcq_single", "short_answer", "long_form"]);
   });
 });
+
+import { validateEvidenceTemplate } from "../../supabase/functions/_shared/profile-evidence";
+import { structureGaps } from "../../supabase/functions/_shared/profile-builder-jobs";
+
+describe("missing paper structure is filled in by the student", () => {
+  const base = (): ProfileEvidence => ({
+    version: 1, identity: identity("7408/2"),
+    documents: [{ id: "u", checksum: "a".repeat(64), title: "Spec", url: null, version: "1.4",
+      kind: "specification", authority: "owner_supplied", retrievedOn: "unknown", state: "active",
+      applicableCohort: "x", locations: [{ id: "l1", page: 9, section: "Paper 2", text: "Sections 7 and 8 written exam: 2 hours 85 marks" }] }],
+    facts: { marks: 85, durationMinutes: 120, topics: ["Sections 7 and 8"], tier: "not_tiered", calculator: "unknown",
+      formats: [], selection: "unknown", mathsRequirement: null, practicalRequirement: null },
+    claims: [
+      { field: "marks", documentId: "u", locationId: "l1", quote: "85 marks", rule: "mandatory" },
+      { field: "durationMinutes", documentId: "u", locationId: "l1", quote: "written exam: 2 hours", rule: "mandatory" },
+      { field: "topics", documentId: "u", locationId: "l1", quote: "Sections 7 and 8", rule: "mandatory" },
+    ],
+    unresolved: [], conflicts: [], catalogueFacts: [{ version: 1, field: "tier", source: "assessment_catalogue", courseId: "aqa_alevel_physics_7408", value: "not_tiered" }],
+  });
+  const template = (marks: number): any => ({
+    schemaVersion: 1, identity: identity("7408/2"), mode: "full_mock", marks, durationMinutes: 120,
+    topics: ["Sections 7 and 8"], calculator: "unknown", warnings: [], designDecisions: [],
+    sections: [{ id: "s", title: "S", groups: [{ id: "g", parts: [{ id: "p", topic: "Sections 7 and 8", marks, response: "short_answer", demand: "AO1", resource: "none" }] }] }],
+  });
+  it("lists unknown formats and question choice as gaps", () => {
+    expect(structureGaps(base()).map((g) => g.warning)).toEqual(["question types", "which questions to answer"]);
+  });
+  it("allows a full mock when formats are unknown", () => {
+    expect(() => validateEvidenceTemplate(template(85), base())).not.toThrow();
+  });
+  it("still rejects marks that contradict the source", () => {
+    expect(() => validateEvidenceTemplate(template(30), base())).toThrow();
+  });
+});
