@@ -1,0 +1,109 @@
+import { afterEach, expect, it } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import { BuilderEvidenceDetails } from "@/components/profiles/BuilderEvidenceDetails";
+import type { SourceJobView } from "@/lib/profile-builder-client";
+
+afterEach(cleanup);
+const job: SourceJobView = {
+  jobId: "source-receipt",
+  stage: "failed",
+  mode: "full_mock",
+  progress: { completed: 0, total: 2 },
+  message: "Source checking stopped.",
+};
+
+it("shows both failed checks without exposing private rejected model details", () => {
+  const issues = [
+    {
+      attempt: 1,
+      stage: "extraction" as const,
+      code: "contradictory_fact",
+      message: "The mark total did not match the assessment evidence.",
+      detail: "PRIVATE_REJECTED_JSON_FIRST",
+    },
+    {
+      attempt: 2,
+      stage: "extraction" as const,
+      code: "unmatched_quote",
+      message:
+        "A quoted source passage did not match the supplied document text.",
+      detail: "PRIVATE_REJECTED_JSON_SECOND",
+    },
+  ];
+  const view = render(
+    <BuilderEvidenceDetails job={{ ...job, validationIssues: issues }} />,
+  );
+  expect(screen.getByLabelText("Profile validation details")).toHaveAttribute(
+    "open",
+  );
+  expect(screen.getByText("Attempt 1")).toBeVisible();
+  expect(screen.getByText("Attempt 2")).toBeVisible();
+  expect(view.container).toHaveTextContent(issues[0].message);
+  expect(view.container).toHaveTextContent(issues[1].message);
+  expect(view.container.textContent).not.toContain("PRIVATE_REJECTED_JSON");
+});
+
+it("distinguishes course-catalogue tiering from optional official instruction sources", () => {
+  render(
+    <BuilderEvidenceDetails
+      job={{
+        ...job,
+        stage: "ready",
+        reviewedFacts: {
+          tier: {
+            value: "not_tiered",
+            source: "assessment_catalogue",
+            courseId: "aqa_alevel_physics_7408",
+          },
+          assessmentInstructions: {
+            rulePackId: "reviewed-paper1",
+            selection: "all_compulsory",
+            calculator: "allowed",
+            sourceUrls: ["https://www.aqa.org.uk/paper1.pdf"],
+          },
+        },
+      }}
+    />,
+  );
+  expect(
+    screen.getByLabelText("Verified assessment facts"),
+  ).not.toHaveAttribute("open");
+  expect(
+    screen.getByText(/Untiered — verified from the course catalogue/),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("link", {
+      name: "Official assessment instructions",
+      hidden: true,
+    }),
+  ).toHaveAttribute("href", "https://www.aqa.org.uk/paper1.pdf");
+  expect(
+    screen.queryByLabelText("Profile validation details"),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByText(/Examly-approved/)).not.toBeInTheDocument();
+});
+
+it("keeps historical resolved checks out of a successful review", () => {
+  render(
+    <BuilderEvidenceDetails
+      job={{
+        ...job,
+        stage: "complete",
+        validationIssues: [
+          {
+            attempt: 1,
+            stage: "extraction",
+            code: "missing_reference",
+            message: "Earlier source reference needed checking.",
+          },
+        ],
+      }}
+    />,
+  );
+  expect(
+    screen.queryByLabelText("Profile validation details"),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByLabelText("Verified assessment facts"),
+  ).not.toBeInTheDocument();
+});

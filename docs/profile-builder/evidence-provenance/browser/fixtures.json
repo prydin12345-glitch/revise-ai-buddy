@@ -1,0 +1,12 @@
+{
+  "physics-spec-96-pages.pdf": {
+    "pages": 96,
+    "bytes": 304351,
+    "sha256": "3acfb91209a1b7d5191e463dc1dcdba59a484ce8076f14a5ee63589beb88cd03"
+  },
+  "physics-optional-96-pages.pdf": {
+    "pages": 96,
+    "bytes": 304460,
+    "sha256": "f7e8b12123a017570ca4667b5dce4638dd6dd602a72bc306d3363de9864319cb"
+  }
+}

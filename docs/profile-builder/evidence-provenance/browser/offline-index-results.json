@@ -1,0 +1,39 @@
+{
+  "realModelCalls": 0,
+  "reports": [
+    {
+      "name": "physics-spec-96-pages.pdf",
+      "physicalPages": 96,
+      "component": "7408/1",
+      "coverage": {
+        "complete": true
+      },
+      "chunks": 1,
+      "selectedCharacters": 646,
+      "selectedPages": [
+        1,
+        90,
+        91
+      ],
+      "completeMathsQuote": true,
+      "containsInventedTierOrPermission": false
+    },
+    {
+      "name": "physics-optional-96-pages.pdf",
+      "physicalPages": 96,
+      "component": "7408/3",
+      "coverage": {
+        "complete": true
+      },
+      "chunks": 1,
+      "selectedCharacters": 731,
+      "selectedPages": [
+        1,
+        90,
+        91
+      ],
+      "completeMathsQuote": true,
+      "containsInventedTierOrPermission": false
+    }
+  ]
+}

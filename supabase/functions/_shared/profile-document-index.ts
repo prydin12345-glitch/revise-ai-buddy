@@ -6,7 +6,7 @@
  * Private page text belongs only in the owned preparation receipt. Only an
  * explicitly reviewed public source pack may enter a shared catalogue.
  */
-export const DOCUMENT_INDEX_VERSION = 3;
+export const DOCUMENT_INDEX_VERSION = 4;
 export const INDEXED_DOCUMENT_LIMITS = {
   maxBytes: 3_000_000,
   maxPages: 240,
@@ -251,6 +251,50 @@ const rulePattern =
 const headingPattern =
   /^\s*(?:[A-Z][A-Z\s\d,/:&()\u2013-]{3,}|(?:\d+(?:\.\d+)*\s+)?(?:Paper|Unit|Component|Topic|Module|Appendix|Assessment|Qualification|Content|Specification|Mathematical|Practical|Command words)\b)/;
 
+const rulePassageBoundary = (line: string) => {
+  const text = line.trim();
+  return (
+    !!qualificationHeading(text) ||
+    rulePattern.test(text) ||
+    /^(?:\d+(?:\.\d+)*[.)]?\s+)?(?:(?:Paper|Unit|Component|Topic|Module|Appendix)\s*[A-Z]?\d|Section\s+[A-Z0-9]\b)/i.test(
+      text,
+    ) ||
+    /^[A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]{0,2}\b/.test(text)
+  );
+};
+const endsRuleSentence = (line: string) =>
+  /[.!?;][\s"')\]]*$/.test(line.trim());
+
+/** Keep wrapped rule sentences literal, without an unbounded paragraph read. */
+function rulePassageEnd(lines: string[], line: number, after: number) {
+  const limit = Math.min(lines.length, line + after + 1 + 12);
+  let end = line + 1,
+    characters = lines[line].length,
+    content = false;
+  if (endsRuleSentence(lines[line])) return { end, bounded: false };
+  while (end < limit) {
+    const next = lines[end].trim();
+    if (!next) {
+      // A short layout gap after a heading is not the end of its paragraph.
+      if (content || end - line > 2) break;
+    } else if (rulePassageBoundary(next)) break;
+    if (characters + lines[end].length + 1 > 2_000)
+      return { end, bounded: true };
+    characters += lines[end].length + 1;
+    end++;
+    if (next) content = true;
+    if (endsRuleSentence(next)) return { end, bounded: false };
+  }
+  return {
+    end,
+    bounded:
+      end === limit &&
+      end < lines.length &&
+      !!lines[end].trim() &&
+      !rulePassageBoundary(lines[end]),
+  };
+}
+
 function componentsIn(text: string) {
   return [...text.matchAll(componentPattern)].map((match) =>
     normalize(match[0]),
@@ -449,10 +493,12 @@ export function indexDocumentPages(
     line: number,
     before = 1,
     after = 5,
+    continueRule = false,
   ) => {
     const lines = pageLines(page.text),
       start = Math.max(0, line - before),
-      end = Math.min(lines.length, line + after + 1),
+      passage = continueRule ? rulePassageEnd(lines, line, after) : null,
+      end = passage?.end ?? Math.min(lines.length, line + after + 1),
       startOffset = lines
         .slice(0, start)
         .reduce((n, value) => n + value.length + 1, 0),
@@ -460,6 +506,11 @@ export function indexDocumentPages(
         page.text.length,
         lines.slice(0, end).reduce((n, value) => n + value.length + 1, 0),
       );
+    if (passage?.bounded) {
+      const warning =
+        "An assessment-rule passage exceeds the bounded context window. Use only fully supported facts or add a focused assessment brief.";
+      if (!warnings.includes(warning)) warnings.push(warning);
+    }
     selected.set(page.page, [
       ...(selected.get(page.page) ?? []),
       ...(allowed.get(page.page) ?? [])
@@ -531,7 +582,7 @@ export function indexDocumentPages(
       )
         continue;
       lines.forEach((line, index) => {
-        if (rulePattern.test(line.trim())) addWindow(page, index);
+        if (rulePattern.test(line.trim())) addWindow(page, index, 1, 5, true);
         const topic = line.match(topicPattern);
         if (topic && topicNumbers.has(Number(topic[1])))
           addWindow(page, index, 0, 1);
