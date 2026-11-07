@@ -198,6 +198,19 @@ export interface SourceJobStore {
     usage: Usage,
   ): Promise<SourceJobRecord>;
 }
+export const SOURCE_TOTAL_BUDGET_MS = 120_000;
+export const SOURCE_READ_CALL_MS = 45_000;
+export const SOURCE_DRAFT_CALL_MS = 95_000;
+export const SOURCE_DRAFT_MIN_MS = 30_000;
+/** Per-call time allowance; 0 means starting a paid call would be pointless. */
+export function sourceCallBudgetMs(stage: string, activeMs: number): number {
+  const remaining = Math.max(0, SOURCE_TOTAL_BUDGET_MS - activeMs);
+  if (stage === "drafting") {
+    const budget = Math.min(SOURCE_DRAFT_CALL_MS, remaining);
+    return budget >= SOURCE_DRAFT_MIN_MS ? budget : 0;
+  }
+  return Math.min(SOURCE_READ_CALL_MS, remaining);
+}
 export interface SourceJobDeps {
   store: SourceJobStore;
   parsePdf(bytes: Uint8Array): Promise<string[]>;
@@ -1171,7 +1184,10 @@ export async function advanceSourceJob(
       await deps.store.commit(r, { stage: "failed", data, elapsedMs: 0 }),
     );
   }
-  const budget = Math.max(0, Math.min(45_000, 120_000 - r.activeMs));
+  // Reading a chunk is short; drafting a full template (up to 50 parts) can
+  // produce ~10k output tokens and routinely needs more than 45 s. The total
+  // 120 s active budget (enforced in the database) is unchanged.
+  const budget = sourceCallBudgetMs(r.stage, r.activeMs);
   if (!budget || r.callIntents >= 3) {
     data.needs = [
       "This build reached its processing limit. Your saved profiles are unchanged.",

@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
         await readLimitedBody(
           response.body,
           250_000,
-          Math.max(1, Math.min(45_000, deadline - Date.now())),
+          Math.max(1, deadline - Date.now()),
         ),
       ),
     );
