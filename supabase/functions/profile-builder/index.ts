@@ -61,6 +61,8 @@ Deno.serve(async (req) => {
   const rpc = async (name: string, args: unknown) => {
     const { data, error } = await db.rpc(name, args);
     if (error) {
+      if (/Profile Builder quota unavailable/.test(error.message ?? ""))
+        throw new SafeError("Profile Builder quota unavailable", 429);
       const missingBackend = /42883|42703|PGRST202|PGRST204/.test(error.code);
       throw new SafeError(
         missingBackend

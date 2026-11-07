@@ -16,3 +16,24 @@ describe("profile builder per-call time budget", () => {
     expect(sourceCallBudgetMs("identifying", 100_000)).toBe(20_000);
   });
 });
+
+import {
+  createProfileBuilderJobStore,
+  SourceQuotaUnavailable,
+} from "../functions/_shared/profile-builder-jobs";
+
+describe("profile builder build limit", () => {
+  const record = { owner: "o", id: "r", leaseToken: "t", revision: 1 } as never;
+  it("turns a refused build reservation into a build-limit error, not 'AI unavailable'", async () => {
+    const store = createProfileBuilderJobStore(async () => {
+      throw Object.assign(new Error("Profile Builder quota unavailable"), { status: 429 });
+    });
+    await expect(store.reserve(record)).rejects.toBeInstanceOf(SourceQuotaUnavailable);
+  });
+  it("passes other reservation failures through unchanged", async () => {
+    const store = createProfileBuilderJobStore(async () => {
+      throw Object.assign(new Error("other"), { status: 503 });
+    });
+    await expect(store.reserve(record)).rejects.not.toBeInstanceOf(SourceQuotaUnavailable);
+  });
+});

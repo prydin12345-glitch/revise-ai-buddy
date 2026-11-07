@@ -198,6 +198,10 @@ export interface SourceJobStore {
     usage: Usage,
   ): Promise<SourceJobRecord>;
 }
+/** The per-student build limit (3 builds per 10 minutes, 10 per day) refused a new paid call. */
+export class SourceQuotaUnavailable extends Error {}
+export const SOURCE_QUOTA_MESSAGE =
+  "You have reached the build limit (3 new builds every 10 minutes, 10 per day). No AI call was made and nothing was charged. Wait about 10 minutes, then start a fresh build. Your saved profiles are unchanged.";
 export const SOURCE_TOTAL_BUDGET_MS = 120_000;
 export const SOURCE_READ_CALL_MS = 45_000;
 export const SOURCE_DRAFT_CALL_MS = 95_000;
@@ -264,7 +268,13 @@ export function createProfileBuilderJobStore(
     commit: (r, c) =>
       rpc("commit_profile_builder_job", { ...args(r), ...changeArgs(c) }),
     reserve: async (r) => {
-      await rpc("reserve_profile_builder_job", args(r));
+      try {
+        await rpc("reserve_profile_builder_job", args(r));
+      } catch (error) {
+        if ((error as { status?: number })?.status === 429)
+          throw new SourceQuotaUnavailable();
+        throw error;
+      }
     },
     beginCall: async (r) => {
       await rpc("begin_profile_builder_job_call", args(r));
@@ -1000,7 +1010,7 @@ function checkExtracted(
       )
     )
       throw new SourceIdentityConflict(
-        `Your source identifies specification ${String(next)}, while your details request ${data.requestedIdentity.specificationVersion}. Check the version or choose the matching source.`,
+        `Your PDF is an older or different edition of this specification (${String(next)}), but Examly checks against ${data.requestedIdentity.specificationVersion}. It is the same course, but details can change between editions, so the build stopped. Upload the current specification from the exam board's website. Your saved profiles are unchanged.`,
       );
     if (
       key === "module" &&
@@ -1409,7 +1419,9 @@ export async function advanceSourceJob(
     data.needs = [
       error instanceof SourceIdentityConflict
         ? error.message
-        : result
+        : error instanceof SourceQuotaUnavailable
+          ? SOURCE_QUOTA_MESSAGE
+          : result
           ? (data.validationIssues?.at(-1)?.message ??
             "We could not verify the assessment details returned from this source.")
           : callStarted
