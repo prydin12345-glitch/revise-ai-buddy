@@ -24,6 +24,113 @@ const source = () => {
 };
 
 describe("component-aware document indexing", () => {
+  it("retains a wrapped mathematical requirement beyond the old five-line window as original text", () => {
+    const pages = source();
+    const passage = [
+      "Mathematical skills",
+      "Overall, at least 40% of the marks",
+      "across the qualification require",
+      "mathematical knowledge and skills",
+      "at a standard that is",
+      "equivalent to",
+      "Level 2 GCSE mathematics or above.",
+    ].join("\n");
+    pages[94] = passage + "\n\nUnrelated later paragraph.";
+    const index = indexDocumentPages(pages, { component: "Paper 1" });
+    expect(index.coverage.complete).toBe(true);
+    const snippets = index.chunks.flatMap((chunk) => chunk.pages);
+    expect(snippets).toContainEqual({ page: 95, text: passage + "\n" });
+    const text = snippets.map((page) => page.text).join("\n");
+    expect(text).toContain("equivalent to\nLevel 2 GCSE mathematics or above.");
+    expect(text).not.toContain("Unrelated later paragraph");
+    expect(text).not.toContain("Grade A* mathematics");
+    for (const snippet of snippets)
+      expect(pages[snippet.page - 1]).toContain(snippet.text);
+    for (const chunk of index.chunks)
+      expect(chunk.characterCount).toBeLessThanOrEqual(18_000);
+  });
+
+  it("does not continue a wrapped rule into another topic heading", () => {
+    const pages = source();
+    pages[94] =
+      "Mathematical skills\nA statement in this source\ncontinues across several\nphysical PDF lines\nand ends with\nequivalent to\nTopic 3: Ecology\nA different topic's private requirement.";
+    const index = indexDocumentPages(pages, { component: "Paper 1" });
+    expect(index.coverage.complete).toBe(true);
+    const text = index.chunks
+      .flatMap((chunk) => chunk.pages)
+      .map((page) => page.text)
+      .join("\n");
+    expect(text).toContain("equivalent to");
+    expect(text).not.toContain("A different topic's private requirement");
+    expect(text).not.toContain("Topic 3: Ecology");
+  });
+
+  it.each([
+    "Paper 2: Other assessment",
+    "Component 3B: Medical physics (7408/3BB)",
+  ])(
+    "does not extend a selected rule through another assessment heading: %s",
+    (heading) => {
+      const pages = source();
+      pages[94] =
+        "Paper 1\nMathematical skills\nA selected rule\ncontinues over\nseveral extracted lines\nand is\nequivalent to\n" +
+        heading +
+        "\nOther assessment's private continuation.";
+      const index = indexDocumentPages(pages, { component: "Paper 1" });
+      expect(index.coverage.complete).toBe(true);
+      const text = index.chunks
+        .flatMap((chunk) => chunk.pages)
+        .map((page) => page.text)
+        .join("\n");
+      expect(text).toContain("equivalent to");
+      expect(text).not.toContain("Other assessment's private continuation");
+      expect(text).not.toContain(heading);
+    },
+  );
+
+  it("does not extend a mathematical passage across an AS qualification boundary", () => {
+    const pages = source();
+    pages[0] = "A-level\nPhysics specification";
+    pages[94] =
+      "Mathematical skills\nThis A-level rule\nspans several lines\nand ends\nwith the words\nequivalent to\nAS\nAS-only alternative data: 70 marks.";
+    const index = indexDocumentPages(pages, {
+      component: "Paper 1",
+      qualification: "A-level",
+    });
+    expect(index.coverage.complete).toBe(true);
+    const snippets = index.chunks.flatMap((chunk) => chunk.pages);
+    expect(snippets.some((page) => page.text.includes("equivalent to"))).toBe(
+      true,
+    );
+    expect(
+      snippets.every((page) => !page.text.includes("AS-only alternative data")),
+    ).toBe(true);
+    for (const snippet of snippets)
+      expect(pages[snippet.page - 1]).toContain(snippet.text);
+  });
+
+  it("bounds long unfinished rule passages and reports the incomplete retrieval without inventing their ending", () => {
+    const pages = source();
+    pages[94] =
+      "Mathematical skills\n" +
+      Array.from(
+        { length: 30 },
+        (_, index) => `Continuation fragment ${index}`,
+      ).join("\n") +
+      "\nInvented final grade target.";
+    const index = indexDocumentPages(pages, { component: "Paper 1" });
+    expect(index.coverage.complete).toBe(true);
+    expect(index.warnings.join(" ")).toMatch(
+      /passage exceeds the bounded context window/,
+    );
+    const text = index.chunks
+      .flatMap((chunk) => chunk.pages)
+      .map((page) => page.text)
+      .join("\n");
+    expect(text).not.toContain("Invented final grade target");
+    expect(index.chunks.length).toBeLessThanOrEqual(2);
+  });
+
   it("finds late component rules and topic names after scanning the entire long source", () => {
     const pages = source(),
       index = indexDocumentPages(pages, { component: "Paper 1" });

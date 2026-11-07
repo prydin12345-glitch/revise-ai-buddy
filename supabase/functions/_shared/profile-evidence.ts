@@ -5,6 +5,7 @@ import {
   checksum,
   type ProfileTemplate,
 } from "./profile-template.ts";
+import { resolveCatalogueTier } from "./profile-catalogue-evidence.ts";
 export const EVIDENCE_VERSION = 1,
   MAX_DOCUMENT_BYTES = 3_000_000,
   MAX_DOCUMENT_PAGES = 120,
@@ -81,10 +82,53 @@ export const evidenceSchema = z
       .max(60),
     unresolved: z.array(z.string().max(500)).max(30),
     conflicts: z.array(z.string().max(500)).max(30),
+    // Absent for existing evidence, preserving its canonical fingerprint.
+    // This is a server-derived alternative to a PDF quote for course tier only.
+    catalogueFacts: z
+      .array(
+        z
+          .object({
+            version: z.literal(1),
+            field: z.literal("tier"),
+            source: z.literal("assessment_catalogue"),
+            courseId: text.max(180),
+            value: z.literal("not_tiered"),
+          })
+          .strict(),
+      )
+      .max(1)
+      .optional(),
   })
   .strict();
 export type ProfileEvidence = z.infer<typeof evidenceSchema>;
+/** Model output cannot nominate a trusted catalogue authority. */
+export const modelEvidenceSchema = evidenceSchema.omit({
+  catalogueFacts: true,
+});
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+
+/** Called by server ingestion after uploaded document identity is checked. */
+export function applyCatalogueTier(raw: unknown): ProfileEvidence {
+  const evidence = evidenceSchema.parse(raw);
+  const fact = resolveCatalogueTier(evidence.identity);
+  if (!fact) return evidence;
+  if (
+    [evidence.identity.tier, evidence.facts.tier].some(
+      (value) => value !== null && value !== "not_tiered",
+    )
+  )
+    throw Error(
+      "The selected course is untiered; Foundation and Higher contradict its catalogue identity.",
+    );
+  evidence.identity.tier = "not_tiered";
+  evidence.facts.tier = "not_tiered";
+  evidence.catalogueFacts = [fact];
+  // The catalogue establishes this fact. A model's attempted PDF-tier quote
+  // is not retained as invented evidence for the same value.
+  evidence.claims = evidence.claims.filter((claim) => claim.field !== "tier");
+  return evidence;
+}
+
 export function validateEvidence(raw: unknown): ProfileEvidence {
   const e = evidenceSchema.parse(raw),
     ids = new Set<string>();
@@ -104,14 +148,39 @@ export function validateEvidence(raw: unknown): ProfileEvidence {
         "A superseded source cannot support a current mandatory rule.",
       );
   }
+  const catalogueTier = resolveCatalogueTier(e.identity);
+  for (const fact of e.catalogueFacts ?? [])
+    if (
+      !catalogueTier ||
+      canonical(fact) !== canonical(catalogueTier) ||
+      e.facts.tier !== fact.value ||
+      e.identity.tier !== fact.value
+    )
+      throw Error(
+        "Catalogue tier provenance does not match the selected course identity.",
+      );
+  const hasCatalogueTier = Boolean(e.catalogueFacts?.length);
+  const supportingClaims = (key: string) =>
+    e.claims.filter((c) => {
+      if (c.field !== key) return false;
+      if (c.rule === "mandatory") return true;
+      const document = e.documents.find(
+        (document) => document.id === c.documentId,
+      );
+      return (
+        c.rule === "observed" &&
+        document?.state === "active" &&
+        ["specification", "institution_brief"].includes(document.kind)
+      );
+    });
   const supporting = (key: string) =>
-    e.claims
-      .filter((c) => c.field === key && c.rule === "mandatory")
-      .map(
-        (c) =>
-          e.documents
-            .find((d) => d.id === c.documentId)!
-            .locations.find((l) => l.id === c.locationId)!.text,
+    supportingClaims(key)
+      .map((c) =>
+        c.rule === "observed"
+          ? c.quote
+          : e.documents
+              .find((d) => d.id === c.documentId)!
+              .locations.find((l) => l.id === c.locationId)!.text,
       )
       .join(" ");
   for (const [key, v] of Object.entries(e.facts))
@@ -119,6 +188,7 @@ export function validateEvidence(raw: unknown): ProfileEvidence {
       v !== null &&
       v !== "unknown" &&
       (!Array.isArray(v) || v.length) &&
+      !(key === "tier" && hasCatalogueTier) &&
       !supporting(key)
     )
       throw Error("Known source fact lacks a mandatory reference: " + key);
@@ -128,7 +198,9 @@ export function validateEvidence(raw: unknown): ProfileEvidence {
     throw Error("Marks contradict their evidence.");
   if (e.facts.durationMinutes !== null) {
     const s = supporting("durationMinutes"),
-      h = s.match(/(\d+)\s*(?:hours?|hr|h)\b(?:\s+and)?\s*(\d+)?/i),
+      h = s.match(
+        /(\d+)\s*(?:hours?|hr|h)\b(?:\s+and)?(?:\s*(\d+)\s*(?:minutes?|mins?|min|m)\b)?/i,
+      ),
       total = h ? Number(h[1]) * 60 + Number(h[2] ?? 0) : null;
     if (
       !hasNumber(s, e.facts.durationMinutes) &&
@@ -150,6 +222,7 @@ export function validateEvidence(raw: unknown): ProfileEvidence {
     const tier = supporting("tier");
     if (
       e.facts.tier === "not_tiered" &&
+      !hasCatalogueTier &&
       !/not[ -]tiered|untiered|no tiers/i.test(tier)
     )
       throw Error("Silence about tiers means unknown, not not-tiered.");
@@ -160,24 +233,75 @@ export function validateEvidence(raw: unknown): ProfileEvidence {
     )
       throw Error("Tier contradicts its evidence.");
   }
-  const calc = supporting("calculator");
-  if (
-    e.facts.calculator === "not_allowed" &&
-    !/no calculator|not (?:be )?(?:used|allowed)|without (?:a )?calculator|prohibited/i.test(
-      calc,
-    )
-  )
+  const calculatorReferences = supportingClaims("calculator").map((claim) => ({
+    quote: claim.quote,
+    reviewed:
+      e.documents.find((document) => document.id === claim.documentId)!
+        .authority === "official_registered",
+    location: e.documents
+      .find((document) => document.id === claim.documentId)!
+      .locations.find((location) => location.id === claim.locationId)!,
+  }));
+  const negativeCalculator =
+    /no calculators?|without (?:a |an )?(?:scientific |graphical )?calculators?|calculators?[^.!?\n]{0,45}(?:not (?:be )?(?:used|allowed|permitted)|prohibited|forbidden)|(?:do|must|may|can) not use (?:a |an )?(?:scientific |graphical )?calculator/i;
+  const positiveCalculator =
+    /calculators?\s+(?:(?:is|are)\s+)?(?:required|allowed|permitted|needed)|calculators?\s+(?:may|can|must)\s+be\s+used|(?:you\s+)?(?:may|can|must|should)\s+(?:use|have|bring)\s+(?:a |an )?(?:scientific |graphical )?calculator|(?:you\s+)?(?:will\s+)?need\s+(?:a |an )?(?:scientific |graphical )?calculator/i;
+  const expectedCalculatorInstruction =
+    /^you\s+are\s+expected\s+to\s+use\s+(?:a|an)\s+(?:scientific|graphical)\s+calculator(?:\s+where\s+appropriate)?[.;]?$/i;
+  const calculatorSkillContext =
+    /(?:mathematical|mathematics|maths|numeracy)\s+(?:skills?|requirements?|techniques?|competenc[ey]|expectations?)/i;
+  const literalEquipmentContext =
+    /(?:^|\r?\n)[ \t]*(?:materials(?:[ \t]+and[ \t]+equipment)?|equipment)(?:[ \t]+(?:required|needed|provided))?[ \t]*(?::|\r?\n)/i;
+  const calculatorInstructionReferences = calculatorReferences.filter(
+    ({ location }) => !calculatorSkillContext.test(location.section),
+  );
+  const calculatorForbidden = calculatorInstructionReferences.some(
+    ({ quote }) => negativeCalculator.test(quote),
+  );
+  // A short equipment quote must not hide the rest of its actual instruction.
+  // Positive permission still needs its own explicit quoted wording below.
+  const calculatorProhibitionContext = calculatorInstructionReferences.some(
+    ({ location }) => negativeCalculator.test(location.text),
+  );
+  const calculatorPermitted = calculatorInstructionReferences.some(
+    ({ quote, location, reviewed }) =>
+      !calculatorSkillContext.test(location.section) &&
+      (positiveCalculator.test(quote) ||
+        expectedCalculatorInstruction.test(quote.trim()) ||
+        ((literalEquipmentContext.test(location.text) ||
+          // Existing reviewed cover records retain their reviewed heading
+          // metadata; an uploaded/model-labelled heading has no such authority.
+          (reviewed &&
+            (positiveCalculator.test(location.text) ||
+              /materials|equipment/i.test(location.section)))) &&
+          /^(?:a |an )?(?:scientific |graphical )?calculator[.;]?$/i.test(
+            quote.trim(),
+          ))),
+  );
+  if (e.facts.calculator === "not_allowed" && !calculatorForbidden)
     throw Error("Calculator rule contradicts its evidence.");
   if (
     e.facts.calculator === "allowed" &&
-    (!/calculator/i.test(calc) ||
-      /no calculator|not allowed|prohibited/i.test(calc))
+    (!calculatorPermitted || calculatorProhibitionContext)
   )
     throw Error("Calculator rule contradicts its evidence.");
   const selection = supporting("selection");
+  const selectionContext = supportingClaims("selection")
+    .map(
+      (claim) =>
+        e.documents
+          .find((document) => document.id === claim.documentId)!
+          .locations.find((location) => location.id === claim.locationId)!.text,
+    )
+    .join(" ");
+  const optionalExamSelection =
+    /\b(?:choose|select|answer)\s+(?:(?:any|either|only|one|two|three|four|five|six|\d+)\s+){1,3}(?:of\s+)?(?:the\s+)?(?:following\s+)?(?:questions?|sections?)\b|\beither\s+(?:question|section)\s+[a-z0-9]+\s+or\s+(?:(?:question|section)\s+)?[a-z0-9]+\b|\banswer\s+question\s*\d+\s+or\s+(?:question\s*)?\d+\b|\banswer\s+all\s+questions[^.!?]{0,100}\band\s+(?:only\s+)?(?:one|two|three|\d+)\s+questions?\s+from\b|\b(?:except|excluding)\s+questions?\s*\d+/i;
   if (
     e.facts.selection === "all_compulsory" &&
-    !/answer all|all (?:questions|compulsory)|every question/i.test(selection)
+    (!/answer all|all (?:questions|compulsory)|every question/i.test(
+      selection,
+    ) ||
+      optionalExamSelection.test(selectionContext))
   )
     throw Error("Selection rule contradicts its evidence.");
   if (
@@ -192,7 +316,7 @@ export function validateEvidence(raw: unknown): ProfileEvidence {
         ? /multiple.choice|mcq|single.select/i
         : type === "short_answer"
           ? /short|structured|calculation/i
-          : /extended|essay|long.form|open.response/i;
+          : /extended|essay|long.form|open.response|long[\s\u2010-\u2015-]+answer/i;
     if (!regex.test(f))
       throw Error("Response format contradicts its evidence.");
   }

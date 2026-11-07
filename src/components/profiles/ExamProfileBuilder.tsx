@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useBuilderAttachments } from "@/hooks/useBuilderAttachments";
 import { BuilderAttachments } from "./BuilderAttachments";
+import { BuilderEvidenceDetails } from "./BuilderEvidenceDetails";
 import type { AssessmentDiscoveryResult } from "../../../supabase/functions/_shared/profile-assessment-discovery";
 import {
   AlertDialog,
@@ -205,7 +206,10 @@ export function ExamProfileBuilder({
     if (
       !open ||
       busy ||
-      sourceJob?.stage !== "needs_details" ||
+      !(
+        sourceJob?.stage === "needs_details" ||
+        (sourceJob?.stage === "failed" && sourceJob.validationIssues?.length)
+      ) ||
       !panel ||
       !body
     )
@@ -223,7 +227,13 @@ export function ExamProfileBuilder({
       ),
       behavior: "auto",
     });
-  }, [open, busy, sourceJob?.jobId, sourceJob?.stage]);
+  }, [
+    open,
+    busy,
+    sourceJob?.jobId,
+    sourceJob?.stage,
+    sourceJob?.validationIssues?.length,
+  ]);
   const previousAccount = useRef(accountId);
   const run = useRef(0),
     request = useRef<{ payload: string; id: string } | null>(null),
@@ -1291,10 +1301,18 @@ export function ExamProfileBuilder({
             {sourceJob && step !== "review" && (
               <div
                 ref={clarificationPanel}
-                tabIndex={sourceJob.stage === "needs_details" ? -1 : undefined}
-                role={sourceJob.stage === "needs_details" ? "group" : undefined}
+                tabIndex={
+                  ["needs_details", "failed"].includes(sourceJob.stage)
+                    ? -1
+                    : undefined
+                }
+                role={
+                  ["needs_details", "failed"].includes(sourceJob.stage)
+                    ? "group"
+                    : undefined
+                }
                 aria-label={
-                  sourceJob.stage === "needs_details"
+                  ["needs_details", "failed"].includes(sourceJob.stage)
                     ? "Assessment clarification"
                     : undefined
                 }
@@ -1338,6 +1356,7 @@ export function ExamProfileBuilder({
                     ))}
                   </ul>
                 ) : null}
+                <BuilderEvidenceDetails job={sourceJob} />
                 {!busy &&
                   ["reading", "identifying", "drafting"].includes(
                     sourceJob.stage,

@@ -24,9 +24,10 @@ import {
   EXTRACTION_SYSTEM,
   PROPOSAL_SYSTEM,
   type ProfileEvidence,
-  evidenceSchema,
+  modelEvidenceSchema,
 } from "./profile-evidence.ts";
 import { resolveRegisteredSource } from "./profile-source-registry.ts";
+import { completeOwnedAssessmentEvidence } from "./profile-evidence-ingestion.ts";
 const id = z.string().uuid();
 export const builderRequestSchema = z.discriminatedUnion("action", [
   z
@@ -331,9 +332,9 @@ export async function proposeProfile(
           input.upload.contentType,
           deps.parsePdf,
         );
-      evidence = validateEvidence(
+      evidence = modelEvidenceSchema.parse(
         await model(EXTRACTION_SYSTEM, {
-          schema: z.toJSONSchema(evidenceSchema),
+          schema: z.toJSONSchema(modelEvidenceSchema),
           identity: input.identity,
           checksum: parsed.checksum,
           pages: parsed.pages,
@@ -355,6 +356,7 @@ export async function proposeProfile(
         )
           throw Error("Uploaded evidence location is not in the document.");
       }
+      evidence = completeOwnedAssessmentEvidence(evidence);
     }
     if (
       evidence &&
