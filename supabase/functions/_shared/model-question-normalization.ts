@@ -152,16 +152,38 @@ export function isMcqType(value: unknown): boolean {
   return /^(mcq|mcq_single|multiple[ _-]choice)$/i.test(String(value ?? '').trim());
 }
 
+/** Plain comparable text: LaTeX units/symbols and spacing differences ignored. */
+export const mcqComparable = (value: string): string => value
+  .replace(/\\(mu|Omega|omega|Delta|delta|theta|lambda|pi|alpha|beta|gamma|rho|sigma|epsilon|phi)\b/g, (_m, g: string) =>
+    ({mu:'μ',Omega:'Ω',omega:'ω',Delta:'Δ',delta:'δ',theta:'θ',lambda:'λ',pi:'π',alpha:'α',beta:'β',gamma:'γ',rho:'ρ',sigma:'σ',epsilon:'ε',phi:'φ'} as Record<string,string>)[g])
+  .replace(/\\(?:text|mathrm|mathit|operatorname)\s*\{([^}]*)\}/g, '$1')
+  .replace(/\\times/g, '×').replace(/\\cdot/g, '·').replace(/\\[,;! ]/g, ' ')
+  .replace(/[$\\{}]/g, '').replace(/\bdelta\s+/gi, 'Δ').replace(/\s+/g, ' ').trim().toLowerCase();
+
+function resolveMcqKey(key: string, options: string[]): string | undefined {
+  const k = mcqComparable(key);
+  const exact = options.find(option => mcqComparable(option) === k);
+  if (exact !== undefined) return exact;
+  const match = key.match(/^(?:option\s+)?\(?([A-Z])\)?(?:\s*[.):\-–]?\s*(.*))?$/i);
+  if (!match) return undefined;
+  const selected = options[match[1].toUpperCase().charCodeAt(0)-65];
+  if (selected === undefined) return undefined;
+  const rest = mcqComparable((match[2] ?? '').replace(/^\((.*)\)\s*:?$/, '$1').replace(/:$/, ''));
+  return !rest || rest === mcqComparable(selected) ? selected : undefined;
+}
+
+/**
+ * Resolve a model's key to the exact option text. Models often write the key
+ * then a blank line and an explanation ("C\n\nC (100 μF): ..."), or use
+ * Unicode where options use LaTeX; both still name one option.
+ */
 export function canonicalMcqAnswer(answer: string, options: string[] | null): string {
   if (!options?.length) return answer;
-  const key = answer.trim();
-  const exact = options.find(option => option.toLowerCase() === key.toLowerCase());
-  if (exact !== undefined) return exact;
-  const match = key.match(/^(?:option\s+)?([A-Z])(?:[.):]\s*(.*))?$/i);
-  if (!match) return answer;
-  const selected = options[match[1].toUpperCase().charCodeAt(0)-65];
-  if (!selected || (match[2]?.trim() && match[2].trim().toLowerCase() !== selected.toLowerCase())) return answer;
-  return selected;
+  const whole = resolveMcqKey(answer.trim(), options);
+  if (whole !== undefined) return whole;
+  const first = answer.trim().split(/\n/)[0].trim();
+  const head = first.split(/:\s/)[0].trim();
+  return resolveMcqKey(first, options) ?? resolveMcqKey(head, options) ?? answer;
 }
 
 /** OCR generated content uses text keys; interactive graph-answer JSON elsewhere is untouched. */

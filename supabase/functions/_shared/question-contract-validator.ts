@@ -331,7 +331,7 @@ export function validateQuestionCandidates(
     if (answer === undefined || answer === null || answer === "") {
       push("missing_answer", "Scored part has no expected answer / mark scheme.");
     } else if (type === "mcq" && mcqOptions) {
-      const answerText = String(answer).trim();
+      const answerText = canonicalMcqAnswer(String(answer), mcqOptions).trim();
       const letter = /^[A-Za-z]$/.test(answerText)
         ? answerText.toUpperCase().charCodeAt(0) - 65
         : -1;
