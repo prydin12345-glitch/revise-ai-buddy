@@ -1900,17 +1900,31 @@ export function ExamProfileBuilder({
                             chooseSource,
                             [
                               ["", "Resolve from my choices"],
-                              ...PROFILE_SOURCE_REGISTRY.filter(
-                                (s) =>
-                                  s.evidence.identity.subject.toLowerCase() ===
-                                  subjectName.toLowerCase(),
-                              ).map(
-                                (s) =>
-                                  [s.id, s.evidence.documents[0].title] as [
-                                    string,
-                                    string,
-                                  ],
-                              ),
+                              ...PROFILE_SOURCE_REGISTRY.filter((s) => {
+                                const id = s.evidence.identity;
+                                const same = (a?: string, b?: string) =>
+                                  !b ||
+                                  (a ?? "").toLowerCase() === b.toLowerCase();
+                                // Only offer sources for the chosen subject,
+                                // qualification and course (never GCSE for A-level).
+                                return (
+                                  same(id.subject, subjectName) &&
+                                  same(id.qualification, identity.qualification) &&
+                                  (!identity.course ||
+                                    !/^\w*\d/.test(identity.course) ||
+                                    same(id.course, identity.course))
+                                );
+                              }).map((s) => {
+                                const id = s.evidence.identity;
+                                const tier =
+                                  id.tier && id.tier !== "not_tiered"
+                                    ? ` · ${id.tier[0].toUpperCase()}${id.tier.slice(1)}`
+                                    : "";
+                                return [
+                                  s.id,
+                                  `${s.evidence.documents[0].title} · ${id.component}${tier}`,
+                                ] as [string, string];
+                              }),
                             ],
                             "Registered source",
                           )}
