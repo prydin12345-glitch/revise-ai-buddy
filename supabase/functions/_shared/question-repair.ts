@@ -1,3 +1,4 @@
+import { isGenericPlan } from './profile-template.ts';
 import { validateBiologyPlan } from './biology-plan-validator.ts';
 import { biologyRepairInstructions, packForBiologyPlan } from './biology-course-packs.ts';
 import { analyseGroupRepair, repairNumberKey, type RepairDiagnostic, type RepairMode, type RepairResult } from './prepare-group-repair.ts';
@@ -55,7 +56,7 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     const critical = degrees === undefined ? undefined : CHI_SQUARED_5_PERCENT[degrees];
     return `CHI-SQUARED REPAIR ${questionLabel(part.questionNumber)}: Put every required given in this scored part's context or its rendered table caption, not hidden metadata or another sibling. Example format: "Null hypothesis: [state the fixed-model prediction]. Use χ² = Σ((O − E)²/E), where O = observed count and E = expected count. Significance level = 5%. Degrees of freedom = k − 1 = ${critical ? degrees : '[numeric df]'}. Critical value = ${critical ?? '[matching numeric 5% critical value]'}." k is the number of categories. Equivalent clear wording is valid. TABLE FORMAT: when rebuilding an invalid or missing table, the data_table needs one category-label column, exactly one column headed "Observed count (O)" and exactly one headed "Expected count (E)". Every cell in those two columns is a plain number with no units or text. Observed counts are whole numbers, and every expected count is at least 5; merge or redesign categories rather than keeping a small expected count. Do not put a ratio, proportion or percentage in a column headed observed/expected. If you show the model ratio, give it a separate column headed "Model ratio". Keep equal totals and use no fitted model parameters. Leave out a Total row, or put one as the final row only if it equals the column sums. Check the actual table, rather than copying a number from this example after changing its categories. The PRIVATE correct_answer must include "Final statistic: [calculated numeric value]", complete working, comparison with the critical value and an evidence-based conclusion. Never put calculated answers or completed working in public context/resources.`;
   });
-  const levelScheme = input.plan ? packForBiologyPlan(input.plan).validation.levelSchemeAtMarks : 6;
+  const levelScheme = input.plan && !isGenericPlan(input.plan) ? packForBiologyPlan(input.plan).validation.levelSchemeAtMarks : 6;
   const resourceChecklist = input.group.map(row => {
     const planned = plannedParts.find(part => repairNumberKey(part.questionNumber) === repairNumberKey(row.question_number));
     const reference = referencesResource(assembleQuestionText(row));

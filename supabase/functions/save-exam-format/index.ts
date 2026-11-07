@@ -1,4 +1,5 @@
 import { packForBiologyPlan } from '../_shared/biology-course-packs.ts';
+import { isGenericPlan } from '../_shared/profile-template.ts';
 import { paperPlanForAttempt } from '../_shared/course-selection.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -107,7 +108,7 @@ serve(async (req) => {
       include_diagrams: profileMeta.includeDiagrams ?? null,
     };
 
-    if (plan && packForBiologyPlan(plan).generation.strategy === 'contract_only') {
+    if (plan && !isGenericPlan(plan) && packForBiologyPlan(plan).generation.strategy === 'contract_only') {
       Object.assign(formatPayload, {use_original_structure: false,
         mcq_count: plan.parts.filter(p => p.responseType === 'mcq_single').length,
         short_answer_count: plan.parts.filter(p => p.responseType === 'short_answer').length,
