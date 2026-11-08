@@ -3,6 +3,7 @@
   "status": "PASS",
   "browserVersion": "151.0.7922.173",
   "syntheticOnly": true,
+  "productionUtilityStylesVerified": true,
   "realModelCalls": 0,
   "backendRequests": 0,
   "realLogins": 0,
@@ -19,7 +20,7 @@
         "Measurements stored only as a data-table figure remain visible with all three headers, values and uncertainties.",
         "Saved decorative capacitor circuit and inferred completed drawing answers are suppressed.",
         "A real topology-dependent circuit is retained; its figure opens and closes at enlarged size.",
-        "Four distinct mathematical MCQ expressions render once each as visible typesetting with no private answer disclosure.",
+        "Four distinct mathematical MCQ expressions render once; the shared released-key helper matches LaTeX/Unicode while absent or ambiguous keys stay unresolved, with no private answer disclosure.",
         "Screen, 150% browser zoom and print media preserve resources and controls without page overflow.",
         "Actual html2canvas and jsPDF export captures correctly labelled graphs and the genuine topology circuit, suppresses decorative/drawing-answer circuits, and creates a standalone PDF without keys."
       ],
@@ -36,7 +37,7 @@
         "Measurements stored only as a data-table figure remain visible with all three headers, values and uncertainties.",
         "Saved decorative capacitor circuit and inferred completed drawing answers are suppressed.",
         "A real topology-dependent circuit is retained; its figure opens and closes at enlarged size.",
-        "Four distinct mathematical MCQ expressions render once each as visible typesetting with no private answer disclosure.",
+        "Four distinct mathematical MCQ expressions render once; the shared released-key helper matches LaTeX/Unicode while absent or ambiguous keys stay unresolved, with no private answer disclosure.",
         "Screen, 150% browser zoom and print media preserve resources and controls without page overflow.",
         "Actual html2canvas and jsPDF export captures correctly labelled graphs and the genuine topology circuit, suppresses decorative/drawing-answer circuits, and creates a standalone PDF without keys."
       ],
@@ -53,7 +54,7 @@
         "Measurements stored only as a data-table figure remain visible with all three headers, values and uncertainties.",
         "Saved decorative capacitor circuit and inferred completed drawing answers are suppressed.",
         "A real topology-dependent circuit is retained; its figure opens and closes at enlarged size.",
-        "Four distinct mathematical MCQ expressions render once each as visible typesetting with no private answer disclosure.",
+        "Four distinct mathematical MCQ expressions render once; the shared released-key helper matches LaTeX/Unicode while absent or ambiguous keys stay unresolved, with no private answer disclosure.",
         "Screen, 150% browser zoom and print media preserve resources and controls without page overflow."
       ],
       "questionTextContrast": 10.307355969735845
@@ -69,7 +70,7 @@
         "Measurements stored only as a data-table figure remain visible with all three headers, values and uncertainties.",
         "Saved decorative capacitor circuit and inferred completed drawing answers are suppressed.",
         "A real topology-dependent circuit is retained; its figure opens and closes at enlarged size.",
-        "Four distinct mathematical MCQ expressions render once each as visible typesetting with no private answer disclosure.",
+        "Four distinct mathematical MCQ expressions render once; the shared released-key helper matches LaTeX/Unicode while absent or ambiguous keys stay unresolved, with no private answer disclosure.",
         "Screen, 150% browser zoom and print media preserve resources and controls without page overflow."
       ],
       "questionTextContrast": 10.706478066330835
@@ -85,7 +86,7 @@
         "Measurements stored only as a data-table figure remain visible with all three headers, values and uncertainties.",
         "Saved decorative capacitor circuit and inferred completed drawing answers are suppressed.",
         "A real topology-dependent circuit is retained; its figure opens and closes at enlarged size.",
-        "Four distinct mathematical MCQ expressions render once each as visible typesetting with no private answer disclosure.",
+        "Four distinct mathematical MCQ expressions render once; the shared released-key helper matches LaTeX/Unicode while absent or ambiguous keys stay unresolved, with no private answer disclosure.",
         "Screen, 150% browser zoom and print media preserve resources and controls without page overflow."
       ],
       "questionTextContrast": 10.307355969735845
@@ -101,7 +102,7 @@
         "Measurements stored only as a data-table figure remain visible with all three headers, values and uncertainties.",
         "Saved decorative capacitor circuit and inferred completed drawing answers are suppressed.",
         "A real topology-dependent circuit is retained; its figure opens and closes at enlarged size.",
-        "Four distinct mathematical MCQ expressions render once each as visible typesetting with no private answer disclosure.",
+        "Four distinct mathematical MCQ expressions render once; the shared released-key helper matches LaTeX/Unicode while absent or ambiguous keys stay unresolved, with no private answer disclosure.",
         "Screen, 150% browser zoom and print media preserve resources and controls without page overflow."
       ],
       "questionTextContrast": 10.706478066330835
@@ -117,7 +118,7 @@
         "Measurements stored only as a data-table figure remain visible with all three headers, values and uncertainties.",
         "Saved decorative capacitor circuit and inferred completed drawing answers are suppressed.",
         "A real topology-dependent circuit is retained; its figure opens and closes at enlarged size.",
-        "Four distinct mathematical MCQ expressions render once each as visible typesetting with no private answer disclosure.",
+        "Four distinct mathematical MCQ expressions render once; the shared released-key helper matches LaTeX/Unicode while absent or ambiguous keys stay unresolved, with no private answer disclosure.",
         "Screen, 150% browser zoom and print media preserve resources and controls without page overflow."
       ],
       "questionTextContrast": 10.307355969735845
@@ -133,7 +134,7 @@
         "Measurements stored only as a data-table figure remain visible with all three headers, values and uncertainties.",
         "Saved decorative capacitor circuit and inferred completed drawing answers are suppressed.",
         "A real topology-dependent circuit is retained; its figure opens and closes at enlarged size.",
-        "Four distinct mathematical MCQ expressions render once each as visible typesetting with no private answer disclosure.",
+        "Four distinct mathematical MCQ expressions render once; the shared released-key helper matches LaTeX/Unicode while absent or ambiguous keys stay unresolved, with no private answer disclosure.",
         "Screen, 150% browser zoom and print media preserve resources and controls without page overflow."
       ],
       "questionTextContrast": 10.706478066330835
@@ -248,13 +249,15 @@
     "src/lib/exam-pdf-generator.ts": "e1284cfde59f780055b4f27ba751262502e61730faf917f6ed8d9759c7638500",
     "src/lib/formula-evaluator.ts": "811b3e59d2e8bf4fce4c0bc8d46f7453723cc66f8d2440fbfca7e50b0739c900",
     "src/lib/math-text.ts": "4839780e00491a386a91278a061dad8994ba45d0ddd758a4af9d0e8edb0a7d05",
+    "src/lib/mcq-review-key.ts": "cef1c7365e6af6ecdcb334dfed3cc9197b2ab288972945267f4e9a92510dc0d9",
     "src/lib/question-resources.ts": "7bb5a49272c634e9f5ff2b510f3db0c840358586f313b8c3bab25eb8486d8182",
     "src/lib/response-contract.ts": "c0a82a7bc31f04de81633b1aafd367f391b2553d4b33c7762514fb657721b3ba",
     "src/lib/response-pdf.ts": "3bdda13f0b44680a62f7f4a4cf9d46901b33eca6113a0d58f236cdc36cbd2c7c",
     "src/lib/response-view.ts": "549c10723d58eb9987f78217cbb6f4e032649ff22a6ba44062e45c5cb9d14097",
     "src/lib/utils.ts": "d1f1e0d62cb8d8d1e04c26e14de842d8a151f75812d81b046c65b5d1fe8e4b27",
     "src/pages/ExamInProgress.tsx": "89884ef094c8e0987be22a93382209334063b7d1c0c86afde027af01ab559392",
-    "src/pages/ExamReview.tsx": "6786ab70b057e009e4fd9e68293c017fa0f1743bce68f125cbeb9fd1ceafea5f",
+    "src/pages/ExamPreview.tsx": "e9566284aceb62a568f78cf995e0662b4ad304944cc824c0bd5f39da392aa5d4",
+    "src/pages/ExamReview.tsx": "5f1b31ce56cf5246378cbc81972c3c70aa8608621ef9e159e5421585593a3f9e",
     "src/styles/mathquill-custom.css": "57f5596396cd06475c5a1010b803f9cc25b90090162a3016cc0ffe03fd160673",
     "src/styles/workspace.css": "b493b932949a23980387985bd2fa90f8615a1afc9c2fa0fc5a065118f1b7f45b",
     "src/utils/chartData.ts": "62c109dab40a830c193c8a1a83a5e3c9d6f76985a19fe44ba7ba6d8e1deaba10",
@@ -332,11 +335,11 @@
     "PDF uses actual local html2canvas/jsPDF; private keys are absent from fixture data."
   ],
   "sourceHashesVerifiedAgainstFinalTree": true,
-  "productionUtilityStylesVerified": true,
   "visuallyReviewedScreenshots": [
     "phone-dark-resources.png",
     "narrow-phone-light-resources.png",
     "pdf-options-page.png",
     "pdf-graph-page.png"
-  ]
+  ],
+  "privateSentinelSuppliedInRenderAndPDFInput": true
 }

@@ -17,13 +17,13 @@
     "npm ci": "PASS (writable /tmp/examly-npm-cache)",
     "npm run check": {
       "status": "PASS",
-      "testFiles": 185,
-      "tests": 3009,
+      "testFiles": 186,
+      "tests": 3011,
       "edgeFunctions": 39,
       "typecheck": "PASS",
       "criticalLint": "PASS",
       "productionBuild": "PASS",
-      "productionBuildSeconds": 17.34
+      "productionBuildSeconds": 16.79
     },
     "biologyAudit": {
       "status": "PASS",
@@ -42,7 +42,7 @@
     "status": "PASS",
     "checks": 58,
     "cases": 8,
-    "sourceStyleHashes": 173,
+    "sourceStyleHashes": 175,
     "chromium": "151.0.7922.173",
     "report": "browser/browser-results.json",
     "method": "Actual rendering components composed with original fixtures; all external requests blocked."
