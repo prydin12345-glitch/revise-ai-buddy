@@ -27,6 +27,7 @@ import {
   LoaderCircle,
   RotateCcw,
   Sparkles,
+  Trash2,
   X,
 } from "lucide-react";
 import {
@@ -96,6 +97,7 @@ interface Props {
   examBoard?: string | null;
   educationalLevel?: string | null;
   onManual: () => void;
+  onDelete?: (profileId: string) => Promise<boolean>;
   curriculumRegion?: string | null;
   courseId?: string | null;
   paperId?: string | null;
@@ -152,9 +154,12 @@ export function ExamProfileBuilder({
   initialMode,
   accountId,
   onManual,
+  onDelete,
   initialProfile,
   api = invokeProfileBuilder,
 }: Props) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const catalogue = approvalCatalogue();
   const [step, setStep] = useState<"details" | "confirm" | "review">("details");
   const [identity, setIdentity] = useState<TemplateIdentity>(() =>
@@ -2797,6 +2802,46 @@ export function ExamProfileBuilder({
                     Duplicate saved profile
                   </Button>
                 )}
+                {initialProfile?.id && onDelete && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={busy}
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                    Delete profile
+                  </Button>
+                )}
+                <AlertDialog open={confirmDelete} onOpenChange={(o) => !deleting && setConfirmDelete(o)}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete "{initialProfile?.profile_name}"?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This removes the exam profile. Exams and practice you already made from it are kept.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        disabled={deleting}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={async (ev) => {
+                          ev.preventDefault();
+                          if (!initialProfile?.id || !onDelete) return;
+                          setDeleting(true);
+                          const ok = await onDelete(initialProfile.id);
+                          setDeleting(false);
+                          setConfirmDelete(false);
+                          if (ok) onOpenChange(false);
+                        }}
+                      >
+                        {deleting ? "Deleting..." : "Delete profile"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </fieldset>
             ) : null}
           </div>

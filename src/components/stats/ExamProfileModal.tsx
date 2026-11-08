@@ -982,7 +982,7 @@ export const ExamProfileModal = ({
     educationalLevel={initialData?.educational_tier||finalTier||preferences?.preferred_educational_level}
     curriculumRegion={preferences?.curriculum_region} courseId={selectedCourseId} paperId={selectedPaperId}
     assessmentTier={assessmentTier} initialMode={paperMode} initialProfile={initialData}
-    onManual={()=>setBuilderOpen(false)} />;
+    onManual={()=>setBuilderOpen(false)} onDelete={onDelete} />;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
