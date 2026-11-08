@@ -56,6 +56,17 @@ function pagesFor(assessment = block) {
     (_, i) => `Supporting source material ${i + 1}\n${"x".repeat(900)}`,
   );
   pages[0] = "AQA\nA-level Physics\n7408\n" + version;
+  // The later topic-name safety check needs the original subject-content
+  // headings as well as the reported numbered overview; the old fixture had
+  // omitted those pages entirely.
+  pages[1] = [
+    "3.1 Measurements and their errors",
+    "3.2 Particles and radiation",
+    "3.3 Waves",
+    "3.4 Mechanics and materials",
+    "3.5 Electricity",
+    "3.6.1 Periodic motion",
+  ].join("\n");
   pages[89] = assessment;
   return pages;
 }
@@ -141,7 +152,7 @@ function draft(payload: any): ProfileTemplate {
     mode: payload.mode,
     marks: 85,
     durationMinutes: 120,
-    topics: [scope],
+    topics: payload.evidence?.facts.topics ?? [scope],
     calculator: "allowed",
     sections: [
       {
@@ -152,7 +163,7 @@ function draft(payload: any): ProfileTemplate {
           parts: [
             {
               id: `part-${index}`,
-              topic: scope,
+              topic: payload.evidence?.facts.topics[0] ?? scope,
               marks,
               response: "short_answer",
               demand: "AO1",

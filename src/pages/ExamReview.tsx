@@ -838,7 +838,7 @@ const ExamReview = () => {
                         return (
                           <div key={idx} className={optClass}>
                             <span className="font-semibold shrink-0 w-6">{label})</span>
-                            <span className="flex-1">{optText}</span>
+                            <span className="flex-1"><MathRenderer content={optText} hasMath={!!question.has_math} inline /></span>
                             {!scoresHidden && studentSelected && !isCorrectOpt && (
                               <XCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
                             )}

@@ -6,6 +6,7 @@ import {
   type ProfileTemplate,
 } from "./profile-template.ts";
 import { resolveCatalogueTier } from "./profile-catalogue-evidence.ts";
+import { assertSourceSpecificationIssues } from "./profile-source-version.ts";
 export const EVIDENCE_VERSION = 1,
   MAX_DOCUMENT_BYTES = 3_000_000,
   MAX_DOCUMENT_PAGES = 120,
@@ -148,6 +149,7 @@ export function validateEvidence(raw: unknown): ProfileEvidence {
         "A superseded source cannot support a current mandatory rule.",
       );
   }
+  assertSourceSpecificationIssues(e.identity.specificationVersion, e.documents);
   const catalogueTier = resolveCatalogueTier(e.identity);
   for (const fact of e.catalogueFacts ?? [])
     if (
@@ -357,15 +359,29 @@ export function validateEvidenceTemplate(
   )
     throw Error("Template course/tier conflicts with source evidence.");
   assertTopicScope(t, e.facts.topics);
-  // Tier must be known. Marks, time, formats and selection the source omits
-  // are student-reviewed layout choices; stated ones must still match.
-  if (t.mode === "full_mock" && e.facts.tier === null)
+  if (
+    t.mode === "full_mock" &&
+    (t.addedTopics?.length ||
+      e.facts.topics.some((topic) => !t.topics.includes(topic)))
+  )
+    throw Error(
+      "A full mock must retain its source topic scope. Use Custom for student topic changes.",
+    );
+  // An authentic full mock needs verified assessment structure. Missing facts
+  // may remain Examly layout choices in practice/custom mode; a model or manual
+  // editor cannot promote them to official full-paper requirements.
+  if (
+    t.mode === "full_mock" &&
+    (e.facts.marks === null ||
+      e.facts.durationMinutes === null ||
+      e.facts.tier === null ||
+      e.facts.selection === "unknown" ||
+      !e.facts.formats.length)
+  )
     throw Error("Full mock requirements are unknown.");
   if (
     t.mode === "full_mock" &&
-    ((e.facts.marks !== null && t.marks !== e.facts.marks) ||
-      (e.facts.durationMinutes !== null &&
-        t.durationMinutes !== e.facts.durationMinutes))
+    (t.marks !== e.facts.marks || t.durationMinutes !== e.facts.durationMinutes)
   )
     throw Error("Full mock totals/duration contradict the source.");
   if (e.facts.calculator !== "unknown" && t.calculator !== e.facts.calculator)

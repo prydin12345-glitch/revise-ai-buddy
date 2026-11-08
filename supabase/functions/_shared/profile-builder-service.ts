@@ -1,3 +1,4 @@
+import { coverSpecificationIssueConflict } from "./profile-source-version.ts";
 import { z } from "zod";
 import { fingerprint } from "./profile-fingerprint.ts";
 import {
@@ -332,6 +333,11 @@ export async function proposeProfile(
           input.upload.contentType,
           deps.parsePdf,
         );
+      const coverConflict = coverSpecificationIssueConflict(
+        input.identity.specificationVersion,
+        parsed.pages,
+      );
+      if (coverConflict) throw Error(coverConflict);
       evidence = modelEvidenceSchema.parse(
         await model(EXTRACTION_SYSTEM, {
           schema: z.toJSONSchema(modelEvidenceSchema),

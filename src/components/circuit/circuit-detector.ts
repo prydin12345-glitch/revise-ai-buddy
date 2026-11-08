@@ -1,4 +1,5 @@
 import type { CircuitConfig, CircuitComponentType } from './types';
+import { needsCircuitTopology } from '../../../supabase/functions/_shared/physics-resource-validation';
 import { shouldSuppressDiagram, isConceptOnlyQuestion } from '@/utils/diagramSuppression';
 
 /**
@@ -197,6 +198,11 @@ export function detectCircuitConfig(questionText: string, topicTag?: string, sub
   const fullText = parentQuestionText
     ? `${parentQuestionText} ${questionText}`
     : questionText;
+
+  if (!needsCircuitTopology(fullText)) return null;
+  // Drawing tasks need the student's construction, not an inferred completed
+  // answer supplied automatically by the renderer.
+  if (/\b(?:draw|sketch|design|construct)\b[^.!?]{0,60}\bcircuit\b/i.test(fullText)) return null;
 
   // Early exit — never show circuit diagrams for biology subjects (expanded list)
   const subjLower = (subjectName ?? '').toLowerCase().trim();

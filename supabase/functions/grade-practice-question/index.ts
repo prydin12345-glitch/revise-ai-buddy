@@ -1,3 +1,4 @@
+import {paperPlanForAttempt} from '../_shared/course-selection.ts';
 import {loadResponseContracts,gradePracticeResponse} from '../_shared/response-service.ts';
 import {responseResources} from '../_shared/response-resources.ts';
 import {responseRubricMarker} from '../_shared/response-rubric.ts';
@@ -68,6 +69,11 @@ serve(async (req) => {
       .select('subject_id, generation_context').eq('id', setId).eq('user_id', user.id).maybeSingle();
     if (gradeSetError || !gradeSet) throw new Error('Practice set not found');
     const gradeSubject = String(gradeSet.subject_id ?? '');
+    const isProfileTemplate = !!gradeSet.generation_context?.profile_template?.plan;
+    if (isProfileTemplate) {
+      if (!paperPlanForAttempt(gradeSet.generation_context)) throw new Error('Profile MCQ marking requires the protected saved template.');
+      biologyMarkingInstructions(gradeSet.generation_context);
+    }
     const isPearsonBiologyB = gradeSet.generation_context?.course_id === EDEXCEL_ALEVEL_BIOLOGY_B_ID;
     const isAlevelBiology = gradeSet.generation_context?.course_id === AQA_ALEVEL_BIOLOGY_ID;
     const isOcrAlevelBiology = gradeSet.generation_context?.course_id === OCR_ALEVEL_BIOLOGY_ID;
@@ -111,9 +117,9 @@ serve(async (req) => {
 
     // Owned OCR practice questions use their saved choices/key; never spend a
     // model call deciding whether a selected letter is correct.
-    if((isOcrAlevelBiology||isPearsonBiologyB)&&question.question_type==='mcq'){
+    if((isProfileTemplate||isOcrAlevelBiology||isPearsonBiologyB)&&question.question_type==='mcq'){
       biologyMarkingInstructions(gradeSet.generation_context);
-      if(Number(question.marks)!==1)throw new Error(isPearsonBiologyB?'Pearson Biology B single-select MCQ mark allocation is invalid.':'OCR A-level MCQ mark allocation is invalid.');
+      if(Number(question.marks)!==1)throw new Error('Single-select MCQ mark allocation is invalid.');
       const result=markSingleChoice(question,answerText);
       const {error:saveError}=await supabase.from('practice_question_answers').upsert({
         user_id:user.id,set_id:setId,question_id:questionId,answer_text:answerText||'',working_out:workingOut,

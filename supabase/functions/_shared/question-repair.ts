@@ -1,3 +1,5 @@
+import {readLimitedBody} from './profile-document-io.ts';
+import {usageTokens,type AiCallRecord} from './ai-call-budget.ts';
 import { isGenericPlan } from './profile-template.ts';
 import { validateBiologyPlan } from './biology-plan-validator.ts';
 import { biologyRepairInstructions, packForBiologyPlan } from './biology-course-packs.ts';
@@ -23,8 +25,12 @@ export interface RepairRequest {
   mode: RepairMode;
   targetNumbers: Set<string>;
   previousDiagnostics?: RepairDiagnostic[];
+  /** Public tasks/data already assessed elsewhere; no private answer keys. */
+  coveredTasks?: string;
+  /** Remaining shared request time, capped again by the transport. */
+  timeoutMs?: number;
 }
-export interface RepairOutcome extends RepairResult { phase: 'transport' | 'parse' | 'validation' | 'partial' | 'accepted'; }
+export interface RepairOutcome extends RepairResult { phase: 'transport' | 'parse' | 'validation' | 'partial' | 'accepted'; transportRecord?: AiCallRecord; }
 
 export const describeRepairDiagnostics = (items: RepairDiagnostic[]): string => items.map(item =>
   `${item.partNumber ? `${questionLabel(item.partNumber)}: ` : ''}${item.code} (${item.detail})`).join('; ');
@@ -92,6 +98,7 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     `Subject: ${input.subject}. Board: ${input.scope.examBoard ?? 'unchanged'}. Qualification: ${input.scope.educationalLevel ?? 'unchanged'}.`,
     biologyScopeInstructions(input.scope),
     'Blocking defects: ' + input.defects,
+    input.coveredTasks ?? '',
     ...statisticalNotes,
     statisticalParts.length?ocrPaper3StatisticsInstructions(input.plan,statisticalParts,'diagram_config'):'',
     sharedNotes,
@@ -134,6 +141,22 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
 
 /** Transport success is not repair acceptance. Each failure phase is explicit. */
 export async function requestQuestionRepair(input: RepairRequest, apiKey: string, request: typeof fetch = fetch): Promise<RepairOutcome> {
+  if (input.timeoutMs === undefined) return performQuestionRepair(input, apiKey, request);
+  const started = Date.now(), timeout = Math.max(1, Math.min(45_000,input.timeoutMs));
+  const record:AiCallRecord = {purpose:'question repair',model:'google/gemini-2.5-flash',ok:false,promptTokens:0,completionTokens:0,ms:0};
+  const bounded:typeof fetch = async (url, init) => {
+    const response = await request(url,{...init,signal:AbortSignal.timeout(timeout)});
+    record.status=response.status; record.ok=response.ok;
+    const bytes=await readLimitedBody(response.body,250_000,Math.max(1,timeout-(Date.now()-started)));
+    try { const data=JSON.parse(new TextDecoder().decode(bytes)); Object.assign(record,usageTokens(data.usage)); record.finishReason=data.choices?.[0]?.finish_reason; } catch { /* malformed content remains a parse rejection */ }
+    return new Response(bytes,{status:response.status,headers:response.headers});
+  };
+  const result=await performQuestionRepair(input,apiKey,bounded);
+  record.ms=Date.now()-started;
+  if(result.phase === 'transport') record.ok=false;
+  return {...result,transportRecord:record};
+}
+async function performQuestionRepair(input: RepairRequest, apiKey: string, request: typeof fetch): Promise<RepairOutcome> {
   const failure = (phase: RepairOutcome['phase'], code: string, detail: string): RepairOutcome =>
     ({ ok: false, replacements: {}, phase, diagnostics: [{ code, detail }] });
   let response: Response;
@@ -141,7 +164,7 @@ export async function requestQuestionRepair(input: RepairRequest, apiKey: string
     response = await request('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST', headers: { Authorization: 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'google/gemini-2.5-flash', messages: [{ role: 'user', content: buildQuestionRepairPrompt(input) }],
-        temperature: 0.3, response_format: { type: 'json_object' } }),
+        temperature: 0.3, response_format: { type: 'json_object' }, ...(input.timeoutMs !== undefined ? {max_tokens:12000} : {}) }),
     });
   } catch {
     return failure('transport', 'request_failed', 'The repair request did not return a response.');
@@ -176,7 +199,9 @@ export async function requestQuestionRepair(input: RepairRequest, apiKey: string
   const requiredParts = new Set((input.plan?.parts ?? []).filter(p => p.resource !== 'none').map(p => p.questionNumber));
   const expanded = input.mode === 'full_group' ? expandPaper3SharedTables(parts,input.plan) : {rows:parts,diagnostics:[]};
   if(expanded.diagnostics.length)return {ok:false,replacements:{},phase:'validation',diagnostics:expanded.diagnostics};
-  const result = analyseGroupRepair(input.group, expanded.rows, input.scope, requiredParts, input.targetNumbers, input.mode);
+  const optionalResourceRemovals = new Set(input.plan && isGenericPlan(input.plan)
+    ? plannedRepairParts(input).filter(part => part.resource === 'none').map(part => part.questionNumber) : []);
+  const result = analyseGroupRepair(input.group, expanded.rows, input.scope, requiredParts, input.targetNumbers, input.mode, optionalResourceRemovals);
   if (result.ok && input.plan) {
     const groupPlan = {...input.plan, parts: plannedRepairParts(input)};
     const proposed = input.group.map(row => ({...row, ...result.replacements[String(row.question_number)]}));

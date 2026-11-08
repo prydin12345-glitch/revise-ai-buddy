@@ -754,6 +754,15 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   extractionPrompt += '\n' + buildExtractSafetyInstruction(examBoard, exam.subject_id || '');
   const savedTemplateScope = templateSnapshotInstructions(storedContext);
   if (savedTemplateScope) { guidedPromptTail.push(savedTemplateScope); extractionPrompt += '\n' + savedTemplateScope; }
+  if (isGenericPlan(guidedPlan)) {
+    const qualityInstructions = 'WHOLE-PAPER QUALITY: Assess each definition, law statement or assumption set only once across written parts and MCQs; later applications of that topic must require different reasoning with original data. Never repeat a task sentence in LaTeX or plain text. MCQ options must be four distinct mathematical/scientific values, with a private key that identifies exactly one. Recalculate every numerical final answer, uncertainty, acceptance range and dependent mark point against the supplied data; the headline result must agree with the working and accepted range. Give explicit units and any RMS/DC measurement assumptions required for electrical heating. Do not infer the radiation type from a residual count indistinguishable from background; supply sufficient discriminating evidence or ask about uncertainty.';
+    guidedPromptTail.push(qualityInstructions);
+    extractionPrompt += '\n\n' + qualityInstructions;
+    if (/physics/i.test(generationScope.subject)) {
+      const physicsInstructions = 'PHYSICS RESOURCES: Attach a circuit only when the assessed task explicitly depends on wiring/topology or meter placement. Pure capacitor-decay graph reading, flux-time/search-coil induction, fields, planetary and nuclear calculations do not need generic circuit illustrations. Supply the required graph/table payload, axes, units and sufficient data; never substitute a decorative circuit. Use consistent mathematical notation and units, and do not duplicate a stem or option in another format.';
+      guidedPromptTail.push(physicsInstructions); extractionPrompt += '\n\n' + physicsInstructions;
+    }
+  }
   const guidedPromptSuffix = GUIDED_JSON_ENVELOPE + '\n\n' + guidedPromptTail.filter(Boolean).join('\n\n');
 
   const startTime = Date.now();
@@ -3221,16 +3230,16 @@ async function enforceAnswerability(
   let drafts = await load();
   if (await reconcileToPlan(drafts)) drafts = await load();
   if (await normaliseCharts(drafts)) drafts = await load();
-  let result = validateQuestionCandidates(drafts, planExpectations);
+  const validateStructural = (rows: any[]) => validateQuestionCandidates(rows, {...planExpectations, checkRepetition: false});
+  let result = validateStructural(drafts);
 
-  // Best-effort pass for repeated concepts, run only on a paper that already
-  // passes the gate. It never fails generation: a fix is saved only when the
-  // whole paper still passes afterwards and the repeat is gone.
+  // Bounded whole-group repetition repair. Structural checks are preserved;
+  // unresolved known repetitions remain blocking at the final/publication gate.
   const reduceRepetition = async (current: any[]): Promise<any[]> => {
     let rows = current;
     if (!plan || !isGenericPlan(plan)) return rows;
     for (let call = 0; call < MAX_REPETITION_REPAIRS; call++) {
-      const repeats = repeatedConceptDefects(rows);
+      const repeats = repeatedConceptDefects(rows, plan);
       if (!repeats.length || aiBudget.exhausted()) break;
       console.warn(`[repetition] ${repeats.map(r => r.detail).join(' | ')}`);
       const target = rows.find((r: any) => String(r.id ?? r.question_number) === repeats[0].partId);
@@ -3246,13 +3255,16 @@ async function enforceAnswerability(
           group, subject, scope, plan,
           defects: groupRepeats.map(r => `Q${rows.find((x: any) => String(x.id ?? x.question_number) === r.partId)?.question_number}: repeated_concept — ${r.detail}`).join('; '),
           mode: 'full_group',
+          coveredTasks: coveredTasksNote(rows.filter((row: any) => !ids.has(String(row.id ?? row.question_number)))),
+          timeoutMs: aiBudget.remainingMs,
           targetNumbers: new Set<string>(group.filter((r: any) => groupRepeats.some(d => d.partId === String(r.id ?? r.question_number))).map((r: any) => String(r.question_number))),
         }, apiKey);
       } catch (e) { console.warn(`[repetition] repair call failed: ${(e as Error).message}`); break; }
-      if (!outcome.ok) { console.warn(`[repetition] repair rejected; keeping the passing paper`); break; }
+      if (outcome.transportRecord) aiBudget.record({...outcome.transportRecord,purpose:`repetition group ${groupId}`});
+      if (!outcome.ok) { console.warn(`[repetition] repair rejected (${outcome.phase}): ${describeRepairDiagnostics(outcome.diagnostics)}`); break; }
       const proposed = rows.map((r: any) => ({ ...r, ...(outcome.replacements[String(r.question_number)] ?? {}) }));
-      const stillOk = validateQuestionCandidates(proposed, planExpectations).ok;
-      const fewer = repeatedConceptDefects(proposed).length < repeats.length;
+      const stillOk = validateStructural(proposed).ok;
+      const fewer = repeatedConceptDefects(proposed, plan).length < repeats.length;
       if (!stillOk || !fewer) { console.warn('[repetition] proposed fix not used (would break the paper or did not remove the repeat)'); break; }
       await saveQuestionRepairs(supabase, draftId, group, outcome.replacements);
       rows = await load();
@@ -3260,9 +3272,18 @@ async function enforceAnswerability(
     return rows;
   };
 
+  const finishQuality = async (rows: any[], structuralRepairCalls: number) => {
+    const reduced = await reduceRepetition(rows);
+    const final = validateQuestionCandidates(reduced, planExpectations);
+    if (!final.ok) {
+      const message = `Generation failed the final quality gate after ${structuralRepairCalls} structural repair call(s) [${aiBudget.summary()}]: ${describeDefects(final.defects, reduced)}`;
+      await supabase.from('exams').update({extraction_status:'failed',extraction_error:message.slice(0,1000)}).eq('id',draftId);
+      throw new Error(message);
+    }
+    await persistCanonicalResources(reduced);
+  };
   if (result.ok) {
-    drafts = await reduceRepetition(drafts);
-    await persistCanonicalResources(drafts);
+    await finishQuality(drafts, 0);
     console.log(`Answerability gate passed (contract v${CONTRACT_VERSION}, ${drafts.length} parts)`);
     return;
   }
@@ -3309,8 +3330,10 @@ async function enforceAnswerability(
       mode: taskOnly && !escalate ? 'task_only' : 'full_group',
       targetNumbers: escalate ? new Set<string>(group.map((row: any) => String(row.question_number))) : failedNumbers as Set<string>,
       previousDiagnostics: lastRejections[groupId],
+      ...(plan && isGenericPlan(plan) ? {coveredTasks:coveredTasksNote(drafts.filter((row:any) => !groupIds.has(String(row.id ?? row.question_number)))),timeoutMs:aiBudget.remainingMs} : {}),
     }, apiKey);
 
+    if (outcome.transportRecord) aiBudget.record({...outcome.transportRecord,purpose:`repair group ${groupId}`});
     if (outcome.ok) {
       const saved = await saveQuestionRepairs(supabase, draftId, group, outcome.replacements);
       delete lastRejections[groupId];
@@ -3322,7 +3345,7 @@ async function enforceAnswerability(
     }
 
     drafts = await load();
-    result = validateQuestionCandidates(drafts, planExpectations);
+    result = validateStructural(drafts);
   }
 
   if (!result.ok) {
@@ -3335,7 +3358,6 @@ async function enforceAnswerability(
     }).eq('id', draftId);
     throw new Error(message);
   }
-  drafts = await reduceRepetition(drafts);
-  await persistCanonicalResources(drafts);
+  await finishQuality(drafts, callsUsed);
   console.log(`Answerability gate passed after ${callsUsed} repair call(s)`);
 }

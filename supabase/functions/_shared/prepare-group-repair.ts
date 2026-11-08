@@ -1,8 +1,9 @@
-import { assembleQuestionText, coerceMcqOptions, hasAssessedTask, normalizeRepairPart, validateQuestionCandidates } from './question-contract-validator.ts';
+import { assembleQuestionText, coerceMcqOptions, hasAssessedTask, normalizeRepairPart, validateQuestionCandidates, referencesResource } from './question-contract-validator.ts';
 import { resolveQuestionResources, isResourceChart } from './question-resources.ts';
 import type { BiologyScope } from './gcse-biology-scope.ts';
 import { canonicalMcqAnswer, isMcqType, readQuestionTask } from './model-question-normalization.ts';
 import { expandComprehensionReferences } from './biology-comprehension.ts';
+import { needsCircuitTopology } from './physics-resource-validation.ts';
 
 export type RepairMode = 'task_only' | 'full_group';
 export interface RepairDiagnostic { code: string; partNumber?: string; detail: string; }
@@ -58,6 +59,8 @@ export function analyseGroupRepair(
   group: any[], parts: unknown, scope: BiologyScope,
   requiredParts: Set<string> = new Set(), targetNumbers: Set<string> = new Set(),
   mode: RepairMode = targetNumbers.size ? 'task_only' : 'full_group',
+  /** Server-only allowlist: trusted generic-plan resource=none parts with an invalid decorative circuit. */
+  optionalResourceRemovals: Set<string> = new Set(),
 ): RepairResult {
   const diagnostics: RepairDiagnostic[] = [];
   const replacements: Record<string, any> = {};
@@ -138,11 +141,22 @@ export function analyseGroupRepair(
         for (const issue of resources.issues) fail(issue.code, issue.detail, number);
         continue;
       }
-      const needsResource = requiredParts.has(number) || !!row.diagram_config || !!row.table_data;
+      const previousConfigs = [row.diagram_config, row.diagramConfig, row.chart_data].filter(value => value != null);
+      const onlyDecorativeCircuit = /physics/i.test(scope.subject ?? '') && previousConfigs.length > 0
+        && previousConfigs.every(value => value && typeof value === 'object' && !Array.isArray(value) && ['circuit','circuit_diagram'].includes(value.type))
+        && !needsCircuitTopology(rowText) && !row.table_data && !isResourceChart(row.options);
+      const mayRemove = !requiredParts.has(number) && onlyDecorativeCircuit
+        && [...optionalResourceRemovals].some(value => repairNumberKey(value) === key);
+      const needsResource = requiredParts.has(number) || (!mayRemove && (!!row.diagram_config || !!row.table_data));
       // Use the validated, losslessly normalised chart, regardless of which
       // supported model alias carried it. Do not validate one copy then save
       // a different/raw copy, or drop a table_data/diagramConfig-only repair.
       const diagram = resources.essay ?? resources.passage ?? resources.chart ?? part.diagram_config ?? part.diagramConfig ?? part.chart_data ?? null;
+      const removedDecoration = mayRemove && !diagram;
+      const stillReadsResource = referencesResource(resources.text) || /\b(?:use|using|from|refer\s+to|read|interpret)\s+(?:the|this|given|following)\s+(?:graph|table|diagram|circuit|figure|chart)\b/i.test(resources.text);
+      if (removedDecoration && stillReadsResource) {
+        fail('missing_required_resource', 'Removing an optional circuit requires a complete self-contained task and matching rewritten key; figure references must not remain.', number); continue;
+      }
       if (needsResource && (!diagram || typeof diagram !== 'object' || Array.isArray(diagram))) {
         fail('missing_required_resource', 'Complete group repairs must return every required resource.', number); continue;
       }
@@ -157,7 +171,8 @@ export function analyseGroupRepair(
         : (isResourceChart(row.options) ? null : row.options);
       candidate = { ...row, question_text: resources.text, correct_answer: normalized?.correctAnswer ?? row.correct_answer,
         options: normalized?.options ?? keptOptions,
-        diagram_config: diagram, table_data: null, question_latex: null, context: null, task: null };
+        diagram_config: diagram, table_data: null, question_latex: null, context: null, task: null,
+        ...(removedDecoration ? {diagramConfig:null,chart_data:null,requires_resource:false} : {}) };
 
     }
     const validation = validateQuestionCandidates([candidate], { scope });

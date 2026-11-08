@@ -1,0 +1,73 @@
+{
+  "status": "PASS",
+  "verificationDate": "2026-11-08",
+  "pdfs": [
+    {
+      "theme": "light",
+      "pages": 6,
+      "numberedBodyPages": 5,
+      "bytes": 4909771,
+      "sha256": "291c5d40eaa469b05d578086e0a556a1b576e4f0d15b07597d897c802f80cb89",
+      "tableTextPresent": true,
+      "fourOptionsExactlyOnce": true,
+      "rawExponentAbsent": true,
+      "privateAnswersAbsent": true,
+      "labelledGraphSvgCaptures": true,
+      "decorativeAndDrawingCircuitsAbsent": true
+    },
+    {
+      "theme": "dark",
+      "pages": 6,
+      "numberedBodyPages": 5,
+      "bytes": 4909771,
+      "sha256": "89c78cf1bc781948ee136566431c56e04ef9031c408eb290aa744a6d0bbb62b9",
+      "tableTextPresent": true,
+      "fourOptionsExactlyOnce": true,
+      "rawExponentAbsent": true,
+      "privateAnswersAbsent": true,
+      "labelledGraphSvgCaptures": true,
+      "decorativeAndDrawingCircuitsAbsent": true
+    }
+  ],
+  "rasters": [
+    {
+      "file": "pdf-first-page.png",
+      "sha256": "406bd5120448bf7dc4b623a5e3d4293f481ab7941a466a706242460871664199",
+      "sourcePdf": "physics-light.pdf",
+      "sourcePdfSha256": "291c5d40eaa469b05d578086e0a556a1b576e4f0d15b07597d897c802f80cb89",
+      "physicalPage": 1,
+      "bodyPage": null,
+      "numberedBodyPages": 5
+    },
+    {
+      "file": "pdf-graph-page.png",
+      "sha256": "4d4877e9b97d412aac379f7aa0381b7c4e24db7080795eefb1240640ca3106af",
+      "sourcePdf": "physics-light.pdf",
+      "sourcePdfSha256": "291c5d40eaa469b05d578086e0a556a1b576e4f0d15b07597d897c802f80cb89",
+      "physicalPage": 2,
+      "bodyPage": 1,
+      "numberedBodyPages": 5
+    },
+    {
+      "file": "pdf-options-page.png",
+      "sha256": "cc10c4961e22acc9c926e6d441dc23b47fe140264982794f1cabd7a122c1d05f",
+      "sourcePdf": "physics-light.pdf",
+      "sourcePdfSha256": "291c5d40eaa469b05d578086e0a556a1b576e4f0d15b07597d897c802f80cb89",
+      "physicalPage": 5,
+      "bodyPage": 4,
+      "numberedBodyPages": 5
+    }
+  ],
+  "rasterizer": {
+    "name": "MuPDF / PyMuPDF",
+    "version": "1.26.6"
+  },
+  "pagination": "The cover is included in physical page totals; printed body footers exclude the cover.",
+  "diagnostics": [
+    "The installed Poppler rasterizer emitted fontconfig cache warnings and showed different standard-font spacing; review rasters use MuPDF. The underlying PDF text and MuPDF rendering retain normal spaces."
+  ],
+  "limitations": [
+    "Graphs are raster images inside the PDF; axis labels are checked in capture DOM and visual raster review.",
+    "No private saved paper, provider call or live persistence is exercised."
+  ]
+}

@@ -17,6 +17,8 @@ export function applyTopicEdit(
     const added = topics.filter((x) => !sourceTopics.includes(x));
     if (added.length) t.addedTopics = added;
     else delete t.addedTopics;
+    if (added.length || sourceTopics.some((topic) => !topics.includes(topic)))
+      t.mode = "custom";
   }
   if (!topics.length) return t;
   let next = 0;

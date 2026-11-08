@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { chartAxisLabels } from '../../../supabase/functions/_shared/chart-axis-labels';
 import {
   LineChart as RechartsLineChart,
   Line,
@@ -23,6 +24,8 @@ export interface LineChartData {
   type: 'line_chart';
   xLabel?: string;
   yLabel?: string;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
   caption?: string;
   domainX?: [number, number];
   domainY?: [number, number];
@@ -55,10 +58,7 @@ interface LineChartProps {
   className?: string;
 }
 
-export const axisLabels = (c: any): { xLabel?: string; yLabel?: string } => ({
-  xLabel: c?.xLabel || c?.xAxisLabel || undefined,
-  yLabel: c?.yLabel || c?.yAxisLabel || undefined,
-});
+export const axisLabels = chartAxisLabels;
 
 export const LineChart = ({ chartData, className = '' }: LineChartProps) => {
   const { datasets, caption, domainX, domainY } = chartData;

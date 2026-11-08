@@ -94,6 +94,22 @@ describe("reviewed assessment instruction supplements", () => {
     },
   );
 
+  it.each(["7408/2", "Paper 2"])(
+    "resolves the newly reviewed Paper 2 independently from Paper 1: %s",
+    (component) => {
+      const rules = resolveReviewedAssessmentRules({ ...identity, component })!;
+      expect(rules.id).toBe("aqa-7408-02-reviewed-cover-rules-v1");
+      expect(rules.documents[0].title).toContain("7408/2");
+      expect(rules.documents[0].checksum).not.toBe(
+        resolveReviewedAssessmentRules(identity)!.documents[0].checksum,
+      );
+      expect(rules.facts).toEqual({
+        selection: "all_compulsory",
+        calculator: "allowed",
+      });
+    },
+  );
+
   it.each([
     { country: "US" },
     { country: "AU" },
@@ -109,12 +125,10 @@ describe("reviewed assessment instruction supplements", () => {
     { course: "8463" },
     { course: "A-level Physics" },
     { component: "7407/1" },
-    { component: "7408/2" },
     { component: "7408/3" },
     { component: "7408/3A" },
     { component: "7408/3BA" },
     { component: "7408/10" },
-    { component: "Paper 2" },
     { component: "Paper 3" },
     { component: "Paper 1 Higher" },
     { component: "AQA A-level Physics Paper 1" },
