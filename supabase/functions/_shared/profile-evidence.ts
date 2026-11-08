@@ -7,6 +7,7 @@ import {
 } from "./profile-template.ts";
 import { resolveCatalogueTier } from "./profile-catalogue-evidence.ts";
 import { assertSourceSpecificationIssues } from "./profile-source-version.ts";
+import { sourceTextIncludes } from "./source-text-match.ts";
 export const EVIDENCE_VERSION = 1,
   MAX_DOCUMENT_BYTES = 3_000_000,
   MAX_DOCUMENT_PAGES = 120,
@@ -142,7 +143,7 @@ export function validateEvidence(raw: unknown): ProfileEvidence {
   for (const c of e.claims) {
     const d = e.documents.find((d) => d.id === c.documentId),
       l = d?.locations.find((l) => l.id === c.locationId);
-    if (!l || !norm(l.text).includes(norm(c.quote)))
+    if (!l || !sourceTextIncludes(l.text, c.quote))
       throw Error("Evidence reference does not resolve to extracted text.");
     if (c.rule === "mandatory" && d?.state !== "active")
       throw Error(
@@ -215,12 +216,14 @@ export function validateEvidence(raw: unknown): ProfileEvidence {
     for (const field of ["mathsRequirement", "practicalRequirement"] as const)
       if (
         e.facts[field] &&
-        !norm(supporting(field)).includes(norm(e.facts[field]!))
+        !sourceTextIncludes(supporting(field), e.facts[field]!)
       )
         throw Error("Requirement is not supported by extracted text: " + field);
     for (const topic of e.facts.topics)
-      if (!norm(supporting("topics")).includes(norm(topic)))
-        throw Error("A topic is not supported by extracted syllabus text.");
+      if (!sourceTextIncludes(supporting("topics"), topic))
+        throw Error(
+          `A topic is not supported by extracted syllabus text: "${topic.slice(0, 120)}"`,
+        );
     const tier = supporting("tier");
     if (
       e.facts.tier === "not_tiered" &&

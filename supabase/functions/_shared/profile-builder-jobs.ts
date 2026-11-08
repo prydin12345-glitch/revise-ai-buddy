@@ -37,6 +37,7 @@ import {
   specificationVersionsEquivalent,
 } from "./profile-version-context.ts";
 import { completeOwnedAssessmentEvidence } from "./profile-evidence-ingestion.ts";
+import { sourceTextIncludes } from "./source-text-match.ts";
 import {
   coverSpecificationIssueConflict,
   SourceSpecificationVersionConflict,
@@ -44,6 +45,7 @@ import {
 import {
   expandSectionTopics,
   isSectionReferenceTopic,
+  reconcileTopics,
   SECTION_TOPIC_NEED,
 } from "./profile-topic-sections.ts";
 import { resolveCatalogueTier } from "./profile-catalogue-evidence.ts";
@@ -185,6 +187,8 @@ export interface SourceJobData {
   draftError?: string;
   invalidExtraction?: unknown;
   extractionError?: string;
+  /** Reading batches that already used their one bounded repair. */
+  repairedChunks?: string[];
   validationIssues?: SourceValidationRecord[];
   proposal?: BuilderProposal;
   /** Intake has a cheap receipt but no persisted raw file to replay. */
@@ -1264,7 +1268,7 @@ function checkExtracted(
     for (const l of document.locations) {
       if (
         !suppliedPages.some(
-          (p) => p.page === l.page && norm(p.text).includes(norm(l.text)),
+          (p) => p.page === l.page && sourceTextIncludes(p.text, l.text),
         )
       )
         throw Error(
@@ -1287,9 +1291,22 @@ function checkExtracted(
     );
     if (conflict) throw new SourceIdentityConflict(conflict);
   }
+  // Topics the model named without a literal quote are swapped for the
+  // document's own heading, or removed and recorded; never kept unbacked.
+  const retained = (data.retainedDocuments ?? data.documents).filter(
+    (d) => d.pages?.length,
+  );
+  const reconciled = retained.length
+    ? reconcileTopics(uploaded as ProfileEvidence, retained, {
+        qualification: data.identity.qualification ?? null,
+        course: data.identity.course ?? null,
+        maxLocations: Math.floor(40 / batches),
+        maxClaims: Math.floor(60 / batches),
+      }).evidence
+    : uploaded;
   let e: ProfileEvidence;
   try {
-    e = completeOwnedAssessmentEvidence(uploaded);
+    e = completeOwnedAssessmentEvidence(reconciled);
   } catch (error) {
     if (error instanceof SourceSpecificationVersionConflict)
       throw new SourceIdentityConflict(error.message);
@@ -1330,7 +1347,7 @@ function checkExtracted(
       e.documents
         .find((doc) => doc.id === c.documentId)
         ?.locations.find((loc) => loc.id === c.locationId);
-    if (!c || !l || !norm(l.text).includes(norm(c.quote)))
+    if (!c || !l || !sourceTextIncludes(l.text, c.quote))
       throw Error(
         "A discovered course detail needs a matching source reference.",
       );
@@ -1403,6 +1420,24 @@ function checkExtracted(
       throw Error(
         "The documents disagree about the course version or component.",
       );
+  }
+  // Name "Sections 1 - 5" style pointers from this read onward, within this
+  // batch's share of the reference budget; the merged pass retries otherwise.
+  if (retained.length && e.facts.topics.some(isSectionReferenceTopic)) {
+    try {
+      const named = validateEvidence(expandSectionTopics(e, retained));
+      if (
+        named.claims.length <= Math.floor(60 / batches) &&
+        named.documents.every(
+          (d) =>
+            d.authority === "official_registered" ||
+            d.locations.length <= Math.floor(40 / batches),
+        )
+      )
+        e = named;
+    } catch {
+      // Keep the literal pointer; the safety net asks for the right page.
+    }
   }
   for (const document of e.documents) {
     // Reviewed server documents keep stable references across reading chunks.
@@ -2037,11 +2072,20 @@ export async function advanceSourceJob(
       } catch (error) {
         rememberValidation(error, "extraction");
         if (error instanceof SourceIdentityConflict) throw error;
+        // One bounded repair per reading batch, including follow-up page
+        // reads, only when the fixed per-build call cap still leaves room for
+        // the repair, any remaining batches and the draft. A repaired batch
+        // that fails again still stops safely.
+        const callsNeeded =
+          r.callIntents + 1 + 1 + (data.chunks.length - data.cursor - 1) + 1;
         if (
-          data.chunks.length === 1 &&
-          r.callIntents === 0 &&
-          data.invalidExtraction === undefined
+          data.invalidExtraction === undefined &&
+          !(data.repairedChunks ?? []).includes(chunk.id) &&
+          callsNeeded <= 3
         ) {
+          data.repairedChunks = [...(data.repairedChunks ?? []), chunk.id].slice(
+            -10,
+          );
           data.invalidExtraction = boundedInvalid(result.value);
           data.extractionError = (error as Error).message.slice(0, 500);
           return view(

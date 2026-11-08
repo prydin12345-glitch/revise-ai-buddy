@@ -355,14 +355,14 @@ describe("reported A-level specification evidence failures", () => {
     expect(runtime.model).toHaveBeenCalledOnce();
   });
 
-  it("keeps wrong marks and an unsupported topic strict, retaining both safe rejection reasons", async () => {
+  it("keeps wrong marks and duration strict, retaining both safe rejection reasons", async () => {
     const runtime = setup(),
       input = request();
     runtime.model.mockImplementation(async (_system, payload) => {
       const value = await extracted(payload);
       if (runtime.model.mock.calls.length === 1)
         value.evidence.facts.marks = 86;
-      else value.evidence.facts.topics = ["Unquoted thermodynamics"];
+      else value.evidence.facts.durationMinutes = 125;
       return { value, promptTokens: 13, completionTokens: 7 };
     });
     const failed = await failReading(runtime, input);
@@ -375,7 +375,7 @@ describe("reported A-level specification evidence failures", () => {
       ]),
     ).toEqual([
       [1, "extraction", "marks"],
-      [2, "extraction", "topics"],
+      [2, "extraction", "durationMinutes"],
     ]);
     expect(failed.needs?.[0]).toBe(failed.validationIssues?.[1].message);
     expect(failed.needs?.join(" ")).not.toMatch(
@@ -390,14 +390,13 @@ describe("reported A-level specification evidence failures", () => {
       ),
     ).toBe(true);
     expect(privateRecord.data.validationIssues?.[1].detail).toMatch(
-      /topic.*not supported/i,
+      /duration/i,
     );
     expect(privateRecord.data.invalidExtraction).toBeDefined();
     const publicText = JSON.stringify(failed);
     expect(publicText).not.toContain('"detail"');
     expect(publicText).not.toContain("invalidExtraction");
     expect(publicText).not.toContain(block);
-    expect(publicText).not.toContain("Unquoted thermodynamics");
     for (let i = 0; i < 3; i++)
       await getSourceJob(owner, input.requestId, runtime.deps);
     expect(runtime.model).toHaveBeenCalledTimes(2);

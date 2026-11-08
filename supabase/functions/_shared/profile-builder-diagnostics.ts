@@ -52,6 +52,8 @@ export function sourceValidationRecord(
   } else if (/topic.*not supported|topics are outside/i.test(detail)) {
     code = "unsupported_fact";
     field = "topics";
+    // The rejected topic name stays in the private detail only; student-facing
+    // reasons never echo rejected model output.
     message =
       "The topic list was not fully supported by the quoted syllabus text.";
   } else if (/totals\/duration/i.test(detail)) {

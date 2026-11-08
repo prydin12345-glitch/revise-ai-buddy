@@ -1,4 +1,5 @@
 import type { ProfileEvidence } from "./profile-evidence.ts";
+import { foldSourceText, sourceTextIncludes } from "./source-text-match.ts";
 import { scopeDocumentQualification } from "./profile-document-index.ts";
 
 /**
@@ -232,3 +233,139 @@ export function expandSectionTopics(
 
 export const SECTION_TOPIC_NEED =
   "This paper's topics are listed only as section numbers. Choose the PDF page that names those sections (for example the subject content list), so each topic can be checked.";
+
+const pageSuffix = (s: string) =>
+  s
+    .replace(/\s*\((?:page|p\.?)\s*\d{1,3}\)\s*$/i, "")
+    .replace(/\s*\.{2,}\s*\d{1,3}\s*$/, "")
+    .replace(/\s{2,}\d{1,3}\s*$/, "")
+    .trim();
+const loose = (s: string) =>
+  foldSourceText(pageSuffix(s)).replace(/\s*\((?:as and )?a-level only\)\s*$/, "");
+
+/**
+ * Find the specification's own numbered heading for a topic name, within the
+ * selected qualification. Returns the literal heading line and title, or null.
+ */
+function findTopicHeading(
+  topic: string,
+  pages: Array<{ page: number; text: string }>,
+): Heading | null {
+  const want = loose(topic);
+  if (want.length < 3) return null;
+  const found: Heading[] = [];
+  for (const page of pages)
+    for (const rawLine of page.text.split("\n")) {
+      const m = rawLine.match(/^\s*\d{1,2}(?:\.\d{1,2}){0,4}\s+(.+?)\s*$/);
+      if (!m) continue;
+      const title = cleanTitle(pageSuffix(m[1]));
+      if (title && loose(title) === want)
+        found.push({ title, page: page.page, line: rawLine.trim() });
+    }
+  // The same heading may appear in contents and body; differing titles are ambiguous.
+  return consistentHeading(found);
+}
+
+export interface TopicReconciliation {
+  evidence: ProfileEvidence;
+  replaced: Array<{ from: string; to: string }>;
+  dropped: string[];
+}
+
+/**
+ * Before a reading batch is checked, make every model-proposed topic either
+ * literally quote-backed or replace it with the document's own heading. A topic
+ * that matches neither is removed and recorded as unresolved; it is never kept
+ * without a literal source quote. Operates on unvalidated model evidence.
+ */
+export function reconcileTopics(
+  evidence: ProfileEvidence,
+  documents: Array<{ id: string; pages: Array<{ page: number; text: string }> }>,
+  scope: {
+    qualification: string | null;
+    course: string | null;
+    maxLocations?: number;
+    maxClaims?: number;
+  },
+): TopicReconciliation {
+  const maxLocations = Math.min(40, scope.maxLocations ?? 40),
+    maxClaims = Math.min(60, scope.maxClaims ?? 60);
+  const e = structuredClone(evidence);
+  const replaced: TopicReconciliation["replaced"] = [];
+  const dropped: string[] = [];
+  const supportText = () =>
+    e.claims
+      .filter((c) => c.field === "topics")
+      .map((c) => {
+        const loc = e.documents
+          .find((d) => d.id === c.documentId)
+          ?.locations.find((l) => l.id === c.locationId);
+        // Only quotes that resolve to their cited passage can support a topic.
+        if (!loc || !sourceTextIncludes(loc.text, c.quote)) return "";
+        return c.rule === "mandatory" ? loc.text : c.quote;
+      })
+      .join(" \n ");
+  const doc = e.documents.find((d) => d.authority === "owner_supplied");
+  const raw = documents.find((d) => d.id === doc?.id)?.pages ?? [];
+  let pages = raw;
+  if (raw.length) {
+    const ordered = [...raw].sort((a, b) => a.page - b.page);
+    const scoped = scopeDocumentQualification(
+      ordered.map((p) => p.text),
+      scope.qualification ?? undefined,
+      scope.course ?? undefined,
+    );
+    pages = scoped.ambiguous
+      ? []
+      : scoped.fragments.map((f) => ({
+          page: ordered[f.page - 1].page,
+          text: f.text,
+        }));
+  }
+  const next: string[] = [];
+  for (const topic of e.facts.topics) {
+    if (sourceTextIncludes(supportText(), topic)) {
+      next.push(topic);
+      continue;
+    }
+    const heading = doc && pages.length ? findTopicHeading(topic, pages) : null;
+    if (
+      heading &&
+      doc &&
+      doc.locations.length < maxLocations &&
+      e.claims.length < maxClaims
+    ) {
+      let loc = doc.locations.find((l) => l.text === heading.line.slice(0, 1000));
+      if (!loc) {
+        let n = doc.locations.length + 1,
+          id = `${doc.id}-heading-${n}`;
+        while (doc.locations.some((l) => l.id === id)) id = `${doc.id}-heading-${++n}`;
+        loc = {
+          id: id.slice(0, 100),
+          page: heading.page,
+          section: "Subject content",
+          text: heading.line.slice(0, 1000),
+        };
+        doc.locations.push(loc);
+      }
+      e.claims.push({
+        field: "topics",
+        documentId: doc.id,
+        locationId: loc.id,
+        quote: heading.title.slice(0, 200),
+        rule: "mandatory",
+      });
+      if (!next.includes(heading.title)) next.push(heading.title);
+      replaced.push({ from: topic, to: heading.title });
+      continue;
+    }
+    dropped.push(topic);
+    if (e.unresolved.length < 30)
+      e.unresolved.push(
+        // Rejected model wording is never echoed back as if it were evidence.
+        "A topic proposed while reading was removed because the source text does not name it. Add any missing topic yourself when reviewing the profile.",
+      );
+  }
+  e.facts.topics = next;
+  return { evidence: e, replaced, dropped };
+}

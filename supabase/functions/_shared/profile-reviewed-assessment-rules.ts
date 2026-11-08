@@ -129,6 +129,14 @@ const physicsPaper2: ReviewedAssessmentRules = {
   ],
 };
 
+/**
+ * Specification issues whose papers carry the reviewed cover wording. The
+ * June 2024 and June 2025 question papers were sat under issue 1.3 (June 2017);
+ * issue 1.4 (July 2026) keeps the same assessment structure for Papers 1 and 2.
+ * Paper-cover rules are taken from the reviewed papers, never from the PDF.
+ */
+const REVIEWED_SPECIFICATION_ISSUES = ["v1.3-july-2017", "v1.4-july-2026"];
+
 export function resolveReviewedAssessmentRules(
   identity: TemplateIdentity,
 ): ReviewedAssessmentRules | null {
@@ -140,9 +148,8 @@ export function resolveReviewedAssessmentRules(
     !["7408", "aqa_alevel_physics_7408"].includes(normalise(identity.course)) ||
     (identity.tier !== null && identity.tier !== "not_tiered") ||
     (!isSpecificationVersionHint(identity.specificationVersion) &&
-      !specificationVersionsEquivalent(
-        identity.specificationVersion,
-        "v1.4-july-2026",
+      !REVIEWED_SPECIFICATION_ISSUES.some((issue) =>
+        specificationVersionsEquivalent(identity.specificationVersion, issue),
       ))
   )
     return null;
