@@ -38,6 +38,10 @@ import {
 } from "./profile-version-context.ts";
 import { completeOwnedAssessmentEvidence } from "./profile-evidence-ingestion.ts";
 import {
+  coverSpecificationIssueConflict,
+  SourceSpecificationVersionConflict,
+} from "./profile-source-version.ts";
+import {
   expandSectionTopics,
   isSectionReferenceTopic,
   SECTION_TOPIC_NEED,
@@ -951,7 +955,7 @@ export async function prepareSourceJob(
       version: 1,
       indexVersion: DOCUMENT_INDEX_VERSION,
       followupPolicyVersion: 1,
-      provenancePolicyVersion: 1,
+      provenancePolicyVersion: 2,
       catalogueTier: resolveCatalogueTier(input.identity),
       reviewedRules: (() => {
         const rules = resolveReviewedAssessmentRules(input.identity);
@@ -1054,6 +1058,15 @@ export async function prepareSourceJob(
       stage = data.needs.length ? "needs_details" : "ready";
     } else {
       await readDocuments();
+      const coverConflict = documents
+        .map((document) =>
+          coverSpecificationIssueConflict(
+            data.identity.specificationVersion,
+            document.pages,
+          ),
+        )
+        .find(Boolean);
+      if (coverConflict) data.needs.push(coverConflict);
       let componentMissing = false,
         qualificationAmbiguous = false;
       for (const doc of documents) {
@@ -1132,6 +1145,10 @@ export async function prepareSourceJob(
           componentMissing,
           qualificationAmbiguous,
         });
+        stage = "ready";
+      }
+      if (coverConflict) {
+        data.missingItems = [sourceQuestion(data, coverConflict)];
         stage = "ready";
       }
       retainReadDocuments(data, documents);
@@ -1263,7 +1280,21 @@ function checkExtracted(
     )
   )
     throw Error("The evidence needs fewer, more precise source references.");
-  const e = completeOwnedAssessmentEvidence(uploaded);
+  for (const document of data.retainedDocuments ?? []) {
+    const conflict = coverSpecificationIssueConflict(
+      data.identity.specificationVersion,
+      document.pages,
+    );
+    if (conflict) throw new SourceIdentityConflict(conflict);
+  }
+  let e: ProfileEvidence;
+  try {
+    e = completeOwnedAssessmentEvidence(uploaded);
+  } catch (error) {
+    if (error instanceof SourceSpecificationVersionConflict)
+      throw new SourceIdentityConflict(error.message);
+    throw error;
+  }
   const mutable = new Set([
     "course",
     "component",
@@ -1445,8 +1476,8 @@ function mergeEvidence(
 }
 /**
  * Turn "Sections 1 - 5" style topics into named, quote-backed headings from
- * the same upload. After a student points to a page, a pointer that now has
- * named topics beside it is dropped as redundant.
+ * the same uploaded qualification/course. Unresolved pointers remain visible
+ * even after a student points to a page; partial names do not prove all scope.
  */
 function nameSectionTopics(
   evidence: ProfileEvidence,
@@ -1457,12 +1488,8 @@ function nameSectionTopics(
   if (documents?.some((d) => d.pages?.length))
     e = validateEvidence(expandSectionTopics(e, documents));
   e = fillFormatsFromCitedBlock(e);
-  const named = e.facts.topics.filter((t) => !isSectionReferenceTopic(t));
-  if (data.answeredPages?.length && named.length && named.length < e.facts.topics.length) {
-    e = structuredClone(e);
-    e.facts.topics = named;
-    e = validateEvidence(e);
-  }
+  // A named topic does not prove every unresolved numbered pointer. Keep
+  // remaining pointers visible until their entire referenced scope resolves.
   return e;
 }
 /**
@@ -1563,11 +1590,9 @@ function missingRequirements(data: SourceJobData): string[] {
       needs.push(
         "Add a source confirming the assessment tier, or that it is untiered.",
       );
-    // Structure details: ask for a page once. If the source still does not
-    // state them, continue and let the student fill them in when reviewing.
-    const gaps = structureGaps(e);
-    if (gaps.length && !data.answeredPages?.length && data.retainedDocuments?.length)
-      needs.push(...gaps.map((g) => g.need));
+    // A page answer refines retrieval, not assessment authority. Unknown full
+    // mock structure stays unresolved even after an unsuccessful follow-up.
+    needs.push(...structureGaps(e).map((g) => g.need));
   }
   return needs;
 }
@@ -2093,7 +2118,7 @@ export async function advanceSourceJob(
       const gaps = structureGaps(data.evidence).map((g) => g.warning);
       if (gaps.length && template.warnings.length < 20)
         template.warnings.push(
-          `Your source did not state the ${gaps.join(", ")}. We used a sensible layout — check these under Edit before saving.`,
+          `Your source did not state the ${gaps.join(", ")}. These are Examly practice layout choices, not verified full-paper requirements.`,
         );
     } catch (error) {
       rememberValidation(error, "draft");

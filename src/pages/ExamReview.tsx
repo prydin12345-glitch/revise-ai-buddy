@@ -1,3 +1,4 @@
+import {releasedMcqKeyIndex} from '@/lib/mcq-review-key';
 import {OcrUnifiedPaperLabel} from '@/components/exams/OcrUnifiedPaperLabel';
 import { LoadError } from "@/components/shared/ListFeedback";
 import {ResponseReview} from '@/components/responses/ResponseReview';
@@ -115,16 +116,8 @@ function didStudentSelect(answerText: string | undefined, optIndex: number, optT
 }
 
 // ── Helper: check if this option is the correct answer ─────────────────────
-function isOptionCorrect(correctAnswer: string | undefined, optIndex: number, optText: string): boolean {
-  if (!correctAnswer) return false;
-  const ca = correctAnswer.trim();
-  const label = getOptionLabel(optIndex);
-  const scrubbed = scrubOptionText(optText);
-  // Match by letter
-  if (ca.toUpperCase() === label) return true;
-  // Match by raw or scrubbed text
-  if (ca === optText || scrubOptionText(ca) === scrubbed) return true;
-  return false;
+function isOptionCorrect(correctAnswer: string | undefined, optIndex: number, options: unknown): boolean {
+  return releasedMcqKeyIndex(correctAnswer, options) === optIndex;
 }
 
 function getOptionLabel(index: number): string {
@@ -820,7 +813,7 @@ const ExamReview = () => {
                         const optText = scrubOptionText(rawText);
                         const label = getOptionLabel(idx);
                         const studentSelected = didStudentSelect(answer?.answer_text, idx, rawText);
-                        const isCorrectOpt = isOptionCorrect(question.correct_answer, idx, rawText);
+                        const isCorrectOpt = isOptionCorrect(question.correct_answer, idx, question.options);
 
                         let optClass = "p-3 rounded-lg border-2 text-sm flex items-start gap-2 transition-colors ";
                         if (!scoresHidden) {
@@ -838,7 +831,7 @@ const ExamReview = () => {
                         return (
                           <div key={idx} className={optClass}>
                             <span className="font-semibold shrink-0 w-6">{label})</span>
-                            <span className="flex-1">{optText}</span>
+                            <span className="flex-1"><MathRenderer content={optText} hasMath={!!question.has_math} inline /></span>
                             {!scoresHidden && studentSelected && !isCorrectOpt && (
                               <XCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
                             )}

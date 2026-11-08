@@ -1,3 +1,7 @@
+import {isGenericPlan} from './profile-template.ts';
+import {repeatedConceptDefects} from './paper-repetition.ts';
+import {physicsResourceIssues} from './physics-resource-validation.ts';
+import {markSchemeConsistencyIssues} from './mark-scheme-consistency.ts';
 import {isEdexcelAlevelBiologyB,pearsonAdditionalAssessedTask} from './edexcel-alevel-biology-b-scope.ts';
 // Shared answerability gate for generated exam questions.
 //
@@ -15,7 +19,7 @@ import {isEdexcelAlevelBiologyB,pearsonAdditionalAssessedTask} from './edexcel-a
 import { resolveQuestionResources, type ResourceQuestion } from './question-resources.ts';
 import { statementCombinationIssue, statementTableText } from './numbered-statements.ts';
 import { biologyContentIssue, isGcseBiology, type BiologyScope } from './gcse-biology-scope.ts';
-import { assembledModelText, canonicalMcqAnswer, coerceMcqOptions, flattenAnswerKey, isMcqType, readAnswerKey, readQuestionTask } from './model-question-normalization.ts';
+import { assembledModelText, canonicalMcqAnswer, mcqComparable, coerceMcqOptions, flattenAnswerKey, isMcqType, readAnswerKey, readQuestionTask } from './model-question-normalization.ts';
 export { coerceMcqOptions, flattenAnswerKey } from './model-question-normalization.ts';
 
 import type { PaperPlan } from './biology-paper-contract.ts';
@@ -25,6 +29,8 @@ import { biologyQuestionIssues, statedFoodChain } from './biology-assessment-res
 export const CONTRACT_VERSION = 2;
 
 export type DefectCode =
+  | "contradictory_mark_scheme"
+  | "repeated_concept"
   | "plan_mismatch"
   | "missing_task"
   | "invalid_statements"
@@ -250,6 +256,8 @@ export const referencesResource = (text: string): boolean =>
   /\b(the (table|graph|diagram) (above|below|shown))\b/i.test(text);
 
 export interface ValidateOptions {
+  /** Only the bounded repetition-repair pass may defer this whole-paper check. */
+  checkRepetition?: boolean;
   plan?: PaperPlan | null;
   /** Server-resolved qualification, distinct from difficulty. */
   scope?: BiologyScope;
@@ -296,6 +304,8 @@ export function validateQuestionCandidates(
 
     const resources = resolveQuestionResources({ ...part, question_text: displayed });
     resources.issues.forEach(issue => push(issue.code, issue.detail));
+    if (isGenericPlan(options.plan) && /physics/i.test(options.scope?.subject ?? ''))
+      physicsResourceIssues({...part, question_text:displayed}).forEach(issue => push(issue.code,issue.detail));
     const chains = groupChains.get(groupIdOf(part, index)) ?? [];
     const unambiguousChain = chains.length && chains.every(chain => JSON.stringify(chain).toLowerCase() === JSON.stringify(chains[0]).toLowerCase()) ? chains[0] : undefined;
     biologyQuestionIssues({ ...part, question_text: displayed }, resources.chart ?? part.diagram_config ?? part.diagramConfig, unambiguousChain,
@@ -322,7 +332,7 @@ export function validateQuestionCandidates(
       const statementIssue = statementCombinationIssue(`${displayed}\n${statementTableText(resources.table)}`, mcqOptions);
       if (statementIssue) push('invalid_statements', statementIssue);
     }
-    if (type === "mcq" && (!mcqOptions || mcqOptions.length < 3 || mcqOptions.some(o => !o.trim()) || new Set(mcqOptions.map(words)).size !== mcqOptions.length)) {
+    if (type === "mcq" && (!mcqOptions || mcqOptions.length < 3 || mcqOptions.some(o => !o.trim()) || new Set(mcqOptions.map(mcqComparable)).size !== mcqOptions.length)) {
       push("invalid_options", "Single-select MCQ needs at least 3 distinct non-empty options with unambiguous labels.");
     }
 
@@ -336,7 +346,7 @@ export function validateQuestionCandidates(
         ? answerText.toUpperCase().charCodeAt(0) - 65
         : -1;
       const matchesOption = mcqOptions.some(
-        (o) => words(String(o ?? "")) === words(answerText),
+        (o) => mcqComparable(String(o ?? "")) === mcqComparable(answerText),
       );
       const validLetter = letter >= 0 && letter < mcqOptions.length;
       if (!matchesOption && !validLetter) {
@@ -344,6 +354,9 @@ export function validateQuestionCandidates(
         push("answer_mismatch", "MCQ answer matches no option.");
       }
     }
+
+    if (isGenericPlan(options.plan))
+      markSchemeConsistencyIssues(part).forEach(issue => push(issue.code, issue.detail));
 
     // 4. Required resources
     if (referencesResource(displayed) || part.requires_resource) {
@@ -382,6 +395,8 @@ export function validateQuestionCandidates(
   }
 
   defects.push(...validateBiologyPlan(parts, options.plan));
+  if (isGenericPlan(options.plan) && options.checkRepetition !== false)
+    defects.push(...repeatedConceptDefects(parts, options.plan));
 
   const failedPartIds = [...new Set(defects.map((d) => d.partId))].filter((id) => id !== "paper");
   const failedGroupIds = [

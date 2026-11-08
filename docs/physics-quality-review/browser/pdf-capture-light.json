@@ -1,0 +1,17 @@
+{
+  "bytes": 4909771,
+  "captures": [
+    {
+      "text": "Figure 1: capacitor discharge\n0\n2\n4\n6\n8\nTime / s\n0\n3\n6\n9\n12\nPotential difference / V",
+      "hasSvg": true
+    },
+    {
+      "text": "Figure 2: flux linkage\n0\n2\n4\n6\n8\nTime / ms\n0\n0.75\n1.5\n2.25\n3\nFlux linkage / mWb",
+      "hasSvg": true
+    },
+    {
+      "text": "R = 6 Ω\n+\n−\n12 V",
+      "hasSvg": true
+    }
+  ]
+}

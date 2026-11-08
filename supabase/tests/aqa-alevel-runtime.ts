@@ -131,7 +131,7 @@ export async function boundaryHandler(name: string, rows: any[], mode: 'full_moc
     b.onResolve({filter:/^https:\/\//},args=>({path:args.path,namespace:'runtime'}));
     b.onLoad({filter:/.*/,namespace:'runtime'},args=>({loader:'js',contents:args.path.includes('supabase-js')?'export const createClient=()=>globalThis.client;':args.path.includes('server.ts')?'export const serve=h=>{globalThis.handler=h;};':''}));
   }}]});
-  const runtime:any={client,Request,Response,Headers,structuredClone,console:{log(){},warn(){},error(){}},Deno:{env:{get:(name:string)=>visualFixtures&&name==='BIOLOGY_VISUAL_MARKING_ANNOTATIONS'?simulatedPrivateAnnotationSecret():'test-only'}},fetch:()=>{throw new Error('No AI call is allowed at this boundary');}};
+  const runtime:any={client,Request,Response,Headers,TextEncoder,TextDecoder,crypto,URL,structuredClone,console:{log(){},warn(){},error(){}},Deno:{env:{get:(name:string)=>visualFixtures&&name==='BIOLOGY_VISUAL_MARKING_ANNOTATIONS'?simulatedPrivateAnnotationSecret():'test-only'}},fetch:()=>{throw new Error('No AI call is allowed at this boundary');}};
   vm.runInNewContext(bundle.outputFiles[0].text,runtime);
   return {writes,run:(body:any)=>runtime.handler(new Request('https://example.test',{method:'POST',headers:{Authorization:'Bearer test','Content-Type':'application/json'},body:JSON.stringify(body)}))};
 }

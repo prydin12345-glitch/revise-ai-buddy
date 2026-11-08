@@ -49,6 +49,7 @@ export class AiCallBudget implements AiCallBudgetLike {
   get promptTokens(): number { return this.records.reduce((n, r) => n + r.promptTokens, 0); }
   get completionTokens(): number { return this.records.reduce((n, r) => n + r.completionTokens, 0); }
   get elapsedMs(): number { return this.now() - this.startedAt; }
+  get remainingMs(): number { return Math.max(0, this.options.maxMs - this.elapsedMs); }
   get remainingCalls(): number { return Math.max(0, this.options.maxCalls - this.reserved); }
 
   /** The reason the budget is spent, or null while work may continue. */

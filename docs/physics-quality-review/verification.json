@@ -1,0 +1,83 @@
+{
+  "verificationDate": "2026-11-08",
+  "baseline": "602459b3b4ff90ee3cd3b1df70e5f77df1b903da",
+  "node": "24.19.0",
+  "npm": "11.9.0",
+  "packageLockChanged": false,
+  "baselineTests": {
+    "testFiles": 176,
+    "failedFiles": 4,
+    "tests": 2862,
+    "passed": 2854,
+    "failed": 8,
+    "log": "/tmp/examly-quality-baseline-all.log",
+    "method": "Clean detached baseline worktree with unchanged installed lockfile dependencies."
+  },
+  "checks": {
+    "npm ci": "PASS (writable /tmp/examly-npm-cache)",
+    "npm run check": {
+      "status": "PASS",
+      "testFiles": 186,
+      "tests": 3011,
+      "edgeFunctions": 39,
+      "typecheck": "PASS",
+      "criticalLint": "PASS",
+      "productionBuild": "PASS",
+      "productionBuildSeconds": 16.79
+    },
+    "biologyAudit": {
+      "status": "PASS",
+      "templates": 52,
+      "blocked": 0
+    },
+    "profileCoverageAudit": {
+      "status": "PASS",
+      "presets": 52,
+      "failed": 0,
+      "pendingLegacyLayouts": 32
+    },
+    "git diff --check": "PASS"
+  },
+  "browser": {
+    "status": "PASS",
+    "checks": 58,
+    "cases": 8,
+    "sourceStyleHashes": 175,
+    "chromium": "151.0.7922.173",
+    "report": "browser/browser-results.json",
+    "method": "Actual rendering components composed with original fixtures; all external requests blocked."
+  },
+  "pdf": {
+    "status": "PASS",
+    "physicalPagesPerExport": 6,
+    "exports": 2,
+    "html2canvasAndJsPdf": "actual local exports",
+    "report": "browser/pdf-verification.json"
+  },
+  "realModelCalls": 0,
+  "liveLogins": 0,
+  "liveWrites": 0,
+  "liveMigrationsApplied": 0,
+  "deployments": 0,
+  "publicationPerformed": false,
+  "privatePopopAvailable": false,
+  "migrationRequired": false,
+  "functionsRequiringDeployment": [
+    "upload-exam",
+    "extract-exam-questions",
+    "save-exam-format",
+    "save-exam-timer",
+    "publish-exam",
+    "generate-practice-questions",
+    "get-practice-questions",
+    "grade-practice-question",
+    "submit-exam",
+    "profile-builder"
+  ],
+  "diagnostics": [
+    "Existing dependency deprecations, stale Browserslist data, Zod annotation and chunk-size warnings.",
+    "Existing response-dialog DOM-nesting and pinned-parser standard-font diagnostics.",
+    "Expected negative-path quota/context/persistence diagnostics.",
+    "Local PDF rasterizer fontconfig-cache diagnostics (see browser evidence)."
+  ]
+}

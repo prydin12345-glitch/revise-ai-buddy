@@ -1,4 +1,5 @@
 import type { ProfileEvidence } from "./profile-evidence.ts";
+import { scopeDocumentQualification } from "./profile-document-index.ts";
 
 /**
  * Specifications often scope a paper as "Sections 1 - 5 and 6.1" and list the
@@ -97,11 +98,12 @@ function findHeadings(
   return out;
 }
 
-function mostCommon(list: Heading[]): Heading {
-  const counts = new Map<string, number>();
-  for (const h of list) counts.set(h.title, (counts.get(h.title) ?? 0) + 1);
-  const best = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
-  return list.find((h) => h.title === best)!;
+function consistentHeading(list: Heading[]): Heading | null {
+  // Repeated contents/body headings may differ in case or whitespace. Different
+  // titles for the same numbering are ambiguity, not a majority-vote question.
+  return new Set(list.map((heading) => norm(heading.title))).size === 1
+    ? list[0]
+    : null;
 }
 
 export interface SectionExpansion {
@@ -122,10 +124,10 @@ export function resolveSectionTopic(
   const scored = [...prefixes]
     .map((prefix) => {
       const resolved = perRef.map((m) => m.get(prefix));
-      const complete = resolved.every((r) => r?.length);
+      const complete = resolved.every((r) => r?.length && consistentHeading(r));
       const hintHits = complete
         ? resolved.filter((r) =>
-            hints.some((h) => norm(mostCommon(r!).title).includes(h)),
+            hints.some((h) => norm(consistentHeading(r!)!.title).includes(h)),
           ).length
         : 0;
       return { prefix, complete, score: hintHits };
@@ -139,7 +141,7 @@ export function resolveSectionTopic(
   const prefix = scored[0].prefix;
   return {
     label,
-    topics: perRef.map((m) => mostCommon(m.get(prefix)!)),
+    topics: perRef.map((m) => consistentHeading(m.get(prefix)!)!),
   };
 }
 
@@ -150,15 +152,18 @@ export function resolveSectionTopic(
  */
 export function expandSectionTopics(
   evidence: ProfileEvidence,
-  documents: Array<{ id: string; pages: Array<{ page: number; text: string }> }>,
+  documents: Array<{
+    id: string;
+    pages: Array<{ page: number; text: string }>;
+  }>,
 ): ProfileEvidence {
   const e = structuredClone(evidence);
   for (const label of [...e.facts.topics]) {
     if (!isSectionReferenceTopic(label)) continue;
-    const claim = e.claims.find(
-      (c) => c.field === "topics" && norm(label).includes(norm(c.quote)),
-    ) ??
-      e.claims.find((c) => c.field === "topics");
+    const claim =
+      e.claims.find(
+        (c) => c.field === "topics" && norm(label).includes(norm(c.quote)),
+      ) ?? e.claims.find((c) => c.field === "topics");
     const doc = e.documents.find(
       (d) =>
         d.authority === "owner_supplied" &&
@@ -166,7 +171,21 @@ export function expandSectionTopics(
     );
     const pages = documents.find((d) => d.id === doc?.id)?.pages;
     if (!doc || !pages?.length) continue;
-    const expansion = resolveSectionTopic(label, pages);
+    // Assessment pointers must resolve within the selected qualification/course,
+    // not an AS-only section elsewhere in a combined specification. Scoping
+    // preserves literal spans; map back to original physical page numbers.
+    const ordered = [...pages].sort((a, b) => a.page - b.page);
+    const scoped = scopeDocumentQualification(
+      ordered.map((page) => page.text),
+      e.identity.qualification,
+      e.identity.course,
+    );
+    if (scoped.ambiguous) continue;
+    const scopedPages = scoped.fragments.map((fragment) => ({
+      page: ordered[fragment.page - 1].page,
+      text: fragment.text,
+    }));
+    const expansion = resolveSectionTopic(label, scopedPages);
     if (!expansion) continue;
     const names = [...new Set(expansion.topics.map((t) => t.title))];
     const newLocations = expansion.topics.filter(
@@ -180,7 +199,10 @@ export function expandSectionTopics(
       continue;
     const ids = new Map<string, string>();
     newLocations.forEach((t, i) => {
-      const id = `${doc.id}-topic-${doc.locations.length + i + 1}`.slice(0, 100);
+      const id = `${doc.id}-topic-${doc.locations.length + i + 1}`.slice(
+        0,
+        100,
+      );
       ids.set(t.line, id);
       doc.locations.push({
         id,

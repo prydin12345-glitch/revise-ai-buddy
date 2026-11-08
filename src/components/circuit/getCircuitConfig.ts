@@ -1,5 +1,6 @@
 import { detectCircuitConfig } from './circuit-detector';
 import type { CircuitConfig } from './types';
+import { needsCircuitTopology } from '../../../supabase/functions/_shared/physics-resource-validation';
 
 /**
  * Resolves circuit config for a question.
@@ -11,6 +12,8 @@ export function getCircuitConfig(
     question_text?: string;
     questionText?: string;
     diagram_config?: any;
+    diagramConfig?: any;
+    chart_data?: any;
     topic_tag?: string;
     subject_id?: string;
     subject?: string;
@@ -28,12 +31,17 @@ export function getCircuitConfig(
     );
   if (isBiologySubject) return null;
 
+  const text = question.question_text || question.questionText || '';
+  // A saved or inferred capacitor picture must not be injected into a graph,
+  // induction or concept-only question simply because it mentions electricity.
+  if (!needsCircuitTopology(text)) return null;
+
   // Priority 1 — saved AI-generated config
-  if (question.diagram_config) {
+  if (question.diagram_config ?? question.diagramConfig) {
     try {
-      const saved = typeof question.diagram_config === 'string'
-        ? JSON.parse(question.diagram_config)
-        : question.diagram_config;
+      const saved = typeof (question.diagram_config ?? question.diagramConfig) === 'string'
+        ? JSON.parse(question.diagram_config ?? question.diagramConfig)
+        : question.diagram_config ?? question.diagramConfig;
 
       if (saved?.type === 'circuit' && saved?.nodes?.length > 0 && saved?.wires?.length > 0) {
         return saved as CircuitConfig;
@@ -44,6 +52,7 @@ export function getCircuitConfig(
   }
 
   // Priority 2 — client-side text detection
-  const text = question.question_text || question.questionText || '';
+  // An existing chart/table is the supplied figure; do not invent another.
+  if (question.chart_data || question.diagram_config || question.diagramConfig) return null;
   return detectCircuitConfig(text, question.topic_tag, effectiveSubject);
 }

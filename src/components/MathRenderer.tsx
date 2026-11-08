@@ -345,7 +345,7 @@ export function MathRenderer({ content, latex, hasMath, question, className = ""
     const parts = cleanedContent.split(tableRegex);
     
     return (
-      <div className={`prose prose-sm max-w-none ${className}`}>
+      <div className={`prose prose-sm dark:prose-invert max-w-none ${className}`}>
         {parts.map((part, i) => {
           // Check if this part is a table
           if (part.match(tableRegex)) {
@@ -399,7 +399,7 @@ export function MathRenderer({ content, latex, hasMath, question, className = ""
     const parts = cleanedContent.split(/(\$\$[^$]+\$\$|\$[^$]+\$)/g);
     
     return (
-      <div className={`prose prose-sm max-w-none ${className}`}>
+      <div className={`prose prose-sm dark:prose-invert max-w-none ${className}`}>
         {parts.map((part, i) => {
           // Block math: $$...$$
           if (part.startsWith('$$') && part.endsWith('$$')) {
@@ -438,7 +438,7 @@ export function MathRenderer({ content, latex, hasMath, question, className = ""
 
   // No math detected - render as regular text
   return (
-    <div className={`prose prose-sm max-w-none ${className}`}>
+    <div className={`prose prose-sm dark:prose-invert max-w-none ${className}`}>
       {cleanedContent.split('\n').map((line, i) => (
         line.trim() ? <p key={i}>{line}</p> : <br key={i} />
       ))}

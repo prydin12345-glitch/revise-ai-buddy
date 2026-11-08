@@ -1,13 +1,13 @@
-import { coerceMcqOptions, canonicalMcqAnswer, readAnswerKey } from './model-question-normalization.ts';
+import { coerceMcqOptions, canonicalMcqAnswer, readAnswerKey, mcqComparable } from './model-question-normalization.ts';
 
-const normalise = (value:string):string => value.trim().replace(/\s+/g,' ').toLowerCase();
+const normalise = mcqComparable;
 
 /** Validate the saved key before any marking calls. Never guess an answer from
  * explanations or award a mark for matching two invalid/empty strings. */
 export function singleChoiceKey(question:unknown):{options:string[];index:number;letter:string} {
   const options=coerceMcqOptions(question)??[];
   const values=options.map(normalise);
-  if(options.length!==4||values.some(v=>!v||/^[a-d]$/.test(v))||new Set(values).size!==4)
+  if(options.length!==4||values.some(v=>!v||/^[a-d]$/i.test(v))||new Set(values).size!==4)
     throw new Error('Single-select question needs four distinct choices; use descriptive option text, not bare A-D labels.');
   const answer=canonicalMcqAnswer(readAnswerKey(question),options);
   const index=values.indexOf(normalise(answer));

@@ -1,3 +1,4 @@
+import {paperPlanForAttempt} from '../_shared/course-selection.ts';
 import {loadResponseContracts} from '../_shared/response-service.ts';
 import {markResponse,type ResponseMarkResult} from '../_shared/response-marking.ts';
 import {responseResources} from '../_shared/response-resources.ts';
@@ -97,6 +98,11 @@ serve(async (req) => {
     }
 
     const isMathExam = examData.subject_id?.toLowerCase().includes('math') || false;
+    const isProfileTemplate = !!examData.generation_context?.profile_template?.plan;
+    if (isProfileTemplate) {
+      if (!paperPlanForAttempt(examData.generation_context)) throw new Error('Profile MCQ marking requires the protected saved template.');
+      biologyMarkingInstructions(examData.generation_context);
+    }
 
     const now = new Date();
     const isLate = access.deadline ? now > new Date(access.deadline) : false;
@@ -132,9 +138,9 @@ serve(async (req) => {
     const essayMarking = new Map((questions || []).map(question => {
       if (responseContracts.has(question.id)) return [question.id, null] as const;
       biologyQuestionResourceContext(examData.generation_context, question);
-      if([OCR_ALEVEL_BIOLOGY_ID,EDEXCEL_ALEVEL_BIOLOGY_B_ID].includes(examData.generation_context?.course_id)&&question.question_type==='mcq'){
+      if((isProfileTemplate || [OCR_ALEVEL_BIOLOGY_ID,EDEXCEL_ALEVEL_BIOLOGY_B_ID].includes(examData.generation_context?.course_id))&&question.question_type==='mcq'){
         singleChoiceKey(question);
-        if(Number(question.marks)!==1)throw new Error(examData.generation_context?.course_id===EDEXCEL_ALEVEL_BIOLOGY_B_ID?'Pearson Biology B single-select MCQ mark allocation is invalid.':'OCR A-level MCQ mark allocation is invalid.');
+        if(Number(question.marks)!==1)throw new Error('Single-select MCQ mark allocation is invalid.');
       }
       return [question.id, biologyEssayForMarking(examData.generation_context, question, answerMap.get(question.id))] as const;
     }));
@@ -454,7 +460,7 @@ serve(async (req) => {
             throw new Error('Marking could not finish. Your answers are saved. Please retry.');
           }
         }
-      } else if (question.question_type === 'mcq' && !hasTableAnswers && [OCR_ALEVEL_BIOLOGY_ID,EDEXCEL_ALEVEL_BIOLOGY_B_ID].includes(examData.generation_context?.course_id)) {
+      } else if (question.question_type === 'mcq' && !hasTableAnswers && (isProfileTemplate || [OCR_ALEVEL_BIOLOGY_ID,EDEXCEL_ALEVEL_BIOLOGY_B_ID].includes(examData.generation_context?.course_id))) {
         const marked=markSingleChoice(question,studentAnswer);
         isCorrect=marked.isCorrect;score=marked.score;feedback=marked.feedback;
       } else if (question.question_type === 'mcq' && !hasTableAnswers) {

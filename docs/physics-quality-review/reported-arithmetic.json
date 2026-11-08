@@ -1,0 +1,10 @@
+{
+  "reportedAbsoluteUncertainty": 43.183400000000006,
+  "roundedUncertainty": 43,
+  "acceptedUncertaintyRange": [
+    40,
+    45
+  ],
+  "reportedPlanetMassFrom4PiSquaredKOverG": 1.8999358397299455e+27,
+  "note": "Arithmetic using the numbers supplied by the user; the private saved paper/source measurements were not available."
+}

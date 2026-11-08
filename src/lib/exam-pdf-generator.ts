@@ -1,3 +1,6 @@
+import {isGenericPlan} from '../../supabase/functions/_shared/profile-template';
+import {coerceMcqOptions,mcqComparable} from '../../supabase/functions/_shared/model-question-normalization';
+import {needsCircuitTopology} from '../../supabase/functions/_shared/physics-resource-validation';
 import {drawResponsePDF} from './response-pdf';
 import {responseKeyLines, type ResponseQuestionView} from './response-view';
 import {OCR_ALEVEL_BIOLOGY_ID} from '@/lib/assessment-tier';
@@ -124,15 +127,11 @@ function formatUnits(text: string): string {
   // Unit formatting — uses ^ notation for the baseline-shift renderer
   out = out.replace(/ms\^?-1\b/gi, 'ms^{-1}');
   out = out.replace(/ms\^?-2\b/gi, 'ms^{-2}');
-  out = out.replace(/m\/s2?\b/g, 'ms^{-1}');
+  out = out.replace(/\bm\/s2\b/g, 'ms^{-2}');
+  out = out.replace(/\bm\/s(?![\w^²³])/g, 'ms^{-1}');
   out = out.replace(/kgm\^?-3\b/gi, 'kgm^{-3}');
   out = out.replace(/Nm\^?-2\b/gi, 'Nm^{-2}');
-  // Greek letters to ASCII (rendered via the text engine)
-  out = out.replace(/\balpha\b/gi, 'alpha');
-  out = out.replace(/\bomega\b/gi, 'omega');
-  out = out.replace(/\btheta\b/gi, 'theta');
-  out = out.replace(/\bmu\b/gi, 'mu');
-  out = out.replace(/\bsigma\b/gi, 'sigma');
+  // Preserve case: \\Omega (ohm) differs from \\omega (angular frequency).
   return out;
 }
 
@@ -552,6 +551,25 @@ function sanitizeForPDF(text: string): string {
 }
 
 // ============= Central LaTeX Cleaning =============
+/** Unwrap text styles without consuming braces belonging to exponents. */
+function unwrapLatexTextStyles(text: string, depth = 0): string {
+  if (depth > 8) return text;
+  const command = /\\(?:text|mathrm|textbf|mathbf)\s*\{/g;
+  let result = '', cursor = 0;
+  for (let match = command.exec(text); match; match = command.exec(text)) {
+    let end = command.lastIndex, braces = 1;
+    while (end < text.length && braces) {
+      if (text[end] === '{') braces++;
+      else if (text[end] === '}') braces--;
+      end++;
+    }
+    if (braces) continue;
+    result += text.slice(cursor, match.index) + unwrapLatexTextStyles(text.slice(command.lastIndex, end - 1), depth + 1);
+    cursor = end; command.lastIndex = end;
+  }
+  return result + text.slice(cursor);
+}
+
 function cleanLatexForPDF(text: string): string {
   if (!text) return "";
   let cleaned = text;
@@ -584,7 +602,11 @@ function cleanLatexForPDF(text: string): string {
   cleaned = cleaned.replace(/\\sqrt\{([^}]+)\}/g, "sqrt($1)");
   cleaned = cleaned.replace(/\\sqrt\[(\d+)\]\{([^}]+)\}/g, "$1-root($2)");
 
-  // Step 7: Greek letters → ASCII
+  // Step 7: Greek letters → explicit ASCII fallbacks for built-in PDF fonts
+  cleaned = cleaned.replace(/\\Omega\b/g, "ohm").replace(/\\Delta\b/g, "Delta").replace(/\\Phi\b/g, "Phi");
+  cleaned = cleaned.replace(/Ω/g, "ohm").replace(/Δ/g, "Delta").replace(/Φ/g, "Phi");
+
+  // Lowercase Greek letters remain distinct from their uppercase quantities.
   const greeks: [RegExp, string][] = [
     [/\\pi\b/g, "pi"], [/\\alpha\b/g, "alpha"], [/\\beta\b/g, "beta"], [/\\gamma\b/g, "gamma"],
     [/\\delta\b/g, "delta"], [/\\epsilon\b/g, "epsilon"], [/\\theta\b/g, "theta"],
@@ -616,9 +638,8 @@ function cleanLatexForPDF(text: string): string {
   cleaned = cleaned.replace(/\\sin\b/g, "sin").replace(/\\cos\b/g, "cos").replace(/\\tan\b/g, "tan");
   cleaned = cleaned.replace(/\\log\b/g, "log").replace(/\\ln\b/g, "ln").replace(/\\lim\b/g, "lim");
 
-  // Step 10: Text commands
-  cleaned = cleaned.replace(/\\text\{([^}]+)\}/g, "$1").replace(/\\mathrm\{([^}]+)\}/g, "$1");
-  cleaned = cleaned.replace(/\\textbf\{([^}]+)\}/g, "$1").replace(/\\mathbf\{([^}]+)\}/g, "$1");
+  // Step 10: Balanced text styles retain nested ^{...}/_{...} groups.
+  cleaned = unwrapLatexTextStyles(cleaned);
 
   // Step 11: Spacing
   cleaned = cleaned.replace(/\\quad/g, "  ").replace(/\\qquad/g, "    ");
@@ -665,6 +686,10 @@ export async function generateExamPDF(
     const rawDiagram = question.diagramConfig ?? question.diagram_config;
     const biologyDiagram = savedBiologyDiagram(question);
     if (isBiologyDiagram(rawDiagram) && !biologyDiagram) throw new Error(`Q${question.question_number}: the saved Biology figure is inconsistent.`);
+    const candidateDiagram = resources.essay ?? resources.passage ?? biologyDiagram ?? (resources.chart?.type !== 'data_table' ? resources.chart : null)
+      ?? (rawDiagram?.type === 'data_table' ? undefined : rawDiagram);
+    const decorativeCircuit = /physics/i.test(examData.subject ?? '') && ['circuit','circuit_diagram','dual'].includes(candidateDiagram?.type)
+      && !needsCircuitTopology(resources.text);
     return {
       ...question,
       question_text: resources.text,
@@ -673,8 +698,7 @@ export async function generateExamPDF(
         ...resources.table.rows,
       ]) : question.table_data,
       table_caption: resources.table?.caption,
-      diagramConfig: resources.essay ?? resources.passage ?? biologyDiagram ?? (resources.chart?.type !== 'data_table' ? resources.chart : null)
-        ?? (rawDiagram?.type === 'data_table' ? undefined : rawDiagram),
+      diagramConfig: decorativeCircuit ? undefined : candidateDiagram,
     };
   }) };
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -1172,15 +1196,20 @@ export async function generateExamPDF(
 
       // MCQ options
       let mcqOptions = normalizeMCQOptions(question.options);
-      const parsedMCQ = parseEmbeddedMCQOptions(cleanedText);
+      const parsedMCQ = parseEmbeddedMCQOptions(tableExtract.cleanText);
       const isOcrAlevelMcq = display?.plan.courseId === OCR_ALEVEL_BIOLOGY_ID && question.question_type === 'mcq';
-      if(isOcrAlevelMcq && (mcqOptions.length!==4 || new Set(mcqOptions.map(o=>o.text.trim().toLowerCase())).size!==4))throw new Error(`Q${question.question_number}: four distinct saved choices are required for OCR export.`);
+      const authoritativeChoices = isOcrAlevelMcq || (isGenericPlan(display?.plan) && question.question_type === 'mcq');
+      if (authoritativeChoices) {
+        const savedChoices = coerceMcqOptions({options:question.options});
+        if (!savedChoices || savedChoices.length !== 4 || savedChoices.some(option => !option.trim()) || new Set(savedChoices.map(mcqComparable)).size !== 4)
+          throw new Error(`Q${question.question_number}: four distinct saved choices are required for export.`);
+        mcqOptions = savedChoices.map((text,index) => ({label:String.fromCharCode(65+index),text}));
+      }
       if (parsedMCQ.options.length >= 3) {
-        // The saved A-D order is also used for on-screen selection and marking.
-        // A second inline list must never replace it with different answers.
-        if(isOcrAlevelMcq && JSON.stringify(parsedMCQ.options.map(o=>o.text.trim().toLowerCase()))!==JSON.stringify(mcqOptions.map(o=>o.text.trim().toLowerCase())))throw new Error(`Q${question.question_number}: inline and saved choices disagree; export stopped.`);
-        cleanedText = parsedMCQ.cleanText;
-        if(!isOcrAlevelMcq)mcqOptions = parsedMCQ.options;
+        // Export must preserve the exact saved A-D order used for marking.
+        if(authoritativeChoices && JSON.stringify(parsedMCQ.options.map(o=>mcqComparable(o.text)))!==JSON.stringify(mcqOptions.map(o=>mcqComparable(o.text))))throw new Error(`Q${question.question_number}: inline and saved choices disagree; export stopped.`);
+        cleanedText = cleanLatexForPDF(parsedMCQ.cleanText);
+        if(!authoritativeChoices)mcqOptions = parsedMCQ.options;
       }
       const isMCQ = mcqOptions.length >= 3;
 
