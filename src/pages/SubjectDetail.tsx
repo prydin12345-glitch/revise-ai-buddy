@@ -29,6 +29,7 @@ const SubjectDetail = () => {
     getProfilesForSubject,
     createProfile,
     updateProfile,
+    deleteProfile,
     loading: profilesLoading,
   } = useSubjectProfiles();
 
@@ -332,6 +333,11 @@ const SubjectDetail = () => {
           initialBuilder
           availableTopics={topicNames}
           onSave={handleSaveProfile}
+          onDelete={async (id) => {
+            const ok = await deleteProfile(id);
+            if (ok) setEditingProfile(null);
+            return ok;
+          }}
           initialData={editingProfile || undefined}
         />
       </div>

@@ -328,9 +328,11 @@ export const useSubjectProfiles = () => {
       if (error) throw error;
       await setExamProfiles((prev) => prev.filter((p) => p.id !== profileId));
       toast.success("Profile deleted");
+      return true;
     } catch (err) {
       console.error("Error deleting profile:", err);
       toast.error("Failed to delete profile");
+      return false;
     }
   };
 

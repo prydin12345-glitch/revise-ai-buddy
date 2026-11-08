@@ -14,6 +14,17 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -242,6 +253,8 @@ interface ExamProfileModalProps {
     writtenQuestionCount?: number,
     structureSettings?: QuestionStructureSettings,
   ) => void;
+  /** Shown only when editing a saved profile. Resolves after the delete finishes. */
+  onDelete?: (profileId: string) => Promise<boolean>;
   initialData?: {
     id?: string;
     profile_template?: unknown;
@@ -281,8 +294,11 @@ export const ExamProfileModal = ({
   initialBuilder = false,
   availableTopics,
   onSave,
+  onDelete,
   initialData,
 }: ExamProfileModalProps) => {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const { preferences } = useUserPreferences();
   const { ownerId } = useWorkspaceSession();
   const [builderOpen, setBuilderOpen] = useState(false);
@@ -1018,8 +1034,43 @@ export const ExamProfileModal = ({
           </div>
           <div className="!mt-3 flex flex-wrap items-center justify-between gap-2">
             <ProfileApprovalBadge profile={approvalSettings}/>
-            <Button type="button" size="sm" variant="outline" onClick={()=>setBuilderOpen(true)}>Build profile for me</Button>
+            <div className="flex items-center gap-2">
+              {initialData?.id && onDelete && (
+                <Button type="button" size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={()=>setConfirmDelete(true)}>
+                  <Trash2 className="mr-1.5 h-3.5 w-3.5" />Delete
+                </Button>
+              )}
+              <Button type="button" size="sm" variant="outline" onClick={()=>setBuilderOpen(true)}>Build profile for me</Button>
+            </div>
           </div>
+          <AlertDialog open={confirmDelete} onOpenChange={(o)=>!deleting&&setConfirmDelete(o)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete "{initialData?.profile_name}"?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This removes the exam profile. Exams and practice you already made from it are kept.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={deleting}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={async (ev)=>{
+                    ev.preventDefault();
+                    if (!initialData?.id || !onDelete) return;
+                    setDeleting(true);
+                    const ok = await onDelete(initialData.id);
+                    setDeleting(false);
+                    setConfirmDelete(false);
+                    if (ok) onOpenChange(false);
+                  }}
+                >
+                  {deleting ? "Deleting..." : "Delete profile"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           {currentApproval.status==='customised'&&<Button type="button" variant="ghost" size="sm" onClick={restoreApproval}>Restore approved settings</Button>}
           <nav
             aria-label="Profile setup"
