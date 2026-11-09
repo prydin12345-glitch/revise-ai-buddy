@@ -4,6 +4,18 @@ import { paperPlanForAttempt } from '../_shared/course-selection.ts';
 import { biologyScopeFromContext } from '../_shared/gcse-biology-scope.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { reconstructTransformationWrapper } from "../_shared/question-postprocessor.ts";
+import { normalisePlainNotation, dropRepeatedQuestionStem } from "../_shared/plain-notation.ts";
+
+// Table cells are shown as plain text, so leaked maths code must become Unicode.
+const tidyTableNotation = (dc: any) => {
+  if (!dc || typeof dc !== 'object' || !Array.isArray(dc.rows)) return dc;
+  const fix = (v: unknown) => (typeof v === 'string' ? normalisePlainNotation(v) : v);
+  return {
+    ...dc,
+    headers: Array.isArray(dc.headers) ? dc.headers.map(fix) : dc.headers,
+    rows: dc.rows.map((r: unknown) => (Array.isArray(r) ? r.map(fix) : r)),
+  };
+};
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { validateQuestionCandidates, describeDefects } from "../_shared/question-contract-validator.ts";
 import { resolveQuestionResources } from '../_shared/question-resources.ts';
@@ -295,10 +307,19 @@ serve(async (req) => {
         exam_id: draft.exam_id,
         question_number: draft.question_number,
         question_type: mappedType,
-        question_text: draft.question_text,
+        question_text: typeof draft.question_text === 'string'
+          ? dropRepeatedQuestionStem(normalisePlainNotation(draft.question_text))
+          : draft.question_text,
         marks: draft.marks,
-        options,
-        correct_answer: typeof correctAnswer === 'object' ? JSON.stringify(correctAnswer) : correctAnswer,
+        // Options and key are tidied with the same function so they still match.
+        options: Array.isArray(options) && options.every((o: unknown) => typeof o === 'string')
+          ? options.map((o: string) => normalisePlainNotation(o))
+          : options,
+        correct_answer: typeof correctAnswer === 'object'
+          ? JSON.stringify(correctAnswer)
+          : (typeof correctAnswer === 'string' && !correctAnswer.trimStart().startsWith('{')
+            ? normalisePlainNotation(correctAnswer)
+            : correctAnswer),
         original_page_number: draft.original_page_number,
         has_figures: draft.has_figures,
         has_tables: draft.has_tables,
@@ -306,7 +327,7 @@ serve(async (req) => {
         topic_tag: draft.topic_tag,
         difficulty_level: draft.difficulty_level,
         extraction_confidence: draft.extraction_confidence,
-        diagram_config: diagramConfigOut,
+        diagram_config: tidyTableNotation(diagramConfigOut),
         data_type: draft.data_type,
         graph_description: draft.graph_description,
         table_data: draft.table_data,

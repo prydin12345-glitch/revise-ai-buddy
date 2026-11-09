@@ -206,7 +206,8 @@ const convertBareSubSup = (content: string): string => {
   return segments
     .map((seg) => {
       if (seg.startsWith('$')) return seg; // already math — leave untouched
-      return seg
+      // Leaked symbol/spacing commands (\pi^-, \rightarrow, 0.40\ Ω) -> Unicode
+      return normalisePlainNotation(seg)
         // Broken vector notation the AI emits with lost backslashes:
         // "pmatrix 1 \\ -2 pmatrix" -> proper KaTeX column vector
         .replace(/\bpmatrix\s+([^p$]{1,40}?)\s+pmatrix\b/g, (_m, body) => `$\\begin{pmatrix} ${body.trim()} \\end{pmatrix}$`)

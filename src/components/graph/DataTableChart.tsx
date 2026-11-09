@@ -84,7 +84,7 @@ export const DataTableChart = ({ chartData, className = '' }: DataTableChartProp
                       colIndex === 0 ? 'font-medium' : 'tabular-nums'
                     } ${highlightColumn === colIndex ? 'bg-primary/5' : ''}`}
                   >
-                    {cell}
+                    {typeof cell === 'string' ? normalisePlainNotation(cell) : cell}
                   </td>
                 ))}
               </tr>
