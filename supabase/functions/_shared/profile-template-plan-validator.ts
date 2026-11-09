@@ -5,7 +5,8 @@ import type {
 } from "./question-contract-validator.ts";
 import { resolveQuestionResources } from "./question-resources.ts";
 import { coerceMcqOptions, isMcqType } from "./model-question-normalization.ts";
-export function unsupportedTemplateResource(row: CandidatePart): boolean {
+import {readPhysicsFigureContract} from './physics-diagram-contract.ts';
+export function unsupportedTemplateResource(row: CandidatePart, allowPhysicsFigures = false): boolean {
   const resources = resolveQuestionResources(row);
   return (
     !!resources.passage ||
@@ -14,6 +15,7 @@ export function unsupportedTemplateResource(row: CandidatePart): boolean {
       (config) =>
         config &&
         typeof config === "object" &&
+        !(allowPhysicsFigures && readPhysicsFigureContract(config)) &&
         ![
           "data_table",
           "line_chart",
@@ -29,6 +31,7 @@ export function unsupportedTemplateResource(row: CandidatePart): boolean {
 export function validateGenericPlan(
   rows: CandidatePart[],
   plan: PaperPlan,
+  options: {physicsFigures?:boolean} = {},
 ): QuestionDefect[] {
   const defects: QuestionDefect[] = [],
     seen = new Set<string>();
@@ -59,7 +62,7 @@ export function validateGenericPlan(
       fail("Response format differs from template.");
     if (p.responseType === "mcq_single" && coerceMcqOptions(r)?.length !== 4)
       fail("Four distinct choices required.", "invalid_options");
-    if (unsupportedTemplateResource(r))
+    if (unsupportedTemplateResource(r, options.physicsFigures))
       fail(
         "A reviewed course/asset adapter is required for this resource.",
         "invalid_resource",

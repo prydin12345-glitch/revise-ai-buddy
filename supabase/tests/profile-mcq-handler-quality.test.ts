@@ -15,9 +15,11 @@ function snapshot(){
   const saved=prepareProfileSave(proposal,t);
   return {context_version:2,resolved_by:'server',subject_name:'Physics',exam_board:'AQA',educational_tier:'level3',assessment_tier:'not_tiered',profile_template:snapshotTemplate({...saved.settings,profile_template:saved.context})};
 }
-async function handler(name:'submit-exam'|'grade-practice-question',options:{answer?:string;correct?:string;choices?:string[];foreign?:boolean;saveFailure?:boolean;forgedContext?:boolean}={}){
+async function handler(name:'submit-exam'|'grade-practice-question',options:{answer?:string;correct?:string;choices?:string[];foreign?:boolean;saveFailure?:boolean;forgedContext?:boolean;physicsContext?:'new'|'legacy'|'client'}={}){
   const calls:any[]=[],writes:any[]=[],filters:any[]=[],fetches:any[]=[];
-  const context=snapshot();if(options.forgedContext)(context as any).resolved_by='client';
+  const context=options.physicsContext ? {context_version:2,resolved_by:options.physicsContext==='client'?'client':'server',subject_name:'Physics',course_id:'physics-fixture',
+    ...(options.physicsContext==='legacy'?{}:{physics_generation_version:1})} : snapshot();
+  if(options.forgedContext)(context as any).resolved_by='client';
   const row={id:'part',question_number:'1',question_type:'mcq',marks:1,question_text:'Which capacitance is correct?',options:options.choices??['$40\\,\\mu\\mathrm{F}$','$80\\,\\mu\\mathrm{F}$','$160\\,\\mu\\mathrm{F}$','$320\\,\\mu\\mathrm{F}$'],correct_answer:options.correct??'80\\,μF'};
   const client={auth:{getUser:async()=>({data:{user:{id:user}},error:null})},
     rpc:async(name:string,args:any)=>{calls.push({name,args});if(name==='exam_access_info')return {data:{hasAccess:!options.foreign,isOwner:false,isManager:false,isAssigned:true,gradesReleased:false,deadline:null},error:null};if(name==='claim_exam_responses')return {data:{state:'claimed',token:'lease'}};if(name==='reserve_ai_request')return {data:{allowed:true,usedToday:1,usedInBurstWindow:1}};if(name==='finish_exam_responses')return {data:{totalScore:1,totalMarks:1}};return {data:null,error:null};},
@@ -63,5 +65,39 @@ describe('actual protected-profile MCQ handlers',()=>{
   });
   it('rejects forged self marks on a protected-profile MCQ',async()=>{
     const h=await handler('submit-exam');expect((await h.run({selfMarkScores:{part:1}})).status).toBe(400);expect(h.fetches).toHaveLength(0);expect(h.calls.some(c=>c.name==='finish_exam_responses')).toBe(false);
+  });
+});
+
+describe('actual versioned Physics MCQ handlers without a profile template',()=>{
+  const choices=['12.0 W','24.0 W','30.0 W','48.0 W'];
+  const correct=JSON.stringify({answer:'24.0 W',worked_solution:'Power = 12.0 V × 2.00 A = 24.0 W.',calculation_checks:[{
+    label:'power',inputs:[{name:'v',value:'12.0',unit:'V',source:'stem',quote:'12.0 V'},{name:'i',value:'2.00',unit:'A',source:'stem',quote:'2.00 A'}],
+    expression:{op:'multiply',args:[{input:'v'},{input:'i'}]},result:{value:'24.0',unit:'W',significant_figures:3},answer_quote:'24.0 W',working_quote:'24.0 W',
+  }]});
+  it.each(['submit-exam','grade-practice-question'] as const)('%s resolves the private numerical envelope deterministically',async(name)=>{
+    const h=await handler(name,{physicsContext:'new',choices,correct}),r=await h.run();
+    expect(r.status).toBe(200);expect(h.fetches).toHaveLength(0);
+    if(name==='submit-exam')expect(JSON.stringify(h.calls.find(c=>c.name==='finish_exam_responses').args)).toContain('"score":1');
+    else expect(await r.json()).toMatchObject({score:1,isCorrect:true});
+  });
+  it.each(['submit-exam','grade-practice-question'] as const)('%s returns a clean option for a wrong selection',async(name)=>{
+    const h=await handler(name,{physicsContext:'new',choices,correct,answer:'A'}),r=await h.run();
+    expect(r.status).toBe(200);expect(h.fetches).toHaveLength(0);
+    const result=name==='submit-exam'?JSON.stringify(h.calls.find(c=>c.name==='finish_exam_responses').args):JSON.stringify(await r.json());
+    expect(result).toContain('"score":0');expect(result).toContain('B) 24.0 W');expect(result).not.toContain('calculation_checks');expect(result).not.toContain('worked_solution');
+  });
+  it.each(['submit-exam','grade-practice-question'] as const)('%s stops an ambiguous private key before saving marks',async(name)=>{
+    const h=await handler(name,{physicsContext:'new',choices:['24.0 W','$24.0 W$','30.0 W','48.0 W'],correct}),r=await h.run();
+    expect(r.status).toBeGreaterThanOrEqual(400);expect(h.fetches).toHaveLength(0);
+    expect(h.calls.some(c=>c.name==='finish_exam_responses')).toBe(false);expect(h.writes.some(w=>w.table==='practice_question_answers')).toBe(false);
+  });
+  it.each(['legacy','client'] as const)('preserves %s Physics practice marking policy',async(physicsContext)=>{
+    const h=await handler('grade-practice-question',{physicsContext,choices,correct:'B'}),r=await h.run();
+    expect(r.status).toBeGreaterThanOrEqual(400);expect(await r.json()).toMatchObject({error:'LOVABLE_API_KEY not configured'});
+    expect(h.fetches).toHaveLength(0);expect(h.writes.some(w=>w.table==='practice_question_answers')).toBe(false);
+  });
+  it('preserves historical Physics exam MCQ keys',async()=>{
+    const h=await handler('submit-exam',{physicsContext:'legacy',choices,correct:'B'}),r=await h.run();
+    expect(r.status).toBe(200);expect(h.fetches).toHaveLength(0);expect(JSON.stringify(h.calls.find(c=>c.name==='finish_exam_responses').args)).toContain('"score":1');
   });
 });

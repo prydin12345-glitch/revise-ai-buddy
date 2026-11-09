@@ -4,6 +4,8 @@ import type { BiologyScope } from './gcse-biology-scope.ts';
 import { canonicalMcqAnswer, isMcqType, readQuestionTask } from './model-question-normalization.ts';
 import { expandComprehensionReferences } from './biology-comprehension.ts';
 import { needsCircuitTopology } from './physics-resource-validation.ts';
+import {physicsResourceForStorage, physicsPrivateKeyForStorage} from './physics-generation-contract.ts';
+import {physicsCalculationPrivateKey, readPhysicsCalculationKey} from './physics-calculation-integrity.ts';
 
 export type RepairMode = 'task_only' | 'full_group';
 export interface RepairDiagnostic { code: string; partNumber?: string; detail: string; }
@@ -61,6 +63,7 @@ export function analyseGroupRepair(
   mode: RepairMode = targetNumbers.size ? 'task_only' : 'full_group',
   /** Server-only allowlist: trusted generic-plan resource=none parts with an invalid decorative circuit. */
   optionalResourceRemovals: Set<string> = new Set(),
+  policy: {physicsGeneration?:boolean} = {},
 ): RepairResult {
   const diagnostics: RepairDiagnostic[] = [];
   const replacements: Record<string, any> = {};
@@ -131,7 +134,11 @@ export function analyseGroupRepair(
         fail('source_changed', 'Task-only repair must preserve the original context, resources and choices.', number); continue;
       }
 
-      candidate = { ...row, question_text: `${originalText}\n\n${task}`.trim(), correct_answer: isMcqType(row.question_type) ? canonicalMcqAnswer(normalized!.correctAnswer, coerceMcqOptions(row)) : normalized!.correctAnswer,
+      const privateKey = readPhysicsCalculationKey({...part, correct_answer:normalized!.correctAnswer});
+      const correctedKey = privateKey.checks !== undefined
+        ? physicsCalculationPrivateKey({...part, correct_answer:normalized!.correctAnswer}, isMcqType(row.question_type) ? canonicalMcqAnswer(privateKey.answer, coerceMcqOptions(row)) : privateKey.answer)
+        : isMcqType(row.question_type) ? canonicalMcqAnswer(normalized!.correctAnswer, coerceMcqOptions(row)) : normalized!.correctAnswer;
+      candidate = { ...row, question_text: `${originalText}\n\n${task}`.trim(), correct_answer:correctedKey,
         context: null, task: null, question_latex: null };
     } else {
       const text = normalized?.questionText ?? assembleQuestionText(part);
@@ -169,13 +176,15 @@ export function analyseGroupRepair(
       const keptOptions = isMcqType(row.question_type)
         ? (coerceMcqOptions(part) ?? coerceMcqOptions(row) ?? row.options)
         : (isResourceChart(row.options) ? null : row.options);
-      candidate = { ...row, question_text: resources.text, correct_answer: normalized?.correctAnswer ?? row.correct_answer,
+      candidate = { ...row, question_text: resources.text, correct_answer: policy.physicsGeneration
+        ? physicsPrivateKeyForStorage({...part, correct_answer:normalized?.correctAnswer ?? row.correct_answer}, physicsResourceForStorage(part, diagram))
+        : normalized?.correctAnswer ?? row.correct_answer,
         options: normalized?.options ?? keptOptions,
-        diagram_config: diagram, table_data: null, question_latex: null, context: null, task: null,
+        diagram_config: policy.physicsGeneration ? physicsResourceForStorage(part, diagram) : diagram, table_data: null, question_latex: null, context: null, task: null,
         ...(removedDecoration ? {diagramConfig:null,chart_data:null,requires_resource:false} : {}) };
 
     }
-    const validation = validateQuestionCandidates([candidate], { scope });
+    const validation = validateQuestionCandidates([candidate], { scope, physicsGeneration:policy.physicsGeneration });
     if (!validation.ok) {
       for (const defect of validation.defects) fail(defect.code, defect.detail, number);
       continue;

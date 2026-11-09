@@ -23,9 +23,9 @@ export const canonicalPartNumber = (value: unknown): string => {
   return match ? `${Number(match[1])}${match[2] ? `(${match[2].toLowerCase()})` : ''}` : text;
 };
 /** Structural checks only: live scientific accuracy still needs a paper audit. */
-export function validateBiologyPlan(rows: CandidatePart[], plan?: PaperPlan | null): QuestionDefect[] {
+export function validateBiologyPlan(rows: CandidatePart[], plan?: PaperPlan | null, options: {physicsFigures?:boolean} = {}): QuestionDefect[] {
   if (!plan) return [];
-  if (isGenericPlan(plan)) return validateGenericPlan(rows, plan);
+  if (isGenericPlan(plan)) return validateGenericPlan(rows, plan, options);
   const pack = packForBiologyPlan(plan);
   // Preserve the AQA v1 acceptance rules while extracting shared machinery.
   // Its total, task, resource and level checks still run in the common gate.

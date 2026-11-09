@@ -21,6 +21,9 @@ import { requestQuestionRepair, saveQuestionRepairs, describeRepairDiagnostics }
 import { repeatedConceptDefects, coveredTasksNote } from '../_shared/paper-repetition.ts';
 import type { RepairDiagnostic } from '../_shared/prepare-group-repair.ts';
 import { normalizeGeneratedQuestion } from '../_shared/model-question-normalization.ts';
+import {usesPhysicsGenerationContract} from '../_shared/physics-generation-policy.ts';
+import {physicsGenerationInstructions, physicsResourceForStorage, physicsPrivateKeyForStorage} from '../_shared/physics-generation-contract.ts';
+import {buildPhysicsPaperPlan, type PhysicsPaperPlan} from '../_shared/physics-paper-plan.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { assessmentTierPrompt, storedAssessmentTier } from "../_shared/profile-context.ts";
@@ -422,6 +425,9 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   const authoritativeTier = storedAssessmentTier(storedContext);
   const generationScope = biologyScopeFromContext(storedContext, {subject: exam.subject_id, educationalLevel: exam.qualification_level, examBoard: exam.exam_board});
   const guidedPlan = paperPlanForAttempt(storedContext, formatData?.profile_metadata?.paperBlueprint);
+  const physicsGeneration = usesPhysicsGenerationContract(storedContext);
+  const physicsPlan = physicsGeneration && guidedPlan
+    ? (storedContext.physics_paper_plan ?? buildPhysicsPaperPlan(guidedPlan, {subject:generationScope.subject})) as PhysicsPaperPlan | null : null;
   const guidedPack = guidedPlan && !isGenericPlan(guidedPlan) ? packForBiologyPlan(guidedPlan) : null;
   const usesContractOnlyGeneration = isGenericPlan(guidedPlan) || guidedPack?.generation.strategy === 'contract_only';
   const useOriginalStructure = !usesContractOnlyGeneration && (formatData?.use_original_structure ?? true);
@@ -763,6 +769,11 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       guidedPromptTail.push(physicsInstructions); extractionPrompt += '\n\n' + physicsInstructions;
     }
   }
+  if (physicsGeneration) {
+    const physicsInstructions = physicsGenerationInstructions(physicsPlan);
+    guidedPromptTail.push(physicsInstructions);
+    extractionPrompt += '\n\n' + physicsInstructions;
+  }
   const guidedPromptSuffix = GUIDED_JSON_ENVELOPE + '\n\n' + guidedPromptTail.filter(Boolean).join('\n\n');
 
   const startTime = Date.now();
@@ -786,7 +797,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   // the immutable plan, not the legacy string sorter (which put 16(a) before 1).
   const plannedOrder = new Map(guidedPlan?.parts.map((part,index)=>[part.questionNumber,index]) ?? []);
   let questions = ((usesContractOnlyGeneration && guidedPlan) ? parsedData.questions
-    : usesContractOnlyGeneration ? parsedData.questions.map(normalizeGeneratedQuestion)
+    : usesContractOnlyGeneration || physicsGeneration ? parsedData.questions.map(normalizeGeneratedQuestion)
     : parsedData.questions).sort((a: any, b: any) =>
     usesContractOnlyGeneration && guidedPlan
       ? (plannedOrder.get(String(a.question_number)) ?? Number.MAX_SAFE_INTEGER) - (plannedOrder.get(String(b.question_number)) ?? Number.MAX_SAFE_INTEGER)
@@ -840,6 +851,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   // circuit (broken loop, missing nodes) has its diagram removed so the question
   // degrades to text rather than showing a broken figure to a student.
   questions = questions.map((question: any) => {
+    if (physicsGeneration) return question;
     const cfg = question.diagramConfig ?? question.diagram_config;
     if (!cfg || (cfg.type && cfg.type !== 'circuit')) return question;
     const result = validateCircuitConfig(cfg);
@@ -1061,7 +1073,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   };
 
   questions = questions.map((question: any) => {
-    if (usesContractOnlyGeneration) return question; // Never erase a task; validate/repair its actual resource.
+    if (usesContractOnlyGeneration || physicsGeneration) return question; // Never erase a task; validate/repair its actual resource.
     const hasDiagram = !!(question.diagramConfig || question.diagram_config);
     if (referencesValidInsertFigure(question.question_text || '')) {
       return question; // valid insert reference — not a broken diagram ref
@@ -1456,7 +1468,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       root_question_number: q.root_question_number || String(q.question_number || i + 1).match(/^\d+/)?.[0],
       marks: q.marks || 1,
       options,
-      correct_answer: q.diagram_config?.kind==='biology_visual' ? correctAnswer : essayKeyObject(correctAnswer) ? JSON.stringify(essayKeyObject(correctAnswer)) : typeof correctAnswer === 'object' ? JSON.stringify(correctAnswer) : (typeof correctAnswer === 'string' ? sanitiseFeedback(correctAnswer) : correctAnswer),
+      correct_answer: physicsGeneration ? physicsPrivateKeyForStorage(q, physicsResourceForStorage(q, canonicalChart ?? graphWrapper ?? q.diagramConfig ?? q.diagram_config ?? null)) : q.diagram_config?.kind==='biology_visual' ? correctAnswer : essayKeyObject(correctAnswer) ? JSON.stringify(essayKeyObject(correctAnswer)) : typeof correctAnswer === 'object' ? JSON.stringify(correctAnswer) : (typeof correctAnswer === 'string' ? sanitiseFeedback(correctAnswer) : correctAnswer),
       has_figures: q.has_figures || false,
       has_tables: q.has_tables || false,
       topic_tag: q.topic_tag || null,
@@ -1466,7 +1478,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
       graph_description: q.graph_description || null,
       is_flagged: q.needs_review || false,
       flag_reason: q.needs_review ? 'Broken diagram reference auto-scrubbed; review required' : null,
-      diagram_config: (() => {
+      diagram_config: physicsGeneration ? physicsResourceForStorage(q, canonicalChart ?? graphWrapper ?? q.diagramConfig ?? q.diagram_config ?? null) : (() => {
         // Merge chart payload + correct_chart_data into diagram_config so MCQ
         // choices in `options` no longer collide with chart data.
         const baseDiagram = graphWrapper ?? q.diagramConfig ?? q.diagram_config ?? null;
@@ -1535,7 +1547,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   // parent group (text + expected answer + mark scheme together), at most three times
   // per group and within a whole-request budget, then revalidate. If the paper
   // still fails, the extraction fails — it is never presented as ready.
-  await enforceAnswerability(draftId, supabase, lovableApiKey, exam.subject_id, guidedPlan, generationScope, aiBudget);
+  await enforceAnswerability(draftId, supabase, lovableApiKey, exam.subject_id, guidedPlan, generationScope, aiBudget, physicsGeneration, physicsPlan);
   if (responseFormatsEnabled(exam.generation_context)) {
     const {data:sourceRows,error:sourceError}=await supabase.from('exam_question_drafts').select('*').eq('exam_id',draftId).order('question_number');
     if(sourceError || !sourceRows?.length)throw new Error('Interactive response source could not be loaded');
@@ -3140,8 +3152,10 @@ async function enforceAnswerability(
   plan: PaperPlan | null = null,
   scope: BiologyScope = {},
   aiBudget: AiCallBudget,
+  physicsGeneration = false,
+  physicsPlan: PhysicsPaperPlan | null = null,
 ): Promise<void> {
-  const planExpectations = { scope, plan, ...(plan ? { expectedTotalMarks: plan.totalMarks, expectedPartCount: plan.partCount } : {}) };
+  const planExpectations = { scope, plan, physicsGeneration, physicsPlan, ...(plan ? { expectedTotalMarks: plan.totalMarks, expectedPartCount: plan.partCount } : {}) };
   const load = async () => {
     const { data, error } = await supabase.from('exam_question_drafts').select('*').eq('exam_id', draftId);
     if (error) throw new Error(`Answerability gate could not read drafts: ${error.message}`);
@@ -3237,9 +3251,9 @@ async function enforceAnswerability(
   // unresolved known repetitions remain blocking at the final/publication gate.
   const reduceRepetition = async (current: any[]): Promise<any[]> => {
     let rows = current;
-    if (!plan || !isGenericPlan(plan)) return rows;
+    if ((!plan || !isGenericPlan(plan)) && !physicsGeneration) return rows;
     for (let call = 0; call < MAX_REPETITION_REPAIRS; call++) {
-      const repeats = repeatedConceptDefects(rows, plan);
+      const repeats = repeatedConceptDefects(rows, plan ?? undefined);
       if (!repeats.length || aiBudget.exhausted()) break;
       console.warn(`[repetition] ${repeats.map(r => r.detail).join(' | ')}`);
       const target = rows.find((r: any) => String(r.id ?? r.question_number) === repeats[0].partId);
@@ -3252,7 +3266,7 @@ async function enforceAnswerability(
       let outcome;
       try {
         outcome = await requestQuestionRepair({
-          group, subject, scope, plan,
+          group, subject, scope, plan, physicsGeneration,
           defects: groupRepeats.map(r => `Q${rows.find((x: any) => String(x.id ?? x.question_number) === r.partId)?.question_number}: repeated_concept — ${r.detail}`).join('; '),
           mode: 'full_group',
           coveredTasks: coveredTasksNote(rows.filter((row: any) => !ids.has(String(row.id ?? row.question_number)))),
@@ -3264,7 +3278,7 @@ async function enforceAnswerability(
       if (!outcome.ok) { console.warn(`[repetition] repair rejected (${outcome.phase}): ${describeRepairDiagnostics(outcome.diagnostics)}`); break; }
       const proposed = rows.map((r: any) => ({ ...r, ...(outcome.replacements[String(r.question_number)] ?? {}) }));
       const stillOk = validateStructural(proposed).ok;
-      const fewer = repeatedConceptDefects(proposed, plan).length < repeats.length;
+      const fewer = repeatedConceptDefects(proposed, plan ?? undefined).length < repeats.length;
       if (!stillOk || !fewer) { console.warn('[repetition] proposed fix not used (would break the paper or did not remove the repeat)'); break; }
       await saveQuestionRepairs(supabase, draftId, group, outcome.replacements);
       rows = await load();
@@ -3287,7 +3301,7 @@ async function enforceAnswerability(
     console.log(`Answerability gate passed (contract v${CONTRACT_VERSION}, ${drafts.length} parts)`);
     return;
   }
-  if (result.defects.some(d => d.code === 'plan_mismatch')) throw new Error('Biology paper structure does not match its saved plan: ' + describeDefects(result.defects.filter(d => d.code === 'plan_mismatch')));
+  if (result.defects.some(d => d.code === 'plan_mismatch' && !d.repairable)) throw new Error('Paper structure does not match its saved plan: ' + describeDefects(result.defects.filter(d => d.code === 'plan_mismatch' && !d.repairable)));
   console.warn(`Answerability defects: ${describeDefects(result.defects, drafts)}`);
 
   const attempts: Record<string, number> = {};
@@ -3326,7 +3340,7 @@ async function enforceAnswerability(
     // instruction in isolation; escalate to a full parent-group rewrite.
     const escalate = attempts[groupId] > 1;
     const outcome = await requestQuestionRepair({
-      group, subject, scope, plan, defects: describeDefects(groupDefects, group),
+      group, subject, scope, plan, physicsGeneration, defects: describeDefects(groupDefects, group),
       mode: taskOnly && !escalate ? 'task_only' : 'full_group',
       targetNumbers: escalate ? new Set<string>(group.map((row: any) => String(row.question_number))) : failedNumbers as Set<string>,
       previousDiagnostics: lastRejections[groupId],

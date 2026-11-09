@@ -1,0 +1,70 @@
+{
+  "verifiedOn": "2026-11-09",
+  "baselineCommit": "82cfc84b032c634c164799e18657a60c2b13d45f",
+  "branch": "codex/physics-structured-figures",
+  "node": "v24.19.0",
+  "command": "npm run check",
+  "exitCode": 0,
+  "testFiles": 201,
+  "tests": 3275,
+  "checks": [
+    "typecheck",
+    "lint:critical",
+    "test",
+    "39 Edge Function identifier/bundle checks",
+    "production build (17.02 seconds)",
+    "git diff --check"
+  ],
+  "logSha256": "e93dc7c96fefa180eedfc28bfc11867447654bddbb6e7d2b48b2fffa7bcd489a",
+  "baseline": {
+    "tests": 3069,
+    "testFiles": 190,
+    "exitCode": 0,
+    "logSha256": "83c401d3f374879d42a1f2f33fabee1f7272608007d4a742c3f556b4369ed500"
+  },
+  "browser": {
+    "status": "PASS",
+    "cases": 8,
+    "scenarioGroups": 58,
+    "savedRenders": 80,
+    "fingerprintedInputs": 3342,
+    "sourceManifestSha256": "2eddb4de10aa1e6f993f7148e4e921427244a6674fa3c6248f8a234d34e20aab",
+    "matchingCurrentInputs": true,
+    "report": "browser/browser-results.json"
+  },
+  "pdf": {
+    "status": "PASS",
+    "themes": 2,
+    "unicodeGlyphs": 14,
+    "privateAnswerTextAbsent": true,
+    "report": "browser/pdf-verification.json"
+  },
+  "audits": {
+    "biology": {
+      "status": "PASS",
+      "unchangedFromBaseline": true,
+      "sha256": "c7c61ef1b19d2851e05301b96d79050677d7c3c476567e6eb5ae54a93634a952",
+      "entries": 52
+    },
+    "coverage": {
+      "status": "PASS",
+      "unchangedFromBaseline": true,
+      "sha256": "cde5f8f5df16c82be612f0081c973e7daf01b0831c211f5e6dbea0ca99600f8c",
+      "entries": 52
+    }
+  },
+  "paidAiCalls": 0,
+  "liveDataWrites": false,
+  "realLogins": false,
+  "deploymentPerformed": false,
+  "migrationPerformed": false,
+  "publicationPerformed": false,
+  "existingExamMutationPerformed": false,
+  "limitations": [
+    "Original synthetic fixtures and simulated providers, no real model-written paper quality assessment",
+    "Arithmetic/dimensions do not prove the scientific choice of formula",
+    "Supported renderer variants and computation domains are bounded; unresolved cases require repair",
+    "Official topic weighting and practical requirements cannot be invented when absent from evidence",
+    "Chromium viewport emulation, compact SVG labels at 320px, minor circuit label crowding, possible stem/figure pagination separation"
+  ]
+}

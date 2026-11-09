@@ -7,18 +7,19 @@ import type { PhysicsDiagramConfig } from './types';
 
 interface Props {
   config: PhysicsDiagramConfig;
+  mode?: 'assessment' | 'solution';
 }
 
-export const PhysicsDiagramDraw = ({ config }: Props) => {
+export const PhysicsDiagramDraw = ({ config, mode = 'solution' }: Props) => {
   switch (config.type) {
     case 'ray_diagram':
-      return <RayDiagramRenderer config={config} />;
+      return <RayDiagramRenderer config={config} mode={mode} />;
     case 'wave_diagram':
-      return <WaveDiagramRenderer config={config} />;
+      return <WaveDiagramRenderer config={config} mode={mode} />;
     case 'magnetic_field':
-      return <MagneticFieldRenderer config={config} />;
+      return <MagneticFieldRenderer config={config} mode={mode} />;
     case 'nuclear_decay':
-      return <NuclearDecayRenderer config={config} />;
+      return <NuclearDecayRenderer config={config} mode={mode} />;
     case 'electromagnetic_spectrum':
       return <EMSpectrumRenderer config={config} />;
     default:

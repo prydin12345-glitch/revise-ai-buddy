@@ -1,8 +1,8 @@
 import type { MagneticFieldConfig } from '../types';
 
-interface Props { config: MagneticFieldConfig; }
+interface Props { config: MagneticFieldConfig; mode?: 'assessment' | 'solution'; }
 
-export const MagneticFieldRenderer = ({ config }: Props) => {
+export const MagneticFieldRenderer = ({ config, mode = 'solution' }: Props) => {
   const {
     variant, northOnLeft = true, currentDirection,
     showArrows = true, showCurrentSymbols,
@@ -12,6 +12,7 @@ export const MagneticFieldRenderer = ({ config }: Props) => {
 
   const W = 440, H = 300;
   const cx = W / 2, cy = H / 2;
+  const showFieldLines = mode !== 'assessment' || config.showFieldLines !== false;
 
   const colors = {
     fieldLine: 'hsl(221 83% 53%)',
@@ -99,7 +100,7 @@ export const MagneticFieldRenderer = ({ config }: Props) => {
         {title && <text x={W/2} y={20} textAnchor="middle"
           fontSize={12} fontWeight={700} fill={colors.label}>{title}</text>}
 
-        {fieldArcs.map((arc, i) => (
+        {showFieldLines && fieldArcs.map((arc, i) => (
           <g key={i}>
             <path
               d={`M ${nX + 60} ${magnetY + 20}
@@ -107,7 +108,7 @@ export const MagneticFieldRenderer = ({ config }: Props) => {
                   ${sX} ${magnetY + 20}`}
               fill="none" stroke={colors.fieldLine}
               strokeWidth={1.5} opacity={0.7}
-              markerMid="url(#arrField)"
+              markerMid={mode !== 'assessment' || showArrows ? 'url(#arrField)' : undefined}
             />
             <path
               d={`M ${nX + 60} ${magnetY + 20}
@@ -119,22 +120,22 @@ export const MagneticFieldRenderer = ({ config }: Props) => {
           </g>
         ))}
 
-        <line
+        {showFieldLines && <line
           x1={northOnLeft ? magnetX + 5 : magnetX + 115}
           y1={magnetY + 20}
           x2={northOnLeft ? magnetX + 115 : magnetX + 5}
           y2={magnetY + 20}
           stroke={colors.fieldLine} strokeWidth={1.5}
           strokeDasharray="4 3" opacity={0.5}
-        />
+        />}
 
         <BarMagnet x={magnetX} y={magnetY}
           width={120} height={40} nLeft={northOnLeft} />
 
-        <text x={cx} y={H - 12} textAnchor="middle"
+        {mode !== 'assessment' && <text x={cx} y={H - 12} textAnchor="middle"
           fontSize={10} fill={colors.dim}>
           Field lines run from N to S outside the magnet
-        </text>
+        </text>}
       </svg>
     );
   }
@@ -155,9 +156,9 @@ export const MagneticFieldRenderer = ({ config }: Props) => {
           nLeft={isAttracting} />
 
         <BarMagnet x={rightMagnetX} y={magnetY} width={120} height={40}
-          nLeft={!isAttracting} />
+          nLeft={true} />
 
-        {isAttracting ? (
+        {showFieldLines && (isAttracting ? (
           [0, 1, 2].map(i => (
             <path key={i}
               d={`M ${leftMagnetX + 120} ${magnetY + 8 + i * 12}
@@ -186,13 +187,13 @@ export const MagneticFieldRenderer = ({ config }: Props) => {
               />
             </g>
           ))
-        )}
+        ))}
 
-        <text x={cx} y={H - 12} textAnchor="middle"
+        {mode !== 'assessment' && <text x={cx} y={H - 12} textAnchor="middle"
           fontSize={11} fontWeight={600}
           fill={isAttracting ? colors.force : 'hsl(0 84% 60%)'}>
           {isAttracting ? 'Attraction — unlike poles facing' : 'Repulsion — like poles facing'}
-        </text>
+        </text>}
       </svg>
     );
   }
@@ -232,16 +233,16 @@ export const MagneticFieldRenderer = ({ config }: Props) => {
           );
         })}
 
-        {[-16, 0, 16].map(dy => (
+        {showFieldLines && [-16, 0, 16].map(dy => (
           <line key={dy}
             x1={solenoidLeft + 10} y1={solenoidY + dy}
             x2={solenoidRight - 10} y2={solenoidY + dy}
             stroke={colors.fieldLine} strokeWidth={2}
-            markerEnd="url(#arrSol)"
+            markerEnd={mode !== 'assessment' || showArrows ? 'url(#arrSol)' : undefined}
           />
         ))}
 
-        <path
+        {showFieldLines && <path
           d={`M ${solenoidRight} ${solenoidY}
               Q ${solenoidRight + 50} ${solenoidY}
               ${solenoidRight + 50} ${solenoidY - 80}
@@ -253,19 +254,19 @@ export const MagneticFieldRenderer = ({ config }: Props) => {
               ${solenoidLeft} ${solenoidY}`}
           fill="none" stroke={colors.fieldLine}
           strokeWidth={1.5} opacity={0.5}
-        />
+        />}
 
-        <text x={solenoidLeft - 8} y={solenoidY + 6}
+        {(mode !== 'assessment' || labelS) && <text x={solenoidLeft - 8} y={solenoidY + 6}
           textAnchor="end" fontSize={16} fontWeight={700}
-          fill={colors.magnet.S}>S</text>
-        <text x={solenoidRight + 8} y={solenoidY + 6}
+          fill={colors.magnet.S}>S</text>}
+        {(mode !== 'assessment' || labelN) && <text x={solenoidRight + 8} y={solenoidY + 6}
           fontSize={16} fontWeight={700}
-          fill={colors.magnet.N}>N</text>
+          fill={colors.magnet.N}>N</text>}
 
-        <text x={cx} y={H - 10} textAnchor="middle"
+        {mode !== 'assessment' && <text x={cx} y={H - 10} textAnchor="middle"
           fontSize={10} fill={colors.dim}>
           Field inside solenoid is uniform and parallel
-        </text>
+        </text>}
       </svg>
     );
   }
@@ -282,7 +283,7 @@ export const MagneticFieldRenderer = ({ config }: Props) => {
         {title && <text x={W/2} y={20} textAnchor="middle"
           fontSize={12} fontWeight={700} fill={colors.label}>{title}</text>}
 
-        {[28, 56, 84, 110].map((r, i) => (
+        {showFieldLines && [28, 56, 84, 110].map((r, i) => (
           <circle key={i} cx={cx} cy={cy} r={r}
             fill="none" stroke={colors.fieldLine}
             strokeWidth={i === 0 ? 2 : 1.5}
@@ -290,7 +291,7 @@ export const MagneticFieldRenderer = ({ config }: Props) => {
           />
         ))}
 
-        {showArrows && [40, 70, 100].map((r, i) => {
+        {showFieldLines && showArrows && [40, 70, 100].map((r, i) => {
           const angle = isOutOfPage ? -Math.PI / 2 : Math.PI / 2;
           const x = cx + r * Math.cos(angle);
           const y = cy + r * Math.sin(angle);
@@ -316,12 +317,12 @@ export const MagneticFieldRenderer = ({ config }: Props) => {
           Current {isOutOfPage ? 'out of page ⊙' : 'into page ⊗'}
         </text>
 
-        <text x={cx} y={SW_H - 16} textAnchor="middle"
+        {mode !== 'assessment' && <text x={cx} y={SW_H - 16} textAnchor="middle"
           fontSize={10} fill={colors.dim}>
           {isOutOfPage
             ? 'Field circles anticlockwise (viewed from front)'
             : 'Field circles clockwise (viewed from front)'}
-        </text>
+        </text>}
       </svg>
     );
   }
@@ -333,16 +334,16 @@ export const MagneticFieldRenderer = ({ config }: Props) => {
         {title && <text x={W/2} y={20} textAnchor="middle"
           fontSize={12} fontWeight={700} fill={colors.label}>{title}</text>}
 
-        {[60, 120, 180, 240, 300, 360].flatMap(x => (
+        {showFieldLines && [60, 120, 180, 240, 300, 360].flatMap(x => (
           [80, 130, 180, 220].map(y => (
             <CrossSymbol key={`${x}-${y}`} x={x} y={y} r={12} />
           ))
         ))}
 
-        <text x={cx} y={50} textAnchor="middle"
+        {showFieldLines && <text x={cx} y={50} textAnchor="middle"
           fontSize={11} fill={colors.dim}>
           Magnetic field B (into page) ⊗
-        </text>
+        </text>}
 
         <rect x={cx - 8} y={70} width={16} height={160}
           fill={colors.wire} rx={3} />
@@ -363,10 +364,10 @@ export const MagneticFieldRenderer = ({ config }: Props) => {
           </>
         )}
 
-        <text x={cx} y={H - 14} textAnchor="middle"
+        {mode !== 'assessment' && <text x={cx} y={H - 14} textAnchor="middle"
           fontSize={10} fill={colors.dim}>
           Fleming's Left Hand Rule: F = BIl
-        </text>
+        </text>}
 
         <defs>
           {arrowDef('arrCurrent', colors.current)}

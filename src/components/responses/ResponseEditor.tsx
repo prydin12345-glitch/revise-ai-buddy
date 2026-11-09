@@ -3,11 +3,13 @@ import { ResponseInput } from './ResponseInput';
 import { ResponseResources } from './ResponseResources';
 import type { ResponseQuestionView } from '@/lib/response-view';
 import type { useResponseDrafts } from '@/hooks/useResponseDrafts';
-export function ResponseEditor({question,drafts,disabled=false}:{question:ResponseQuestionView&{question_text:string};drafts:ReturnType<typeof useResponseDrafts>;disabled?:boolean}) {
+import type { ReactNode } from 'react';
+export function ResponseEditor({question,drafts,disabled=false,setupFigure}:{question:ResponseQuestionView&{question_text:string};drafts:ReturnType<typeof useResponseDrafts>;disabled?:boolean;setupFigure?:ReactNode}) {
   const session=drafts.get(question.id);
   if(!question.response_definition)return null;
   return <div className="space-y-4">
     <MathRenderer content={question.question_text}/>
+    {setupFigure}
     <ResponseResources resources={question.response_resources}/>
     {session ? <ResponseInput questionId={question.id} definition={question.response_definition} value={session.response} onChange={value=>drafts.update(question.id,value)} disabled={disabled || session.status==='conflict'}/> : <p role="status">Loading your answer…</p>}
     {!disabled && session && <div aria-live="polite" className="text-sm text-muted-foreground">

@@ -1,4 +1,5 @@
 import {essayKeyObject} from './biology-essay-marking.ts';
+import {physicsCalculationPrivateKey, readPhysicsCalculationKey} from './physics-calculation-integrity.ts';
 import { declaredStatementText } from './numbered-statements.ts';
 // Model-output adapters only. No AI calls, invented answers or relaxed gates.
 // Generation and repair must preserve the same content before validating it.
@@ -108,6 +109,14 @@ export function flattenAnswerKey(value: unknown): string {
     const body = flattenAnswerKey(Object.fromEntries(Object.entries(obj).filter(([key]) => key !== 'level' && key !== 'band')));
     return body ? `Level ${level}: ${body}` : '';
   }).filter(Boolean).join('\n');
+  const calculation = record(value);
+  if (Object.prototype.hasOwnProperty.call(calculation, 'calculation_checks')) {
+    // Verification ASTs are private metadata, not student answers or prose.
+    return [flattenAnswerKey(calculation.answer ?? calculation.final_answer),
+      calculation.worked_solution ? 'Working:\n' + flattenAnswerKey(calculation.worked_solution) : '',
+      calculation.mark_scheme ? 'Mark scheme:\n' + flattenAnswerKey(calculation.mark_scheme) : '']
+      .filter(Boolean).join('\n');
+  }
   return Object.entries(record(value)).map(([key, item]) => {
     const body = flattenAnswerKey(item);
     if (!body) return '';
@@ -222,8 +231,12 @@ export function normalizeGeneratedQuestion(raw: Record<string, any>): Record<str
   const mcq = isMcqType(raw.question_type);
   const options = mcq ? coerceMcqOptions(raw) : null;
   const answer = readAnswerKey(raw);
+  const calculation = readPhysicsCalculationKey(raw);
+  const normalizedAnswer = calculation.checks !== undefined
+    ? physicsCalculationPrivateKey(raw, mcq ? canonicalMcqAnswer(calculation.answer, options) : calculation.answer)
+    : mcq ? canonicalMcqAnswer(answer, options) : answer;
   return {...raw, question_type: mcq ? 'mcq' : raw.question_type,
     question_text: assembledModelText(raw), context: null, task: null,
     ...(mcq && options ? {options} : {}),
-    correct_answer: mcq ? canonicalMcqAnswer(answer, options) : answer};
+    correct_answer: normalizedAnswer};
 }

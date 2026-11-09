@@ -97,13 +97,12 @@ import type { ResourcePack, ResourceItem } from "@/components/practice/ResourceP
 import { QuizQuestionErrorBoundary } from "@/components/quiz/QuizQuestionErrorBoundary";
 import PracticeQuizSidebar from "@/components/quiz/PracticeQuizSidebar";
 import QuestionCardShell from "@/components/quiz/QuestionCardShell";
-import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
+import { AssessmentPhysicsFigure } from "@/components/physics/AssessmentPhysicsFigure";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { AssessmentBiologyFigure } from '@/components/biology/AssessmentBiologyFigure';
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
 import { MathsFigurePanel } from "@/components/maths";
-import { PhysicsFigurePanel } from "@/components/physics";
 import { DrawDiagramQuestion, detectDrawQuestion, getDrawingDataUrl } from "@/components/drawing/DrawDiagramQuestion";
 import { isPhysicsDrawOverride } from "@/components/drawing/physics-draw-override";
 import { SelfMarkReviewModal, type DrawQuestionForReview } from "@/components/drawing/SelfMarkReviewModal";
@@ -1990,7 +1989,7 @@ const TakePracticeQuiz = () => {
 
                   <QuizQuestionErrorBoundary questionId={currentQuestion.id}>
                     {currentQuestion.response_definition ? <>
-                      {currentAnswer.submitted || isReviewMode ? <><MathRenderer content={currentQuestion.question_text}/><ResponseReview question={currentQuestion} answerText={currentAnswer.answer} solutionsReleased={currentAnswer.submitted}/></> : <ResponseEditor question={currentQuestion} drafts={structuredDrafts} disabled={isGrading}/>}
+                      {currentAnswer.submitted || isReviewMode ? <><MathRenderer content={currentQuestion.question_text}/><AssessmentPhysicsFigure generationContext={paperContext} question={currentQuestion} isPracticeQuiz isSubmitted={!!currentAnswer?.submitted}/><ResponseReview question={currentQuestion} answerText={currentAnswer.answer} solutionsReleased={currentAnswer.submitted}/></> : <ResponseEditor question={currentQuestion} drafts={structuredDrafts} disabled={isGrading} setupFigure={<AssessmentPhysicsFigure generationContext={paperContext} question={currentQuestion} isPracticeQuiz />}/>}
                     </> : <>
                     {/* Question text */}
                     <div className="text-base lg:text-lg leading-relaxed">
@@ -2029,15 +2028,11 @@ const TakePracticeQuiz = () => {
                   })()}
 
                   {/* Mechanics figure panel */}
-                  {(() => {
-                    const diagConfig = detectDiagramConfig(currentQuestion.question_text);
-                    if (!diagConfig) return null;
-                    return <MechanicsFigurePanel config={diagConfig} />;
-                  })()}
+                  <AssessmentPhysicsFigure generationContext={paperContext} question={currentQuestion} isPracticeQuiz isSubmitted={!!currentAnswer?.submitted} />
 
                   {/* Circuit figure panel */}
                   {(() => {
-                    const circuitConfig = getCircuitConfig(currentQuestion, (currentQuestion as any).subject ?? '');
+                    const circuitConfig = getCircuitConfig(currentQuestion, (currentQuestion as any).subject ?? '', paperContext);
                     if (!circuitConfig) return null;
                     return <CircuitFigurePanel config={circuitConfig} />;
                   })()}
@@ -2057,15 +2052,6 @@ const TakePracticeQuiz = () => {
                     questionText={currentQuestion.question_text ?? ''}
                     subject={(currentQuestion as any).subject ?? ''}
                     diagramConfig={null}
-                    isSubmitted={!!currentAnswer?.submitted}
-                    isReview={false}
-                    isPracticeQuiz={true}
-                  />
-
-                  <PhysicsFigurePanel
-                    questionText={currentQuestion.question_text ?? ''}
-                    subject={(currentQuestion as any).subject ?? ''}
-                    diagramConfig={(currentQuestion as any).diagram_config ?? null}
                     isSubmitted={!!currentAnswer?.submitted}
                     isReview={false}
                     isPracticeQuiz={true}

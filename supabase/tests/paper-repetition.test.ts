@@ -5,6 +5,8 @@ import {
   recalledConcepts,
   repeatedSentence,
   coveredTasksNote,
+  canonicalTaskConceptIds,
+  coveredConceptLedger,
 } from "../functions/_shared/paper-repetition";
 import { resolveQuestionResources } from "../functions/_shared/question-resources";
 
@@ -430,5 +432,62 @@ describe("recall boundaries preserve physical applications", () => {
       part("1","State Faraday's law."),
       part("2","State Faraday's law. Calculate the induced emf for a flux change of 0.040 Wb in 0.020 s."),
     ]).map(defect=>defect.partId)).toEqual(["2"]);
+  });
+});
+
+describe("canonical Physics concepts and complete cross-batch ledger", () => {
+  const part = (question_number: string, question_text: string, extra: Record<string, any> = {}) => ({ id: question_number, question_number, marks: 1, question_text, ...extra });
+  it.each([
+    ["State Faraday's law.", "Which expression represents Faraday law of electromagnetic induction?"],
+    ["State Faraday's law.", "Select the correct statement of the law of electromagnetic induction."],
+    ["State the function of a moderator in a nuclear reactor.", "Why is a moderator used in a nuclear reactor?"],
+    ["State two assumptions of the kinetic model of an ideal gas.", "Which assumption is used in the kinetic theory of gases?"],
+  ])("detects canonical recall across formats: %s", (written, mcq) => {
+    expect(repeatedConceptDefects([part("1", written), part("20", mcq)]).map(issue => issue.partId)).toEqual(["20"]);
+  });
+  it("detects the identical capacitor charge task and typed givens under paraphrase", () => {
+    const candidate = [
+      part("2(a)", "A capacitor has a capacitance of 80 μF and a potential difference of 12 V. Calculate the charge stored."),
+      part("19", "What charge is stored on a 80 uF capacitor connected across 12 V?"),
+      part("20", "A capacitor of 80 uF is connected across 12 V. Determine the energy stored."),
+      part("21", "What charge is stored on a 90 uF capacitor connected across 12 V?"),
+    ];
+    expect(repeatedConceptDefects(candidate).map(issue => issue.partId)).toEqual(["19"]);
+    expect(canonicalTaskConceptIds(candidate[0])).toContain('calculation:capacitor:charge:[[80,"uF"],[12,"V"]]');
+  });
+  it("preserves SI-prefix case, signs, exponents, contextual networks and discharge conditions", () => {
+    expect(repeatedConceptDefects([
+      part("1", "Calculate the charge stored on a capacitor of 80 mF at 10 V."),
+      part("2", "What charge is stored on a capacitor of 80 MF across 10 V?"),
+      part("3", "What charge is stored on a capacitor of 80 mF across -10 V?"),
+      part("4", "What charge is stored on two capacitors in series of 80 mF across 10 V?"),
+      part("5", "What charge is stored on a capacitor of 80 mF at 10 V after 2 seconds?"),
+      part("6", "What charge is stored on a capacitor of 80 mF at 10^3 V?"),
+    ])).toEqual([]);
+  });
+  it("tracks same-data energy and time-constant tasks without banning a different requested quantity", () => {
+    expect(repeatedConceptDefects([
+      part("1", "A capacitor of 80 μF is connected across 12 V. Calculate the energy stored."),
+      part("2", "What energy is stored in a 80 uF capacitor at 12 V?"),
+      part("3", "A circuit contains a capacitor of 80 μF and a resistor of 12 kΩ. Calculate its time constant."),
+      part("4", "Determine the time constant of a circuit with a capacitor of 80 uF and a resistor of 12 kΩ."),
+    ]).map(issue => issue.partId)).toEqual(["2", "4"]);
+  });
+  it("recomputes canonical IDs without trusting model-nominated tags and never leaks a key", () => {
+    const candidate = part("1", "State Faraday's law.", { concept_ids: ["unrelated"], correct_answer: "PRIVATE-KEY" });
+    const ledger = coveredConceptLedger([candidate, { ...candidate, marks: 0 }]);
+    expect(ledger).toHaveLength(1);
+    expect(ledger[0].conceptIds).toContain("recall:faradays-law");
+    expect(ledger[0].conceptIds.some(id => id.startsWith("task:"))).toBe(true);
+    expect(JSON.stringify(ledger)).not.toContain("PRIVATE-KEY");
+    expect(JSON.stringify(ledger)).not.toContain("unrelated");
+  });
+  it("covers every scored part beyond a single generation batch with resource IDs and fallback concepts", () => {
+    const candidate = Array.from({ length: 50 }, (_, index) => part(String(index + 1), `Original task ${index + 1}. Calculate its own checked quantity.`, index === 49 ? { chart_data: graph } : {}));
+    const ledger = coveredConceptLedger(candidate);
+    expect(ledger).toHaveLength(50);
+    expect(ledger.every(entry => entry.conceptIds.length > 0)).toBe(true);
+    expect(ledger[49].questionNumber).toBe("50");
+    expect(ledger[49].resourceIds[0]).toMatch(/^graph#/);
   });
 });

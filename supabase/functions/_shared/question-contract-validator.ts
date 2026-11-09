@@ -1,6 +1,10 @@
 import {isGenericPlan} from './profile-template.ts';
 import {repeatedConceptDefects} from './paper-repetition.ts';
 import {physicsResourceIssues} from './physics-resource-validation.ts';
+import {physicsFigureIssues} from './physics-diagram-contract.ts';
+import {physicsCalculationIssues} from './physics-calculation-integrity.ts';
+import {physicsCalculationPrivateKey, readPhysicsCalculationKey} from './physics-calculation-integrity.ts';
+import {physicsPaperPlanIssues, type PhysicsPaperPlan} from './physics-paper-plan.ts';
 import {markSchemeConsistencyIssues} from './mark-scheme-consistency.ts';
 import {isEdexcelAlevelBiologyB,pearsonAdditionalAssessedTask} from './edexcel-alevel-biology-b-scope.ts';
 // Shared answerability gate for generated exam questions.
@@ -29,6 +33,8 @@ import { biologyQuestionIssues, statedFoodChain } from './biology-assessment-res
 export const CONTRACT_VERSION = 2;
 
 export type DefectCode =
+  | "invalid_calculation"
+  | "unverified_calculation"
   | "contradictory_mark_scheme"
   | "repeated_concept"
   | "plan_mismatch"
@@ -45,6 +51,8 @@ export type DefectCode =
   | "out_of_level";
 
 export interface QuestionDefect {
+  /** Content demand can be repaired without changing the immutable layout. */
+  repairable?: boolean;
   /** Stable identity of the offending part. */
   partId: string;
   parentId: string | null;
@@ -221,11 +229,13 @@ export function normalizeRepairPart(raw: unknown): NormalizedRepairPart | null {
     return null;
   }
   const options = coerceMcqOptions(part) ?? undefined;
+  const calculation = readPhysicsCalculationKey(part);
+  const answer = calculation.checks !== undefined ? calculation.answer : correctAnswer;
 
   return {
     questionNumber,
     questionText,
-    correctAnswer: options ? canonicalMcqAnswer(correctAnswer, options) : correctAnswer,
+    correctAnswer: String(physicsCalculationPrivateKey(part, options ? canonicalMcqAnswer(answer, options) : answer)),
     options: options?.length ? options : undefined,
   };
 }
@@ -256,6 +266,9 @@ export const referencesResource = (text: string): boolean =>
   /\b(the (table|graph|diagram) (above|below|shown))\b/i.test(text);
 
 export interface ValidateOptions {
+  /** Server-owned new-attempt policy, never inferred from a model's fields. */
+  physicsGeneration?: boolean;
+  physicsPlan?: PhysicsPaperPlan | null;
   /** Only the bounded repetition-repair pass may defer this whole-paper check. */
   checkRepetition?: boolean;
   plan?: PaperPlan | null;
@@ -304,8 +317,14 @@ export function validateQuestionCandidates(
 
     const resources = resolveQuestionResources({ ...part, question_text: displayed });
     resources.issues.forEach(issue => push(issue.code, issue.detail));
-    if (isGenericPlan(options.plan) && /physics/i.test(options.scope?.subject ?? ''))
+    if ((isGenericPlan(options.plan) || options.physicsGeneration) && /physics/i.test(options.scope?.subject ?? ''))
       physicsResourceIssues({...part, question_text:displayed}).forEach(issue => push(issue.code,issue.detail));
+    if (options.physicsGeneration && /\bphysics\b/i.test(options.scope?.subject ?? '')) {
+      physicsFigureIssues({...part, question_text:displayed}, {requireContract:scored})
+        .forEach(issue => push(issue.code as DefectCode, issue.detail));
+      if (scored) physicsCalculationIssues({...part, question_text:displayed})
+        .forEach(issue => push(issue.code as DefectCode, issue.detail));
+    }
     const chains = groupChains.get(groupIdOf(part, index)) ?? [];
     const unambiguousChain = chains.length && chains.every(chain => JSON.stringify(chain).toLowerCase() === JSON.stringify(chains[0]).toLowerCase()) ? chains[0] : undefined;
     biologyQuestionIssues({ ...part, question_text: displayed }, resources.chart ?? part.diagram_config ?? part.diagramConfig, unambiguousChain,
@@ -394,9 +413,11 @@ export function validateQuestionCandidates(
     }
   }
 
-  defects.push(...validateBiologyPlan(parts, options.plan));
-  if (isGenericPlan(options.plan) && options.checkRepetition !== false)
-    defects.push(...repeatedConceptDefects(parts, options.plan));
+  defects.push(...validateBiologyPlan(parts, options.plan, {physicsFigures:options.physicsGeneration}));
+  if (options.physicsGeneration && options.plan)
+    defects.push(...physicsPaperPlanIssues(parts, options.plan, options.physicsPlan, {checkRepetition:false}));
+  if ((isGenericPlan(options.plan) || options.physicsGeneration) && options.checkRepetition !== false)
+    defects.push(...repeatedConceptDefects(parts, options.plan ?? undefined));
 
   const failedPartIds = [...new Set(defects.map((d) => d.partId))].filter((id) => id !== "paper");
   const failedGroupIds = [

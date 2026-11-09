@@ -1,8 +1,8 @@
 import type { NuclearDecayConfig } from '../types';
 
-interface Props { config: NuclearDecayConfig; }
+interface Props { config: NuclearDecayConfig; mode?: 'assessment' | 'solution'; }
 
-export const NuclearDecayRenderer = ({ config }: Props) => {
+export const NuclearDecayRenderer = ({ config, mode = 'solution' }: Props) => {
   const {
     variant, parentSymbol, parentMassNumber, parentAtomicNumber,
     daughterSymbol, daughterMassNumber, daughterAtomicNumber,
@@ -74,7 +74,7 @@ export const NuclearDecayRenderer = ({ config }: Props) => {
     return (
       <g>
         <rect x={x - 48} y={y - 34} width={96} height={68}
-          fill={`${color}15`}
+          fill={color} fillOpacity={0.08}
           stroke={color} strokeWidth={1.5} rx={8} />
         {massNumber !== undefined && (
           <text x={x - 28} y={y - 12} fontSize={12}
@@ -137,11 +137,11 @@ export const NuclearDecayRenderer = ({ config }: Props) => {
         <text x={330} y={176} textAnchor="middle"
           fontSize={9} fill={colors.dim}>Pb</text>
 
-        <text x={420} y={100} fontSize={10}
+        <text x={W - 12} y={100} textAnchor="end" fontSize={10}
           fill={colors.alpha}>α: ~5cm air</text>
-        <text x={420} y={150} fontSize={10}
+        <text x={W - 12} y={150} textAnchor="end" fontSize={10}
           fill={colors.beta}>β: ~3mm Al</text>
-        <text x={420} y={200} fontSize={10}
+        <text x={W - 12} y={200} textAnchor="end" fontSize={10}
           fill={colors.gamma}>γ: cm of Pb</text>
 
         <defs>
@@ -174,7 +174,7 @@ export const NuclearDecayRenderer = ({ config }: Props) => {
           fontSize={11} fill={colors.dim}>neutron</text>
 
         <circle cx={180} cy={H/2} r={40}
-          fill={`${colors.parent}20`}
+          fill={colors.parent} fillOpacity={0.125}
           stroke={colors.parent} strokeWidth={2} />
         <text x={180} y={H/2 + 6} textAnchor="middle"
           fontSize={14} fontWeight={700}
@@ -188,14 +188,14 @@ export const NuclearDecayRenderer = ({ config }: Props) => {
           fill={colors.dim}>→</text>
 
         <circle cx={320} cy={H/2 - 40} r={28}
-          fill={`${colors.daughter}20`}
+          fill={colors.daughter} fillOpacity={0.125}
           stroke={colors.daughter} strokeWidth={2} />
         <text x={320} y={H/2 - 34} textAnchor="middle"
           fontSize={13} fontWeight={700}
           fill={colors.daughter}>Kr</text>
 
         <circle cx={320} cy={H/2 + 40} r={32}
-          fill={`${colors.alpha}20`}
+          fill={colors.alpha} fillOpacity={0.125}
           stroke={colors.alpha} strokeWidth={2} />
         <text x={320} y={H/2 + 46} textAnchor="middle"
           fontSize={13} fontWeight={700}
@@ -208,7 +208,7 @@ export const NuclearDecayRenderer = ({ config }: Props) => {
             stroke={colors.dim} strokeWidth={1.5}
             markerEnd="url(#arrN)" />
         ))}
-        <text x={440} y={H/2} fontSize={10}
+        <text x={W - 12} y={H/2} textAnchor="end" fontSize={10}
           fill={colors.dim}>neutrons</text>
 
         <text x={W/2} y={H - 12} textAnchor="middle"
@@ -227,8 +227,12 @@ export const NuclearDecayRenderer = ({ config }: Props) => {
     );
   }
 
-  const dZ = decay?.dZ ?? (daughterAtomicNumber ?? (parentAtomicNumber ?? 0));
-  const dA = decay?.dA ?? (daughterMassNumber ?? (parentMassNumber ?? 0));
+  // Assessment diagrams display the supplied resource. Deriving the daughter
+  // nucleus here would answer a conservation question before it is attempted.
+  const dZ = mode === 'assessment' ? daughterAtomicNumber
+    : decay?.dZ ?? (daughterAtomicNumber ?? (parentAtomicNumber ?? 0));
+  const dA = mode === 'assessment' ? daughterMassNumber
+    : decay?.dA ?? (daughterMassNumber ?? (parentMassNumber ?? 0));
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%"
@@ -254,8 +258,8 @@ export const NuclearDecayRenderer = ({ config }: Props) => {
       <NuclearSymbol
         x={310} y={H/2}
         symbol={daughterSymbol ?? 'Y'}
-        massNumber={dA || undefined}
-        atomicNumber={dZ || undefined}
+        massNumber={mode === 'assessment' ? dA : dA || undefined}
+        atomicNumber={mode === 'assessment' ? dZ : dZ || undefined}
         color={colors.daughter}
       />
 
@@ -264,21 +268,21 @@ export const NuclearDecayRenderer = ({ config }: Props) => {
           <text x={390} y={H/2 + 8} fontSize={20}
             fill={colors.dim}>+</text>
           <circle cx={450} cy={H/2} r={22}
-            fill={`${decay.particleColor}20`}
+            fill={decay.particleColor} fillOpacity={0.125}
             stroke={decay.particleColor} strokeWidth={2} />
           <text x={450} y={H/2 + 7} textAnchor="middle"
             fontSize={14} fontWeight={700}
             fill={decay.particleColor}>
             {decay.particleLabel}
           </text>
-          <text x={450} y={H/2 + 38} textAnchor="middle"
-            fontSize={9} fill={colors.dim}>
+          <text x={W - 12} y={H/2 + 40} textAnchor="end"
+            fontSize={10} fill={colors.dim}>
             {decay.particleName}
           </text>
         </>
       )}
 
-      {decay && parentMassNumber && (
+      {mode !== 'assessment' && decay && parentMassNumber && (
         <text x={W/2} y={H - 14} textAnchor="middle"
           fontSize={10} fill={colors.dim}>
           Mass number: {parentMassNumber} = {decay.dA} + {decay.particleA} ✓

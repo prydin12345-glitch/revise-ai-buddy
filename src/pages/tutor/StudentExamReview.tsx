@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Loader2, Clock, CheckCircle, XCircle, User, Flag } from "lucide-react";
 import { format } from "date-fns";
 import { MathRenderer } from "@/components/MathRenderer";
-import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
+import { AssessmentPhysicsFigure } from "@/components/physics/AssessmentPhysicsFigure";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { AssessmentBiologyFigure } from '@/components/biology/AssessmentBiologyFigure';
@@ -57,6 +57,7 @@ const StudentExamReview = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [examTitle, setExamTitle] = useState("");
+  const [paperContext, setPaperContext] = useState<unknown>(null);
   const [student, setStudent] = useState<StudentData | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Answer[]>([]);
@@ -69,11 +70,11 @@ const StudentExamReview = () => {
         // Load exam
         const { data: exam } = await supabase
           .from("exams")
-          .select("title")
+          .select("title, generation_context")
           .eq("id", examId)
           .single();
 
-        if (exam) setExamTitle(exam.title);
+        if (exam) { setExamTitle(exam.title); setPaperContext(exam.generation_context); }
 
         // Load student profile
         const { data: profile } = await supabase
@@ -282,17 +283,11 @@ const StudentExamReview = () => {
                     <div className="text-sm"><MathRenderer content={question.questionText} /></div>
                   </div>
 
+                  <AssessmentPhysicsFigure generationContext={paperContext} question={question} isReview isSubmitted />
                   {question.response_definition ? <ResponseReview question={question} answerText={answer?.answerText} solutionsReleased={!!question.response_key} /> : <>
-                  {/* Mechanics figure panel */}
-                  {(() => {
-                    const diagConfig = detectDiagramConfig(question.questionText);
-                    if (!diagConfig) return null;
-                    return <MechanicsFigurePanel config={diagConfig} />;
-                  })()}
-
                   {/* Circuit figure panel */}
                   {(() => {
-                    const circuitConfig = getCircuitConfig(question, (question as any).subject ?? '');
+                    const circuitConfig = getCircuitConfig(question, (question as any).subject ?? '', paperContext);
                     if (!circuitConfig) return null;
                     return <CircuitFigurePanel config={circuitConfig} />;
                   })()}

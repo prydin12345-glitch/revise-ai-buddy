@@ -1,6 +1,11 @@
 import { generateResponseFormats, responseProposalCaller, commitGeneratedResponses } from '../_shared/response-generation.ts';
 import { responseFormatsEnabled } from '../_shared/response-format-policy.ts';
 import { checkBiologyPracticeCourse, biologyPracticeInstructions, assertBiologyPractice, biologyCachedRows, usesBiologyPracticeValidation, biologyPracticeCacheVersion, normalizeBiologyPracticePayload } from '../_shared/biology-practice.ts';
+import { PHYSICS_CACHE_VERSION, usesPhysicsGenerationContract } from '../_shared/physics-generation-policy.ts';
+import { physicsGenerationInstructions, physicsResourceForStorage, physicsPrivateKeyForStorage } from '../_shared/physics-generation-contract.ts';
+import { normalizeGeneratedQuestion } from '../_shared/model-question-normalization.ts';
+import { validateQuestionCandidates } from '../_shared/question-contract-validator.ts';
+import { biologyScopeFromContext } from '../_shared/gcse-biology-scope.ts';
 // FILE: supabase/functions/generate-practice-questions/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -125,6 +130,17 @@ async function generateQuestionsInBackground(
     );
 
     const interactiveResponses = responseFormatsEnabled(generationContext);
+    const physicsGeneration = usesPhysicsGenerationContract(generationContext);
+    const physicsInstructions = physicsGeneration ? physicsGenerationInstructions() : '';
+    const scopePhysics = biologyScopeFromContext(generationContext);
+    const physicsPracticeResult = (rows: any[]) => validateQuestionCandidates(rows, {
+      physicsGeneration: true, scope: scopePhysics,
+    });
+    const assertPhysicsPractice = (rows: any[]) => {
+      if (!physicsGeneration) return;
+      const result = physicsPracticeResult(rows);
+      if (!result.ok) throw new Error(result.defects.map(defect => `${defect.partId}: ${defect.code}: ${defect.detail}`).join('\n'));
+    };
     // Uploaded/institution evidence and builder drafts never enter shared caches.
     const privateEvidence = !!generationContext.profile_template;
     checkBiologyPracticeCourse(generationContext);
@@ -140,7 +156,9 @@ async function generateQuestionsInBackground(
       courseId: resolvedCourseId,
       paperId: (generationContext.paper_id as string | null) ?? null,
       presetVersion: (generationContext.paper_contract as any)?.contractVersion ?? (usesBiologyPracticeValidation(generationContext) ? 1 : null),
-      resourceVersion: biologyPracticeCacheVersion(generationContext),
+      resourceVersion: physicsGeneration
+        ? [biologyPracticeCacheVersion(generationContext), PHYSICS_CACHE_VERSION].filter(Boolean).join(':')
+        : biologyPracticeCacheVersion(generationContext),
       topics: setData.subtopics ?? [],
       difficulty: setData.difficulty_level ?? 'mixed',
       questionFormat: setData.question_format ?? 'written_only',
@@ -204,7 +222,8 @@ async function generateQuestionsInBackground(
         .gt('expires_at', new Date().toISOString())
         .single();
 
-      if (cached && isCacheEntryCompatible(cached as any, cacheParams)) {
+      if (cached && isCacheEntryCompatible(cached as any, cacheParams) &&
+          (!physicsGeneration || physicsPracticeResult(cached.questions as any[]).ok)) {
         assertBiologyPractice(cached.questions as any[], generationContext);
         console.log(`Cache HIT slot ${variationSlot} for key ${cacheKey} — skipping AI call`);
         await supabaseClient.from('question_generation_cache')
@@ -228,6 +247,7 @@ async function generateQuestionsInBackground(
           profile_id: (setData as any).profile_id ?? null,
         }));
 
+        assertPhysicsPractice(questionsToInsert);
         await supabaseClient.from('practice_questions').delete().eq('set_id', setId);
         const {error: cachedInsertError} = await supabaseClient.from('practice_questions').insert(questionsToInsert);
         if (cachedInsertError) throw cachedInsertError;
@@ -2042,6 +2062,9 @@ ${notesSection}`;
       rationale: z.string().optional().nullable(),
       table_data: z.unknown().optional().nullable(),
       chart_data: z.unknown().optional().nullable(),
+      // Transport accepts the structured payload; the shared strict figure
+      // contract validates its supported shapes before this response is used.
+      diagram_config: z.unknown().optional().nullable(),
     }).passthrough();
 
     const GeneratePracticeQuestionsSchema = z.object({
@@ -2145,6 +2168,8 @@ ${notesSection}`;
                   has_math: { type: 'boolean' },
                   equation_complexity: { type: 'string', nullable: true },
                   correct_answer: {},
+                  diagram_config: { type: 'object', nullable: true, description: 'For new Physics, the explicit versioned figure contract or physics_no_figure sentinel; follow the system contract.' },
+                  chart_data: { type: 'object', nullable: true },
                   options: { type: 'array', items: { type: 'string' }, nullable: true },
                   worked_solution: { type: 'string', nullable: true },
                   rationale: { type: 'string', nullable: true },
@@ -2180,7 +2205,7 @@ ${notesSection}`;
       '"the table illustrates", or any phrase referencing a chart unless chart_data is included. ' +
       'The chart renders automatically from chart_data. Write "Using the data, calculate..." instead of ' +
       '"The chart below shows... calculate...". These rules apply to question_text, correct_answer, and rationale.' +
-      nonMathGraphWarning;
+      nonMathGraphWarning + (physicsInstructions ? '\n\n' + physicsInstructions : '');
 
     const strictRetryPrompt = 'Return valid data. Use $...$ for inline math and $$...$$ for block math.';
 
@@ -2197,7 +2222,7 @@ Each object must have:
 - question_text: string
 - question_type: "short_answer" | "long_form" | "mcq" | "extended"
 - marks: number (1-6)
-- correct_answer: string
+- correct_answer: ${physicsGeneration ? 'string for an explanation, or the private JSON numerical answer/check envelope required by the system contract' : 'string'}
 - working_out: string (step by step solution)
 
 For ${difficulty} difficulty:
@@ -2429,6 +2454,12 @@ Return valid JSON via the tool only. No markdown, no code blocks, no preamble.
 
     const validateOrThrow = (payload: unknown) => {
       payload = normalizeBiologyPracticePayload(payload, generationContext);
+      if (physicsGeneration && payload && typeof payload === 'object' && Array.isArray((payload as any).questions)) {
+        payload = { ...payload, questions: (payload as any).questions.map((raw: any) => {
+          const question = normalizeGeneratedQuestion(raw);
+          return { ...question, diagram_config: question.diagram_config ?? question.diagramConfig };
+        }) };
+      }
       // Pre-validation: remap invalid question types the AI sometimes invents
       if (payload && typeof payload === 'object' && 'questions' in payload && Array.isArray((payload as any).questions)) {
         const typeRemap: Record<string, string> = {
@@ -2488,6 +2519,9 @@ Return valid JSON via the tool only. No markdown, no code blocks, no preamble.
         throw new Error('AI returned forbidden characters (markdown fences)');
       }
 
+      // This gate runs inside the existing three-attempt loop. A missing or
+      // invalid required figure/calculation retries the whole task and key.
+      assertPhysicsPractice(normalizedQuestions);
       return { ...parsed.data, questions: normalizedQuestions };
     };
 
@@ -2628,6 +2662,9 @@ Generate questions that are meaningfully different from all of the above.`;
     // Circuit config validation (parity with the exam extractor): repair or
     // drop unrenderable circuits before they reach a student.
     for (const q of questions as any[]) {
+      // The versioned Physics contract already validated exact circuit shapes;
+      // legacy cleanup changes structured junctions and can erase apparatus.
+      if (physicsGeneration) continue;
       const cfg = q.diagramConfig ?? q.diagram_config;
       if (!cfg || (cfg.type && cfg.type !== 'circuit')) continue;
       const result = validateCircuitConfig(cfg);
@@ -2647,6 +2684,7 @@ Generate questions that are meaningfully different from all of the above.`;
     }
 
     for (const q of questions as any[]) {
+      if (physicsGeneration) continue;
       const hasBrokenRef = hasBrokenDiagramReference(q.question_text || '', q.diagramConfig, q.chart_data ?? q.options);
       if (!hasBrokenRef) continue;
 
@@ -2675,7 +2713,7 @@ Generate questions that are meaningfully different from all of the above.`;
     // smooth math curves for Physics/Economics questions. This step enforces
     // the discrete path mode by stripping conflicting data and ensuring
     // expectedPath exists for non-math graph_plotting questions.
-    if (!isMathSubject) {
+    if (!isMathSubject && !physicsGeneration) {
       for (const q of questions as any[]) {
         if (q.question_type !== 'graph_plotting') continue;
         
@@ -2991,6 +3029,9 @@ Generate questions that are meaningfully different from all of the above.`;
       const figByNum = new Map(practiceInsertFigures.map((f: any) => [String(f.figureNumber), f]));
       const beforeGate = questions.length;
       questions = questions.filter((q: any) => {
+        // Question-local versioned resources have already passed their own
+        // contract; they are not references to the optional insert booklet.
+        if (physicsGeneration) return true;
         const text = String(q.question_text || '');
         const refs = [...text.matchAll(/Figure\s+(\d+)/gi)].map((m) => m[1]);
         if (refs.length === 0) {
@@ -3033,6 +3074,29 @@ Generate questions that are meaningfully different from all of the above.`;
     }
 
     const questionsToInsert = questions.map((q: any, idx: number) => {
+      if (physicsGeneration) {
+        // New Physics uses its checked public setup and private envelope. The
+        // legacy graph inference below may fabricate data or replace a key.
+        const storedResource = physicsResourceForStorage(q, q.chart_data ?? q.chartData ?? q.diagram_config ?? q.diagramConfig ?? null);
+        return {
+          set_id: setId,
+          question_number: q.question_number,
+          question_number_int: Number.parseInt(String(q.question_number), 10) || null,
+          question_text: sanitiseFeedback(q.question_text),
+          question_latex: null,
+          question_type: q.question_type,
+          marks: q.marks,
+          subtopic: q.subtopic,
+          difficulty_level: q.difficulty_level,
+          has_math: q.has_math || false,
+          equation_complexity: q.equation_complexity || null,
+          correct_answer: physicsPrivateKeyForStorage(q, storedResource),
+          options: q.options ?? null,
+          rationale: q.rationale ?? null,
+          diagram_config: storedResource,
+          profile_id: (setData as any).profile_id ?? null,
+        };
+      }
       
       const questionTextRaw = q.question_text || '';
       const questionText = questionTextRaw.toLowerCase();
@@ -4773,9 +4837,13 @@ Generate questions that are meaningfully different from all of the above.`;
     // ───────────────────────────────────────────────────────────────────
 
     assertBiologyPractice(questionsToInsert, generationContext);
+    // Validate the actual saved representation after splitting, graph helpers
+    // and leak cleanup, so later rewrites cannot bypass the initial AI gate.
+    assertPhysicsPractice(questionsToInsert);
     if(interactiveResponses) {
       const converted=await generateResponseFormats(questionsToInsert,generationContext,responseProposalCaller(LOVABLE_API_KEY));
       console.log('[response-formats]',converted.report.join('; '));
+      assertPhysicsPractice(converted.rows);
       await commitGeneratedResponses(supabaseClient,'practice',setId,userId,generationContext,converted.rows);
     } else {
 

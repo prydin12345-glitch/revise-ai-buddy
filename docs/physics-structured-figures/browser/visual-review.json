@@ -1,0 +1,49 @@
+{
+  "verificationDate": "2026-11-09",
+  "status": "REVIEWED_WITH_LIMITATIONS",
+  "browserResult": "8 viewport/theme cases; 80 saved figure renders; 58 scenario groups; zero browser errors or failed/external requests.",
+  "sourceHashResult": "3342 source/config/dependency files; 2654 bundled input paths; 766 production Tailwind-scanned TS/TSX paths.",
+  "visuallyInspectedBrowserFiles": [
+    "laptop-light-slope.png",
+    "laptop-light-pulley.png",
+    "laptop-light-projectile.png",
+    "laptop-light-force.png",
+    "laptop-light-beam.png",
+    "laptop-light-ray.png",
+    "laptop-light-nuclear.png",
+    "laptop-light-collision.png",
+    "laptop-dark-slope.png",
+    "ipad-dark-slope.png",
+    "phone-dark-projectile.png",
+    "phone-dark-circuit.png",
+    "narrow-phone-light-nuclear.png",
+    "narrow-phone-light-wave.png",
+    "narrow-phone-light-ray.png",
+    "narrow-phone-dark-slope.png"
+  ],
+  "findings": [
+    "Nuclear fills now use supported SVG opacity and remain pale; parent isotope numbers and complete particle caption are visible, with daughter shown as an unknown.",
+    "Wave and ray axis captions remain inside their SVG viewports. Actual browser bounds checks cover every tested viewport/theme.",
+    "Saved setup geometry and symbolic unknowns remain consistent with captured SVG labels. Structured answer fields remain separate and blank until a synthetic draft is entered.",
+    "Light and dark card styling is coherent; theme-dependent SVG labels have a minimum measured contrast of 7.34:1 on white. This measure excludes fixed palette colors."
+  ],
+  "remainingObservations": [
+    "At narrow 320 px width, SVG labels scale down with the figure and are compact. Viewport fitting does not certify optimal readability, complete accessibility or physical mobile behavior.",
+    "The circuit battery plus sign crowds the 12 V label slightly; the value and topology remain readable.",
+    "PDF pagination can place a stem and its figure on adjacent pages. Figure-specific review rasters select the actual Figure n caption page."
+  ],
+  "limitations": [
+    "Actual components and parser are composed in an offline fixture; full signed-in navigation, live generation and deployment are not exercised.",
+    "These are ten representative saved types plus boundary cases; repository unit tests cover the wider supported type/variant matrix.",
+    "Chromium viewport emulation does not establish physical iOS/iPadOS behavior.",
+    "Compact SVGs scale labels on narrow viewports; this fixture does not certify every label or assistive-technology interaction.",
+    "PDF figures are rasterized actual SVGs; final PDF glyphs and image pages require the separate PDF verification and visual review."
+  ],
+  "finalSourceRefresh": {
+    "reason": "Final numeric gate adjustment avoids treating qualitative evaluate-method questions and unit-expression MCQs as arithmetic checks.",
+    "bundleSha256": "4705b1cb4c2837219b669ebde411b3baedc1018bc332372a8a1b9dff1b7c0522",
+    "sourceManifestSha256": "2eddb4de10aa1e6f993f7148e4e921427244a6674fa3c6248f8a234d34e20aab",
+    "reviewImagesCompared": 36,
+    "reviewImagesChanged": []
+  }
+}

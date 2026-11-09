@@ -1,8 +1,8 @@
 import type { RayDiagramConfig } from '../types';
 
-interface Props { config: RayDiagramConfig; }
+interface Props { config: RayDiagramConfig; mode?: 'assessment' | 'solution'; }
 
-export const RayDiagramRenderer = ({ config }: Props) => {
+export const RayDiagramRenderer = ({ config, mode = 'solution' }: Props) => {
   const {
     variant, objectPosition, showConstruction,
     showImage, showNormals, showAngles,
@@ -102,6 +102,7 @@ export const RayDiagramRenderer = ({ config }: Props) => {
           stroke={colors.object} strokeWidth={2.5} markerEnd="url(#arrowBlue)" />
         <text x={objMX} y={axisY-68} textAnchor="middle"
           fontSize={11} fontWeight={600} fill={colors.object}>Object</text>
+        {(mode !== 'assessment' || showConstruction) && <>
         <line x1={objMX} y1={axisY-60} x2={mirrorX} y2={axisY-60}
           stroke={colors.ray1} strokeWidth={1.5}
           markerEnd="url(#arrowOrange)" />
@@ -114,12 +115,15 @@ export const RayDiagramRenderer = ({ config }: Props) => {
         <line x1={mirrorX} y1={axisY} x2={imgMX} y2={axisY-60}
           stroke={colors.ray2} strokeWidth={1.5} strokeDasharray="4 3"
           markerEnd="url(#arrowGreen)" />
+        </>}
+        {(mode !== 'assessment' || showImage) && <>
         <line x1={imgMX} y1={axisY} x2={imgMX} y2={axisY-60}
           stroke={colors.image} strokeWidth={2} strokeDasharray="6 3" />
         <text x={imgMX} y={axisY-68} textAnchor="middle"
           fontSize={11} fontWeight={600} fill={colors.image}>Image</text>
         <text x={imgMX} y={axisY-80} textAnchor="middle"
           fontSize={9} fill={colors.image}>(virtual)</text>
+        </>}
         <line x1={20} y1={axisY} x2={mirrorX-5} y2={axisY}
           stroke={colors.axis} strokeWidth={1} strokeDasharray="4 3" />
         <defs>
@@ -169,6 +173,7 @@ export const RayDiagramRenderer = ({ config }: Props) => {
           <line x1={entryX} y1={blockTop+20} x2={entryX} y2={blockTop+90}
             stroke={colors.dim} strokeWidth={1} strokeDasharray="4 3" />
         )}
+        {(mode !== 'assessment' || showConstruction) && <>
         <line x1={entryX} y1={entryY} x2={exitX} y2={exitY}
           stroke={colors.ray1} strokeWidth={2} />
         <line x1={exitX} y1={exitY} x2={refractedEndX} y2={refractedEndY}
@@ -176,6 +181,7 @@ export const RayDiagramRenderer = ({ config }: Props) => {
           markerEnd="url(#arrowR1)" />
         <text x={refractedEndX-10} y={refractedEndY+14}
           fontSize={10} fill={colors.ray1}>Emergent ray</text>
+        </>}
         {showAngles && (
           <>
             <text x={entryX+14} y={entryY-8} fontSize={10}
@@ -210,7 +216,7 @@ export const RayDiagramRenderer = ({ config }: Props) => {
           fill={colors.dim}>Cladding</text>
         <text x={44} y={axisY-28} fontSize={10}
           fill={colors.dim}>Core</text>
-        {[0,1,2,3].map(i => {
+        {(mode !== 'assessment' || showConstruction) && [0,1,2,3].map(i => {
           const x1 = 60 + i * 100;
           const y1 = i % 2 === 0 ? axisY - 20 : axisY + 20;
           const x2 = x1 + 100;
@@ -220,6 +226,7 @@ export const RayDiagramRenderer = ({ config }: Props) => {
               stroke="hsl(25 95% 53%)" strokeWidth={2} />
           );
         })}
+        {mode !== 'assessment' && <>
         <text x={W/2} y={axisY-50} textAnchor="middle"
           fontSize={11} fill={colors.dim}>
           Total Internal Reflection
@@ -228,6 +235,7 @@ export const RayDiagramRenderer = ({ config }: Props) => {
           fontSize={10} fill={colors.dim}>
           Angle of incidence &gt; critical angle
         </text>
+        </>}
       </svg>
     );
   }
@@ -246,7 +254,7 @@ export const RayDiagramRenderer = ({ config }: Props) => {
           stroke="hsl(var(--foreground))" strokeWidth={3} />
         <text x={40} y={axisY-8} fontSize={10}
           fill="hsl(var(--foreground))">White light</text>
-        {[
+        {(mode !== 'assessment' || showConstruction) && [
           { color: '#FF0000', label: 'Red', dy: 0 },
           { color: '#FF7700', label: 'Orange', dy: 8 },
           { color: '#FFFF00', label: 'Yellow', dy: 16 },
@@ -294,7 +302,7 @@ export const RayDiagramRenderer = ({ config }: Props) => {
 
       <line x1={20} y1={axisY} x2={W-20} y2={axisY}
         stroke={colors.axis} strokeWidth={1} strokeDasharray="4 3" />
-      <text x={W-18} y={axisY+14} fontSize={10}
+      <text x={W-18} y={axisY+14} textAnchor="end" fontSize={10}
         fill={colors.dim}>Principal axis</text>
 
       {isConverging ? (

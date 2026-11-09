@@ -83,7 +83,8 @@ import {
   type DrawingPath,
   type AngleMeasurement,
 } from "@/components/graph";
-import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
+import { AssessmentPhysicsFigure } from "@/components/physics/AssessmentPhysicsFigure";
+import { usesSavedPhysicsFigure } from "@/lib/physics-assessment-figure";
 import { getChartData } from "@/utils/chartData";
 import { MultiDiagramOptionPanel } from "@/components/shared/MultiDiagramOptionPanel";
 import { FigureChartTabs, hasFigureAndChart } from "@/components/shared/FigureChartTabs";
@@ -92,7 +93,6 @@ import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { AssessmentBiologyFigure } from '@/components/biology/AssessmentBiologyFigure';
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
 import { MathsFigurePanel } from "@/components/maths";
-import { PhysicsFigurePanel } from "@/components/physics";
 import { DrawDiagramQuestion, detectDrawQuestion, DRAWING_PREFIX, isDrawingAnswer } from "@/components/drawing/DrawDiagramQuestion";
 import { isPhysicsDrawOverride } from "@/components/drawing/physics-draw-override";
 import type { DrawnElement } from "@/components/drawing/DrawingCanvas";
@@ -1716,7 +1716,7 @@ const ExamInProgress = () => {
 
 
                   <QuizQuestionErrorBoundary questionId={question.id}>
-                  {question.response_definition ? <ResponseEditor question={question} drafts={structuredDrafts} disabled={isReadOnly}/> : <>
+                  {question.response_definition ? <ResponseEditor question={question} drafts={structuredDrafts} disabled={isReadOnly} setupFigure={<AssessmentPhysicsFigure generationContext={paperContext} question={question} subject={examSubject ?? undefined} isExam />}/> : <>
                   {/* Render question text - handle tick/X tables, tables, fill-in-blanks, or standard */}
                   {isTickXTable(ensureString(question.question_text)) ? (
                     <>
@@ -1813,15 +1813,11 @@ const ExamInProgress = () => {
                     )}
 
                   {/* Mechanics diagram panel */}
-                  {(() => {
-                    const diagConfig = detectDiagramConfig(question.question_text);
-                    if (!diagConfig) return null;
-                    return <MechanicsFigurePanel config={diagConfig} isExam={true} />;
-                  })()}
+                  <AssessmentPhysicsFigure generationContext={paperContext} question={question} subject={examSubject ?? undefined} isExam />
 
                   {/* Circuit diagram panel */}
                   {(() => {
-                    const circuitConfig = getCircuitConfig(question, (question as any).subject ?? examSubject ?? '');
+                    const circuitConfig = getCircuitConfig(question, (question as any).subject ?? examSubject ?? '', paperContext);
                     if (!circuitConfig) return null;
                     return <CircuitFigurePanel config={circuitConfig} />;
                   })()}
@@ -1845,15 +1841,6 @@ const ExamInProgress = () => {
                     questionText={question.question_text ?? ''}
                     subject={(question as any).subject ?? ''}
                     diagramConfig={null}
-                    isSubmitted={false}
-                    isReview={false}
-                    isExam={true}
-                  />
-
-                  <PhysicsFigurePanel
-                    questionText={question.question_text ?? ''}
-                    subject={(question as any).subject ?? ''}
-                    diagramConfig={(question as any).diagram_config ?? null}
                     isSubmitted={false}
                     isReview={false}
                     isExam={true}
@@ -1945,7 +1932,7 @@ const ExamInProgress = () => {
                   })()}
 
 
-                  {question.figure_urls && question.figure_urls.length > 0 && (
+                  {!usesSavedPhysicsFigure(question, paperContext) && question.figure_urls && question.figure_urls.length > 0 && (
                     <div className="grid grid-cols-2 gap-4 mb-6">
                       {question.figure_urls.map((url, idx) => (
                         <img key={idx} src={url} alt={`Figure ${idx + 1}`} className="rounded-lg border w-full" />
