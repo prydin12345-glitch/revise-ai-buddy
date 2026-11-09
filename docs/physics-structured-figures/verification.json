@@ -6,16 +6,16 @@
   "command": "npm run check",
   "exitCode": 0,
   "testFiles": 201,
-  "tests": 3274,
+  "tests": 3275,
   "checks": [
     "typecheck",
     "lint:critical",
     "test",
     "39 Edge Function identifier/bundle checks",
-    "production build (16.73 seconds)",
+    "production build (17.02 seconds)",
     "git diff --check"
   ],
-  "logSha256": "c26a8b9eda5c8e85468db45637e9c88138f25396f05ef59651e17d115b7effb4",
+  "logSha256": "e93dc7c96fefa180eedfc28bfc11867447654bddbb6e7d2b48b2fffa7bcd489a",
   "baseline": {
     "tests": 3069,
     "testFiles": 190,

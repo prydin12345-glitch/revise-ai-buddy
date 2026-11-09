@@ -3251,9 +3251,9 @@ async function enforceAnswerability(
   // unresolved known repetitions remain blocking at the final/publication gate.
   const reduceRepetition = async (current: any[]): Promise<any[]> => {
     let rows = current;
-    if (!plan || !isGenericPlan(plan)) return rows;
+    if ((!plan || !isGenericPlan(plan)) && !physicsGeneration) return rows;
     for (let call = 0; call < MAX_REPETITION_REPAIRS; call++) {
-      const repeats = repeatedConceptDefects(rows, plan);
+      const repeats = repeatedConceptDefects(rows, plan ?? undefined);
       if (!repeats.length || aiBudget.exhausted()) break;
       console.warn(`[repetition] ${repeats.map(r => r.detail).join(' | ')}`);
       const target = rows.find((r: any) => String(r.id ?? r.question_number) === repeats[0].partId);
@@ -3278,7 +3278,7 @@ async function enforceAnswerability(
       if (!outcome.ok) { console.warn(`[repetition] repair rejected (${outcome.phase}): ${describeRepairDiagnostics(outcome.diagnostics)}`); break; }
       const proposed = rows.map((r: any) => ({ ...r, ...(outcome.replacements[String(r.question_number)] ?? {}) }));
       const stillOk = validateStructural(proposed).ok;
-      const fewer = repeatedConceptDefects(proposed, plan).length < repeats.length;
+      const fewer = repeatedConceptDefects(proposed, plan ?? undefined).length < repeats.length;
       if (!stillOk || !fewer) { console.warn('[repetition] proposed fix not used (would break the paper or did not remove the repeat)'); break; }
       await saveQuestionRepairs(supabase, draftId, group, outcome.replacements);
       rows = await load();

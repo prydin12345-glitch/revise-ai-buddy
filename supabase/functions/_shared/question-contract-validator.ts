@@ -416,8 +416,8 @@ export function validateQuestionCandidates(
   defects.push(...validateBiologyPlan(parts, options.plan, {physicsFigures:options.physicsGeneration}));
   if (options.physicsGeneration && options.plan)
     defects.push(...physicsPaperPlanIssues(parts, options.plan, options.physicsPlan, {checkRepetition:false}));
-  if (isGenericPlan(options.plan) && options.checkRepetition !== false)
-    defects.push(...repeatedConceptDefects(parts, options.plan));
+  if ((isGenericPlan(options.plan) || options.physicsGeneration) && options.checkRepetition !== false)
+    defects.push(...repeatedConceptDefects(parts, options.plan ?? undefined));
 
   const failedPartIds = [...new Set(defects.map((d) => d.partId))].filter((id) => id !== "paper");
   const failedGroupIds = [
