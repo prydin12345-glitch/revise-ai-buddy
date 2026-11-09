@@ -1,3 +1,4 @@
+import { normalisePlainNotation } from '../../supabase/functions/_shared/plain-notation';
 import { InlineMath, BlockMath } from 'react-katex';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';

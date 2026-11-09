@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { normalisePlainNotation } from '../../../supabase/functions/_shared/plain-notation';
 import { formatHeaderUnit } from '@/lib/question-resources';
 
 export interface DataTableData {
