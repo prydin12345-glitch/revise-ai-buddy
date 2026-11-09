@@ -1,9 +1,6 @@
 import type { ProfileEvidence } from "./profile-evidence.ts";
 import type { TemplateIdentity } from "./profile-template.ts";
-import {
-  isSpecificationVersionHint,
-  specificationVersionsEquivalent,
-} from "./profile-version-context.ts";
+import { isSpecificationVersionHint } from "./profile-version-context.ts";
 
 /** Reviewed instructions supplement an identified assessment, never approve a preset. */
 export interface ReviewedAssessmentRules {
@@ -27,7 +24,7 @@ const calculator =
  */
 const physicsPaper1: ReviewedAssessmentRules = {
   id: "aqa-7408-01-reviewed-cover-rules-v1",
-  version: 1,
+  version: 2,
   documents: [
     {
       id: sourceId,
@@ -101,7 +98,7 @@ const assessmentAlias = (value: string) =>
 const paper2SourceId = "aqa-7408-02-june2025-cover-reviewed";
 const physicsPaper2: ReviewedAssessmentRules = {
   id: "aqa-7408-02-reviewed-cover-rules-v1",
-  version: 1,
+  version: 2,
   documents: [
     {
       id: paper2SourceId,
@@ -135,7 +132,27 @@ const physicsPaper2: ReviewedAssessmentRules = {
  * issue 1.4 (July 2026) keeps the same assessment structure for Papers 1 and 2.
  * Paper-cover rules are taken from the reviewed papers, never from the PDF.
  */
-const REVIEWED_SPECIFICATION_ISSUES = ["v1.3-july-2017", "v1.4-july-2026"];
+function reviewedSpecificationIssue(value: string): string | null {
+  // A cover may include a day ("Version 1.3 1 June 2017") while catalogue
+  // labels use hyphens. Match only the two reviewed issues and their actual
+  // publication dates. A different month/year or issue family is not an alias.
+  const match = value
+    .normalize("NFKC")
+    .trim()
+    .toLowerCase()
+    .replace(/[\u2010-\u2015_-]/g, " ")
+    .replace(/\s+/g, " ")
+    .match(
+      /^(?:(?:version|v)\s*[:=]?\s*)?(1\.[34])(?:\s+(?:1\s+)?(june|july)\s+(2017|2026))?$/,
+    );
+  if (!match) return null;
+  const [, issue, month, year] = match;
+  if (issue === "1.3" && (!month || (month === "june" && year === "2017")))
+    return "Version 1.3 June 2017";
+  if (issue === "1.4" && (!month || (month === "july" && year === "2026")))
+    return "Version 1.4 July 2026";
+  return null;
+}
 
 export function resolveReviewedAssessmentRules(
   identity: TemplateIdentity,
@@ -148,16 +165,23 @@ export function resolveReviewedAssessmentRules(
     !["7408", "aqa_alevel_physics_7408"].includes(normalise(identity.course)) ||
     (identity.tier !== null && identity.tier !== "not_tiered") ||
     (!isSpecificationVersionHint(identity.specificationVersion) &&
-      !REVIEWED_SPECIFICATION_ISSUES.some((issue) =>
-        specificationVersionsEquivalent(identity.specificationVersion, issue),
-      ))
+      !reviewedSpecificationIssue(identity.specificationVersion))
   )
     return null;
 
   const component = assessmentAlias(identity.component);
-  if (["paper 1", "7408/1"].includes(component))
-    return structuredClone(physicsPaper1);
-  if (["paper 2", "7408/2"].includes(component))
-    return structuredClone(physicsPaper2);
-  return null;
+  const rules = ["paper 1", "7408/1"].includes(component)
+    ? structuredClone(physicsPaper1)
+    : ["paper 2", "7408/2"].includes(component)
+      ? structuredClone(physicsPaper2)
+      : null;
+  if (!rules) return null;
+  const issue = reviewedSpecificationIssue(identity.specificationVersion);
+  const componentCode = rules.id.includes("-01-") ? "7408/1" : "7408/2";
+  const applicability = issue
+    ? ` for ${issue}`
+    : " for reviewed specification issues 1.3 (June 2017) and 1.4 (July 2026)";
+  for (const document of rules.documents)
+    document.applicableCohort = `${componentCode}; reviewed June 2024/2025 cover instructions${applicability}; compare future covers`;
+  return rules;
 }

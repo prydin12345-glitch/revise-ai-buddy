@@ -986,6 +986,54 @@ it("requires the Physics Paper 3 option before a source request can start", () =
   expect(api).not.toHaveBeenCalled();
 });
 
+it.each([
+  { override: null, intent: "source", expected: "v1.4-july-2026" },
+  { override: "Version 1.4 July 2026", intent: "explicit", expected: "Version 1.4 July 2026" },
+  { override: "", intent: "source", expected: "v1.4-july-2026" },
+  { override: "First teaching 2015, first exams 2017", intent: "source", expected: "First teaching 2015, first exams 2017" },
+])("distinguishes the catalogue edition from a deliberate upload override ($intent / $override)", async ({ override, intent, expected }) => {
+  pending.read.mockResolvedValue(null);
+  const calls: Record<string, any>[] = [];
+  const api: BuilderApi = async (input) => {
+    calls.push(input);
+    return {
+      job: {
+        jobId: String(input.requestId),
+        stage: "ready",
+        mode: "full_mock",
+        identity: {
+          ...identitySchema.parse(input.identity),
+          specificationVersion: "Version 1.3 1 June 2017",
+        },
+        progress: { completed: 1, total: 1 },
+        message: "Ready to confirm.",
+      },
+    };
+  };
+  render(<ExamProfileBuilder {...base} subjectName="Physics" examBoard="AQA" api={api} />);
+  fireEvent.change(screen.getByLabelText("Paper"), { target: { value: "paper_1" } });
+  const version = screen.getByLabelText("Specification version / teaching dates (optional)");
+  expect(version).toHaveValue("");
+  if (override !== null) {
+    // Clearing a former explicit override restores detection from the source.
+    fireEvent.change(version, { target: { value: "Version 1.4 July 2026" } });
+    fireEvent.change(version, { target: { value: override } });
+  }
+  fireEvent.change(screen.getByLabelText("Assessment mode"), { target: { value: "full_mock" } });
+  fireEvent.click(screen.getByRole("button", { name: "Upload syllabus" }));
+  const bytes = new TextEncoder().encode("A-level Physics 7408 specification\nVersion 1.3 1 June 2017\nPaper 1 7408/1");
+  fireEvent.change(screen.getByLabelText("Syllabus or assessment brief"), {
+    target: { files: [{ name: "physics-2017.txt", type: "text/plain", size: bytes.length, arrayBuffer: async () => bytes.buffer }] },
+  });
+  await screen.findByText("physics-2017.txt");
+  await waitFor(() => expect(screen.getByRole("button", { name: "Read syllabus" })).toBeEnabled());
+  fireEvent.click(screen.getByRole("button", { name: "Read syllabus" }));
+  await screen.findByRole("button", { name: "Yes, build it" });
+  expect(calls).toHaveLength(1);
+  expect(calls[0]).toMatchObject({ action: "prepare_source", specificationVersionIntent: intent, identity: { specificationVersion: expected } });
+  expect(screen.getByText("Syllabus edition: Version 1.3 1 June 2017")).toBeVisible();
+});
+
 it("keeps the upload, date context and mode while a targeted source choice corrects the paper before an explicit retry", async () => {
   pending.read.mockResolvedValue(null);
   const dates = "First teaching 2015, first exams 2017";

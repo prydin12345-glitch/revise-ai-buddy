@@ -1,0 +1,80 @@
+{
+  "verifiedOn": "2026-11-09",
+  "baseline": {
+    "baselineCommit": "71e2ee47ba0b8896c3abe6c9380a8346442489b8",
+    "node": "v24.19.0",
+    "command": "npm run check",
+    "workingDirectory": "/tmp/examly-source-edition-baseline",
+    "exitCode": 0,
+    "testFiles": 187,
+    "tests": 3018,
+    "checks": [
+      "typecheck",
+      "lint:critical",
+      "test",
+      "check:edge (39 functions)",
+      "build"
+    ],
+    "logSha256": "3f0c95536580a5eca11360349ce80724b1740e6f7f8f0e726d39d49a788c8a2d",
+    "liveWrites": false,
+    "aiCalls": 0,
+    "deploymentPerformed": false
+  },
+  "node": "v24.19.0",
+  "command": "npm run check",
+  "exitCode": 0,
+  "testFiles": 189,
+  "tests": 3065,
+  "checks": [
+    "typecheck",
+    "lint:critical",
+    "test",
+    "check:edge (39 functions)",
+    "build (18.07 seconds)",
+    "git diff --check"
+  ],
+  "logSha256": "e81ed324fcab42d2c73d7d8e8a18e7048c7c4fb38fbf061d730928854aa4db24",
+  "browser": {
+    "status": "PASS",
+    "cases": 8,
+    "scenarioChecks": 88,
+    "browserVersion": "151.0.7922.173",
+    "sourceFilesVerified": 825,
+    "sourceManifestSha256": "f4c16be837c0b343b11db75a97630e609c0484d684cc4980b5f85c94bc5e92b5",
+    "sourceHashesVerifiedBeforeAndAfter": true,
+    "errors": [],
+    "consoleErrors": [],
+    "failedRequests": [],
+    "blockedRequests": []
+  },
+  "audits": {
+    "biology": {
+      "command": "node scripts/audit-biology.mjs --json",
+      "status": "PASS",
+      "unchangedFromBaseline": true,
+      "sha256": "c7c61ef1b19d2851e05301b96d79050677d7c3c476567e6eb5ae54a93634a952"
+    },
+    "coverage": {
+      "command": "node scripts/audit-profile-coverage.mjs --json",
+      "status": "PASS",
+      "unchangedFromBaseline": true,
+      "sha256": "cde5f8f5df16c82be612f0081c973e7daf01b0831c211f5e6dbea0ca99600f8c"
+    }
+  },
+  "unchanged": [
+    "package-lock.json",
+    "supabase/migrations",
+    "approval records",
+    "existing profiles and attempts"
+  ],
+  "paidAiCalls": 0,
+  "liveDataWrites": false,
+  "realLogins": false,
+  "deploymentPerformed": false,
+  "migrationPerformed": false,
+  "publicationPerformed": false,
+  "limitations": [
+    "Original failed private PDF and provider replies unavailable; original fixtures reproduce reported cover/layout",
+    "Browser uses Chromium viewport emulation; physical iOS/iPadOS and real AI extraction quality unverified"
+  ]
+}

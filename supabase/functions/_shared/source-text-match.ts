@@ -20,14 +20,19 @@ export function foldSourceText(s: string): string {
     .trim();
 }
 
-/** Same text with letter-letter hyphens removed ("elec-tricity" == "electricity"). */
-function dehyphenate(folded: string) {
-  return folded.replace(/([a-z])-([a-z])/g, "$1$2");
+/** Only a physical line break can establish that a hyphen is a PDF word wrap. */
+function joinWrappedWords(text: string) {
+  return text.replace(
+    /(\p{L})[-\u2010-\u2015\u2212\ufe58\ufe63\uff0d][\t ]*\r?\n[\t ]*(\p{L})/gu,
+    "$1$2",
+  );
 }
 
 /** True when `needle` appears literally in `haystack`, up to typography only. */
 export function sourceTextIncludes(haystack: string, needle: string): boolean {
-  const h = foldSourceText(haystack),
-    n = foldSourceText(needle);
-  return h.includes(n) || dehyphenate(h).includes(dehyphenate(n));
+  const passages = [haystack, joinWrappedWords(haystack)].map(foldSourceText);
+  const quotes = [needle, joinWrappedWords(needle)].map(foldSourceText);
+  // Keep both forms so a copied quote may retain a genuine line-wrap hyphen.
+  // Never remove an ordinary lexical hyphen: "re-sign" and "resign" differ.
+  return passages.some((passage) => quotes.some((quote) => passage.includes(quote)));
 }

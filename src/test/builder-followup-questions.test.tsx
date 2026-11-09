@@ -20,6 +20,19 @@ const summary = [
   { label: "Level", value: "A-level" },
 ];
 
+it("lets phones enter ranges and lists and avoids adding a suggested page twice", () => {
+  const onAnswer = vi.fn();
+  render(<BuilderFollowupQuestions jobId="page-build" summary={summary} onChange={vi.fn()} onAnswer={onAnswer} items={[{ field: "source_pages", question: "Which PDF pages show the assessment?", choices: [{ value: "1:8", label: "Page 8" }, { value: "1:9", label: "Page 9" }] }]} />);
+  const input = screen.getByLabelText("Which PDF pages show the assessment?");
+  expect(input).toHaveAttribute("inputmode", "text");
+  fireEvent.click(screen.getByRole("button", { name: "Page 8" }));
+  fireEvent.click(screen.getByRole("button", { name: "Page 8" }));
+  expect(input).toHaveValue("8");
+  fireEvent.change(input, { target: { value: "8-10, 12" } });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  expect(onAnswer).toHaveBeenCalledExactlyOnceWith({ source_pages: "8-10, 12" });
+});
+
 it("asks only the one missing detail and keeps known choices read-only", () => {
   const onAnswer = vi.fn(),
     onChange = vi.fn();

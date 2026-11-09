@@ -404,6 +404,70 @@ describe("same-build source questions", () => {
     expect(r.model).toHaveBeenCalledOnce();
     expect(r.parsePdf).toHaveBeenCalledTimes(2);
   });
+  it("reports selected pages excluded from a follow-up instead of silently dropping them", async () => {
+    const source = pages(block(1));
+    source[90] = `A-level Physics (7408)\n${block(2)}\nPaper 2 only`;
+    const r = setup(source),
+      input = { ...request(identity(), source), mode: "full_mock" as const };
+    const original = r.model.getMockImplementation()!;
+    r.model.mockImplementation(async (system, payload) => {
+      const result = await original(system, payload);
+      if (payload.documents && r.model.mock.calls.length === 1)
+        (result.value as any).evidence.facts.marks = null;
+      return result;
+    });
+    await prepareSourceJob(owner, input, r.deps);
+    const question = await advanceSourceJob(owner, input.requestId, r.deps);
+    const continued = await answerSourceJob(
+      owner,
+      input.requestId,
+      answer(question, "90–91", "source_pages"),
+      r.deps,
+    );
+    expect(continued.stage).toBe("identifying");
+    expect(continued.pageReview).toEqual([
+      { document: 1, requestedPages: [90, 91], readPages: [90], skippedPages: [91] },
+    ]);
+    expect(r.model).toHaveBeenCalledOnce();
+    expect(r.parsePdf).toHaveBeenCalledOnce();
+    const ready = await advanceSourceJob(owner, input.requestId, r.deps);
+    expect(ready.stage).toBe("ready");
+    expect(ready.pageReview).toEqual(continued.pageReview);
+    expect(JSON.stringify(r.model.mock.calls[1][1])).not.toContain("Paper 2 only");
+    expect((await getSourceJob(owner, input.requestId, r.deps)).pageReview).toEqual(
+      continued.pageReview,
+    );
+  });
+
+  it("does not claim an unmatched selected page was read or spend a call on it", async () => {
+    const source = pages(block(1));
+    source[90] = `A-level Physics (7408)\n${block(2)}\nPaper 2 only`;
+    const r = setup(source),
+      input = { ...request(identity(), source), mode: "full_mock" as const };
+    const original = r.model.getMockImplementation()!;
+    r.model.mockImplementation(async (system, payload) => {
+      const result = await original(system, payload);
+      if (payload.documents) (result.value as any).evidence.facts.marks = null;
+      return result;
+    });
+    await prepareSourceJob(owner, input, r.deps);
+    const question = await advanceSourceJob(owner, input.requestId, r.deps);
+    const continued = await answerSourceJob(
+      owner,
+      input.requestId,
+      answer(question, "91", "source_pages"),
+      r.deps,
+    );
+    expect(continued.stage).toBe("needs_details");
+    expect(continued.missingItems?.[0].field).toBe("source");
+    expect(continued.pageReview).toEqual([
+      { document: 1, requestedPages: [91], readPages: [], skippedPages: [91] },
+    ]);
+    expect(r.model).toHaveBeenCalledOnce();
+    expect(r.parsePdf).toHaveBeenCalledOnce();
+    expect(r.memory.reservations).toBe(1);
+  });
+
   it("asks for a focused new source without another paid call when reference capacity is exhausted", async () => {
     const r = setup(pages(block(1))),
       input = { ...request(identity()), mode: "full_mock" as const };

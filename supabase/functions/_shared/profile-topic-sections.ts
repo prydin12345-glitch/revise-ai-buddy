@@ -112,6 +112,39 @@ export interface SectionExpansion {
   topics: Heading[];
 }
 
+/** Scope the full document before applying server-validated physical page intent. */
+function scopedTopicPages(
+  pages: Array<{ page: number; text: string }>,
+  qualification: string | undefined,
+  course: string | undefined,
+  selectedPages?: number[],
+): Array<{ page: number; text: string }> {
+  if (selectedPages && !selectedPages.length) return [];
+  const ordered = [...pages].sort((a, b) => a.page - b.page);
+  let scoped = scopeDocumentQualification(
+    ordered.map((page) => page.text),
+    qualification,
+    course,
+  );
+  // A follow-up for a missing format/rule must not discard headings already
+  // safely scoped elsewhere in the same specification. Page intent is needed
+  // only to disambiguate a combined document; it never creates qualification
+  // authority for an otherwise unlabelled heading.
+  if (scoped.ambiguous && selectedPages?.length)
+    scoped = scopeDocumentQualification(
+      ordered.map((page) => page.text),
+      qualification,
+      course,
+      selectedPages.map((physical) => ordered.findIndex((page) => page.page === physical) + 1),
+    );
+  return scoped.ambiguous
+    ? []
+    : scoped.fragments.map((fragment) => ({
+        page: ordered[fragment.page - 1].page,
+        text: fragment.text,
+      }));
+}
+
 /** Resolve every ref under one numbering prefix, or return null (ambiguous/missing). */
 export function resolveSectionTopic(
   label: string,
@@ -157,6 +190,7 @@ export function expandSectionTopics(
     id: string;
     pages: Array<{ page: number; text: string }>;
   }>,
+  sourcePages?: Record<string, number[]>,
 ): ProfileEvidence {
   const e = structuredClone(evidence);
   for (const label of [...e.facts.topics]) {
@@ -175,17 +209,12 @@ export function expandSectionTopics(
     // Assessment pointers must resolve within the selected qualification/course,
     // not an AS-only section elsewhere in a combined specification. Scoping
     // preserves literal spans; map back to original physical page numbers.
-    const ordered = [...pages].sort((a, b) => a.page - b.page);
-    const scoped = scopeDocumentQualification(
-      ordered.map((page) => page.text),
+    const scopedPages = scopedTopicPages(
+      pages,
       e.identity.qualification,
       e.identity.course,
+      sourcePages?.[doc.id],
     );
-    if (scoped.ambiguous) continue;
-    const scopedPages = scoped.fragments.map((fragment) => ({
-      page: ordered[fragment.page - 1].page,
-      text: fragment.text,
-    }));
     const expansion = resolveSectionTopic(label, scopedPages);
     if (!expansion) continue;
     const names = [...new Set(expansion.topics.map((t) => t.title))];
@@ -225,7 +254,9 @@ export function expandSectionTopics(
     e.facts.topics.splice(
       at,
       1,
-      ...names.filter((n) => !e.facts.topics.includes(n)),
+      ...names.filter(
+        (name) => !e.facts.topics.some((topic) => loose(topic) === loose(name)),
+      ),
     );
   }
   return e;
@@ -266,6 +297,83 @@ function findTopicHeading(
   return consistentHeading(found);
 }
 
+/** Literal section pointers in one selected-assessment passage, not all content headings. */
+function citedSectionScope(
+  evidence: ProfileEvidence,
+  documentId: string,
+  pages: Array<{ page: number; text: string }>,
+): { labels: string[]; topics: Heading[] | null; ambiguous?: boolean } | null {
+  const labels = new Set<string>();
+  let ambiguousQuote = false;
+  const passages: Array<{ locationId: string; assessments: string[] }> = [];
+  const pointers = (text: string) =>
+    [
+      ...text.matchAll(
+        /\b(?:sections?|topics?|units?|modules?|chapters?|parts?)\s+\d{1,2}(?:\.\d{1,2}){0,2}(?:\s*(?:[-\u2013\u2014]|to|through|,|;|&|and)\s*\d{1,2}(?:\.\d{1,2}){0,2})*(?:\s*\([^)]{1,120}\))?/gi,
+      ),
+    ].map((match) => match[0]);
+  for (const claim of evidence.claims) {
+    if (
+      claim.field !== "topics" ||
+      claim.documentId !== documentId ||
+      claim.rule !== "mandatory"
+    ) continue;
+    const location = evidence.documents
+      .find((document) => document.id === documentId)
+      ?.locations.find((candidate) => candidate.id === claim.locationId);
+    if (!location || !sourceTextIncludes(location.text, claim.quote)) continue;
+    const quoted = pointers(claim.quote);
+    const literalPointers = pointers(location.text);
+    const assessmentNames = [...new Set(
+      [...location.text.matchAll(/\b(?:paper|unit|component|assessment)\s*[0-9]+[a-z]?\b/gi)]
+        .map((match) => foldSourceText(match[0]).replace(/\s+/g, "")),
+    )];
+    const contentBlock = location.text.match(
+      /(?:^|\n)\s*(?:what['\u2019]s assessed|what is assessed|content overview|assessed content|topics assessed)\s*:?\s*\n([\s\S]*?)(?=\n\s*(?:assessed|questions|instructions|assessment objectives|time allowed|duration)\s*:?\s*(?:\n|$)|$)/i,
+    );
+    const governingPointers = assessmentNames.length === 1 && contentBlock
+      ? pointers(contentBlock[1])
+      : [];
+    const candidates = governingPointers.length ? governingPointers : quoted.length ? quoted.flatMap((label) => {
+      // A model can quote the start of a range literally. Preserve the whole
+      // source range rather than interpreting that shorter quote as its scope.
+      const quotedRefs = parseSectionRefs(label);
+      const matches = literalPointers.filter((literal) => {
+        const refs = parseSectionRefs(literal);
+        return foldSourceText(literal).startsWith(foldSourceText(label)) &&
+          quotedRefs?.every((ref) => refs?.includes(ref));
+      });
+      if (new Set(matches.map(foldSourceText)).size > 1) ambiguousQuote = true;
+      return matches.length ? matches : [label];
+    }) : literalPointers;
+    const distinct = [...new Set(candidates.map((candidate) => candidate.trim()))];
+    if (!distinct.length) continue;
+    distinct.forEach((label) => labels.add(label));
+    passages.push({
+      locationId: location.id,
+      assessments: assessmentNames,
+    });
+  }
+  if (!labels.size) return null;
+  const samePassage = new Set(passages.map((passage) => passage.locationId)).size === 1;
+  const assessmentKeys = new Set(passages.flatMap((passage) => passage.assessments));
+  const sameAssessment = assessmentKeys.size === 1 &&
+    passages.every((passage) => passage.assessments.length === 1);
+  // Complementary ranges in the same assessment passage may be expanded
+  // together. Ranges belonging to different papers must never be unioned.
+  if (
+    ambiguousQuote || (labels.size > 1 &&
+    (!(samePassage || sameAssessment) || assessmentKeys.size > 1))
+  ) return { labels: [...labels], topics: null, ambiguous: true };
+  const expansions = [...labels].map((label) => resolveSectionTopic(label, pages));
+  return {
+    labels: [...labels],
+    topics: expansions.every((expansion) => expansion !== null)
+      ? expansions.flatMap((expansion) => expansion!.topics)
+      : null,
+  };
+}
+
 export interface TopicReconciliation {
   evidence: ProfileEvidence;
   replaced: Array<{ from: string; to: string }>;
@@ -286,6 +394,7 @@ export function reconcileTopics(
     course: string | null;
     maxLocations?: number;
     maxClaims?: number;
+    sourcePages?: Record<string, number[]>;
   },
 ): TopicReconciliation {
   const maxLocations = Math.min(40, scope.maxLocations ?? 40),
@@ -309,26 +418,35 @@ export function reconcileTopics(
   const raw = documents.find((d) => d.id === doc?.id)?.pages ?? [];
   let pages = raw;
   if (raw.length) {
-    const ordered = [...raw].sort((a, b) => a.page - b.page);
-    const scoped = scopeDocumentQualification(
-      ordered.map((p) => p.text),
+    pages = scopedTopicPages(
+      raw,
       scope.qualification ?? undefined,
       scope.course ?? undefined,
+      scope.sourcePages?.[doc!.id],
     );
-    pages = scoped.ambiguous
-      ? []
-      : scoped.fragments.map((f) => ({
-          page: ordered[f.page - 1].page,
-          text: f.text,
-        }));
   }
+  const selectedScope = doc ? citedSectionScope(e, doc.id, pages) : null;
+  const scopedTopics = new Set(
+    selectedScope?.topics?.map((heading) => loose(heading.title)) ?? [],
+  );
+  if (selectedScope?.ambiguous && e.conflicts.length < 30)
+    e.conflicts.push(
+      "Different mandatory section ranges were cited for this assessment. Add a more precise assessment overview before building the profile.",
+    );
   const next: string[] = [];
   for (const topic of e.facts.topics) {
-    if (sourceTextIncludes(supportText(), topic)) {
+    const matchesScope =
+      !selectedScope?.topics ||
+      isSectionReferenceTopic(topic) ||
+      scopedTopics.has(loose(topic));
+    if (matchesScope && sourceTextIncludes(supportText(), topic)) {
       next.push(topic);
       continue;
     }
-    const heading = doc && pages.length ? findTopicHeading(topic, pages) : null;
+    const heading =
+      doc && pages.length && scopedTopics.has(loose(topic))
+        ? findTopicHeading(topic, pages)
+        : null;
     if (
       heading &&
       doc &&
@@ -363,9 +481,17 @@ export function reconcileTopics(
     if (e.unresolved.length < 30)
       e.unresolved.push(
         // Rejected model wording is never echoed back as if it were evidence.
-        "A topic proposed while reading was removed because the source text does not name it. Add any missing topic yourself when reviewing the profile.",
+        "A topic proposed while reading was removed because it could not be matched to the selected assessment's source scope. Add any missing topic yourself when reviewing the profile.",
       );
   }
+  // Keep the complete literal scope even if the model named only a subset.
+  // The normal section-expansion stage names every referenced heading together;
+  // if any heading is missing or ambiguous the whole pointer stays unresolved.
+  for (const label of selectedScope?.labels ?? [])
+    if (
+      next.length < 80 &&
+      !next.some((topic) => foldSourceText(topic) === foldSourceText(label))
+    ) next.push(label);
   e.facts.topics = next;
   return { evidence: e, replaced, dropped };
 }

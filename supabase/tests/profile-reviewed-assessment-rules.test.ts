@@ -26,7 +26,7 @@ describe("reviewed assessment instruction supplements", () => {
     });
     expect(rules).toMatchObject({
       id: "aqa-7408-01-reviewed-cover-rules-v1",
-      version: 1,
+      version: 2,
     });
     expect(rules).not.toHaveProperty("approval");
     expect(rules).not.toHaveProperty("identity");
@@ -84,6 +84,10 @@ describe("reviewed assessment instruction supplements", () => {
     "First teaching 2015, first exams 2017",
     "Version 1.4 July 2026",
     "1.4 July 2026",
+    "Version 1.3 1 June 2017",
+    "Version 1.3 June 2017",
+    "v1.3-june-2017",
+    "1.3",
   ])(
     "does not invent a source version from input %s",
     (specificationVersion) => {
@@ -135,6 +139,9 @@ describe("reviewed assessment instruction supplements", () => {
     { tier: "higher" as const },
     { tier: "foundation" as const },
     { specificationVersion: "v1.3-may-2025" },
+    { specificationVersion: "v1.3-july-2017" },
+    { specificationVersion: "Version 1.3 June 2026" },
+    { specificationVersion: "Version 1.4 June 2017" },
     { specificationVersion: "v14-july-2026" },
     { specificationVersion: "2015" },
     { specificationVersion: "Issue 1.4 July 2026" },
@@ -159,6 +166,16 @@ describe("reviewed assessment instruction supplements", () => {
       selection: "all_compulsory",
       calculator: "allowed",
     });
+  });
+
+  it("describes the actual reviewed edition without relabelling the cover source", () => {
+    const rules = resolveReviewedAssessmentRules({
+      ...identity,
+      specificationVersion: "Version 1.3 1 June 2017",
+    })!;
+    expect(rules.documents[0].applicableCohort).toContain("Version 1.3 June 2017");
+    expect(rules.documents[0].applicableCohort).not.toContain("1.4");
+    expect(rules.documents[0].version).toBe("June 2025 sitting");
   });
 
   it("returns isolated data so one build cannot corrupt later reviewed provenance", () => {
