@@ -114,6 +114,10 @@ it("PDF contains legible vector stimuli, answer spaces and attribution, with no 
     texts: string[] = [];
   const doc: any = {
     setFont() {},
+    getFont: () => ({fontName:'helvetica',fontStyle:'normal'}),
+    getTextWidth: (value: string) => value.length * 2,
+    addFileToVFS() {},
+    addFont() {},
     setFontSize() {},
     setTextColor() {},
     setDrawColor() {},

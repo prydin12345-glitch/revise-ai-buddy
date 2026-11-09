@@ -18,6 +18,8 @@ const tidyTableNotation = (dc: any) => {
 };
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { validateQuestionCandidates, describeDefects } from "../_shared/question-contract-validator.ts";
+import {usesPhysicsGenerationContract} from '../_shared/physics-generation-policy.ts';
+import {buildPhysicsPaperPlan} from '../_shared/physics-paper-plan.ts';
 import { resolveQuestionResources } from '../_shared/question-resources.ts';
 
 const corsHeaders = {
@@ -162,6 +164,9 @@ serve(async (req) => {
     validateGeneratedResponses(drafts,exam.generation_context);
     const plan = paperPlanForAttempt(exam.generation_context);
     const gate = validateQuestionCandidates(drafts.map(legacyResponseCandidate) as any, {
+      physicsGeneration:usesPhysicsGenerationContract(exam.generation_context),
+      physicsPlan:usesPhysicsGenerationContract(exam.generation_context) && plan
+        ? exam.generation_context.physics_paper_plan ?? buildPhysicsPaperPlan(plan, {subject:exam.subject_id}) : null,
       plan, ...(plan ? {expectedTotalMarks: plan.totalMarks, expectedPartCount: plan.partCount} : {}),
       scope: biologyScopeFromContext(exam.generation_context, {subject: exam.subject_id, educationalLevel: exam.qualification_level, examBoard: exam.exam_board}),
     });

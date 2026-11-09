@@ -12,7 +12,7 @@ import { MathRenderer } from '@/components/MathRenderer';
 import { AssessmentBiologyFigure } from '@/components/biology/AssessmentBiologyFigure';
 import { MathsFigurePanel } from '@/components/maths';
 import { EconomicsFigurePanel } from '@/components/economics/EconomicsFigurePanel';
-import { PhysicsFigurePanel } from '@/components/physics';
+import { AssessmentPhysicsFigure } from '@/components/physics/AssessmentPhysicsFigure';
 import { MathInsertKeypad, normalizeUnicodeForGrading } from '@/components/quiz/MathInsertKeypad';
 import { 
   ReferenceDiagram,
@@ -594,10 +594,8 @@ export function QuestionItem({
         isReview={!!isReviewMode}
       />
 
-      <PhysicsFigurePanel
-        questionText={question.question_text ?? ''}
-        subject={(question as any).subject ?? ''}
-        diagramConfig={(question as any).diagram_config ?? null}
+      <AssessmentPhysicsFigure
+        question={question}
         isExam={false}
         isPracticeQuiz={!isReviewMode}
         isSubmitted={!!answer?.submitted}

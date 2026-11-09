@@ -26,7 +26,7 @@ export interface FreeBodyConfig {
 
 export interface ConicalPendulumConfig {
   type: 'conical_pendulum';
-  stringLength: number;
+  stringLength: number | string;
   angle: number;
   mass: string | number;
   omega: string | number;
@@ -39,7 +39,7 @@ export interface ConicalPendulumConfig {
 
 export interface VerticalMotionConfig {
   type: 'vertical_motion';
-  initialSpeed: number;
+  initialSpeed: number | string;
   direction: 'up' | 'down';
   mass: string | number;
   unknowns: string[];
@@ -58,7 +58,7 @@ export interface PulleyConfig {
 
 export interface BeamLoad {
   position: number;
-  magnitude: number;
+  magnitude: number | string;
   label: string;
 }
 

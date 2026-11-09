@@ -3,6 +3,7 @@ import type jsPDF from 'jspdf';
 import {parseResponseDefinition} from './response-contract';
 import type {ResponseQuestionView} from './response-view';
 import {responseResources} from '../../supabase/functions/_shared/response-resources';
+import {drawPDFNotation, measurePDFNotation, wrapPDFNotation} from './pdf-notation';
 
 /** Vector answer areas. Never takes a student's response or a marking key. */
 export function drawResponsePDF(doc: jsPDF, question: ResponseQuestionView, layout: {
@@ -15,10 +16,10 @@ export function drawResponsePDF(doc: jsPDF, question: ResponseQuestionView, layo
   let y = layout.y;
   const font = (bold=false) => {doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(10);doc.setTextColor(30,30,30);doc.setDrawColor(140,140,140);};
   const space = (height: number) => {if(y+height>bottom){y=layout.nextPage();font();return true;}return false;};
-  const lines = (value:string,w=width) => {font();return doc.splitTextToSize(text(value),w) as string[];};
+  const lines = (value:string,w=width) => {font();return wrapPDFNotation(doc,text(value),w);};
   const paragraph = (value:string,bold=false) => {
     const wrapped=lines(value);font(bold);
-    for(const line of wrapped){space(6);font(bold);doc.text(line,x,y);y+=6;}
+    for(const line of wrapped){space(6);font(bold);drawPDFNotation(doc,line,x,y);y+=6;}
     y+=2;
   };
   const blankLines=(count:number)=>{for(let i=0;i<count;i++){space(9);doc.line(x,y+5,x+width,y+5);y+=9;}y+=3;};
@@ -40,7 +41,7 @@ export function drawResponsePDF(doc: jsPDF, question: ResponseQuestionView, layo
           if(head){doc.setFillColor(238,238,242);doc.rect(cx,y,widths[i],h,'F');}
           doc.rect(cx,y,widths[i],h);
           if(grid&&!head&&i>0)doc.rect(cx+widths[i]/2-2,y+h/2-2,4,4);
-          else cell.forEach((line,j)=>doc.text(line,cx+2,y+5+j*5));
+          else cell.forEach((line,j)=>drawPDFNotation(doc,line,cx+2,y+5+j*5));
           cx+=widths[i];
         });y+=h;
       };
@@ -63,7 +64,7 @@ export function drawResponsePDF(doc: jsPDF, question: ResponseQuestionView, layo
     paragraph(d.minSelections===d.maxSelections?`Tick ${d.maxSelections===1?'one':d.maxSelections===2?'two':d.maxSelections} ${d.maxSelections===1?'box':'boxes'}.`:`Tick between ${d.minSelections} and ${d.maxSelections} boxes.`,true);
     for(const option of d.options){
       const wrapped=lines(option.label,width-10);
-      for(const [i,line] of wrapped.entries()){space(7);font();if(i===0)doc.rect(x,y-3,4,4);doc.text(line,x+9,y);y+=6;}y+=3;
+      for(const [i,line] of wrapped.entries()){space(7);font();if(i===0)doc.rect(x,y-3,4,4);drawPDFNotation(doc,line,x+9,y);y+=6;}y+=3;
     }
   }else if(d.kind==='grid'){
     paragraph(`Tick the correct cells in each row. ${d.minPerRow===d.maxPerRow?`Select ${d.maxPerRow} per row.`:`Select up to ${d.maxPerRow} per row.`}${d.minPerRow===0?' Write "none" beside a row if no cells apply.':''}`);
@@ -80,9 +81,10 @@ export function drawResponsePDF(doc: jsPDF, question: ResponseQuestionView, layo
         for(const token of tokens){
           if(!token)continue;
           if(/\n/.test(token)){newline();continue;}
-          for(const word of doc.splitTextToSize(token,width) as string[]){
-            const w=doc.getTextWidth(word);
-            if(cx+w>x+width)newline();font();doc.text(word,cx,y);cx+=w;
+          if(/^\s+$/.test(token)){cx+=measurePDFNotation(doc,token);continue;}
+          for(const word of wrapPDFNotation(doc,token,width)){
+            const w=measurePDFNotation(doc,word);
+            if(cx+w>x+width)newline();font();drawPDFNotation(doc,word,cx,y);cx+=w;
           }
         }
       }else{

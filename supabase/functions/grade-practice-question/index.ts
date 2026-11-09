@@ -8,6 +8,7 @@ import {OCR_ALEVEL_BIOLOGY_ID,EDEXCEL_ALEVEL_BIOLOGY_B_ID} from '../_shared/asse
 import {validatedGrade} from '../_shared/marking-result.ts';
 import {assertBiologyPractice} from '../_shared/biology-practice.ts';
 import {markSingleChoice} from '../_shared/single-choice-marking.ts';
+import {usesPhysicsGenerationContract} from '../_shared/physics-generation-policy.ts';
 import { biologyMarkingInstructions, biologyQuestionResourceContext } from '../_shared/biology-marking.ts';
 import { AQA_ALEVEL_BIOLOGY_ID } from '../_shared/assessment-tier.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -69,6 +70,7 @@ serve(async (req) => {
       .select('subject_id, generation_context').eq('id', setId).eq('user_id', user.id).maybeSingle();
     if (gradeSetError || !gradeSet) throw new Error('Practice set not found');
     const gradeSubject = String(gradeSet.subject_id ?? '');
+    const isNewPhysics = usesPhysicsGenerationContract(gradeSet.generation_context);
     const isProfileTemplate = !!gradeSet.generation_context?.profile_template?.plan;
     if (isProfileTemplate) {
       if (!paperPlanForAttempt(gradeSet.generation_context)) throw new Error('Profile MCQ marking requires the protected saved template.');
@@ -115,9 +117,9 @@ serve(async (req) => {
     }
 
 
-    // Owned OCR practice questions use their saved choices/key; never spend a
-    // model call deciding whether a selected letter is correct.
-    if((isProfileTemplate||isOcrAlevelBiology||isPearsonBiologyB)&&question.question_type==='mcq'){
+    // Versioned Physics and protected course questions use their saved choices
+    // and private key without a model call.
+    if((isNewPhysics||isProfileTemplate||isOcrAlevelBiology||isPearsonBiologyB)&&question.question_type==='mcq'){
       biologyMarkingInstructions(gradeSet.generation_context);
       if(Number(question.marks)!==1)throw new Error('Single-select MCQ mark allocation is invalid.');
       const result=markSingleChoice(question,answerText);

@@ -13,6 +13,10 @@ import ReactDOM from "react-dom/client";
 import React from "react";
 import { requireConsistentResources, formatHeaderUnit } from '@/lib/question-resources';
 import { isBiologyDiagram, savedBiologyDiagram } from '@/lib/biology-assessment-resources';
+import { resolveAssessmentPhysicsFigure, rawPhysicsFigure } from '@/lib/physics-assessment-figure';
+import { isPhysicsDiagramType } from '../../supabase/functions/_shared/physics-diagram-contract';
+import { normalisePlainNotation } from '../../supabase/functions/_shared/plain-notation';
+import { drawPDFNotation, measurePDFNotation } from './pdf-notation';
 
 // ============= Type Definitions =============
 interface ExamQuestion extends ResponseQuestionView {
@@ -204,7 +208,7 @@ function measureMathText(doc: jsPDF, text: string, baseFontSize: number): number
   for (const seg of segments) {
     const scale = seg.type === 'normal' ? 1 : (seg.type === 'superscript' ? SUPERSCRIPT_SCALE : SUBSCRIPT_SCALE);
     doc.setFontSize(baseFontSize * scale);
-    totalWidth += doc.getTextWidth(seg.text);
+    totalWidth += measurePDFNotation(doc, seg.text);
   }
   doc.setFontSize(baseFontSize);
   return totalWidth;
@@ -220,16 +224,13 @@ function renderMathText(doc: jsPDF, text: string, x: number, y: number, baseFont
     doc.setTextColor(color[0], color[1], color[2]);
     if (seg.type === 'normal') {
       doc.setFontSize(baseFontSize);
-      doc.text(seg.text, currentX, y);
-      currentX += doc.getTextWidth(seg.text);
+      currentX = drawPDFNotation(doc, seg.text, currentX, y);
     } else if (seg.type === 'superscript') {
       doc.setFontSize(baseFontSize * SUPERSCRIPT_SCALE);
-      doc.text(seg.text, currentX, y - SUPERSCRIPT_RISE);
-      currentX += doc.getTextWidth(seg.text);
+      currentX = drawPDFNotation(doc, seg.text, currentX, y - SUPERSCRIPT_RISE);
     } else {
       doc.setFontSize(baseFontSize * SUBSCRIPT_SCALE);
-      doc.text(seg.text, currentX, y + SUBSCRIPT_DROP);
-      currentX += doc.getTextWidth(seg.text);
+      currentX = drawPDFNotation(doc, seg.text, currentX, y + SUBSCRIPT_DROP);
     }
   }
   doc.setFontSize(baseFontSize);
@@ -435,16 +436,11 @@ async function renderDiagramToPDF(
     let DiagramComponent: any = null;
     const type = diagramConfig.type || '';
 
-    const mechanicsTypes = ['slope', 'free_body', 'projectile', 'beam', 'pulley', 'conical_pendulum', 'vertical_motion', 'rod', 'vertical_lift'];
-    const circuitTypes = ['circuit', 'dual'];
     const chemistryTypes = ['titration', 'reflux', 'electrolysis', 'dot_cross', 'chromatography'];
 
-    if (mechanicsTypes.includes(type)) {
-      const mod = await import('@/components/mechanics');
-      DiagramComponent = mod.MechanicsDraw;
-    } else if (circuitTypes.includes(type)) {
-      const mod = await import('@/components/circuit');
-      DiagramComponent = mod.CircuitDraw;
+    if (isPhysicsDiagramType(type)) {
+      const mod = await import('@/components/physics/AssessmentPhysicsFigure');
+      DiagramComponent = mod.StructuredPhysicsDraw;
     } else if (isBiologyDiagram(diagramConfig)) {
       const mod = await import('@/components/biology');
       DiagramComponent = mod.BiologyDiagramDraw;
@@ -491,7 +487,7 @@ async function renderDiagramToPDF(
     return imgHeight;
   } catch (error) {
     console.error('Diagram render failed:', error);
-    if (isBiologyDiagram(diagramConfig)) throw new Error('The saved Biology figure could not be rendered for printing.');
+    if (isBiologyDiagram(diagramConfig) || isPhysicsDiagramType(diagramConfig?.type)) throw new Error('The saved figure could not be rendered for printing.');
     return 0;
   } finally {
     root?.unmount();
@@ -593,6 +589,9 @@ function cleanLatexForPDF(text: string): string {
   cleaned = cleaned.replace(/\$(.*?)\$/g, "$1");
   cleaned = cleaned.replace(/\\\((.*?)\\\)/g, "$1");
   cleaned = cleaned.replace(/\\\[(.*?)\\\]/g, "$1");
+  // The screen and PDF use the same plain scientific notation. Math wrappers
+  // have been removed above so their symbols are normalised here as well.
+  cleaned = normalisePlainNotation(cleaned);
 
   // Step 5: Handle fractions
   let prev = '';
@@ -602,37 +601,8 @@ function cleanLatexForPDF(text: string): string {
   cleaned = cleaned.replace(/\\sqrt\{([^}]+)\}/g, "sqrt($1)");
   cleaned = cleaned.replace(/\\sqrt\[(\d+)\]\{([^}]+)\}/g, "$1-root($2)");
 
-  // Step 7: Greek letters → explicit ASCII fallbacks for built-in PDF fonts
-  cleaned = cleaned.replace(/\\Omega\b/g, "ohm").replace(/\\Delta\b/g, "Delta").replace(/\\Phi\b/g, "Phi");
-  cleaned = cleaned.replace(/Ω/g, "ohm").replace(/Δ/g, "Delta").replace(/Φ/g, "Phi");
-
-  // Lowercase Greek letters remain distinct from their uppercase quantities.
-  const greeks: [RegExp, string][] = [
-    [/\\pi\b/g, "pi"], [/\\alpha\b/g, "alpha"], [/\\beta\b/g, "beta"], [/\\gamma\b/g, "gamma"],
-    [/\\delta\b/g, "delta"], [/\\epsilon\b/g, "epsilon"], [/\\theta\b/g, "theta"],
-    [/\\lambda\b/g, "lambda"], [/\\mu\b/g, "mu"], [/\\sigma\b/g, "sigma"],
-    [/\\omega\b/g, "omega"], [/\\phi\b/g, "phi"], [/\\psi\b/g, "psi"],
-    [/\\rho\b/g, "rho"], [/\\tau\b/g, "tau"],
-  ];
-  for (const [rx, rep] of greeks) cleaned = cleaned.replace(rx, rep);
-
-  // Also Unicode Greek → ASCII
-  cleaned = cleaned.replace(/π/g, "pi").replace(/α/g, "alpha").replace(/β/g, "beta");
-  cleaned = cleaned.replace(/γ/g, "gamma").replace(/δ/g, "delta").replace(/ε/g, "epsilon");
-  cleaned = cleaned.replace(/θ/g, "theta").replace(/λ/g, "lambda").replace(/μ/g, "mu");
-  cleaned = cleaned.replace(/σ/g, "sigma").replace(/ω/g, "omega").replace(/φ/g, "phi");
-
-  // Step 8: Math operators
-  cleaned = cleaned.replace(/\\times\b/g, "x").replace(/×/g, "x");
-  cleaned = cleaned.replace(/\\div\b/g, "/").replace(/÷/g, "/");
-  cleaned = cleaned.replace(/\\pm\b/g, "+/-").replace(/±/g, "+/-");
-  cleaned = cleaned.replace(/\\cdot\b/g, ".").replace(/·/g, ".");
-  cleaned = cleaned.replace(/\\leq\b/g, "<=").replace(/≤/g, "<=");
-  cleaned = cleaned.replace(/\\geq\b/g, ">=").replace(/≥/g, ">=");
-  cleaned = cleaned.replace(/\\neq\b/g, "!=").replace(/≠/g, "!=");
-  cleaned = cleaned.replace(/\\approx\b/g, "~").replace(/≈/g, "~");
-  cleaned = cleaned.replace(/\\rightarrow\b/g, "->").replace(/→/g, "->");
-  cleaned = cleaned.replace(/°/g, " degrees");
+  // Scientific Unicode uses an embedded glyph font when Helvetica cannot
+  // represent it; arrows and case-sensitive Greek letters stay readable.
 
   // Step 9: Functions
   cleaned = cleaned.replace(/\\sin\b/g, "sin").replace(/\\cos\b/g, "cos").replace(/\\tan\b/g, "tan");
@@ -681,13 +651,17 @@ export async function generateExamPDF(
 
   // The screen and PDF share a validated source. Never export conflicting data.
   examData = { ...examData, questions: examData.questions.map(question => {
-    if (question.response_definition) return question;
+    const rawDiagram = rawPhysicsFigure(question) as any;
+    const physicsFigure = resolveAssessmentPhysicsFigure(question, examData.subject, examData.generation_context);
+    if (physicsFigure.status === 'missing') throw new Error(`Q${question.question_number}: the saved Physics figure is unavailable. Please report this question.`);
+    const physicsDiagram = physicsFigure.status === 'ready' && physicsFigure.source === 'saved' ? physicsFigure.config : undefined;
+    if (question.response_definition) return { ...question, diagramConfig: physicsDiagram };
     const resources = requireConsistentResources(question);
-    const rawDiagram = question.diagramConfig ?? question.diagram_config;
     const biologyDiagram = savedBiologyDiagram(question);
     if (isBiologyDiagram(rawDiagram) && !biologyDiagram) throw new Error(`Q${question.question_number}: the saved Biology figure is inconsistent.`);
-    const candidateDiagram = resources.essay ?? resources.passage ?? biologyDiagram ?? (resources.chart?.type !== 'data_table' ? resources.chart : null)
-      ?? (rawDiagram?.type === 'data_table' ? undefined : rawDiagram);
+    const candidateDiagram = resources.essay ?? resources.passage ?? biologyDiagram ?? physicsDiagram
+      ?? (resources.chart?.type !== 'data_table' ? resources.chart : null)
+      ?? (['data_table', 'physics_no_figure'].includes(rawDiagram?.type) ? undefined : rawDiagram);
     const decorativeCircuit = /physics/i.test(examData.subject ?? '') && ['circuit','circuit_diagram','dual'].includes(candidateDiagram?.type)
       && !needsCircuitTopology(resources.text);
     return {
@@ -725,6 +699,19 @@ export async function generateExamPDF(
   const getRemainingSpace = (): number => A4_HEIGHT - yPosition - FOOTER_HEIGHT;
 
   const ensureSpace = (needed: number) => { if (getRemainingSpace() < needed) addNewPage(); };
+
+  const drawQuestionDiagram = async (question: ExamQuestion) => {
+    if (!includeDiagrams || !question.diagramConfig || isComprehensionResource(question.diagramConfig) || isBiologyEssayResource(question.diagramConfig)) return;
+    ensureSpace(130);
+    const diagramWidth = CONTENT_WIDTH * 0.6;
+    const diagramX = MARGIN + (CONTENT_WIDTH - diagramWidth) / 2;
+    const diagramHeight = await renderDiagramToPDF(doc, question.diagramConfig, diagramX, yPosition, diagramWidth, getRemainingSpace() - 8);
+    if (diagramHeight <= 0) return;
+    doc.setFontSize(8); doc.setFont('helvetica', 'italic'); setColor(COLORS.muted);
+    doc.text(`Figure ${figureCount}`, MARGIN + CONTENT_WIDTH / 2, yPosition + diagramHeight + 3, { align: 'center' });
+    figureCount++;
+    yPosition += diagramHeight + 8;
+  };
 
   // ============= Page Header (every page except cover) =============
   const drawPageHeader = () => {
@@ -1187,6 +1174,7 @@ export async function generateExamPDF(
 
       if (question.response_definition) {
         yPosition = renderQuestionLines(cleanLatexForPDF(question.question_text),textIndent,yPosition,baseTextWidth-5)+4;
+        await drawQuestionDiagram(question);
         yPosition = drawResponsePDF(doc,question,{
           x:textIndent,y:yPosition,width:baseTextWidth-5,bottom:A4_HEIGHT-FOOTER_HEIGHT-5,
           nextPage:()=>{addNewPage();drawPageHeader();return yPosition;},text:cleanLatexForPDF,
@@ -1237,20 +1225,7 @@ export async function generateExamPDF(
       }
 
       // ============= DIAGRAM RENDERING =============
-      if (includeDiagrams && question.diagramConfig && !isComprehensionResource(question.diagramConfig) && !isBiologyEssayResource(question.diagramConfig)) {
-        ensureSpace(130);
-        const diagramWidth = CONTENT_WIDTH * 0.6;
-        const diagramX = MARGIN + (CONTENT_WIDTH - diagramWidth) / 2;
-        const diagramHeight = await renderDiagramToPDF(doc, question.diagramConfig, diagramX, yPosition, diagramWidth, getRemainingSpace() - 8);
-
-        if (diagramHeight > 0) {
-          // Figure caption
-          doc.setFontSize(8); doc.setFont("helvetica", "italic"); setColor(COLORS.muted);
-          doc.text(`Figure ${figureCount}`, MARGIN + CONTENT_WIDTH / 2, yPosition + diagramHeight + 3, { align: "center" });
-          figureCount++;
-          yPosition += diagramHeight + 8;
-        }
-      }
+      await drawQuestionDiagram(question);
 
       // Graph axes for graph questions
       if (question.requires_graph || ['graph_sketch', 'graph_plotting'].includes(question.question_type)) {

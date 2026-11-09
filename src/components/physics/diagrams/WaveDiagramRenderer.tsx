@@ -1,8 +1,8 @@
 import type { WaveDiagramConfig } from '../types';
 
-interface Props { config: WaveDiagramConfig; }
+interface Props { config: WaveDiagramConfig; mode?: 'assessment' | 'solution'; }
 
-export const WaveDiagramRenderer = ({ config }: Props) => {
+export const WaveDiagramRenderer = ({ config, mode = 'solution' }: Props) => {
   const {
     variant, amplitude = 1,
     amplitude2, phaseShift = 0, harmonicNumber = 1,
@@ -18,7 +18,7 @@ export const WaveDiagramRenderer = ({ config }: Props) => {
 
   const A = (amplitude / 1.5) * (plotH / 2 - 16);
   const A2 = amplitude2 ? (amplitude2 / 1.5) * (plotH / 2 - 16) : A;
-  const cycles = 2;
+  const cycles = variant === 'standing_wave' ? harmonicNumber / 2 : 2;
   const pts = 200;
 
   const wavePath = (
@@ -126,6 +126,8 @@ export const WaveDiagramRenderer = ({ config }: Props) => {
 
     const upperPath = wavePath(A, 0, MARGIN.left, MARGIN.left + plotW);
     const lowerPath = wavePath(-A, 0, MARGIN.left, MARGIN.left + plotW);
+    const envelopePath = upperPath + [...lowerPath.matchAll(/[ML] ([\d.-]+) ([\d.-]+)/g)]
+      .reverse().map(point => ` L ${point[1]} ${point[2]}`).join('') + ' Z';
 
     return (
       <svg viewBox={`0 0 ${W} ${H}`} width="100%"
@@ -152,8 +154,7 @@ export const WaveDiagramRenderer = ({ config }: Props) => {
           strokeDasharray="8 4" />
 
         <path
-          d={`${upperPath} L ${MARGIN.left + plotW} ${axisY} ${lowerPath
-            .replace('M', 'L').split(' ').reverse().join(' ')}`}
+          d={envelopePath}
           fill={colors.wave1}
           opacity={0.08}
         />
@@ -183,13 +184,13 @@ export const WaveDiagramRenderer = ({ config }: Props) => {
           </g>
         ))}
 
-        <text x={W/2} y={H - 10} textAnchor="middle"
+        {mode !== 'assessment' && <text x={W/2} y={H - 10} textAnchor="middle"
           fontSize={11} fill={colors.dim}>
           {harmonicNumber === 1 ? 'Fundamental (1st harmonic)'
             : harmonicNumber === 2 ? '2nd harmonic (1st overtone)'
             : harmonicNumber === 3 ? '3rd harmonic (2nd overtone)'
             : `${harmonicNumber}th harmonic`}
-        </text>
+        </text>}
       </svg>
     );
   }
@@ -226,8 +227,8 @@ export const WaveDiagramRenderer = ({ config }: Props) => {
           fill="none" stroke={colors.wave2}
           strokeWidth={1.5} strokeDasharray="6 3" opacity={0.7} />
 
-        <path d={resultantPath}
-          fill="none" stroke={colors.resultant} strokeWidth={2.5} />
+        {mode !== 'assessment' && <path d={resultantPath}
+          fill="none" stroke={colors.resultant} strokeWidth={2.5} />}
 
         <line x1={MARGIN.left} y1={MARGIN.top - 10}
           x2={MARGIN.left + 24} y2={MARGIN.top - 10}
@@ -241,6 +242,7 @@ export const WaveDiagramRenderer = ({ config }: Props) => {
         <text x={MARGIN.left + 108} y={MARGIN.top - 6}
           fontSize={10} fill={colors.wave2}>Wave 2</text>
 
+        {mode !== 'assessment' && <>
         <line x1={MARGIN.left + 160} y1={MARGIN.top - 10}
           x2={MARGIN.left + 184} y2={MARGIN.top - 10}
           stroke={colors.resultant} strokeWidth={2.5} />
@@ -255,6 +257,7 @@ export const WaveDiagramRenderer = ({ config }: Props) => {
             ? 'Waves in phase → constructive interference'
             : 'Superposition of two waves'}
         </text>
+        </>}
       </svg>
     );
   }
@@ -274,11 +277,11 @@ export const WaveDiagramRenderer = ({ config }: Props) => {
         stroke={colors.axis} strokeWidth={1.5}
         markerEnd="url(#arrAxis)" />
 
-      <text x={MARGIN.left - 6} y={MARGIN.top + 6}
-        textAnchor="end" fontSize={11}
+      <text x={MARGIN.left + 8} y={MARGIN.top - 10}
+        textAnchor="start" fontSize={11}
         fill={colors.dim}>Displacement</text>
-      <text x={W - MARGIN.right + 8} y={axisY + 4}
-        fontSize={11} fill={colors.dim}>Distance</text>
+      <text x={W - MARGIN.right} y={axisY + 22}
+        textAnchor="end" fontSize={11} fill={colors.dim}>Distance</text>
 
       <text x={MARGIN.left - 6} y={axisY + 4}
         textAnchor="end" fontSize={10}

@@ -23,6 +23,7 @@ vi.mock("recharts", async (importOriginal) => {
   };
 });
 import { generateExamPDF } from "@/lib/exam-pdf-generator";
+import { exportedPDFText } from './pdf-test-utils';
 const graph = {
   type: "line_chart" as const,
   xAxisLabel: "Time / s",
@@ -201,7 +202,8 @@ describe("Physics PDF mathematical choices",()=>{
   });
   it("retains ohm units, uppercase quantities and acceleration dimensions in the exported text",async()=>{
     const pdf=await generateExamPDF({title:"Explicit units",subject:"Physics",questions:[{id:"units",question_number:"1",question_type:"short_answer",marks:2,question_text:String.raw`A resistor has resistance $5\,\Omega$. Calculate $\Delta E$ when the magnetic flux $\Phi$ changes. The stated acceleration is 9.8 m/s2.`}]},{includeWorkingSpace:false});
-    expect(pdf.output()).toContain("ohm");expect(pdf.output()).toContain("Delta");expect(pdf.output()).toContain("Phi");expect(pdf.output()).toContain("(-2)");
+    const text = await exportedPDFText(pdf);
+    expect(text).toContain("5 Ω");expect(text).toContain("Δ E");expect(text).toContain("Φ");expect(pdf.output()).toContain("(-2)");
     expect(pdf.output()).not.toContain("(-1)");
   });
   it("omits a saved decorative circuit from a calculation-only PDF",async()=>{

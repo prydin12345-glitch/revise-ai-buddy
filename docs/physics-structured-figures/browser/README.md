@@ -1,0 +1,22 @@
+# Saved Physics figures: offline browser and PDF verification
+
+The fixture imports the actual `AssessmentPhysicsFigure`, `MathRenderer`, `ResponseEditor`, strict Physics diagram parser/resolver and `generateExamPDF`. It compiles the actual production Tailwind configuration and source CSS with local production fonts. The `html2canvas` observer records the DOM before delegating to the real installed implementation; PDFs use the real installed jsPDF implementation and embedded licensed scientific font.
+
+Every browser request is intercepted: only the fixture origin, bundled assets, local Manrope/Source Serif and local KaTeX fonts are served. External requests are blocked. Mock preferences/auth prevent contact with a backend. The synthetic question fixtures include `PRIVATE_KEY_SENTINEL` and `PRIVATE_RESPONSE_KEY_SENTINEL` values, which must stay absent from visible figures, DOM and exported PDF text. No paid model, login, saved private paper, live write or deployment is used.
+
+The matrix is 1440×1000, 834×1112, 390×844 and 320×780 in both themes. Each case selects and verifies saved slope, pulley, projectile, free-body force, beam, ray, wave, nuclear, circuit and collision setup figures in exam view. Symbolic unknowns remain `u`, `α`, `R`, `?`, `v_A = ?` and `v_B = ?`; completed ray construction and derived nuclear daughters stay absent. The projectile uses the actual structured response editor, accepts a draft and retains one setup. Saved figures are also checked in practice/review. Boundary cases cover precedence of valid saved geometry over prose, legacy detector/practice enlargement, existing legacy suppression in exams, explicit `none`/`student_draws`, a malformed figure and a new generation snapshot whose contract has been lost. Browser zoom at 150% and print media are checked for page overflow. Actual computed styles verify active Tailwind, theme-scoped figure labels and contrast for labels using theme foreground tokens. Nuclear computed fills and nuclear/wave/ray SVG text bounds guard the opaque-black and clipped-caption defects found by the pilot.
+
+Desktop exports generate standalone PDFs containing 13 synthetic questions and ten actual saved SVG figures, including the question with `response_definition`. Explicit no-figure questions and legacy inferred diagrams do not add exported figures. A missing new contract must reject export. `verify-pdfs.py` checks question headings, supplied private-key suppression, an embedded TrueType font, the actual Unicode symbols Ω µ → α β γ λ θ ± × ÷ ∞ π Λ, the normalized reaction `p + \pi^- \rightarrow \Lambda^0 + K^0`, and captured setup labels/unknowns. It renders final PDF pages with MuPDF for visual review. Figures are image objects, so their labels are checked in the real captured SVG DOM and final page rasters, rather than through PDF text extraction.
+
+`source-hashes.json` covers every actual bundled file (including dependency inputs), all production Tailwind-scanned TS/TSX files, source CSS and configuration. `build-manifest.json` separates bundled/scanned paths and hashes the fixture, JS bundle and generated CSS. `verify-hashes.py` must pass after the final frozen build. The generated bundles, local fonts and 13 MB standalone PDFs remain in the temporary workspace; review artifacts keep the fixture/build/verifier sources, safe reports and selected screenshots.
+
+To reproduce, use the installed repository dependencies at `/workspace/revise-ai-buddy`, the existing local fonts in `fonts/`, Chromium at `/usr/lib/chromium/chromium`, and Playwright at `/opt/codex/cua_node/lib/node_modules/playwright-core`. No install or lockfile change is needed.
+
+```sh
+node build.cjs
+node browser.cjs
+python3 verify-pdfs.py
+python3 verify-hashes.py
+```
+
+This is an offline composition of production components with synthetic questions. It does not exercise signed-in app navigation, live model quality, deployment, unavailable private papers or physical iOS/iPadOS behavior. Ten representative types are checked here; repository tests cover the broader type and variant matrix. Narrow SVG labels scale with their figures, so viewport fitting does not establish optimal label size or complete accessibility. These checks do not certify all possible scientific content or syllabus correctness.

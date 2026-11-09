@@ -106,7 +106,7 @@ export function recalledConcepts(text: string): string[] {
     if (definition) found.add(`definition:${definition}`);
   }
   const asksRecall =
-    /\b(?:state|give|write|which|what|describe|explain|identify|name|select|choose|list)\b/.test(
+    /\b(?:state|give|write|which|what|why|describe|explain|identify|name|select|choose|list)\b/.test(
       t,
     );
   const sentences = taskSentences(text).map(plain);
@@ -119,14 +119,14 @@ export function recalledConcepts(text: string): string[] {
     !/\b(?:real gas|high pressures?|low temperatures?|no longer|not valid|invalid|fails?|breaks? down|limitations?|deviat(?:e|es|ion|ions))\b/.test(sentence)
   )) found.add("recall:ideal-gas-assumptions");
   if (sentences.some(sentence =>
-    /\bfaraday s law\b/.test(sentence) &&
-    /\b(?:state|states|statement|give|write|what does)\b/.test(sentence) &&
-    !/\b(?:calculate|determine|estimate|deduce|(?:use|using|apply|applying) faraday)\b/.test(sentence)
+    /\bfaraday(?: s)? law\b|\blaw of (?:electromagnetic )?induction\b/.test(sentence) &&
+    /\b(?:state|states|statement|give|write|what does|which|identify|select|choose|describe|express)\b/.test(sentence) &&
+    !/\b(?:calculate|determine|estimate|deduce|doubl(?:e|es|ing)|halv(?:e|es|ing)|increase|decrease|changes? (?:in|by)|(?:use|using|apply|applying) faraday)\b/.test(sentence)
   )) found.add("recall:faradays-law");
   if (
     asksRecall &&
     /\bmoderator\b/.test(t) &&
-    /(?:\b(?:role|function|purpose)\b|\bwhat (?:does (?:a |the )?moderator|(?:a |the )?moderator does)\b)/.test(
+    /(?:\b(?:role|function|purpose)\b|\bwhat (?:does (?:a |the )?moderator|(?:a |the )?moderator does)\b|\b(?:why (?:is|are) (?:a |the )?moderators? (?:used|needed)|moderators? (?:is|are) (?:used|needed) for)\b)/.test(
       t,
     ) &&
     !/\b(?:calculate|determine|estimate)\b/.test(t)
@@ -147,6 +147,76 @@ export function recalledConcepts(text: string): string[] {
       found.add(`comparison:alpha-proton-magnetic-radius:${condition}`);
   }
   return [...found];
+}
+
+/** Narrowly identifiable numerical capacitor tasks. A shared relationship is
+ * allowed; repeating the same requested quantity with the same givens is not.
+ * Unit prefixes remain case sensitive, and no model-provided concept ID is used. */
+function capacitorTask(text: string): string | null {
+  const full = String(text ?? "")
+    .replace(/\\(?:mathrm|text|operatorname)\s*\{([^{}]*)\}/g, "$1")
+    .replace(/\\(?:mu|micro)\b/g, "u")
+    .replace(/μ|µ/g, "u")
+    .replace(/[${}]/g, "")
+    .replace(/\\,/g, " ");
+  if (!/\bcapacitor\b/i.test(full)) return null;
+  const task = plain(instructions({ question_text: text }));
+  const requested = /\b(?:calculate|determine|find|what|which|how much)\b/.test(task)
+    ? /\b(?:energy|work done)\b/.test(task) ? "energy"
+      : /\b(?:charge|number of coulombs)\b/.test(task) ? "charge"
+      : /\b(?:capacitance)\b/.test(task) ? "capacitance"
+      : /\b(?:time constant)\b/.test(task) ? "time-constant"
+      : null
+    : null;
+  if (!requested) return null;
+  const data = [...full.matchAll(/(^|[^a-zA-Z0-9.+-])([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*(pF|nF|uF|mF|kF|MF|F|mV|kV|MV|V|pC|nC|uC|mC|C|mJ|kJ|MJ|J|kΩ|MΩ|Ω|kohm|Mohm|ohm)(?=$|[^a-zA-Z0-9])/g)]
+    .map(match => [Number(match[2]), match[3]] as const)
+    .sort((a, b) => a[1].localeCompare(b[1]) || a[0] - b[0]);
+  // Two physical givens are needed. Complex compound units/formula strings are
+  // intentionally left to the exact-task/resource checks.
+  if (data.length < 2 || data.length > 4 ||
+    /\b(?:series|parallel|network|dielectric|plate separation|distance|different|two capacitors?|three capacitors?)\b/i.test(full) ||
+    /(?:\^|×|\\times)/.test(full)) return null;
+  const units = data.map(item => item[1]);
+  const has = (pattern: RegExp) => units.some(unit => pattern.test(unit));
+  if ((requested === "charge" || requested === "energy") && (!has(/F$/) || !has(/V$/))) return null;
+  if (requested === "capacitance" && (!has(/C$/) || !has(/V$/))) return null;
+  if (requested === "time-constant" && (!has(/F$/) || !has(/Ω$|ohm$/))) return null;
+  // Charging/discharging at a specified instant are separate tasks and require
+  // time/context data beyond this conservative two-given fingerprint.
+  if (/\b(?:after|instant|initial|remaining|discharg\w*|charg(?:ing|ed from)|time|seconds?|resistor)\b/i.test(full) && requested !== "time-constant") return null;
+  return `calculation:capacitor:${requested}:${stable(data)}`;
+}
+
+/** Server-derived canonical concepts for every scored task. Unknown tasks get
+ * an exact-task ID, without pretending to infer arbitrary semantic equivalence. */
+export function canonicalTaskConceptIds(row: Row): string[] {
+  const text = String(row.question_text ?? row.task ?? "");
+  const concepts = recalledConcepts(text);
+  const capacitor = capacitorTask(text);
+  if (capacitor) concepts.push(capacitor);
+  const exact = literalTaskKey(text);
+  if (exact) concepts.push(`task:${digest(exact)}`);
+  return [...new Set(concepts)];
+}
+
+export interface CoveredConceptEntry {
+  partId: string;
+  questionNumber: string;
+  conceptIds: string[];
+  task: string;
+  resourceIds: string[];
+}
+/** Complete cross-batch ledger, recomputed from public tasks and resources.
+ * Private keys/options and model-nominated concept IDs confer no authority. */
+export function coveredConceptLedger(rows: Row[]): CoveredConceptEntry[] {
+  return rows.filter(row => Number(row.marks ?? 0) > 0).map(row => ({
+    partId: idOf(row),
+    questionNumber: String(row.question_number ?? ""),
+    conceptIds: canonicalTaskConceptIds(row),
+    task: instructions(row),
+    resourceIds: resources(row).map(key => `${key.startsWith("graph:") ? "graph" : "table"}#${digest(key)}`),
+  }));
 }
 
 const unitText = (value: unknown): string =>
@@ -321,7 +391,7 @@ export function repeatedConceptDefects(
         `${label(exact)} already asks exactly this task with the same stated context and data. Use a distinct task and independently checked key.`,
       );
     else if (normalized.split(" ").length >= 8) stems.set(normalized, row);
-    for (const concept of recalledConcepts(text)) {
+    for (const concept of canonicalTaskConceptIds(row).filter(id => !id.startsWith("task:"))) {
       const first = concepts.get(concept);
       if (first)
         details.add(
@@ -385,7 +455,7 @@ export function coveredTasksNote(rows: Row[], max = 50): string {
   const perEntry = Math.floor(20_000 / scored.length);
   const lines = scored.map((row) => {
     const task = instructions(row),
-      recall = recalledConcepts(String(row.question_text ?? "")).join(", ");
+      recall = canonicalTaskConceptIds(row).filter(id => !id.startsWith("task:")).join(", ");
     const data = resources(row)
       .map(
         (key) =>

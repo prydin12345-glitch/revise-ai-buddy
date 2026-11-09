@@ -5,6 +5,7 @@ import {responseResources} from '../_shared/response-resources.ts';
 import {responseRubricMarker} from '../_shared/response-rubric.ts';
 import {OCR_ALEVEL_BIOLOGY_ID,EDEXCEL_ALEVEL_BIOLOGY_B_ID} from '../_shared/assessment-tier.ts';
 import {singleChoiceKey,markSingleChoice} from '../_shared/single-choice-marking.ts';
+import {usesPhysicsGenerationContract} from '../_shared/physics-generation-policy.ts';
 import {validateBiologyEssayGrade} from '../_shared/biology-essay-marking.ts';
 import { biologyMarkingInstructions, biologyQuestionResourceContext, biologyEssayForMarking } from '../_shared/biology-marking.ts';
 import { requireExamAccess, ExamRequestError } from '../_shared/exam-access.ts';
@@ -98,6 +99,7 @@ serve(async (req) => {
     }
 
     const isMathExam = examData.subject_id?.toLowerCase().includes('math') || false;
+    const isNewPhysics = usesPhysicsGenerationContract(examData.generation_context);
     const isProfileTemplate = !!examData.generation_context?.profile_template?.plan;
     if (isProfileTemplate) {
       if (!paperPlanForAttempt(examData.generation_context)) throw new Error('Profile MCQ marking requires the protected saved template.');
@@ -138,7 +140,7 @@ serve(async (req) => {
     const essayMarking = new Map((questions || []).map(question => {
       if (responseContracts.has(question.id)) return [question.id, null] as const;
       biologyQuestionResourceContext(examData.generation_context, question);
-      if((isProfileTemplate || [OCR_ALEVEL_BIOLOGY_ID,EDEXCEL_ALEVEL_BIOLOGY_B_ID].includes(examData.generation_context?.course_id))&&question.question_type==='mcq'){
+      if((isNewPhysics || isProfileTemplate || [OCR_ALEVEL_BIOLOGY_ID,EDEXCEL_ALEVEL_BIOLOGY_B_ID].includes(examData.generation_context?.course_id))&&question.question_type==='mcq'){
         singleChoiceKey(question);
         if(Number(question.marks)!==1)throw new Error('Single-select MCQ mark allocation is invalid.');
       }
@@ -460,7 +462,7 @@ serve(async (req) => {
             throw new Error('Marking could not finish. Your answers are saved. Please retry.');
           }
         }
-      } else if (question.question_type === 'mcq' && !hasTableAnswers && (isProfileTemplate || [OCR_ALEVEL_BIOLOGY_ID,EDEXCEL_ALEVEL_BIOLOGY_B_ID].includes(examData.generation_context?.course_id))) {
+      } else if (question.question_type === 'mcq' && !hasTableAnswers && (isNewPhysics || isProfileTemplate || [OCR_ALEVEL_BIOLOGY_ID,EDEXCEL_ALEVEL_BIOLOGY_B_ID].includes(examData.generation_context?.course_id))) {
         const marked=markSingleChoice(question,studentAnswer);
         isCorrect=marked.isCorrect;score=marked.score;feedback=marked.feedback;
       } else if (question.question_type === 'mcq' && !hasTableAnswers) {

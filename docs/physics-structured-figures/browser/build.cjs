@@ -1,0 +1,31 @@
+const fs=require('node:fs');
+const path=require('node:path');
+const esbuild=require('/workspace/revise-ai-buddy/node_modules/esbuild');
+const root='/workspace/revise-ai-buddy',dir=__dirname;
+(async()=>{
+ const compiled=await esbuild.build({absWorkingDir:root,metafile:true,entryPoints:[dir+'/view.tsx'],bundle:true,outfile:dir+'/bundle.js',platform:'browser',format:'esm',jsx:'automatic',loader:{'.css':'empty'},nodePaths:[root+'/node_modules'],tsconfig:root+'/tsconfig.app.json',plugins:[{name:'synthetic-client-only',setup(b){
+ b.onResolve({filter:/^html2canvas$/},()=>({path:'html2canvas-observer',namespace:'observer'}));
+ b.onLoad({filter:/.*/,namespace:'observer'},()=>({loader:'js',resolveDir:root,contents:`import real from '${root}/node_modules/html2canvas/dist/html2canvas.esm.js'; export default async(el,options)=>{window.__pdfCaptures??=[];window.__pdfCaptures.push({text:el.innerText,html:el.innerHTML});return real(el,options);};`}));
+ b.onLoad({filter:/useUserPreferences\.ts$/},()=>({loader:'ts',contents:'export const useUserPreferences=()=>({preferences:{preferred_educational_level:"level2",preferred_exam_board:"AQA",curriculum_region:"GB"}});'}));
+ b.onResolve({filter:/integrations\/supabase\/client/},()=>({path:'client',namespace:'synthetic'}));
+ b.onLoad({filter:/.*/,namespace:'synthetic'},()=>({loader:'js',contents:`export const supabase={functions:{invoke:async(name,{body})=>({data:await window.__api(body),error:null})},auth:{getSession:async()=>({data:{session:{user:{id:window.__owner||'browser-owner'}}}}),getUser:async()=>({data:{user:{id:window.__owner||'browser-owner'}}})},from:()=>{throw Error('Live database access is blocked in this verification fixture')}};`}));
+ }}]});
+ const postcss=require(root+'/node_modules/postcss');
+ const postcssImport=require(root+'/node_modules/postcss-import');
+ const tailwind=require(root+'/node_modules/tailwindcss');
+ const autoprefixer=require(root+'/node_modules/autoprefixer');
+ const cssInput=fs.readFileSync(root+'/src/index.css','utf8').replace(/^@import url\('https:\/\/fonts.googleapis.com.*$/gm,'');
+ const loadConfig=require(root+'/node_modules/tailwindcss/loadConfig');
+ const config=loadConfig(root+'/tailwind.config.ts');
+ config.content=[...config.content.map(pattern=>path.resolve(root,pattern)),dir+'/view.tsx'];
+ const result=await postcss([postcssImport(),tailwind(config),autoprefixer()]).process(cssInput,{from:root+'/src/index.css'});
+ const fonts=fs.readFileSync(dir+'/fonts/manrope.css','utf8')+'\n'+fs.readFileSync(dir+'/fonts/source-serif-4.css','utf8');
+ fs.writeFileSync(dir+'/styles.css',fonts+'\n'+fs.readFileSync(root+'/node_modules/katex/dist/katex.min.css','utf8').replace(/url\(fonts\//g,'url(/katex-fonts/')+'\n'+result.css);
+ const crypto=require('node:crypto');
+ const bundled=Object.keys(compiled.metafile.inputs).map(p=>path.isAbsolute(p)?p:path.resolve(root,p)).filter(p=>p.startsWith(root+'/')&&fs.existsSync(p)).map(p=>path.relative(root,p));
+ const scanned=[...fs.globSync(config.content.filter(p=>!p.startsWith(dir)),{cwd:root})].filter(p=>fs.statSync(p).isFile()).map(p=>path.relative(root,p));
+ const tracked=[...new Set([...bundled,...scanned,'src/index.css','tailwind.config.ts','tsconfig.app.json','tsconfig.json','package.json','package-lock.json',...result.messages.filter(m=>m.type==='dependency'&&m.file&&m.file.startsWith(root+'/')&&fs.existsSync(m.file)).map(m=>path.relative(root,m.file))])].sort();
+ fs.writeFileSync(dir+'/source-hashes.json',JSON.stringify(Object.fromEntries(tracked.map(p=>[p,crypto.createHash('sha256').update(fs.readFileSync(path.join(root,p))).digest('hex')])),null,2));
+ fs.writeFileSync(dir+'/build-manifest.json',JSON.stringify({bundledInputs:bundled,tailwindScannedInputs:scanned,sourceFileCount:tracked.length,fixtureSha256:crypto.createHash('sha256').update(fs.readFileSync(dir+'/view.tsx')).digest('hex'),bundleSha256:crypto.createHash('sha256').update(fs.readFileSync(dir+'/bundle.js')).digest('hex'),stylesheetSha256:crypto.createHash('sha256').update(fs.readFileSync(dir+'/styles.css')).digest('hex')},null,2));
+ console.log('Synthetic browser bundle and production Tailwind styles built.');
+})().catch(e=>{console.error(e);process.exitCode=1;});

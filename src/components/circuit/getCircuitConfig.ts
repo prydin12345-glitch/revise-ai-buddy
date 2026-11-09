@@ -1,6 +1,8 @@
 import { detectCircuitConfig } from './circuit-detector';
 import type { CircuitConfig } from './types';
 import { needsCircuitTopology } from '../../../supabase/functions/_shared/physics-resource-validation';
+import { hasPhysicsFigureContract } from '@/lib/physics-assessment-figure';
+import { usesPhysicsGenerationContract } from '../../../supabase/functions/_shared/physics-generation-policy';
 
 /**
  * Resolves circuit config for a question.
@@ -19,6 +21,7 @@ export function getCircuitConfig(
     subject?: string;
   },
   subjectId?: string,
+  generationContext?: unknown,
 ): CircuitConfig | null {
   const effectiveSubject =
     subjectId ?? question.subject ?? question.subject_id ?? '';
@@ -30,6 +33,8 @@ export function getCircuitConfig(
       subjLower,
     );
   if (isBiologySubject) return null;
+  // The shared Physics component owns versioned resources, including circuits.
+  if (hasPhysicsFigureContract(question) || usesPhysicsGenerationContract(generationContext)) return null;
 
   const text = question.question_text || question.questionText || '';
   // A saved or inferred capacitor picture must not be injected into a graph,

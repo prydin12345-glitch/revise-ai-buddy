@@ -1,4 +1,4 @@
-import { Component, useEffect, useState, type ReactNode, type ComponentProps } from "react";
+import { Component, useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,10 +10,9 @@ import { ResponseReview } from "@/components/responses/ResponseReview";
 import { formatBiologyEssayKey } from "@/lib/biology-essay";
 import { AssessmentBiologyFigure } from "@/components/biology/AssessmentBiologyFigure";
 import { MathsFigurePanel } from "@/components/maths";
-import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
+import { AssessmentPhysicsFigure } from "@/components/physics/AssessmentPhysicsFigure";
 import { CircuitFigurePanel } from "@/components/circuit";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
-import { PhysicsFigurePanel } from "@/components/physics";
 import { EconomicsFigurePanel } from "@/components/economics/EconomicsFigurePanel";
 import { InsertPanel } from "@/components/insert/InsertPanel";
 import { isTickXTable, parseMarkdownToTableGrid, generateCorrectAnswerDisplay } from "@/components/exam/TableGridQuestion";
@@ -26,7 +25,7 @@ import {
   FrequencyPolygonChart, isFrequencyPolygonQuestion, ClimateChart, isClimateChartQuestion,
 } from "@/components/graph";
 
-interface State { review: ReleasedRevisit | null; error: string | null; loading: boolean; insert: unknown[]; insertUnavailable: boolean; insertLoading: boolean }
+interface State { review: ReleasedRevisit | null; error: string | null; loading: boolean; insert: unknown[]; insertUnavailable: boolean; insertLoading: boolean; generationContext?: unknown }
 const emptyState: State = { review: null, error: null, loading: true, insert: [], insertUnavailable: false, insertLoading: false };
 
 export default function QuestionRevisitContent({ row }: { row: StatsWrongQuestion }) {
@@ -45,9 +44,9 @@ export default function QuestionRevisitContent({ row }: { row: StatsWrongQuestio
         // endpoint has freshly authorised this exact marked review.
         setState({ review, error: null, loading: false, insert: [], insertUnavailable: false, insertLoading: true });
         try {
-          const { data: exam, error: insertError } = await withDeadline(supabase.from("exams").select("insert_figures").eq("id", row.examId).single());
+          const { data: exam, error: insertError } = await withDeadline(supabase.from("exams").select("insert_figures, generation_context").eq("id", row.examId).single());
           if (!current) return;
-          setState({ review, error: null, loading: false, insert: Array.isArray(exam?.insert_figures) ? exam.insert_figures : [], insertUnavailable: !!insertError, insertLoading: false });
+          setState({ review, error: null, loading: false, insert: Array.isArray(exam?.insert_figures) ? exam.insert_figures : [], insertUnavailable: !!insertError, insertLoading: false, generationContext: exam?.generation_context });
         } catch {
           // An optional booklet failure must not discard an authorised question.
           if (current) setState({ review, error: null, loading: false, insert: [], insertUnavailable: true, insertLoading: false });
@@ -67,9 +66,9 @@ export default function QuestionRevisitContent({ row }: { row: StatsWrongQuestio
     <div className="stats-review-question-heading"><div><p className="stats-question-context">{row.examTitle}</p><h2>Question {question.question_number}</h2></div><span className="stats-review-score">{answer.score}<small> / {question.marks} marks</small></span></div>
     <section className="stats-review-question" aria-label="Question">
       <MathRenderer content={question.question_text} question={question} latex={question.question_latex} hasMath={!!question.has_math} className="stats-review-prompt"/>
-      {question.response_definition ? <div className="stats-review-structured"><ResponseReview question={question} answerText={answer.answer_text} solutionsReleased/></div> : <>
+      {question.response_definition ? <div className="stats-review-structured"><AssessmentPhysicsFigure question={question} subject={row.subject} generationContext={state.generationContext} isReview isSubmitted/><ResponseReview question={question} answerText={answer.answer_text} solutionsReleased/></div> : <>
         <LegacyOptions options={question.options}/>
-        <SavedQuestionResources question={question} subject={row.subject}/>
+        <SavedQuestionResources question={question} subject={row.subject} generationContext={state.generationContext}/>
         <section className="stats-expected-answer stats-review-answer" aria-labelledby="stats-expected-answer-heading"><h3 id="stats-expected-answer-heading"><CheckCircle2 aria-hidden="true"/>Expected answer</h3><ExpectedAnswer value={expectedLegacyValue(question)}/></section>
       </>}
     </section>
@@ -129,20 +128,15 @@ function ChartResource({ chart }: { chart: ReturnType<typeof getChartData> }) {
   return null;
 }
 
-function SavedQuestionResources({ question, subject }: { question: ReleasedRevisitQuestion; subject: string }) {
-  const mechanics = detectDiagramConfig(question.question_text);
-  const circuit = getCircuitConfig(question, subject);
-  const config = question.diagram_config;
-  const savedPhysics = config && typeof config === "object" && "type" in config && ["ray_diagram", "wave_diagram", "magnetic_field", "nuclear_decay", "electromagnetic_spectrum"].includes(String(config.type));
-  const physicsConfig = savedPhysics ? config as ComponentProps<typeof PhysicsFigurePanel>["diagramConfig"] : null;
+function SavedQuestionResources({ question, subject, generationContext }: { question: ReleasedRevisitQuestion; subject: string; generationContext?: unknown }) {
+  const circuit = getCircuitConfig(question, subject, generationContext);
   return <>
     <ChartResource chart={getChartData(question)}/>
     <AssessmentBiologyFigure question={question} solutionsReleased/>
-    {mechanics && <MechanicsFigurePanel config={mechanics}/>}
+    <AssessmentPhysicsFigure question={question} subject={subject} generationContext={generationContext} isReview isSubmitted/>
     {circuit && <CircuitFigurePanel config={circuit}/>}
     <MathsFigurePanel questionText={question.question_text} subject={subject} diagramConfig={null} isReview isSubmitted/>
     <EconomicsFigurePanel questionText={question.question_text} subject={subject} diagramConfig={null} isReview isSubmitted/>
-    <PhysicsFigurePanel questionText={question.question_text} subject={subject} diagramConfig={physicsConfig} isReview isSubmitted/>
     {getCorrectChartData(question) && <section className="space-y-2"><h3 className="text-xs font-semibold">Expected chart</h3><ChartResource chart={getCorrectChartData(question)}/></section>}
   </>;
 }

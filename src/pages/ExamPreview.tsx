@@ -27,9 +27,9 @@ import {
 } from "@/components/graph";
 import { parseGraphQuestionData } from "@/components/graph/types";
 import { getChartData, getCorrectChartData } from "@/utils/chartData";
-import { MechanicsFigurePanel, detectDiagramConfig } from "@/components/mechanics";
+import { AssessmentPhysicsFigure } from "@/components/physics/AssessmentPhysicsFigure";
+import { usesSavedPhysicsFigure } from "@/lib/physics-assessment-figure";
 import { CircuitFigurePanel } from "@/components/circuit";
-import { PhysicsFigurePanel } from "@/components/physics";
 import { getCircuitConfig } from "@/components/circuit/getCircuitConfig";
 import { AssessmentBiologyFigure } from '@/components/biology/AssessmentBiologyFigure';
 import { MathsFigurePanel } from "@/components/maths";
@@ -668,7 +668,8 @@ const ExamReview = () => {
                   />
 
 
-                   {question.response_definition ? <ResponseReview question={question} answerText={answer?.answer_text} solutionsReleased={!scoresHidden} /> : <>
+                   <AssessmentPhysicsFigure generationContext={paperContext} question={question} isReview isSubmitted />
+                  {question.response_definition ? <ResponseReview question={question} answerText={answer?.answer_text} solutionsReleased={!scoresHidden} /> : <>
                    {/* Chart rendering — diagram_config first, options fallback */}
                    {(() => {
                      const chartData = getChartData(question);
@@ -705,16 +706,9 @@ const ExamReview = () => {
                    })()}
 
 
-                   {/* Mechanics diagram panel */}
-                   {(() => {
-                     const diagConfig = detectDiagramConfig(question.question_text);
-                     if (!diagConfig) return null;
-                     return <MechanicsFigurePanel config={diagConfig} />;
-                   })()}
-
                    {/* Circuit diagram panel */}
                    {(() => {
-                     const circuitConfig = getCircuitConfig(question, (question as any).subject ?? '');
+                     const circuitConfig = getCircuitConfig(question, (question as any).subject ?? '', paperContext);
                      if (!circuitConfig) return null;
                      return <CircuitFigurePanel config={circuitConfig} />;
                    })()}
@@ -737,15 +731,6 @@ const ExamReview = () => {
                        isSubmitted={true}
                        isReview={true}
                      />
-
-                      <PhysicsFigurePanel
-                        questionText={question.question_text ?? ''}
-                        subject={(question as any).subject ?? ''}
-                        diagramConfig={(question as any).diagram_config ?? null}
-                        isExam={false}
-                        isReview={true}
-                        isSubmitted={true}
-                      />
 
                     {(() => {
                       const isGraphType =
@@ -776,7 +761,7 @@ const ExamReview = () => {
                       );
                     })()}
 
-                  {question.figure_urls && question.figure_urls.length > 0 && (
+                  {!usesSavedPhysicsFigure(question, paperContext) && question.figure_urls && question.figure_urls.length > 0 && (
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       {question.figure_urls.map((url, idx) => (
                         <img key={idx} src={url} alt={`Figure ${idx + 1}`} className="rounded-lg border" />

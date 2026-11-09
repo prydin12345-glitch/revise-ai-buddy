@@ -27,7 +27,7 @@ const ProjectileRenderer: React.FC<Props> = ({ config }) => {
   const rad = (drawAngle * Math.PI) / 180;
 
   // ── Labels derived from config ──
-  const sLabel = typeof speed === 'string' ? speed : fmtVal(speed, 'm/s');
+  const sLabel = config.speedLabel ?? (typeof speed === 'string' ? speed : fmtVal(speed, 'm/s'));
   const aLabel = typeof angle === 'string' ? String(angle) : `${angle}°`;
   const sRaw = typeof speed === 'string' ? speed : String(speed);
   const aRaw = typeof angle === 'string' ? String(angle) : `${angle}°`;
@@ -77,9 +77,9 @@ const ProjectileRenderer: React.FC<Props> = ({ config }) => {
   const heightLabel = isMaxHeightUnknown ? 'H' : null;
 
   // ── Angle arc label — show symbol when components are visible ──
-  const arcLabel = showComponents && !isAngleUnknown
+  const arcLabel = config.angleLabel ?? (typeof angle === 'string' ? angle : showComponents && !isAngleUnknown
     ? 'θ'
-    : isAngleUnknown ? 'θ' : aLabel;
+    : isAngleUnknown ? 'θ' : aLabel);
 
   // ── Range dimension ──
   const rangeArrowY = groundY + 32; // was +22

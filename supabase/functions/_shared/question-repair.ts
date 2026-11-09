@@ -1,6 +1,7 @@
 import {readLimitedBody} from './profile-document-io.ts';
 import {usageTokens,type AiCallRecord} from './ai-call-budget.ts';
 import { isGenericPlan } from './profile-template.ts';
+import {physicsGenerationInstructions} from './physics-generation-contract.ts';
 import { validateBiologyPlan } from './biology-plan-validator.ts';
 import { biologyRepairInstructions, packForBiologyPlan } from './biology-course-packs.ts';
 import { analyseGroupRepair, repairNumberKey, type RepairDiagnostic, type RepairMode, type RepairResult } from './prepare-group-repair.ts';
@@ -17,6 +18,7 @@ import {chiSquaredTableShapeExample,ocrPaper3StatisticsInstructions} from './ocr
 import {expandPaper3SharedTables,paper3SharedDataInstructions,paper3SharedRepairExamples} from './ocr-paper3-shared-data.ts';
 
 export interface RepairRequest {
+  physicsGeneration?: boolean;
   group: any[];
   subject: string;
   scope: BiologyScope;
@@ -123,7 +125,7 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     'Captions must be neutral; no [Graph showing ...] placeholders or answer-revealing descriptions.',
     taskOnly ? 'For an MCQ, use the ORIGINAL choices when checking correct_answer; do not emit or change the choices.'
       : 'For every MCQ row return an options array of exactly four distinct non-empty choices (plain text, no A./B. prefixes) plus a correct_answer that matches one of them exactly. Never omit or null the options.',
-    'Put mathematics inside $...$.',
+    input.physicsGeneration ? 'Use plain Unicode physics notation and units consistently; do not duplicate a stem in LaTeX.' : 'Put mathematics inside $...$.',
     biologyRepairInstructions(input.plan, new Set(plannedParts.map(part => part.questionNumber)), !taskOnly),
     taskOnly ? 'TASK-ONLY OUTPUT: the plan above is context, not an instruction to replace resources. Return {"parts":[...]} with question_number, task and correct_answer in each target entry.'
       : 'FULL-GROUP OUTPUT: use diagram_config for the repaired canonical resource, even where generation instructions above say chart_data. Return every sibling and every planned resource. A resource=none part may instead be rewritten to remove a dependency, but its task must remain answerable and its key must be rewritten too.',
@@ -131,6 +133,7 @@ export function buildQuestionRepairPrompt(input: RepairRequest): string {
     taskOnly ? '' : plannedResourceTypeNotes(plannedParts, 'diagram_config'),
     taskOnly ? '' : 'Every scored part MUST have a non-empty "task" field holding its assessed instruction (for example "Calculate ...", "Explain ..."), separate from "context". Do not leave task empty or put the instruction only inside question_text.',
     taskOnly ? '' : questionResourceInstructions('diagram_config'),
+    input.physicsGeneration ? physicsGenerationInstructions() : '',
     'Planned parts: ' + JSON.stringify(plannedParts),
     'Current group: ' + JSON.stringify(input.group.map(row => ({ question_number: row.question_number,
       question_type: row.question_type, marks: row.marks, topic_tag: row.topic_tag, question_text: row.question_text,
@@ -201,11 +204,11 @@ async function performQuestionRepair(input: RepairRequest, apiKey: string, reque
   if(expanded.diagnostics.length)return {ok:false,replacements:{},phase:'validation',diagnostics:expanded.diagnostics};
   const optionalResourceRemovals = new Set(input.plan && isGenericPlan(input.plan)
     ? plannedRepairParts(input).filter(part => part.resource === 'none').map(part => part.questionNumber) : []);
-  const result = analyseGroupRepair(input.group, expanded.rows, input.scope, requiredParts, input.targetNumbers, input.mode, optionalResourceRemovals);
+  const result = analyseGroupRepair(input.group, expanded.rows, input.scope, requiredParts, input.targetNumbers, input.mode, optionalResourceRemovals, {physicsGeneration:input.physicsGeneration});
   if (result.ok && input.plan) {
     const groupPlan = {...input.plan, parts: plannedRepairParts(input)};
     const proposed = input.group.map(row => ({...row, ...result.replacements[String(row.question_number)]}));
-    const defects = validateBiologyPlan(proposed, groupPlan);
+    const defects = validateBiologyPlan(proposed, groupPlan, {physicsFigures:input.physicsGeneration});
     if (defects.length) return {ok: false, replacements: {}, phase: 'validation',
       diagnostics: defects.map(d => ({code: d.code, detail: d.detail,
         partNumber: proposed.find(row => String(row.id ?? row.question_number) === d.partId)?.question_number}))};

@@ -4,6 +4,8 @@ import {selectVisualAssessment,applyVisualAssessment,seededVisualRows} from './b
 import {buildPaperPlan} from './biology-paper-contract.ts';
 import type {SavedVisualAssessment} from './biology-visual-types.ts';
 import { snapshotTemplate } from './profile-template-context.ts';
+import { PHYSICS_GENERATION_VERSION } from './physics-generation-policy.ts';
+import {buildPhysicsPaperPlan, type PhysicsPaperPlan} from './physics-paper-plan.ts';
 import { evaluateApproval } from './preset-approval.ts';
 // Backend counterpart of src/lib/profile-context.ts.
 //
@@ -23,6 +25,7 @@ import { profileCourseId, resolvePaperSelection, type ResolvedPaperSelection } f
 export const GENERATION_CONTEXT_VERSION = 2;
 
 export interface ResolvedGenerationContext extends ResolvedPaperSelection {
+  physicsPaperPlan?: PhysicsPaperPlan | null;
   profileTemplate?: ReturnType<typeof snapshotTemplate>;
   profileApproval?: ReturnType<typeof evaluateApproval>;
   visualAssets?: SavedVisualAssessment;
@@ -96,6 +99,8 @@ export const resolveProfileContext = async (
   const profileApproval = profile ? evaluateApproval(profile, profile.profile_template?.presetId) : undefined;
   if (savedTemplate?.plan) {
     const identity = savedTemplate.context.template.identity;
+    const physicsPaperPlan = /\bphysics\b/i.test(identity.subject)
+      ? buildPhysicsPaperPlan(savedTemplate.plan, {subject:identity.subject, evidence:profile.profile_template?.evidence}) : null;
     return {
       contextVersion: GENERATION_CONTEXT_VERSION,
       subjectName: identity.subject,
@@ -112,6 +117,7 @@ export const resolveProfileContext = async (
       paperContract: null,
       profileTemplate: savedTemplate,
       profileApproval,
+      ...(physicsPaperPlan ? {physicsPaperPlan} : {}),
     };
   }
 
@@ -168,6 +174,15 @@ export const toStoredGenerationContext = (
 ): Record<string, unknown> => ({
   context_version: ctx.contextVersion,
   subject_name: ctx.subjectName,
+  ...(ctx.physicsPaperPlan ? {physics_paper_plan:{
+    ...ctx.physicsPaperPlan,
+    // Shared attempts retain the checked allocation, not private upload ids.
+    // Full evidence and its references remain in the owner-scoped profile.
+    topics:ctx.physicsPaperPlan.topics.map(topic => ({...topic,sourceReferences:[]})),
+    practical:{...ctx.physicsPaperPlan.practical,sourceReferences:[]},
+  }} : {}),
+  ...(/\bphysics\b/i.test(ctx.subjectName)
+    ? {physics_generation_version: PHYSICS_GENERATION_VERSION} : {}),
   profile_id: ctx.profileId,
   profile_name: ctx.profileName,
   exam_board: ctx.examBoard,
