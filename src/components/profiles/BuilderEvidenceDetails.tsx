@@ -7,6 +7,21 @@ export function BuilderEvidenceDetails({ job }: { job: SourceJobView }) {
     job.validationIssues?.length;
   return (
     <>
+      {job.pageReview?.map((review) => (
+        <p
+          key={review.document}
+          role="status"
+          className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground"
+        >
+          {job.pageReview!.length > 1 ? `Document ${review.document}: ` : ""}
+          {review.readPages.length
+            ? `PDF pages selected for reading: ${review.readPages.join(", ")}.`
+            : "None of the selected PDF pages could be matched to this assessment."}
+          {review.skippedPages.length > 0 && (
+            <> PDF pages {review.skippedPages.join(", ")} were skipped because they could not be safely matched to this assessment.</>
+          )}
+        </p>
+      ))}
       {showIssues ? (
         <details
           open

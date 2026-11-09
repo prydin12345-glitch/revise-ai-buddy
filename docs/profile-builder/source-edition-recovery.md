@@ -1,0 +1,32 @@
+# Uploaded syllabus editions and instruction-page recovery
+
+Reviewed against `71e2ee47ba0b8896c3abe6c9380a8346442489b8` on 8 November 2026. This preserves Lovable's topic reconciliation and the subsequent profile-delete changes. It changes no existing profiles, approval records, database objects or deployment settings.
+
+## Confirmed causes
+
+1. The client resolved an empty version field to the catalogue's current `v1.4-july-2026` before sending the uploaded specification. The server treated that default as an explicit user constraint. Its cover check then rejected the real `Version 1.3 1 June 2017` before extraction; later identity checks could also reject it.
+2. Lovable's reviewed instruction rules registered issue 1.3 as **July 2017**. The PDF's **June 2017** label failed the full version-string comparison, so the rule pack did not supply compulsory-question/calculator instructions. Its regression fixtures used the same incorrect July label and missed this case. An isolated before/after replay confirms the old resolver returns no rules for the actual June label.
+3. A physical-page answer intentionally filters out pages belonging to other assessments, but previously provided no record of the excluded pages. The same valid page answer can therefore appear to do nothing when the requested fact is absent from the retained pages.
+4. Topic recovery could rescue a heading from elsewhere in the same qualification without proving it belonged to the selected paper's numbered scope. Typography matching also removed ordinary lexical hyphens, so `re-sign` could match `resign`.
+
+The original failed private PDF and provider replies were not attached to this task. Regressions use original synthetic sources reproducing the reported cover wording, combined-qualification layout and initial/follow-up evidence shapes; they do not claim to replay those private provider responses.
+
+## Resulting behavior
+
+- New upload requests distinguish `specificationVersionIntent: source` from an explicit override. With source intent, the server reads a literal specification-cover declaration before the model runs. The catalogue's current edition cannot override it. A blank Advanced field means detect from the upload; teaching dates remain contextual. A deliberately entered edition, saved-profile edition, and legacy requests without the new flag retain their existing constraints.
+- The actual cover label and physical page are retained with the owned document checksum. Stale model edition metadata is corrected only from that server-read cover, including during drafting. Other identity fields and assessment facts still pass their existing checks. Conflicting specification covers remain unresolved. Question-booklet print versions cannot become specification editions.
+- Both reviewed AQA Physics issues use the bounded aliases for their real publication dates: **1.3 June 2017** and **1.4 July 2026**. The assessment rules remain cited to reviewed official paper covers. These are separate sources, not claims that the uploaded specification contains calculator or compulsory-question wording. Paper 3 and unrelated/unreviewed editions remain excluded. No preset approval or gold star is added.
+- The confirmation displays the resolved syllabus edition. Page answers keep the same owned request, file and parsed text; the status now lists pages selected for reading and any skipped pages. A failed page refinement cannot silently waive a missing full-mock requirement or repeatedly spend calls on the same question. A genuinely missing instruction source still needs the relevant official cover/source.
+- Topic naming preserves the full document's safely established qualification scope during a format-only follow-up. Page narrowing is used when needed to disambiguate a combined document; unselected documents remain unresolved safely. A shorter quote cannot truncate a longer governing range, and complementary pointers in the same assessed-content block are retained without including unrelated instruction references.
+- Topic-heading recovery stays inside the selected assessment's cited scope. A completely resolved numbered scope retains all its source headings even if the model named only a subset; incomplete scope stays unresolved. Quote matching tolerates physical PDF word wraps and typography while retaining meaningful hyphens, wording and numbers.
+- Phone page inputs expose a keyboard suitable for ranges/lists. Suggested pages are not appended twice. Existing profile deletion and the manual editor are preserved.
+
+## Safeguards and rollout
+
+The existing owner/revision/lease checks, quota reservation, three-call/active-time budget, evidence claims and checksums, strict full-mock requirements, optional-component restrictions, preset registry and protected generation/marking/analytics contexts remain in force. Auto and explicit requests have different receipt/cache identities; cached evidence is rechecked against the actual selection. No migration or generated database-type change is needed.
+
+Do not revive an old terminal failed job as a new build. After the reviewed backend and matching client are available together, start a fresh read from the attached PDF with the version override blank. Existing saved profiles and attempts are not rewritten.
+
+Verification completed on 9 November: `npm run check` passes **3,065 tests in 189 files**, TypeScript, critical lint, all **39 Edge Function** checks and the production build. Both Biology/approval audits are byte-for-byte unchanged from the baseline (52 entries). Chromium passes **88 scenarios across eight viewport/theme cases**, including the previously clipped phone Continue action, with all **825** source/style/configuration fingerprints unchanged throughout the final run. The baseline itself passes 3,018 tests in 187 files.
+
+The [verification record](source-edition-recovery/verification.json), [browser evidence](source-edition-recovery/browser/README.md) and [deployment handoff](source-edition-recovery/deployment.md) preserve the practical limits of these checks. The [actual dependency graph](source-edition-recovery/edge-function-dependencies.json) identifies **ten** affected functions; updating only the client or builder would leave the shared source validators out of sync. No migration is needed. All verification is offline or local with simulated providers and memory persistence. No paid AI calls, live sign-in, live data changes, deployments, merges or publication are performed by this change.

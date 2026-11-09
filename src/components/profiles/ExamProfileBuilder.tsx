@@ -198,6 +198,9 @@ export function ExamProfileBuilder({
   const [manualAssessment, setManualAssessment] = useState(false);
   const [componentCode, setComponentCode] = useState("");
   const [codeEdited, setCodeEdited] = useState(false);
+  // Catalogue defaults describe the current course, not the edition of an
+  // uploaded syllabus. Only a deliberate override pins an upload's version.
+  const [versionExplicit, setVersionExplicit] = useState(false);
   const [restartOpen, setRestartOpen] = useState(false);
   const [sourceJob, setSourceJob] = useState<SourceJobView | null>(null);
   const [changingClarification, setChangingClarification] = useState(false);
@@ -263,6 +266,7 @@ export function ExamProfileBuilder({
     setChangingClarification(false);
     setReplacingSource(false);
     setContinuingClarification(false);
+    setVersionExplicit(false);
     setPendingJobId(null);
     sourceRequest.current = null;
     request.current = null;
@@ -289,6 +293,7 @@ export function ExamProfileBuilder({
     const ctx = initialProfile?.profile_template as
       SavedTemplateContext | undefined;
     if (ctx?.version === 1 && ctx.resolved_by === "server") {
+      setVersionExplicit(true);
       setProposal(proposalFromContext(ctx));
       setProposalId(ctx.proposalId ?? "");
       setTemplate(clone(ctx.template));
@@ -479,6 +484,10 @@ export function ExamProfileBuilder({
     value: string | null,
   ) => {
     setError("");
+    if (key === "specificationVersion")
+      setVersionExplicit(!!value?.trim());
+    else if (["organisation", "qualification", "country", "course"].includes(key))
+      setVersionExplicit(false);
     setSourceId("");
     invalidatePreview();
     if (["organisation", "qualification", "country", "course"].includes(key)) {
@@ -542,6 +551,7 @@ export function ExamProfileBuilder({
     setPresetId(id);
     setError("");
     if (!id) return;
+    setVersionExplicit(false);
     const p = templateFromPreset(id);
     setIdentity(p.template.identity);
     const selected = builderFindAssessment(
@@ -572,6 +582,7 @@ export function ExamProfileBuilder({
 
     setError("");
     if (id) {
+      setVersionExplicit(false);
       const e = resolveRegisteredSource(id);
       setIdentity(e.identity);
       const selected = builderFindAssessment(e.identity, e.identity.component);
@@ -698,6 +709,11 @@ export function ExamProfileBuilder({
     const payload = {
       action: "prepare_source",
       identity: resolvedIdentity,
+      specificationVersionIntent:
+        versionExplicit &&
+        classifySpecificationVersion(resolvedIdentity.specificationVersion).kind === "explicit"
+          ? "explicit"
+          : "source",
       mode,
       uploads,
     };
@@ -1610,6 +1626,7 @@ export function ExamProfileBuilder({
                     ) : undefined
                   }
                 />
+                {sourceJob && <BuilderEvidenceDetails job={sourceJob} />}
               </div>
             )}
             {!focusedSource && (
@@ -2030,7 +2047,11 @@ export function ExamProfileBuilder({
                         <Field key={key} label={label}>
                           <Input
                             aria-label={label}
-                            value={String(identity[key] ?? "")}
+                            value={String(
+                              key === "specificationVersion" && !versionExplicit
+                                ? ""
+                                : (identity[key] ?? ""),
+                            )}
                             onChange={(e) =>
                               changeIdentity(key, e.target.value)
                             }
@@ -2050,9 +2071,9 @@ export function ExamProfileBuilder({
                               id="builder-version-context-hint"
                               className="text-xs text-muted-foreground"
                             >
-                              Dates help identify your course. Examly verifies
-                              the specification version from its catalogue or
-                              your source.
+                              Leave blank to use the edition in your uploaded
+                              syllabus. Enter a version only to require that
+                              exact edition; teaching dates are context.
                             </p>
                           )}
                         </Field>
@@ -2203,7 +2224,7 @@ export function ExamProfileBuilder({
                       ? "Short practice"
                       : "Custom assessment"}
                   {educationalLevel
-                    ? ` using your saved ${identity.qualification} level`
+                    ? ` using your saved level: ${identity.qualification}`
                     : ""}
                   . You can edit the completed profile before saving.
                 </p>
@@ -2213,10 +2234,18 @@ export function ExamProfileBuilder({
                     AI call.
                   </p>
                 ) : sourceJob?.stage === "ready" ? (
-                  <p className="text-sm">
-                    We found this assessment in your syllabus. The AI draft will
-                    follow its supported rules.
-                  </p>
+                  <div className="space-y-2 text-sm">
+                    <p>
+                      We found this assessment in your syllabus. The AI draft will
+                      follow its supported rules.
+                    </p>
+                    {classifySpecificationVersion(identity.specificationVersion)
+                      .kind === "explicit" && (
+                      <p className="text-xs text-muted-foreground">
+                        Syllabus edition: {identity.specificationVersion}
+                      </p>
+                    )}
+                  </div>
                 ) : sourceId ? (
                   <p className="text-sm">
                     The AI draft will use the reviewed official source for this

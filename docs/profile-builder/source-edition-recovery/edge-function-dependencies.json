@@ -1,0 +1,136 @@
+{
+  "method": "Intersect git modified/new server module paths with esbuild metafile inputs for every actual Edge Function entry point; URL and npm runtime imports remain external.",
+  "baselineCommit": "71e2ee47ba0b8896c3abe6c9380a8346442489b8",
+  "generatedOn": "2026-11-09",
+  "runtimeExternals": [
+    "https://*",
+    "http://*",
+    "npm:*"
+  ],
+  "changedServerModules": [
+    "supabase/functions/_shared/profile-builder-jobs.ts",
+    "supabase/functions/_shared/profile-reviewed-assessment-rules.ts",
+    "supabase/functions/_shared/profile-source-version.ts",
+    "supabase/functions/_shared/profile-topic-sections.ts",
+    "supabase/functions/_shared/source-text-match.ts"
+  ],
+  "entryPointsChecked": 39,
+  "checkedEntryPoints": [
+    "supabase/functions/ai-tutor-chat/index.ts",
+    "supabase/functions/analyze-exam/index.ts",
+    "supabase/functions/auto-schedule-goal/index.ts",
+    "supabase/functions/backfill-graph-questions/index.ts",
+    "supabase/functions/calculate-spaced-repetition/index.ts",
+    "supabase/functions/classify-subject/index.ts",
+    "supabase/functions/cleanup-expired-files/index.ts",
+    "supabase/functions/complete-tutor-onboarding/index.ts",
+    "supabase/functions/delete-account/index.ts",
+    "supabase/functions/derive-exam-topics/index.ts",
+    "supabase/functions/detect-missed-tasks/index.ts",
+    "supabase/functions/explain-answer/index.ts",
+    "supabase/functions/export-user-data/index.ts",
+    "supabase/functions/extract-exam-questions/index.ts",
+    "supabase/functions/extract-resource-pack/index.ts",
+    "supabase/functions/generate-practice-questions/index.ts",
+    "supabase/functions/generate-rationale/index.ts",
+    "supabase/functions/generate-resource-pack/index.ts",
+    "supabase/functions/generate-student-pdf/index.ts",
+    "supabase/functions/get-exam-questions/index.ts",
+    "supabase/functions/get-practice-questions/index.ts",
+    "supabase/functions/grade-practice-question/index.ts",
+    "supabase/functions/mcp/index.ts",
+    "supabase/functions/notifications-api/index.ts",
+    "supabase/functions/polish-question/index.ts",
+    "supabase/functions/profile-builder/index.ts",
+    "supabase/functions/publish-exam/index.ts",
+    "supabase/functions/question-response/index.ts",
+    "supabase/functions/regenerate-question/index.ts",
+    "supabase/functions/sanitise-questions/index.ts",
+    "supabase/functions/save-exam-format/index.ts",
+    "supabase/functions/save-exam-progress/index.ts",
+    "supabase/functions/save-exam-timer/index.ts",
+    "supabase/functions/send-due-date-reminders/index.ts",
+    "supabase/functions/submit-exam/index.ts",
+    "supabase/functions/submit-student-answer/index.ts",
+    "supabase/functions/suggest-subject-topics/index.ts",
+    "supabase/functions/update-study-streak/index.ts",
+    "supabase/functions/upload-exam/index.ts"
+  ],
+  "affectedFunctions": [
+    {
+      "function": "extract-exam-questions",
+      "changedImports": [
+        "supabase/functions/_shared/profile-source-version.ts",
+        "supabase/functions/_shared/source-text-match.ts"
+      ]
+    },
+    {
+      "function": "generate-practice-questions",
+      "changedImports": [
+        "supabase/functions/_shared/profile-source-version.ts",
+        "supabase/functions/_shared/source-text-match.ts"
+      ]
+    },
+    {
+      "function": "get-practice-questions",
+      "changedImports": [
+        "supabase/functions/_shared/profile-source-version.ts",
+        "supabase/functions/_shared/source-text-match.ts"
+      ]
+    },
+    {
+      "function": "grade-practice-question",
+      "changedImports": [
+        "supabase/functions/_shared/profile-source-version.ts",
+        "supabase/functions/_shared/source-text-match.ts"
+      ]
+    },
+    {
+      "function": "profile-builder",
+      "changedImports": [
+        "supabase/functions/_shared/profile-builder-jobs.ts",
+        "supabase/functions/_shared/profile-reviewed-assessment-rules.ts",
+        "supabase/functions/_shared/profile-source-version.ts",
+        "supabase/functions/_shared/profile-topic-sections.ts",
+        "supabase/functions/_shared/source-text-match.ts"
+      ]
+    },
+    {
+      "function": "publish-exam",
+      "changedImports": [
+        "supabase/functions/_shared/profile-source-version.ts",
+        "supabase/functions/_shared/source-text-match.ts"
+      ]
+    },
+    {
+      "function": "save-exam-format",
+      "changedImports": [
+        "supabase/functions/_shared/profile-source-version.ts",
+        "supabase/functions/_shared/source-text-match.ts"
+      ]
+    },
+    {
+      "function": "save-exam-timer",
+      "changedImports": [
+        "supabase/functions/_shared/profile-source-version.ts",
+        "supabase/functions/_shared/source-text-match.ts"
+      ]
+    },
+    {
+      "function": "submit-exam",
+      "changedImports": [
+        "supabase/functions/_shared/profile-source-version.ts",
+        "supabase/functions/_shared/source-text-match.ts"
+      ]
+    },
+    {
+      "function": "upload-exam",
+      "changedImports": [
+        "supabase/functions/_shared/profile-source-version.ts",
+        "supabase/functions/_shared/source-text-match.ts"
+      ]
+    }
+  ],
+  "changedServerModulesNotImportedByEdgeFunctions": [],
+  "deploymentPerformed": false
+}

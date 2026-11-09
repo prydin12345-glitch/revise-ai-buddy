@@ -25,6 +25,13 @@ const disagrees = (
 ) => !!a && !!b && a.family === b.family && a.identifier !== b.identifier;
 export class SourceSpecificationVersionConflict extends Error {}
 
+export interface SourceCoverSpecificationIssue {
+  /** Exact source line, including any date, rather than a catalogue label. */
+  value: string;
+  page: number;
+  issue: SpecificationIssue;
+}
+
 /** Metadata cannot claim one explicit specification issue under another identity. */
 export function assertSourceSpecificationIssues(
   selected: string,
@@ -56,12 +63,9 @@ export function assertSourceSpecificationIssues(
  * declaration. Later change-history rows do not replace it. No dates or model
  * metadata are treated as proof of a different issue.
  */
-export function coverSpecificationIssueConflict(
-  selected: string,
+export function coverSpecificationIssue(
   pages: Array<{ page: number; text: string }>,
-): string | null {
-  const requested = specificationIssue(selected);
-  if (!requested) return null;
+): SourceCoverSpecificationIssue | null {
   const cover = pages
     .filter((page) => page.page <= 5)
     .map((page) => page.text)
@@ -93,10 +97,22 @@ export function coverSpecificationIssueConflict(
         literal.replace(/^(?:specification|spec)\s+/i, ""),
       );
       if (!issue) continue;
-      return disagrees(requested, issue)
-        ? `The PDF states ${literal}, but this profile selects ${selected}. Add the matching current specification or rebuild from the PDF's actual edition.`
-        : null;
+      return {
+        value: literal.replace(/^(?:specification|spec)\s+/i, ""),
+        page: page.page,
+        issue,
+      };
     }
   }
   return null;
+}
+
+export function coverSpecificationIssueConflict(
+  selected: string,
+  pages: Array<{ page: number; text: string }>,
+): string | null {
+  const cover = coverSpecificationIssue(pages);
+  return cover && disagrees(specificationIssue(selected), cover.issue)
+    ? `The PDF states ${cover.value}, but this profile selects ${selected}. Add the matching specification or rebuild from the PDF's actual edition.`
+    : null;
 }

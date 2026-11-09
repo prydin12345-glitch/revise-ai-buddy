@@ -39,6 +39,7 @@ import {
 import { completeOwnedAssessmentEvidence } from "./profile-evidence-ingestion.ts";
 import { sourceTextIncludes } from "./source-text-match.ts";
 import {
+  coverSpecificationIssue,
   coverSpecificationIssueConflict,
   SourceSpecificationVersionConflict,
 } from "./profile-source-version.ts";
@@ -70,6 +71,8 @@ export const sourceJobRequestSchema = z.discriminatedUnion("action", [
       action: z.literal("prepare_source"),
       requestId: uuid,
       identity: identitySchema,
+      /** Omitted legacy requests preserve their explicit version constraint. */
+      specificationVersionIntent: z.enum(["source", "explicit"]).optional(),
       mode: modeSchema,
       uploads: z.array(uploadSchema).min(1).max(3),
     })
@@ -133,6 +136,12 @@ export interface SourceJobView {
   needs?: string[];
   assessmentChoices?: SourceAssessmentChoice[];
   validationIssues?: SourceValidationIssue[];
+  pageReview?: Array<{
+    document: number;
+    requestedPages: number[];
+    readPages: number[];
+    skippedPages: number[];
+  }>;
   reviewedFacts?: {
     tier?: {
       value: "not_tiered";
@@ -168,6 +177,13 @@ interface SourceChunk {
 export interface SourceJobData {
   version: 1;
   requestedIdentity: TemplateIdentity;
+  specificationVersionIntent?: "source" | "explicit";
+  /** Exact local-parser cover evidence; catalogue defaults are not source facts. */
+  sourceVersionEvidence?: Array<{
+    documentId: string;
+    page: number;
+    value: string;
+  }>;
   /** Explicit follow-up intent; never evidence and never the immutable intake hash. */
   selectionIdentity?: TemplateIdentity;
   identity: TemplateIdentity;
@@ -175,6 +191,7 @@ export interface SourceJobData {
   retainedDocuments?: SourceDocument[];
   missingItems?: SourceMissingItem[];
   answeredPages?: string[];
+  pageReview?: SourceJobView["pageReview"];
   mode: ProfileTemplate["mode"];
   documents: SourceDocument[];
   chunks: SourceChunk[];
@@ -381,6 +398,9 @@ export function sourceJobView(r: SourceJobRecord): SourceJobView {
       !r.data.intakePending &&
       ["reading", "identifying", "drafting"].includes(r.stage),
     ...(r.data.needs.length ? { needs: r.data.needs } : {}),
+    ...(r.data.pageReview
+      ? { pageReview: structuredClone(r.data.pageReview) }
+      : {}),
     ...(r.data.validationIssues?.length
       ? {
           validationIssues: r.data.validationIssues.map(
@@ -696,12 +716,19 @@ function extractionCapacity(data: SourceJobData, chunk?: SourceChunk) {
         ),
       ).size,
   );
+  const coverSlots =
+    data.specificationVersionIntent === "source" &&
+    data.sourceVersionEvidence?.some((cover) =>
+      documentIds.includes(cover.documentId),
+    )
+      ? 1
+      : 0;
   return {
     maxLocationsPerDocument: Math.max(
       0,
       Math.min(
-        Math.floor(40 / Math.max(1, data.chunks.length)),
-        ...locationSlots,
+        Math.floor(40 / Math.max(1, data.chunks.length)) - coverSlots,
+        ...locationSlots.map((slots) => slots - coverSlots),
       ),
     ),
     maxClaims: Math.max(
@@ -959,6 +986,8 @@ export async function prepareSourceJob(
       version: 1,
       indexVersion: DOCUMENT_INDEX_VERSION,
       followupPolicyVersion: 1,
+      sourceEditionPolicyVersion: 1,
+      specificationVersionIntent: input.specificationVersionIntent ?? "explicit",
       provenancePolicyVersion: 2,
       catalogueTier: resolveCatalogueTier(input.identity),
       reviewedRules: (() => {
@@ -982,6 +1011,9 @@ export async function prepareSourceJob(
   const data: SourceJobData = {
     version: 1,
     requestedIdentity: input.identity,
+    ...(input.specificationVersionIntent
+      ? { specificationVersionIntent: input.specificationVersionIntent }
+      : {}),
     identity: {
       ...input.identity,
       organisation:
@@ -990,6 +1022,7 @@ export async function prepareSourceJob(
           : input.identity.organisation,
       component: trustedDocumentSelection(input.identity).component,
       specificationVersion:
+        input.specificationVersionIntent === "source" ||
         classifySpecificationVersion(input.identity.specificationVersion)
           .kind === "timeline"
           ? "Not verified"
@@ -1045,13 +1078,25 @@ export async function prepareSourceJob(
           );
         documents[i].pages = pages.map((text, n) => ({ page: n + 1, text }));
       }
+      if (data.specificationVersionIntent === "source") {
+        const covers = documents.flatMap((document) => {
+          const cover = coverSpecificationIssue(document.pages);
+          return cover ? [{ ...cover, documentId: document.id }] : [];
+        });
+        data.sourceVersionEvidence = covers.map(
+          ({ documentId, page, value }) => ({ documentId, page, value }),
+        );
+        // Only a literal declaration can replace an automatic catalogue issue.
+        // Conflicting uploads stay visible to the same strict cover gate below.
+        if (covers.length) data.identity.specificationVersion = covers[0].value;
+      }
     };
     const candidateCache = await deps.store.cached(owner, sourceKey);
     // A resumed job keeps its original receipt/source key. Never serve evidence
     // reselected for another paper under the original cache identity.
     const cached =
       candidateCache &&
-      cachedSelectionMatches(input.identity, candidateCache.identity)
+      cachedSelectionMatches(data.identity, candidateCache.identity)
         ? candidateCache
         : null;
     let stage: SourceJobStage = "identifying";
@@ -1076,7 +1121,7 @@ export async function prepareSourceJob(
       for (const doc of documents) {
         const index = indexDocumentPages(
           doc.pages.map((p) => p.text),
-          trustedDocumentSelection(input.identity),
+          trustedDocumentSelection(data.identity),
         );
         if (!index.coverage.complete) {
           componentMissing ||=
@@ -1284,12 +1329,66 @@ function checkExtracted(
     )
   )
     throw Error("The evidence needs fewer, more precise source references.");
+  if (
+    data.specificationVersionIntent === "source" &&
+    data.sourceVersionEvidence?.length
+  ) {
+    // The parser has already established this exact cover edition. Models may
+    // copy a stale catalogue/change-history label; that metadata cannot replace
+    // a literal cover or force another paid read. No assessment fact is changed.
+    uploaded.identity.specificationVersion = data.identity.specificationVersion;
+    for (const source of uploaded.documents) {
+      const cover = data.sourceVersionEvidence.find(
+        (cover) => cover.documentId === source.id,
+      );
+      if (cover && source.kind === "specification" && source.state === "active") {
+        source.version = cover.value;
+        if (
+          !source.locations.some(
+            (location) =>
+              location.page === cover.page &&
+              sourceTextIncludes(location.text, cover.value),
+          )
+        ) {
+          // Reserve this slot in the extraction prompt; never evict another
+          // fact's reference to retain the cover. The server read this literal
+          // line locally from the same checksummed upload.
+          if (source.locations.length >= Math.floor(40 / batches))
+            throw Error(
+              "The evidence needs room for its specification cover reference.",
+            );
+          let id = "source-cover-version";
+          while (source.locations.some((location) => location.id === id))
+            id += "-cover";
+          source.locations.push({
+            id,
+            page: cover.page,
+            section: "Specification cover edition",
+            text: cover.value,
+          });
+        }
+      }
+    }
+  }
   for (const document of data.retainedDocuments ?? []) {
     const conflict = coverSpecificationIssueConflict(
       data.identity.specificationVersion,
       document.pages,
     );
     if (conflict) throw new SourceIdentityConflict(conflict);
+    const proposedConflict = coverSpecificationIssueConflict(
+      uploaded.identity.specificationVersion,
+      document.pages,
+    );
+    if (proposedConflict) throw new SourceIdentityConflict(proposedConflict);
+    const source = uploaded.documents.find((source) => source.id === document.id);
+    if (source?.kind === "specification") {
+      const metadataConflict = coverSpecificationIssueConflict(
+        source.version,
+        document.pages,
+      );
+      if (metadataConflict) throw new SourceIdentityConflict(metadataConflict);
+    }
   }
   // Topics the model named without a literal quote are swapped for the
   // document's own heading, or removed and recorded; never kept unbacked.
@@ -1302,6 +1401,7 @@ function checkExtracted(
         course: data.identity.course ?? null,
         maxLocations: Math.floor(40 / batches),
         maxClaims: Math.floor(60 / batches),
+        sourcePages: topicSourcePageSelection(data),
       }).evidence
     : uploaded;
   let e: ProfileEvidence;
@@ -1372,6 +1472,7 @@ function checkExtracted(
       );
     if (
       key === "specificationVersion" &&
+      data.specificationVersionIntent !== "source" &&
       !isSpecificationVersionHint(
         data.requestedIdentity.specificationVersion,
       ) &&
@@ -1425,7 +1526,9 @@ function checkExtracted(
   // batch's share of the reference budget; the merged pass retries otherwise.
   if (retained.length && e.facts.topics.some(isSectionReferenceTopic)) {
     try {
-      const named = validateEvidence(expandSectionTopics(e, retained));
+      const named = validateEvidence(
+        expandSectionTopics(e, retained, topicSourcePageSelection(data)),
+      );
       if (
         named.claims.length <= Math.floor(60 / batches) &&
         named.documents.every(
@@ -1521,7 +1624,9 @@ function nameSectionTopics(
   let e = evidence;
   const documents = data.retainedDocuments ?? data.documents;
   if (documents?.some((d) => d.pages?.length))
-    e = validateEvidence(expandSectionTopics(e, documents));
+    e = validateEvidence(
+      expandSectionTopics(e, documents, topicSourcePageSelection(data)),
+    );
   e = fillFormatsFromCitedBlock(e);
   // A named topic does not prove every unresolved numbered pointer. Keep
   // remaining pointers visible until their entire referenced scope resolves.
@@ -1674,6 +1779,25 @@ function selectedSourcePages(
   return selected;
 }
 
+/** Accepted page answers refine retrieval without replacing qualification proof. */
+function topicSourcePageSelection(
+  data: SourceJobData,
+): Record<string, number[]> | undefined {
+  const documents = data.retainedDocuments;
+  if (!data.answeredPages?.length || !documents?.length) return undefined;
+  const combined = new Map(documents.map((document) => [document.id, new Set<number>()]));
+  for (const answer of data.answeredPages)
+    for (const [id, pages] of selectedSourcePages(answer, documents))
+      for (const page of pages) combined.get(id)!.add(page);
+  if ([...combined.values()].some((pages) => pages.size > 24))
+    throw Error(
+      "Choose no more than 24 physical pages across these source questions, or add a focused assessment overview.",
+    );
+  return Object.fromEntries(
+    [...combined].map(([id, pages]) => [id, [...pages].sort((a, b) => a - b)]),
+  );
+}
+
 export async function answerSourceJob(
   owner: string,
   id: string,
@@ -1770,6 +1894,10 @@ export async function answerSourceJob(
       : undefined;
   if (pageSelection)
     data.answeredPages = [...(data.answeredPages ?? []), answer].slice(-3);
+  if (pageSelection) data.pageReview = [];
+  // Validate the accumulated bounded selection before acquiring a lease or
+  // reading with AI. No previously accepted page is silently dropped.
+  if (pageSelection) topicSourcePageSelection(data);
   const r = await deps.store.acquire(owner, id);
   if (!r.leaseToken) return view(r);
   if (r.stage !== "ready" || r.revision !== input.revision)
@@ -1809,6 +1937,28 @@ export async function answerSourceJob(
         document.pages.map((page) => page.text),
         selection,
       );
+      if (pageSelection) {
+        const requestedPages = [...(pageSelection.get(document.id) ?? [])].sort(
+          (a, b) => a - b,
+        );
+        const readPages = [
+          ...new Set(
+            index.chunks.flatMap((chunk) =>
+              chunk.pages
+                .map((page) => page.page)
+                .filter((page) => requestedPages.includes(page)),
+            ),
+          ),
+        ].sort((a, b) => a - b);
+        data.pageReview!.push({
+          document: documents.indexOf(document) + 1,
+          requestedPages,
+          readPages,
+          skippedPages: requestedPages.filter(
+            (page) => !readPages.includes(page),
+          ),
+        });
+      }
       if (!index.coverage.complete) {
         componentMissing ||=
           /Choose which paper|could not locate this assessment/i.test(
@@ -2150,6 +2300,9 @@ export async function advanceSourceJob(
     let template: ProfileTemplate;
     try {
       template = templateSchema.parse(result.value);
+      if (data.specificationVersionIntent === "source")
+        template.identity.specificationVersion =
+          data.identity.specificationVersion;
       // Only a student can add topics beyond the source; a draft cannot.
       delete template.addedTopics;
       if (

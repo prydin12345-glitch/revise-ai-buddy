@@ -1,5 +1,7 @@
 # Source-backed Exam Profile Builder
 
+The latest upload-edition and instruction-page fixes are documented in [Uploaded syllabus editions and instruction-page recovery](source-edition-recovery.md).
+
 The current student flow, expanded source coverage and indexed uploads are described in [Profile Builder rebuild](rebuild.md). This document records the original v1 implementation and its initial rollout; its upload/source coverage descriptions are historical.
 
 The existing profile editor now offers **Build profile for me**. An exact approved course/component/tier/mode loads its existing contract without AI. Otherwise the user can select reviewed official evidence, upload a private course brief, or explicitly request unverified general practice. The proposal is editable and is saved into the existing `subject_exam_profiles` row only after confirmation. A saved generic template compiles into the plan actually used by exam generation.

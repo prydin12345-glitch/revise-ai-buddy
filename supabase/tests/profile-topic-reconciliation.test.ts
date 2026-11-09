@@ -31,7 +31,7 @@ const identity = (): TemplateIdentity => ({
   organisation: "AQA",
   course: "7408",
   component: "7408/1",
-  specificationVersion: "v1.3-july-2017",
+  specificationVersion: version,
   tier: "not_tiered",
 });
 const blockWith = (withFormats: boolean) =>
@@ -90,7 +90,7 @@ const named = [
 ];
 
 /** The model names topics but only quotes the assessment block (the reported shape). */
-async function unquotedTopicRead(payload: any, extra: string[] = []) {
+async function unquotedTopicRead(payload: any, extra: string[] = [], readFormatsPage = false) {
   const doc = payload.documents[0];
   const page =
     doc.pages.find((p: any) => p.text.includes("What's assessed")) ??
@@ -98,6 +98,9 @@ async function unquotedTopicRead(payload: any, extra: string[] = []) {
   const evidence = await ownerEvidence();
   evidence.identity = { ...payload.identity };
   const isBlock = page.text.includes("What's assessed");
+  const formatsPage = readFormatsPage
+    ? doc.pages.find((candidate: any) => candidate.text.includes(formats))
+    : page.text.includes(formats) ? page : null;
   evidence.documents = [
     {
       ...evidence.documents[0],
@@ -107,6 +110,9 @@ async function unquotedTopicRead(payload: any, extra: string[] = []) {
       kind: "specification",
       locations: [
         { id: "loc", page: page.page, section: "Assessment", text: page.text },
+        ...(formatsPage && formatsPage.page !== page.page
+          ? [{ id: "formats-loc", page: formatsPage.page, section: "Questions", text: formatsPage.text }]
+          : []),
       ],
     },
   ];
@@ -117,7 +123,7 @@ async function unquotedTopicRead(payload: any, extra: string[] = []) {
     tier: null,
     calculator: "unknown",
     selection: "unknown",
-    formats: page.text.includes(formats)
+    formats: formatsPage
       ? ["short_answer", "long_form", "mcq_single"]
       : [],
     mathsRequirement: null,
@@ -132,12 +138,12 @@ async function unquotedTopicRead(payload: any, extra: string[] = []) {
           ["topics", `What\u2019s assessed\n${scope}`],
         ]
       : [["topics", "Questions"]]),
-    ...(page.text.includes(formats) ? [["formats", formats]] : []),
+    ...(formatsPage ? [["formats", formats]] : []),
   ].map(([field, quote]) => ({
     field,
     quote,
     documentId: doc.id,
-    locationId: "loc",
+    locationId: field === "formats" && formatsPage.page !== page.page ? "formats-loc" : "loc",
     rule: "mandatory" as const,
   }));
   return { evidence, identityClaims: [] };
@@ -145,10 +151,11 @@ async function unquotedTopicRead(payload: any, extra: string[] = []) {
 function setup(content: string[], extra: string[] = []) {
   const memory = memoryJobStore();
   const parsePdf = vi.fn(async () => content);
+  let readCount = 0;
   const model = vi.fn(async (_system: string, payload: any) => {
     if (payload.documents)
       return {
-        value: await unquotedTopicRead(payload, extra),
+        value: await unquotedTopicRead(payload, extra, ++readCount > 1),
         promptTokens: 10,
         completionTokens: 5,
       };
@@ -244,7 +251,7 @@ describe("initial read with unquoted topic names", () => {
 });
 
 describe("follow-up page read with unquoted topic names", () => {
-  it("completes a follow-up read that previously failed the topic check", async () => {
+  it.each(["10", "9-10"])("completes a follow-up read of %s without losing previously verified topic headings", async (selectedPages) => {
     const content = pages(false),
       r = setup(content),
       input = request(content);
@@ -255,7 +262,7 @@ describe("follow-up page read with unquoted topic names", () => {
     const asked = await answerSourceJob(
       owner,
       input.requestId,
-      { revision: first.revision, answers: { source_pages: "10" } },
+      { revision: first.revision, answers: { source_pages: selectedPages } },
       r.deps,
     );
     expect(asked.stage).toBe("identifying");

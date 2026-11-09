@@ -36,6 +36,11 @@ export function BuilderFollowupQuestions({
   // dependent options apply based on a browser-selected qualification/course.
   const questions = items.slice(0, 1);
   const complete = questions.every((item) => !!answers[item.field]?.trim());
+  const continueButton = (
+    <Button type="submit" disabled={busy || !complete} className="min-h-11 w-full sm:w-auto">
+      {busy ? "Checking…" : "Continue"}
+    </Button>
+  );
   return (
     <section
       aria-label="Missing assessment details"
@@ -111,7 +116,7 @@ export function BuilderFollowupQuestions({
                         id={inputId}
                         value={answers[item.field] ?? ""}
                         maxLength={180}
-                        inputMode="numeric"
+                        inputMode="text"
                         placeholder="e.g. 8-10 or 8, 9, 12"
                         onChange={(event) =>
                           setAnswers((previous) => ({
@@ -122,6 +127,7 @@ export function BuilderFollowupQuestions({
                         className="min-h-11"
                         required
                       />
+                      {continueButton}
                       <p className="text-xs text-muted-foreground">
                         Type one page, a range like 8-10, or several pages
                         separated by commas (up to 10 pages).
@@ -150,13 +156,13 @@ export function BuilderFollowupQuestions({
                                     .split(",")
                                     .map((s) => s.trim())
                                     .filter(Boolean);
-                                  return current.includes(choice.value)
+                                  return current.includes(choice.value) || current.includes(page)
                                     ? previous
                                     : {
                                         ...previous,
                                         [item.field]: [
                                           ...current,
-                                          choice.value,
+                                          page,
                                         ].join(", "),
                                       };
                                 })
@@ -212,16 +218,10 @@ export function BuilderFollowupQuestions({
               );
             })}
           </fieldset>
+          {questions[0]?.field !== "source_pages" && continueButton}
           <p className="text-xs leading-relaxed text-muted-foreground">
             Your files and completed reading are kept.
           </p>
-          <Button
-            type="submit"
-            disabled={busy || !complete}
-            className="min-h-11 w-full sm:w-auto"
-          >
-            {busy ? "Checking…" : "Continue"}
-          </Button>
         </form>
       )}
     </section>

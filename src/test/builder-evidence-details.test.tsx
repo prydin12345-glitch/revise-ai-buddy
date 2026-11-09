@@ -12,6 +12,13 @@ const job: SourceJobView = {
   message: "Source checking stopped.",
 };
 
+it("explains which requested physical pages were excluded without claiming they supplied evidence", () => {
+  render(<BuilderEvidenceDetails job={{ ...job, stage: "reading", pageReview: [{ document: 1, requestedPages: [8, 9, 10], readPages: [8, 9], skippedPages: [10] }] }} />);
+  expect(screen.getByRole("status")).toHaveTextContent("PDF pages selected for reading: 8, 9.");
+  expect(screen.getByRole("status")).toHaveTextContent("PDF pages 10 were skipped because they could not be safely matched to this assessment.");
+  expect(screen.queryByText(/Examly-approved/)).not.toBeInTheDocument();
+});
+
 it("shows both failed checks without exposing private rejected model details", () => {
   const issues = [
     {
