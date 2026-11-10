@@ -1,0 +1,41 @@
+{
+  "status": "PASS",
+  "reviewed": [
+    {
+      "file": "laptop-light-projectile.png",
+      "sha256": "b58597eb33d69faf5e798a29838661d99732499ac78087f3e862cac7348b8124"
+    },
+    {
+      "file": "narrow-phone-light-nuclear.png",
+      "sha256": "a66b47a1801fa407c2528f2d95d435ca3d566ae90d1e11501decc58ea45b0ef0"
+    },
+    {
+      "file": "phone-dark-ray.png",
+      "sha256": "ee20d89960cec45bc2ee70b976683c2a802e2962b6f31441ca217474e744a7d0"
+    },
+    {
+      "file": "phone-dark-wave.png",
+      "sha256": "70650b5f9d91a6be500360c57aa0491d7ca6e33931cdf822ce06ec57ed64da32"
+    },
+    {
+      "file": "pdf-notation-page.png",
+      "sha256": "99290a8cf4599bc17b89feae8db8753535d62090742fecfc6a561ee26cf1462f"
+    },
+    {
+      "file": "pdf-nuclear-page.png",
+      "sha256": "028968d7e91aed90817e6655af6cf90854906f1e489e8d2b8a01522f231ca5c9"
+    }
+  ],
+  "observations": [
+    "The structured-response projectile has one saved setup, two response fields and symbolic u/alpha labels; no derived range is supplied.",
+    "The narrow nuclear screenshot retains the unknown daughter and translucent colored shapes within the viewport.",
+    "Dark-theme ray and wave screenshots retain dark labels on the white SVG surface and fit their captions.",
+    "The exported PDF notation page visibly renders the scientific symbols and normalized pion/Lambda reaction; the collision unknown velocities remain question marks.",
+    "The exported nuclear/circuit page visibly retains the nuclear question mark, nuclide numbers, alpha caption, circuit values and figure captions."
+  ],
+  "limitations": [
+    "Only the selected screenshots and final PDF pages listed above received visual inspection.",
+    "Narrow SVG labels remain small; viewport fitting does not certify comfortable reading size or full accessibility.",
+    "These synthetic offline component views do not establish signed-in route navigation, live backend behavior or physical iOS/iPadOS behavior."
+  ]
+}

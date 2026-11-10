@@ -10,8 +10,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "typecheck:physics": "tsc --noEmit -p tsconfig.physics.json",
     "test": "vitest run",
-    "check": "npm run typecheck && npm run lint:critical && npm test && npm run check:edge && npm run build",
+    "check": "npm run typecheck && npm run typecheck:physics && npm run lint:critical && npm test && npm run check:edge && npm run build",
     "lint:critical": "eslint src --config eslint.critical.config.js --max-warnings 0",
     "check:edge": "node scripts/check-edge-functions.mjs"
   },

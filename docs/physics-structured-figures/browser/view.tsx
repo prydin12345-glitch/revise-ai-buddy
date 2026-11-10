@@ -1,11 +1,11 @@
 import React, {useState} from 'react';
 import {createRoot} from 'react-dom/client';
-import {AssessmentPhysicsFigure} from '/workspace/revise-ai-buddy/src/components/physics/AssessmentPhysicsFigure';
-import {MathRenderer} from '/workspace/revise-ai-buddy/src/components/MathRenderer';
-import {ResponseEditor} from '/workspace/revise-ai-buddy/src/components/responses/ResponseEditor';
-import {generateExamPDF} from '/workspace/revise-ai-buddy/src/lib/exam-pdf-generator';
-import {parsePhysicsDiagramConfig} from '/workspace/revise-ai-buddy/supabase/functions/_shared/physics-diagram-contract';
-import {resolveAssessmentPhysicsFigure} from '/workspace/revise-ai-buddy/src/lib/physics-assessment-figure';
+import {AssessmentPhysicsFigure} from '../../../src/components/physics/AssessmentPhysicsFigure';
+import {MathRenderer} from '../../../src/components/MathRenderer';
+import {ResponseEditor} from '../../../src/components/responses/ResponseEditor';
+import {generateExamPDF} from '../../../src/lib/exam-pdf-generator';
+import {parsePhysicsDiagramConfig} from '../../../supabase/functions/_shared/physics-diagram-contract';
+import {resolveAssessmentPhysicsFigure} from '../../../src/lib/physics-assessment-figure';
 
 const circuit={type:'circuit',gridSpacing:90,showLabels:true,nodes:[{id:'a',col:0,row:0},{id:'b',col:2,row:0},{id:'c',col:2,row:2},{id:'d',col:0,row:2}],wires:[{from:'a',to:'b',component:'resistor',label:'R = 6 Ω'},{from:'b',to:'c',component:'wire'},{from:'c',to:'d',component:'battery',label:'12 V'},{from:'d',to:'a',component:'wire'}]};
 const cases:any[]=[

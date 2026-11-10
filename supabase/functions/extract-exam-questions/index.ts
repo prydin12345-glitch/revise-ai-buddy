@@ -427,7 +427,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
   const guidedPlan = paperPlanForAttempt(storedContext, formatData?.profile_metadata?.paperBlueprint);
   const physicsGeneration = usesPhysicsGenerationContract(storedContext);
   const physicsPlan = physicsGeneration && guidedPlan
-    ? (storedContext.physics_paper_plan ?? buildPhysicsPaperPlan(guidedPlan, {subject:generationScope.subject})) as PhysicsPaperPlan | null : null;
+    ? (storedContext.physics_paper_plan ?? buildPhysicsPaperPlan(guidedPlan, {subject:generationScope.subject ?? undefined})) as PhysicsPaperPlan | null : null;
   const guidedPack = guidedPlan && !isGenericPlan(guidedPlan) ? packForBiologyPlan(guidedPlan) : null;
   const usesContractOnlyGeneration = isGenericPlan(guidedPlan) || guidedPack?.generation.strategy === 'contract_only';
   const useOriginalStructure = !usesContractOnlyGeneration && (formatData?.use_original_structure ?? true);
@@ -764,7 +764,7 @@ async function processExamExtraction(draftId: string, userId: string, supabase: 
     const qualityInstructions = 'WHOLE-PAPER QUALITY: Assess each definition, law statement or assumption set only once across written parts and MCQs; later applications of that topic must require different reasoning with original data. Never repeat a task sentence in LaTeX or plain text. MCQ options must be four distinct mathematical/scientific values, with a private key that identifies exactly one. Recalculate every numerical final answer, uncertainty, acceptance range and dependent mark point against the supplied data; the headline result must agree with the working and accepted range. Give explicit units and any RMS/DC measurement assumptions required for electrical heating. Do not infer the radiation type from a residual count indistinguishable from background; supply sufficient discriminating evidence or ask about uncertainty.';
     guidedPromptTail.push(qualityInstructions);
     extractionPrompt += '\n\n' + qualityInstructions;
-    if (/physics/i.test(generationScope.subject)) {
+    if (/physics/i.test(generationScope.subject ?? '')) {
       const physicsInstructions = 'PHYSICS RESOURCES: Attach a circuit only when the assessed task explicitly depends on wiring/topology or meter placement. Pure capacitor-decay graph reading, flux-time/search-coil induction, fields, planetary and nuclear calculations do not need generic circuit illustrations. Supply the required graph/table payload, axes, units and sufficient data; never substitute a decorative circuit. Use consistent mathematical notation and units, and do not duplicate a stem or option in another format.';
       guidedPromptTail.push(physicsInstructions); extractionPrompt += '\n\n' + physicsInstructions;
     }

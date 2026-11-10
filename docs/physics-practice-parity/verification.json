@@ -1,0 +1,105 @@
+{
+  "date": "2026-11-10",
+  "baselineCommit": "0147a2a4521c4e61eb822581a63bfbe5f34a5f0d",
+  "originalActivationBaseline": "82cfc84b032c634c164799e18657a60c2b13d45f",
+  "productionChange": {
+    "sharedCore": "supabase/functions/_shared/practice-generation.ts",
+    "canonicalBodyUnchangedAfterMove": true,
+    "canonicalBodySha256": "872b2334c23da169e7e45219c8eb12160e3347ab909b0f38ce100e5f9fd54a94",
+    "originalHttpHandlersUnchanged": ["generate-practice-questions", "get-practice-questions"],
+    "mergedValidatorCompilerFixPreserved": true,
+    "additionalCompilerFixes": "Two explicit optional-subject fallbacks in extract-exam-questions; no validation rule changes.",
+    "newDatabaseColumns": 0
+  },
+  "checks": {
+    "npmCheck": {
+      "status": "PASS",
+      "testFiles": 201,
+      "tests": 3316,
+      "appTypecheck": "PASS",
+      "strictSharedPhysicsTypecheck": "PASS",
+      "criticalLint": "PASS",
+      "edgeIdentifierCheck": "PASS",
+      "edgeBundles": 39,
+      "productionBuild": "PASS",
+      "buildSeconds": 17.05
+    },
+    "practiceRegressionTests": {
+      "status": "PASS",
+      "tests": 52,
+      "entrypoints": ["generate-practice-questions", "get-practice-questions"],
+      "providerAndDatabase": "In-memory synthetic fixtures; actual entrypoint bundles and real shared core."
+    },
+    "postNullFixExtractionRegression": {
+      "status": "PASS",
+      "file": "supabase/tests/physics-exam-generation-contract.test.ts",
+      "tests": 16
+    },
+    "denoTypecheck": {
+      "status": "PASS",
+      "deno": "2.5.6",
+      "typescript": "5.9.2",
+      "functions": ["extract-exam-questions", "generate-practice-questions", "get-practice-questions", "grade-practice-question", "publish-exam", "save-exam-format", "submit-exam", "upload-exam"],
+      "importMap": "supabase/functions/generate-practice-questions/deno.json (all eight per-function maps are identical)",
+      "mode": "deno check --no-lock; resolves type dependencies without executing handlers"
+    },
+    "strictCompilerNegativeControl": {
+      "status": "PASS",
+      "method": "TypeScript compiler host substitutes only the PR55 pre-fix physics-diagram-contract.ts while using the new strict configuration and current local import closure.",
+      "preFixCommit": "1cad70642c6d0e6be66ba44df84893d2ec8bede2",
+      "expectedDiagnostics": 8,
+      "actualDiagnostics": 8,
+      "diagnosticCode": 7053,
+      "fixedSourceDiagnostics": 0
+    },
+    "practiceNegativeControl": {
+      "status": "PASS",
+      "method": "Run the new selected regression tests against a separate git-archive checkout of the baseline with the original get-practice-questions generator.",
+      "oldImplementationTestsFailAsExpected": 3,
+      "cases": ["Physics figure and numerical prompt contract", "Unresolved wrong calculation cannot be persisted", "Versioned Physics cache isolation"],
+      "currentImplementation": "All 52 practice tests pass."
+    },
+    "independentReview": "No blocking findings in production changes, HTTP preservation, strict compiler scope, tests or activation handoff.",
+    "browserAndPdf": {
+      "status": "PASS",
+      "evidence": "browser/results/",
+      "viewportThemeCases": 8,
+      "savedFigureRenders": 80,
+      "scenarioGroups": 58,
+      "standalonePdfExports": 2,
+      "pagesPerPdf": 10,
+      "actualSvgCapturesPerPdf": 10,
+      "applicationConfigFiles": 852,
+      "serverConfigFiles": 189,
+      "installedDependencyInputs": 2555,
+      "relocatedCheckoutWithSpaces": "PASS",
+      "strictFrozenHashesSnapshotAndWorkingCheckout": "PASS",
+      "applicationAndServerHashNegativeControls": "PASS",
+      "selectedImagesVisuallyReviewed": 6
+    }
+  },
+  "activation": {
+    "performed": false,
+    "correctionFunctions": 3,
+    "fullActivationFunctions": 8,
+    "dependencyGraph": "deployment-dependencies.json",
+    "previewAlreadyAhead": "Reported by Lovable; this work did not inspect or change the hosted preview.",
+    "liveBackendRevisionsVerified": false,
+    "liveDatabaseColumnPermissionsVerified": false
+  },
+  "constraints": {
+    "paidModelCalls": 0,
+    "studentLogins": 0,
+    "liveDataWrites": 0,
+    "existingExamsOrProfilesEdited": 0,
+    "migrationsApplied": 0,
+    "functionsDeployed": 0,
+    "websitePublished": false
+  },
+  "limitations": [
+    "The strict npm check covers shared Physics modules and their import closure, not every Edge Function. The separate Deno run covers the eight activation entrypoints.",
+    "Offline browser composition is not a signed-in live generation test or physical mobile-device test.",
+    "Installed dependency fingerprints from Lovable's machine were not available for direct comparison; dependency drift must be reported separately from application/configuration drift.",
+    "Software checks do not certify the scientific correctness of a future model-written paper."
+  ]
+}

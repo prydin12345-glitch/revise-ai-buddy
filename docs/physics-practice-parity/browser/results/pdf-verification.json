@@ -1,0 +1,317 @@
+{
+  "status": "PASS",
+  "verificationDate": "2026-11-10",
+  "pdfs": [
+    {
+      "theme": "light",
+      "pages": 10,
+      "bytes": 13553681,
+      "sha256": "02d832e3f7fb38f2f60fc73bf4141052b5fe0138331d240a7a071317ba0665ca",
+      "questionHeadingsPresent": 13,
+      "unicodeGlyphsPresent": [
+        "Ω",
+        "µ",
+        "→",
+        "α",
+        "β",
+        "γ",
+        "λ",
+        "θ",
+        "±",
+        "×",
+        "÷",
+        "∞",
+        "π",
+        "Λ"
+      ],
+      "privateAnswerTextAbsent": true,
+      "figureCaptureCount": 10,
+      "pdfImageReferences": 100,
+      "fonts": [
+        {
+          "name": "Helvetica",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Helvetica-Bold",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Helvetica-Oblique",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Helvetica-BoldOblique",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Courier",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Courier-Bold",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Courier-Oblique",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Courier-BoldOblique",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Times-Roman",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Times-Bold",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Times-Italic",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Times-BoldItalic",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "ZapfDingbats",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Symbol",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "ScientificSymbols",
+          "type": "Type0",
+          "extension": "ttf",
+          "embeddedBytes": 5240
+        }
+      ]
+    },
+    {
+      "theme": "dark",
+      "pages": 10,
+      "bytes": 13553681,
+      "sha256": "914226ad1f2bbe067ac829b6235da91ff1feb0b7e503ef506dab53fd98a35d9c",
+      "questionHeadingsPresent": 13,
+      "unicodeGlyphsPresent": [
+        "Ω",
+        "µ",
+        "→",
+        "α",
+        "β",
+        "γ",
+        "λ",
+        "θ",
+        "±",
+        "×",
+        "÷",
+        "∞",
+        "π",
+        "Λ"
+      ],
+      "privateAnswerTextAbsent": true,
+      "figureCaptureCount": 10,
+      "pdfImageReferences": 100,
+      "fonts": [
+        {
+          "name": "Helvetica",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Helvetica-Bold",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Helvetica-Oblique",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Helvetica-BoldOblique",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Courier",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Courier-Bold",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Courier-Oblique",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Courier-BoldOblique",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Times-Roman",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Times-Bold",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Times-Italic",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Times-BoldItalic",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "ZapfDingbats",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "Symbol",
+          "type": "Type1",
+          "extension": "n/a",
+          "embeddedBytes": 0
+        },
+        {
+          "name": "ScientificSymbols",
+          "type": "Type0",
+          "extension": "ttf",
+          "embeddedBytes": 5240
+        }
+      ]
+    }
+  ],
+  "figureLabelsEqualAcrossThemes": true,
+  "rasters": [
+    {
+      "file": "pdf-first-page.png",
+      "sha256": "598e3432f99e6eb35c5ae2aa1ccb5b1ce6368e6b193478552311833aadd67f39",
+      "physicalPage": 1,
+      "sourcePdf": "physics-light.pdf",
+      "sourcePdfSha256": "02d832e3f7fb38f2f60fc73bf4141052b5fe0138331d240a7a071317ba0665ca"
+    },
+    {
+      "file": "pdf-first-body-page.png",
+      "sha256": "65ba7a7fda77428b91a692d8dce7ddec9aca0a7984dbb23f9082b5661317beeb",
+      "physicalPage": 2,
+      "sourcePdf": "physics-light.pdf",
+      "sourcePdfSha256": "02d832e3f7fb38f2f60fc73bf4141052b5fe0138331d240a7a071317ba0665ca"
+    },
+    {
+      "file": "pdf-notation-page.png",
+      "sha256": "99290a8cf4599bc17b89feae8db8753535d62090742fecfc6a561ee26cf1462f",
+      "physicalPage": 9,
+      "sourcePdf": "physics-light.pdf",
+      "sourcePdfSha256": "02d832e3f7fb38f2f60fc73bf4141052b5fe0138331d240a7a071317ba0665ca"
+    },
+    {
+      "file": "pdf-slope-page.png",
+      "sha256": "65ba7a7fda77428b91a692d8dce7ddec9aca0a7984dbb23f9082b5661317beeb",
+      "physicalPage": 2,
+      "sourcePdf": "physics-light.pdf",
+      "sourcePdfSha256": "02d832e3f7fb38f2f60fc73bf4141052b5fe0138331d240a7a071317ba0665ca"
+    },
+    {
+      "file": "pdf-projectile-page.png",
+      "sha256": "df1493c3bb4b06cadbed30b0b41de77832feb0e6d7e52caa897464d6bd9d5d3f",
+      "physicalPage": 4,
+      "sourcePdf": "physics-light.pdf",
+      "sourcePdfSha256": "02d832e3f7fb38f2f60fc73bf4141052b5fe0138331d240a7a071317ba0665ca"
+    },
+    {
+      "file": "pdf-nuclear-page.png",
+      "sha256": "028968d7e91aed90817e6655af6cf90854906f1e489e8d2b8a01522f231ca5c9",
+      "physicalPage": 8,
+      "sourcePdf": "physics-light.pdf",
+      "sourcePdfSha256": "02d832e3f7fb38f2f60fc73bf4141052b5fe0138331d240a7a071317ba0665ca"
+    },
+    {
+      "file": "pdf-circuit-page.png",
+      "sha256": "028968d7e91aed90817e6655af6cf90854906f1e489e8d2b8a01522f231ca5c9",
+      "physicalPage": 8,
+      "sourcePdf": "physics-light.pdf",
+      "sourcePdfSha256": "02d832e3f7fb38f2f60fc73bf4141052b5fe0138331d240a7a071317ba0665ca"
+    },
+    {
+      "file": "pdf-wave-page.png",
+      "sha256": "b4e4b2433d8bec93979de41f0c037b269fed7c4ac91316540c2270b919f0240a",
+      "physicalPage": 7,
+      "sourcePdf": "physics-light.pdf",
+      "sourcePdfSha256": "02d832e3f7fb38f2f60fc73bf4141052b5fe0138331d240a7a071317ba0665ca"
+    },
+    {
+      "file": "pdf-ray-page.png",
+      "sha256": "7a36bcfdc37668ede78804e90c9dcdd8507b64849be87d98f55e6ee02944821e",
+      "physicalPage": 6,
+      "sourcePdf": "physics-light.pdf",
+      "sourcePdfSha256": "02d832e3f7fb38f2f60fc73bf4141052b5fe0138331d240a7a071317ba0665ca"
+    }
+  ],
+  "rasterizer": {
+    "name": "MuPDF / PyMuPDF",
+    "version": "1.26.6"
+  },
+  "limitations": [
+    "PDF figures are raster images: scientific labels and unknowns are checked in the actual SVG capture DOM, with final PDF raster review required.",
+    "Unicode assertions establish extractable glyphs and an embedded font; they do not certify every possible scientific expression or semantic correctness.",
+    "Synthetic offline component exports do not exercise a saved private paper, live generation, backend persistence, or deployment."
+  ]
+}

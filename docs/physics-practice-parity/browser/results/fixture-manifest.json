@@ -1,0 +1,74 @@
+{
+  "questionCount": 13,
+  "unicodeSymbols": [
+    "Ω",
+    "µ",
+    "→",
+    "α",
+    "β",
+    "γ",
+    "λ",
+    "θ",
+    "±",
+    "×",
+    "÷",
+    "∞",
+    "π",
+    "Λ"
+  ],
+  "captureCount": 10,
+  "expectedCaptureTypes": [
+    "slope",
+    "pulley",
+    "projectile",
+    "free_body",
+    "beam",
+    "ray_diagram",
+    "wave_diagram",
+    "nuclear_decay",
+    "circuit",
+    "collision"
+  ],
+  "captureAssertions": [
+    {
+      "index": 2,
+      "includes": [
+        "α",
+        ">u</text>"
+      ],
+      "excludes": [
+        "PRIVATE",
+        "40 m"
+      ]
+    },
+    {
+      "index": 7,
+      "includes": [
+        "238",
+        "92",
+        "?"
+      ],
+      "excludes": [
+        ">234<",
+        ">90<",
+        "Th",
+        "Mass number:",
+        "Atomic number:"
+      ]
+    },
+    {
+      "index": 9,
+      "includes": [
+        "v_A = ?",
+        "v_B = ?"
+      ]
+    }
+  ],
+  "rasterQuestions": {
+    "slope": 1,
+    "projectile": 3,
+    "nuclear": 8,
+    "circuit": 9,
+    "wave": 7
+  }
+}

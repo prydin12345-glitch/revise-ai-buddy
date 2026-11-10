@@ -1,0 +1,28 @@
+{
+  "status": "PASS",
+  "snapshotPathContainsSpaces": true,
+  "invocationCwdOutsideCheckout": true,
+  "dependenciesReusedViaSymlink": true,
+  "externalArtifactDirectory": true,
+  "providedPinnedFontDirectoryVerified": true,
+  "temporaryMutationsRejected": [
+    {
+      "file": "src/index.css",
+      "category": "applicationDifferences",
+      "exitCode": 1,
+      "reportedDifferences": [
+        "src/index.css"
+      ]
+    },
+    {
+      "file": "supabase/functions/extract-exam-questions/index.ts",
+      "category": "serverDifferences",
+      "exitCode": 1,
+      "reportedDifferences": [
+        "supabase/functions/extract-exam-questions/index.ts"
+      ]
+    }
+  ],
+  "mutationsRestoredBeforeBrowserRun": true,
+  "limitation": "This relocation test reused the installed dependency tree; it did not run a clean dependency install or establish cross-platform rendering identity."
+}
