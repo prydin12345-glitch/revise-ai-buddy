@@ -297,8 +297,10 @@ export function physicsDiagramIssues(input:unknown,questionText="",options:{requ
   if (config.type === "phasor_diagram" && !config.phasors.some(phasor=>phasor.magnitude>0)) reject("A phasor figure needs at least one nonzero magnitude.");
   if (config.type === "phasor_diagram" && options.requireGivenLabels && config.phasors.some(phasor=>!phasor.label.match(/\/\s*([A-Za-zΩμ]+)\s*$/))) reject("Every numerical phasor magnitude needs an explicit quantity unit in its saved label (for example V₁ / V).");
   for (const field of ["mass","massA","massB","length","stringLength","speed","initialSpeed","height","time","omega","appliedForce"] as const) {
-    if (field in config && typeof config[field] === "number" && ((config[field] as number) < 0 || ["mass","massA","massB","length","stringLength"].includes(field) && config[field]===0)) reject(`Physics figure ${field} must have a physically valid positive/nonnegative value.`);
-    if (field in config && typeof config[field] === "string" && /\d/.test(config[field] as string) && !/^[A-Za-zΑ-Ωα-ω?][A-Za-zΑ-Ωα-ω_{}₀-₉0-9]*$/.test(config[field] as string) && !parsePhysicsQuantity(config[field] as string) && !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(config[field] as string)) reject(`Physics figure ${field} must contain one explicit quantity or an unknown symbol, without a calculated expression.`);
+    if (!(field in config)) continue;
+    const value = (config as unknown as Record<string, unknown>)[field];
+    if (typeof value === "number" && (value < 0 || ["mass","massA","massB","length","stringLength"].includes(field) && value===0)) reject(`Physics figure ${field} must have a physically valid positive/nonnegative value.`);
+    if (typeof value === "string" && /\d/.test(value) && !/^[A-Za-zΑ-Ωα-ω?][A-Za-zΑ-Ωα-ω_{}₀-₉0-9]*$/.test(value) && !parsePhysicsQuantity(value) && !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value)) reject(`Physics figure ${field} must contain one explicit quantity or an unknown symbol, without a calculated expression.`);
   }
   if (config.type === "beam") {
     const positions = [config.pivot.position,...config.loads.map(load=>load.position),...config.reactions.map(reaction=>reaction.position),...(config.pointLabels?.map(point=>point.position)??[]),...(config.distributedMass?[config.distributedMass.position]:[])];
