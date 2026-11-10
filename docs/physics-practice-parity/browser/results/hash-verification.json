@@ -1,0 +1,53 @@
+{
+  "status": "PASS",
+  "applicationFiles": 852,
+  "serverFiles": 189,
+  "dependencyInputs": 2555,
+  "applicationDifferences": [],
+  "serverDifferences": [],
+  "dependencyDifferencesWithinRun": [],
+  "fixtureDifferences": [],
+  "fontDifferences": [],
+  "outputDifferences": [],
+  "runtime": {
+    "node": "v24.19.0",
+    "platform": "linux",
+    "architecture": "x64",
+    "osRelease": "6.18.57",
+    "packages": {
+      "esbuild": "0.28.2",
+      "postcss": "8.5.6",
+      "postcss-import": "15.1.0",
+      "tailwindcss": "3.4.17",
+      "autoprefixer": "10.4.21",
+      "react": "18.3.1",
+      "react-dom": "18.3.1",
+      "html2canvas": "1.4.1",
+      "jspdf": "4.2.1",
+      "katex": "0.16.25"
+    }
+  },
+  "policy": "Application/server/config/lockfile drift fails. Server sources are pinned but not executed by this browser composition. Dependency differences from historical runs are classified separately and never prove application parity.",
+  "historicalComparison": {
+    "application": {
+      "comparedFiles": 847,
+      "differentFiles": [
+        "package.json",
+        "supabase/functions/_shared/physics-diagram-contract.ts"
+      ],
+      "newlyCoveredFiles": [
+        "postcss.config.js",
+        "tsconfig.node.json",
+        "tsconfig.physics.json",
+        "vite.config.ts",
+        "vitest.config.ts"
+      ]
+    },
+    "installedDependencyInputs": {
+      "comparedFiles": 2495,
+      "differentFiles": []
+    },
+    "applicationMatchesHistoricalManifest": false,
+    "interpretation": "Historical dependency fingerprints vary with installed package/platform inputs. All application changes remain listed; dependency variation is not an application parity pass."
+  }
+}

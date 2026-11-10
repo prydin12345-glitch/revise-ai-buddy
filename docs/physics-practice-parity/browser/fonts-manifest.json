@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/google/fonts",
+  "commit": "5bb28733cec313b63fbd415b574b5ae35c8aa8b8",
+  "license": "SIL Open Font License 1.1; the unmodified license for each family is required below",
+  "files": [
+    {
+      "file": "Manrope-Variable.ttf",
+      "source": "ofl/manrope/Manrope[wght].ttf",
+      "sha256": "3ae11c49db0455a3cc33e37d380f20fdb8c7f8b41dc07625c177e3d87a9d6ae6",
+      "bytes": 164700
+    },
+    {
+      "file": "Manrope-OFL.txt",
+      "source": "ofl/manrope/OFL.txt",
+      "sha256": "58172e0c0fac2cda8a37b348164bb55e44b0e69051e557e92b1d3f6910141f7b",
+      "bytes": 4387
+    },
+    {
+      "file": "SourceSerif4-Variable.ttf",
+      "source": "ofl/sourceserif4/SourceSerif4[opsz,wght].ttf",
+      "sha256": "97b2d4da6e3cb494b5a1e66ae176914d852ccabef49e0c02c0df25f3e39aca0b",
+      "bytes": 1209508
+    },
+    {
+      "file": "SourceSerif4-OFL.txt",
+      "source": "ofl/sourceserif4/OFL.txt",
+      "sha256": "5f94c3fd3a23131a417ab5a0c8452de57e70c3cfb9f604d88241f7065ebf9fd9",
+      "bytes": 4400
+    },
+    {
+      "file": "manrope.css",
+      "contents": "@font-face {\n  font-family: 'Manrope';\n  font-style: normal;\n  font-weight: 200 800;\n  font-display: swap;\n  src: url(/fonts/Manrope-Variable.ttf) format('truetype');\n}\n",
+      "sha256": "1c67f79b23b9ad5f8fda3edaf62f3fba2e796e0c682df04877e67ee679c4ce70",
+      "bytes": 169
+    },
+    {
+      "file": "source-serif-4.css",
+      "contents": "@font-face {\n  font-family: 'Source Serif 4';\n  font-style: normal;\n  font-weight: 200 900;\n  font-display: swap;\n  src: url(/fonts/SourceSerif4-Variable.ttf) format('truetype');\n}\n",
+      "sha256": "1af2814ba118d8d075a5a42a6e1d6764b557b32a036dc9252fb0dcad636e6d3f",
+      "bytes": 181
+    }
+  ]
+}

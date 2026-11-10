@@ -10,13 +10,6 @@ Desktop exports generate standalone PDFs containing 13 synthetic questions and t
 
 `source-hashes.json` covers every actual bundled file (including dependency inputs), all production Tailwind-scanned TS/TSX files, source CSS and configuration. `build-manifest.json` separates bundled/scanned paths and hashes the fixture, JS bundle and generated CSS. `verify-hashes.py` must pass after the final frozen build. The generated bundles, local fonts and 13 MB standalone PDFs remain in the temporary workspace; review artifacts keep the fixture/build/verifier sources, safe reports and selected screenshots.
 
-To reproduce, use the installed repository dependencies at `/workspace/revise-ai-buddy`, the existing local fonts in `fonts/`, Chromium at `/usr/lib/chromium/chromium`, and Playwright at `/opt/codex/cua_node/lib/node_modules/playwright-core`. No install or lockfile change is needed.
-
-```sh
-node build.cjs
-node browser.cjs
-python3 verify-pdfs.py
-python3 verify-hashes.py
-```
+The JSON and images in this directory are historical evidence from the original run. The original machine-specific reproduction instructions were incomplete. Use the [maintained portable harness](../../physics-practice-parity/browser/README.md), with explicit browser tooling, pinned licensed font setup, an external artifact directory, and separate application/dependency hash reports. The commands in this directory now forward to that harness; they do not overwrite this historical evidence.
 
 This is an offline composition of production components with synthetic questions. It does not exercise signed-in app navigation, live model quality, deployment, unavailable private papers or physical iOS/iPadOS behavior. Ten representative types are checked here; repository tests cover the broader type and variant matrix. Narrow SVG labels scale with their figures, so viewport fitting does not establish optimal label size or complete accessibility. These checks do not certify all possible scientific content or syllabus correctness.
