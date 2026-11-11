@@ -426,7 +426,11 @@ describe("same-build source questions", () => {
     );
     expect(continued.stage).toBe("identifying");
     expect(continued.pageReview).toEqual([
-      { document: 1, requestedPages: [90, 91], readPages: [90], skippedPages: [91] },
+      expect.objectContaining({ document: 1, requestedPages: [90, 91], readPages: [90], skippedPages: [91] }),
+    ]);
+    expect(continued.pageReview?.[0].diagnostics).toEqual([
+      expect.objectContaining({ page: 90, status: "selected" }),
+      expect.objectContaining({ page: 91, status: "not_matched", code: "assessment_not_found" }),
     ]);
     expect(r.model).toHaveBeenCalledOnce();
     expect(r.parsePdf).toHaveBeenCalledOnce();
@@ -461,7 +465,10 @@ describe("same-build source questions", () => {
     expect(continued.stage).toBe("needs_details");
     expect(continued.missingItems?.[0].field).toBe("source");
     expect(continued.pageReview).toEqual([
-      { document: 1, requestedPages: [91], readPages: [], skippedPages: [91] },
+      expect.objectContaining({ document: 1, requestedPages: [91], readPages: [], skippedPages: [91] }),
+    ]);
+    expect(continued.pageReview?.[0].diagnostics).toEqual([
+      expect.objectContaining({ page: 91, status: "not_matched", code: "assessment_not_found" }),
     ]);
     expect(r.model).toHaveBeenCalledOnce();
     expect(r.parsePdf).toHaveBeenCalledOnce();

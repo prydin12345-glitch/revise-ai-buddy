@@ -161,3 +161,10 @@ it("browser storage being unavailable never prevents receipt cleanup or profile 
   get.mockRestore();
   set.mockRestore();
 });
+
+it("explains rejected assessment fields during a mixed deployment without silently dropping a manual code", async () => {
+  invoke.mockResolvedValue({ data: null, error: { context: new Response(JSON.stringify({ error: "Invalid profile input. Check required fields and supported formats." }), { status: 400 }) } });
+  await expect(invokeProfileBuilder({ action: "prepare_source", selectedAssessmentId: "source-assessment-fixture", manualComponentCode: { value: "9BS0/01", confirmed: true } })).rejects.toThrow(/backend may need the matching update/);
+  expect(invoke).toHaveBeenCalledTimes(1);
+  expect(invoke.mock.calls[0][1].body.manualComponentCode.value).toBe("9BS0/01");
+});

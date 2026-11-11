@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   discoverSourceAssessments,
   normaliseAssessmentAlias,
+  resolveSourceAssessment,
   type AssessmentDiscoveryDocument,
 } from "../functions/_shared/profile-assessment-discovery";
 
@@ -13,6 +14,95 @@ const doc = (
 ): AssessmentDiscoveryDocument => ({ id, checksum: hash.repeat(64), pages });
 
 describe("source assessment discovery without AI", () => {
+  const businessTitles = [
+    "Marketing, people and global businesses",
+    "Business activities, decisions and strategy",
+    "Investigating business in a competitive environment",
+  ];
+  const businessScope = { qualification: "A-level", course: "9BS0", organisation: "Pearson Edexcel", subject: "Business Studies" };
+  it("offers one Business identity per paper despite contents, AO table, wrapped and bare headings", async () => {
+    const source = doc([
+      "A-level Business\nAssessment overview\n" + businessTitles.map((title, i) => `Paper ${i + 1} – ${title}`).join("\n"),
+      "Assessment objectives\n" + businessTitles.map((title, i) => `Paper ${i + 1} – ${title} ${i === 2 ? "5 - 7 5 - 7 9 - 11 9 - 11 30%" : "6 - 8 7 - 9 9 - 11 8 - 10 35%"}`).join("\n"),
+      "Paper 3 – Investigating business in a competitive\nenvironment\n80 marks\nPaper 1\nPaper 2\nPaper 3",
+    ]);
+    const original = structuredClone(source);
+    const result = await discoverSourceAssessments([source], businessScope);
+    expect(result.candidates.map(candidate => candidate.label)).toEqual(businessTitles.map((title, i) => `Paper ${i + 1} — ${title}`));
+    expect(result.candidates.map(candidate => candidate.canonicalComponent)).toEqual(["Paper 1", "Paper 2", "Paper 3"]);
+    expect(result.ambiguous).toBe(false);
+    expect(result.resolution).toBeUndefined();
+    expect(source).toEqual(original);
+    for (const candidate of result.candidates) {
+      expect(candidate.references.every(ref => source.pages[ref.page - 1].includes(ref.quote))).toBe(true);
+      expect(resolveSourceAssessment(result.candidates, candidate.canonicalComponent)?.id).toBe(candidate.id);
+      expect(resolveSourceAssessment(result.candidates, candidate.id)?.id).toBe(candidate.id);
+    }
+    expect(resolveSourceAssessment(result.candidates, `Paper 1 – ${businessTitles[0]} 6 - 8 7 - 9 9 - 11 8 - 10 35%`)?.id).toBe(result.candidates[0].id);
+    expect(resolveSourceAssessment(result.candidates, "Paper 3 – Investigating business in a competitive")?.id).toBe(result.candidates[2].id);
+    expect(result.candidates[2].references.some(ref => ref.quote === "environment")).toBe(true);
+  });
+  it("uses a source-bound numbered identity independent of a harmless display-title variation", async () => {
+    const short = await discoverSourceAssessments([doc(["A-level Business\nPaper 1\n80 marks"])], businessScope);
+    const full = await discoverSourceAssessments([doc([`A-level Business\nPaper 1 – ${businessTitles[0]}\n80 marks`])], businessScope);
+    expect(short.candidates[0].id).toBe(full.candidates[0].id);
+    const otherCourse = await discoverSourceAssessments([doc(["A-level Business\nPaper 1\n80 marks"])], { ...businessScope, course: "9BS1" });
+    expect(otherCourse.candidates[0].id).not.toBe(short.candidates[0].id);
+    const otherSource = await discoverSourceAssessments([doc(["A-level Business\nPaper 1\n80 marks"], "upload-2", "b")], businessScope);
+    expect(otherSource.candidates[0].id).not.toBe(short.candidates[0].id);
+  });
+  it("merges uniquely coded and uncoded repeats without leaving the bare contents option", async () => {
+    const result = await discoverSourceAssessments([doc([
+      "A-level Business\nPaper 1\n80 marks",
+      `Paper 1 – ${businessTitles[0]}\n80 marks`,
+      `Paper 1 – ${businessTitles[0]} (9BS0/01)\n80 marks`,
+    ])], businessScope);
+    expect(result.candidates).toHaveLength(1);
+    expect(result.ambiguous).toBe(false);
+    expect(result.candidates[0].canonicalComponent).toBe("9BS0/01");
+    expect(result.candidates[0].references.map(ref => ref.page)).toEqual([1, 1, 2, 3]);
+  });
+  it("binds an uncoded source identity to the requested qualification and subject", async () => {
+    const source = doc(["Assessment overview\nPaper 1: Foundations\n80 marks"]);
+    const a = await discoverSourceAssessments([source], { qualification: "GCSE", subject: "Business" });
+    const b = await discoverSourceAssessments([source], { qualification: "IGCSE", subject: "Business" });
+    const c = await discoverSourceAssessments([source], { qualification: "GCSE", subject: "Economics" });
+    expect(a.candidates).toHaveLength(1);
+    expect(b.candidates).toHaveLength(1);
+    expect(c.candidates).toHaveLength(1);
+    expect(new Set([a.candidates[0].id, b.candidates[0].id, c.candidates[0].id]).size).toBe(3);
+  });
+  it("keeps genuinely different names under the same paper number unresolved", async () => {
+    const result = await discoverSourceAssessments([doc([
+      "A-level\nPaper 1: International business\n80 marks\nPaper 1: International business strategy\n80 marks\nPaper 1\n80 marks",
+    ])]);
+    expect(result.candidates).toHaveLength(3);
+    expect(result.ambiguous).toBe(true);
+    expect(resolveSourceAssessment(result.candidates, "Paper 1")).toBeNull();
+    expect(result.candidates[0].canonicalComponent).toBe("Paper 1 — International business");
+    expect(new Set(result.candidates.map(candidate => candidate.id)).size).toBe(3);
+  });
+  it("does not collapse conflicting source titles sharing an explicit code across editions", async () => {
+    const result = await discoverSourceAssessments([
+      doc(["A-level\nPaper 1: Markets (9BS0/01)\n80 marks"], "old-edition", "a"),
+      doc(["A-level\nPaper 1: Marketing and people (9BS0/01)\n100 marks"], "new-edition", "b"),
+    ], businessScope);
+    expect(result.candidates).toHaveLength(2);
+    expect(result.ambiguous).toBe(true);
+    expect(resolveSourceAssessment(result.candidates, "9BS0/01")).toBeNull();
+    expect(result.candidates[0].id).not.toBe(result.candidates[1].id);
+    expect(result.candidates.every(candidate => resolveSourceAssessment(result.candidates, candidate.id) === candidate)).toBe(true);
+  });
+  it("handles a wrapped numbered unit without stripping legitimate years or neighbouring instructions", async () => {
+    const result = await discoverSourceAssessments([doc([
+      "Unit 2: Marketing in an international\nenvironment\n60 marks\nUnit 3: Business in 2020 – 2025\nStudents should describe global trade\n60 marks",
+    ])]);
+    expect(result.candidates.map(candidate => candidate.label)).toEqual([
+      "Unit 2 — Marketing in an international environment",
+      "Unit 3 — Business in 2020 – 2025",
+    ]);
+    expect(result.candidates.map(candidate => candidate.canonicalComponent)).toEqual(["Unit 2", "Unit 3"]);
+  });
   it("does not invent conflicting paper titles from flattened assessment-weighting tables", async () => {
     const result = await discoverSourceAssessments(
       [

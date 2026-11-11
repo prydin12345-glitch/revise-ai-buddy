@@ -7,6 +7,12 @@ export function BuilderEvidenceDetails({ job }: { job: SourceJobView }) {
     job.validationIssues?.length;
   return (
     <>
+      {job.manualComponentCode && (
+        <p className="text-sm text-muted-foreground">
+          Component code: <span className="font-medium text-foreground">{job.manualComponentCode.value}</span>
+          {job.manualComponentCode.status === "source_verified" ? " · verified in your source" : " · user-entered reference"}
+        </p>
+      )}
       {job.pageReview?.map((review) => (
         <p
           key={review.document}
@@ -14,12 +20,20 @@ export function BuilderEvidenceDetails({ job }: { job: SourceJobView }) {
           className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground"
         >
           {job.pageReview!.length > 1 ? `Document ${review.document}: ` : ""}
-          {review.readPages.length
+          {review.diagnostics?.length ? review.diagnostics.map((page) => (
+            <span key={page.page} className="block">
+              PDF page {page.page}{page.printedPage !== undefined && page.printedPage !== page.page ? ` (printed page ${page.printedPage})` : ""}: {page.status === "selected"
+                ? "selected for reading."
+                : page.status === "blocked"
+                  ? `located, but could not be used. ${page.reason ?? "The assessment details need checking."}`
+                  : `the selected assessment was not found on this page. ${page.reason ?? "Check the PDF page number and the printed page label."}`}
+            </span>
+          )) : <>{review.readPages.length
             ? `PDF pages selected for reading: ${review.readPages.join(", ")}.`
             : "None of the selected PDF pages could be matched to this assessment."}
           {review.skippedPages.length > 0 && (
             <> PDF pages {review.skippedPages.join(", ")} were skipped because they could not be safely matched to this assessment.</>
-          )}
+          )}</>}
         </p>
       ))}
       {showIssues ? (

@@ -1,0 +1,626 @@
+{
+  "status": "PASS",
+  "verificationDate": "2026-11-11",
+  "browserVersion": "151.0.7922.173",
+  "syntheticOnly": true,
+  "actualExamProfileBuilder": true,
+  "realLocalTextDiscovery": true,
+  "realDocumentIndex": true,
+  "syntheticSourceJobResponses": true,
+  "externalNetworkBlocked": true,
+  "backendRequests": 0,
+  "realModelCalls": 0,
+  "logins": 0,
+  "liveDataWrites": 0,
+  "cases": [
+    {
+      "name": "laptop",
+      "width": 1440,
+      "height": 1000,
+      "theme": "light",
+      "scenarios": [
+        "Three clean source identities replace repeated titles and AO rows; canonical Paper 1 stays separate from its display title and optional manual reference code.",
+        "Manual code requires explicit confirmation; Cancel/Escape restores blank or the previously confirmed code, while the builder, selection, name and file remain intact.",
+        "Confirmed normalized code is a separate payload field; source preparation, restart-popup Escape and closing/reopening preserve the attached source without another request.",
+        "A blank technical code is permissible for an uncoded source assessment and sends no manual code claim.",
+        "An edit that contradicts a source-backed component code is blocked before preparation; restoring the source code retains the assessment and file.",
+        "Wrong physical page reports its real index reason with PDF/printed labels; shared page 14 reads only Paper 1 and preserves the original job and file."
+      ],
+      "sourceOptions": [
+        {
+          "value": "source-assessment-72e15db9a8e0343cdda159d0",
+          "label": "Paper 1 — Marketing, people and global businesses"
+        },
+        {
+          "value": "source-assessment-cbd09e38564340cb8d904149",
+          "label": "Paper 2 — Business activities, decisions and strategy"
+        },
+        {
+          "value": "source-assessment-0a43f5e2e50821453fedec19",
+          "label": "Paper 3 — Investigating business in a competitive environment"
+        }
+      ],
+      "pageIndexes": [
+        {
+          "requested": [
+            15
+          ],
+          "coverage": {
+            "complete": false,
+            "reason": "Choose which paper this specification should follow.",
+            "code": "assessment_not_found"
+          },
+          "diagnostics": [
+            {
+              "page": 15,
+              "printedPage": 13,
+              "status": "not_matched",
+              "code": "assessment_not_found",
+              "reason": "Choose which paper this specification should follow."
+            }
+          ],
+          "selectedText": ""
+        },
+        {
+          "requested": [
+            14
+          ],
+          "coverage": {
+            "complete": true
+          },
+          "diagnostics": [
+            {
+              "page": 14,
+              "printedPage": 12,
+              "status": "selected"
+            }
+          ],
+          "selectedText": "Pearson Edexcel Level 3 Advanced GCE in Business (9BS0)\nPaper 1 – Marketing, people and global businesses\n100 marks\n120 minutes\nTopics 1 to 2\n"
+        }
+      ]
+    },
+    {
+      "name": "laptop",
+      "width": 1440,
+      "height": 1000,
+      "theme": "dark",
+      "scenarios": [
+        "Three clean source identities replace repeated titles and AO rows; canonical Paper 1 stays separate from its display title and optional manual reference code.",
+        "Manual code requires explicit confirmation; Cancel/Escape restores blank or the previously confirmed code, while the builder, selection, name and file remain intact.",
+        "Confirmed normalized code is a separate payload field; source preparation, restart-popup Escape and closing/reopening preserve the attached source without another request.",
+        "A blank technical code is permissible for an uncoded source assessment and sends no manual code claim.",
+        "An edit that contradicts a source-backed component code is blocked before preparation; restoring the source code retains the assessment and file.",
+        "Wrong physical page reports its real index reason with PDF/printed labels; shared page 14 reads only Paper 1 and preserves the original job and file."
+      ],
+      "sourceOptions": [
+        {
+          "value": "source-assessment-72e15db9a8e0343cdda159d0",
+          "label": "Paper 1 — Marketing, people and global businesses"
+        },
+        {
+          "value": "source-assessment-cbd09e38564340cb8d904149",
+          "label": "Paper 2 — Business activities, decisions and strategy"
+        },
+        {
+          "value": "source-assessment-0a43f5e2e50821453fedec19",
+          "label": "Paper 3 — Investigating business in a competitive environment"
+        }
+      ],
+      "pageIndexes": [
+        {
+          "requested": [
+            15
+          ],
+          "coverage": {
+            "complete": false,
+            "reason": "Choose which paper this specification should follow.",
+            "code": "assessment_not_found"
+          },
+          "diagnostics": [
+            {
+              "page": 15,
+              "printedPage": 13,
+              "status": "not_matched",
+              "code": "assessment_not_found",
+              "reason": "Choose which paper this specification should follow."
+            }
+          ],
+          "selectedText": ""
+        },
+        {
+          "requested": [
+            14
+          ],
+          "coverage": {
+            "complete": true
+          },
+          "diagnostics": [
+            {
+              "page": 14,
+              "printedPage": 12,
+              "status": "selected"
+            }
+          ],
+          "selectedText": "Pearson Edexcel Level 3 Advanced GCE in Business (9BS0)\nPaper 1 – Marketing, people and global businesses\n100 marks\n120 minutes\nTopics 1 to 2\n"
+        }
+      ]
+    },
+    {
+      "name": "ipad",
+      "width": 834,
+      "height": 1112,
+      "theme": "light",
+      "scenarios": [
+        "Three clean source identities replace repeated titles and AO rows; canonical Paper 1 stays separate from its display title and optional manual reference code.",
+        "Manual code requires explicit confirmation; Cancel/Escape restores blank or the previously confirmed code, while the builder, selection, name and file remain intact.",
+        "Confirmed normalized code is a separate payload field; source preparation, restart-popup Escape and closing/reopening preserve the attached source without another request.",
+        "A blank technical code is permissible for an uncoded source assessment and sends no manual code claim.",
+        "An edit that contradicts a source-backed component code is blocked before preparation; restoring the source code retains the assessment and file.",
+        "Wrong physical page reports its real index reason with PDF/printed labels; shared page 14 reads only Paper 1 and preserves the original job and file."
+      ],
+      "sourceOptions": [
+        {
+          "value": "source-assessment-72e15db9a8e0343cdda159d0",
+          "label": "Paper 1 — Marketing, people and global businesses"
+        },
+        {
+          "value": "source-assessment-cbd09e38564340cb8d904149",
+          "label": "Paper 2 — Business activities, decisions and strategy"
+        },
+        {
+          "value": "source-assessment-0a43f5e2e50821453fedec19",
+          "label": "Paper 3 — Investigating business in a competitive environment"
+        }
+      ],
+      "pageIndexes": [
+        {
+          "requested": [
+            15
+          ],
+          "coverage": {
+            "complete": false,
+            "reason": "Choose which paper this specification should follow.",
+            "code": "assessment_not_found"
+          },
+          "diagnostics": [
+            {
+              "page": 15,
+              "printedPage": 13,
+              "status": "not_matched",
+              "code": "assessment_not_found",
+              "reason": "Choose which paper this specification should follow."
+            }
+          ],
+          "selectedText": ""
+        },
+        {
+          "requested": [
+            14
+          ],
+          "coverage": {
+            "complete": true
+          },
+          "diagnostics": [
+            {
+              "page": 14,
+              "printedPage": 12,
+              "status": "selected"
+            }
+          ],
+          "selectedText": "Pearson Edexcel Level 3 Advanced GCE in Business (9BS0)\nPaper 1 – Marketing, people and global businesses\n100 marks\n120 minutes\nTopics 1 to 2\n"
+        }
+      ]
+    },
+    {
+      "name": "ipad",
+      "width": 834,
+      "height": 1112,
+      "theme": "dark",
+      "scenarios": [
+        "Three clean source identities replace repeated titles and AO rows; canonical Paper 1 stays separate from its display title and optional manual reference code.",
+        "Manual code requires explicit confirmation; Cancel/Escape restores blank or the previously confirmed code, while the builder, selection, name and file remain intact.",
+        "Confirmed normalized code is a separate payload field; source preparation, restart-popup Escape and closing/reopening preserve the attached source without another request.",
+        "A blank technical code is permissible for an uncoded source assessment and sends no manual code claim.",
+        "An edit that contradicts a source-backed component code is blocked before preparation; restoring the source code retains the assessment and file.",
+        "Wrong physical page reports its real index reason with PDF/printed labels; shared page 14 reads only Paper 1 and preserves the original job and file."
+      ],
+      "sourceOptions": [
+        {
+          "value": "source-assessment-72e15db9a8e0343cdda159d0",
+          "label": "Paper 1 — Marketing, people and global businesses"
+        },
+        {
+          "value": "source-assessment-cbd09e38564340cb8d904149",
+          "label": "Paper 2 — Business activities, decisions and strategy"
+        },
+        {
+          "value": "source-assessment-0a43f5e2e50821453fedec19",
+          "label": "Paper 3 — Investigating business in a competitive environment"
+        }
+      ],
+      "pageIndexes": [
+        {
+          "requested": [
+            15
+          ],
+          "coverage": {
+            "complete": false,
+            "reason": "Choose which paper this specification should follow.",
+            "code": "assessment_not_found"
+          },
+          "diagnostics": [
+            {
+              "page": 15,
+              "printedPage": 13,
+              "status": "not_matched",
+              "code": "assessment_not_found",
+              "reason": "Choose which paper this specification should follow."
+            }
+          ],
+          "selectedText": ""
+        },
+        {
+          "requested": [
+            14
+          ],
+          "coverage": {
+            "complete": true
+          },
+          "diagnostics": [
+            {
+              "page": 14,
+              "printedPage": 12,
+              "status": "selected"
+            }
+          ],
+          "selectedText": "Pearson Edexcel Level 3 Advanced GCE in Business (9BS0)\nPaper 1 – Marketing, people and global businesses\n100 marks\n120 minutes\nTopics 1 to 2\n"
+        }
+      ]
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "scenarios": [
+        "Three clean source identities replace repeated titles and AO rows; canonical Paper 1 stays separate from its display title and optional manual reference code.",
+        "Manual code requires explicit confirmation; Cancel/Escape restores blank or the previously confirmed code, while the builder, selection, name and file remain intact.",
+        "Confirmed normalized code is a separate payload field; source preparation, restart-popup Escape and closing/reopening preserve the attached source without another request.",
+        "A blank technical code is permissible for an uncoded source assessment and sends no manual code claim.",
+        "An edit that contradicts a source-backed component code is blocked before preparation; restoring the source code retains the assessment and file.",
+        "Wrong physical page reports its real index reason with PDF/printed labels; shared page 14 reads only Paper 1 and preserves the original job and file."
+      ],
+      "sourceOptions": [
+        {
+          "value": "source-assessment-72e15db9a8e0343cdda159d0",
+          "label": "Paper 1 — Marketing, people and global businesses"
+        },
+        {
+          "value": "source-assessment-cbd09e38564340cb8d904149",
+          "label": "Paper 2 — Business activities, decisions and strategy"
+        },
+        {
+          "value": "source-assessment-0a43f5e2e50821453fedec19",
+          "label": "Paper 3 — Investigating business in a competitive environment"
+        }
+      ],
+      "pageIndexes": [
+        {
+          "requested": [
+            15
+          ],
+          "coverage": {
+            "complete": false,
+            "reason": "Choose which paper this specification should follow.",
+            "code": "assessment_not_found"
+          },
+          "diagnostics": [
+            {
+              "page": 15,
+              "printedPage": 13,
+              "status": "not_matched",
+              "code": "assessment_not_found",
+              "reason": "Choose which paper this specification should follow."
+            }
+          ],
+          "selectedText": ""
+        },
+        {
+          "requested": [
+            14
+          ],
+          "coverage": {
+            "complete": true
+          },
+          "diagnostics": [
+            {
+              "page": 14,
+              "printedPage": 12,
+              "status": "selected"
+            }
+          ],
+          "selectedText": "Pearson Edexcel Level 3 Advanced GCE in Business (9BS0)\nPaper 1 – Marketing, people and global businesses\n100 marks\n120 minutes\nTopics 1 to 2\n"
+        }
+      ]
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "scenarios": [
+        "Three clean source identities replace repeated titles and AO rows; canonical Paper 1 stays separate from its display title and optional manual reference code.",
+        "Manual code requires explicit confirmation; Cancel/Escape restores blank or the previously confirmed code, while the builder, selection, name and file remain intact.",
+        "Confirmed normalized code is a separate payload field; source preparation, restart-popup Escape and closing/reopening preserve the attached source without another request.",
+        "A blank technical code is permissible for an uncoded source assessment and sends no manual code claim.",
+        "An edit that contradicts a source-backed component code is blocked before preparation; restoring the source code retains the assessment and file.",
+        "Wrong physical page reports its real index reason with PDF/printed labels; shared page 14 reads only Paper 1 and preserves the original job and file."
+      ],
+      "sourceOptions": [
+        {
+          "value": "source-assessment-72e15db9a8e0343cdda159d0",
+          "label": "Paper 1 — Marketing, people and global businesses"
+        },
+        {
+          "value": "source-assessment-cbd09e38564340cb8d904149",
+          "label": "Paper 2 — Business activities, decisions and strategy"
+        },
+        {
+          "value": "source-assessment-0a43f5e2e50821453fedec19",
+          "label": "Paper 3 — Investigating business in a competitive environment"
+        }
+      ],
+      "pageIndexes": [
+        {
+          "requested": [
+            15
+          ],
+          "coverage": {
+            "complete": false,
+            "reason": "Choose which paper this specification should follow.",
+            "code": "assessment_not_found"
+          },
+          "diagnostics": [
+            {
+              "page": 15,
+              "printedPage": 13,
+              "status": "not_matched",
+              "code": "assessment_not_found",
+              "reason": "Choose which paper this specification should follow."
+            }
+          ],
+          "selectedText": ""
+        },
+        {
+          "requested": [
+            14
+          ],
+          "coverage": {
+            "complete": true
+          },
+          "diagnostics": [
+            {
+              "page": 14,
+              "printedPage": 12,
+              "status": "selected"
+            }
+          ],
+          "selectedText": "Pearson Edexcel Level 3 Advanced GCE in Business (9BS0)\nPaper 1 – Marketing, people and global businesses\n100 marks\n120 minutes\nTopics 1 to 2\n"
+        }
+      ]
+    },
+    {
+      "name": "narrow-phone",
+      "width": 320,
+      "height": 780,
+      "theme": "light",
+      "scenarios": [
+        "Three clean source identities replace repeated titles and AO rows; canonical Paper 1 stays separate from its display title and optional manual reference code.",
+        "Manual code requires explicit confirmation; Cancel/Escape restores blank or the previously confirmed code, while the builder, selection, name and file remain intact.",
+        "Confirmed normalized code is a separate payload field; source preparation, restart-popup Escape and closing/reopening preserve the attached source without another request.",
+        "A blank technical code is permissible for an uncoded source assessment and sends no manual code claim.",
+        "An edit that contradicts a source-backed component code is blocked before preparation; restoring the source code retains the assessment and file.",
+        "Wrong physical page reports its real index reason with PDF/printed labels; shared page 14 reads only Paper 1 and preserves the original job and file."
+      ],
+      "sourceOptions": [
+        {
+          "value": "source-assessment-72e15db9a8e0343cdda159d0",
+          "label": "Paper 1 — Marketing, people and global businesses"
+        },
+        {
+          "value": "source-assessment-cbd09e38564340cb8d904149",
+          "label": "Paper 2 — Business activities, decisions and strategy"
+        },
+        {
+          "value": "source-assessment-0a43f5e2e50821453fedec19",
+          "label": "Paper 3 — Investigating business in a competitive environment"
+        }
+      ],
+      "pageIndexes": [
+        {
+          "requested": [
+            15
+          ],
+          "coverage": {
+            "complete": false,
+            "reason": "Choose which paper this specification should follow.",
+            "code": "assessment_not_found"
+          },
+          "diagnostics": [
+            {
+              "page": 15,
+              "printedPage": 13,
+              "status": "not_matched",
+              "code": "assessment_not_found",
+              "reason": "Choose which paper this specification should follow."
+            }
+          ],
+          "selectedText": ""
+        },
+        {
+          "requested": [
+            14
+          ],
+          "coverage": {
+            "complete": true
+          },
+          "diagnostics": [
+            {
+              "page": 14,
+              "printedPage": 12,
+              "status": "selected"
+            }
+          ],
+          "selectedText": "Pearson Edexcel Level 3 Advanced GCE in Business (9BS0)\nPaper 1 – Marketing, people and global businesses\n100 marks\n120 minutes\nTopics 1 to 2\n"
+        }
+      ]
+    },
+    {
+      "name": "narrow-phone",
+      "width": 320,
+      "height": 780,
+      "theme": "dark",
+      "scenarios": [
+        "Three clean source identities replace repeated titles and AO rows; canonical Paper 1 stays separate from its display title and optional manual reference code.",
+        "Manual code requires explicit confirmation; Cancel/Escape restores blank or the previously confirmed code, while the builder, selection, name and file remain intact.",
+        "Confirmed normalized code is a separate payload field; source preparation, restart-popup Escape and closing/reopening preserve the attached source without another request.",
+        "A blank technical code is permissible for an uncoded source assessment and sends no manual code claim.",
+        "An edit that contradicts a source-backed component code is blocked before preparation; restoring the source code retains the assessment and file.",
+        "Wrong physical page reports its real index reason with PDF/printed labels; shared page 14 reads only Paper 1 and preserves the original job and file."
+      ],
+      "sourceOptions": [
+        {
+          "value": "source-assessment-72e15db9a8e0343cdda159d0",
+          "label": "Paper 1 — Marketing, people and global businesses"
+        },
+        {
+          "value": "source-assessment-cbd09e38564340cb8d904149",
+          "label": "Paper 2 — Business activities, decisions and strategy"
+        },
+        {
+          "value": "source-assessment-0a43f5e2e50821453fedec19",
+          "label": "Paper 3 — Investigating business in a competitive environment"
+        }
+      ],
+      "pageIndexes": [
+        {
+          "requested": [
+            15
+          ],
+          "coverage": {
+            "complete": false,
+            "reason": "Choose which paper this specification should follow.",
+            "code": "assessment_not_found"
+          },
+          "diagnostics": [
+            {
+              "page": 15,
+              "printedPage": 13,
+              "status": "not_matched",
+              "code": "assessment_not_found",
+              "reason": "Choose which paper this specification should follow."
+            }
+          ],
+          "selectedText": ""
+        },
+        {
+          "requested": [
+            14
+          ],
+          "coverage": {
+            "complete": true
+          },
+          "diagnostics": [
+            {
+              "page": 14,
+              "printedPage": 12,
+              "status": "selected"
+            }
+          ],
+          "selectedText": "Pearson Edexcel Level 3 Advanced GCE in Business (9BS0)\nPaper 1 – Marketing, people and global businesses\n100 marks\n120 minutes\nTopics 1 to 2\n"
+        }
+      ]
+    }
+  ],
+  "scenarioChecks": 48,
+  "screenshots": [
+    "laptop-light-clean-assessment.png",
+    "laptop-light-shared-page-ready.png",
+    "phone-dark-page-diagnostic.png",
+    "phone-dark-shared-page-ready.png",
+    "narrow-phone-light-shared-page-ready.png",
+    "narrow-phone-dark-code-confirmation.png"
+  ],
+  "frozenBefore": {
+    "status": "PASS",
+    "applicationFiles": 829,
+    "serverFiles": 189,
+    "dependencyInputs": 1743,
+    "applicationDifferences": [],
+    "serverDifferences": [],
+    "dependencyDifferencesWithinRun": [],
+    "fixtureDifferences": [],
+    "fontDifferences": [],
+    "outputDifferences": [],
+    "runtime": {
+      "node": "v24.19.0",
+      "platform": "linux",
+      "architecture": "x64",
+      "osRelease": "6.18.57",
+      "packages": {
+        "esbuild": "0.28.2",
+        "postcss": "8.5.6",
+        "postcss-import": "15.1.0",
+        "tailwindcss": "3.4.17",
+        "autoprefixer": "10.4.21",
+        "react": "18.3.1",
+        "react-dom": "18.3.1",
+        "react-router-dom": "6.26.2",
+        "unpdf": "1.8.1",
+        "zod": "4.6.2"
+      }
+    },
+    "policy": "Every recorded application/server/config/lockfile/fixture/font/dependency input and generated bundle/style output must match the frozen build. Server pinning does not imply that backend endpoints ran in the browser."
+  },
+  "frozenAfter": {
+    "status": "PASS",
+    "applicationFiles": 829,
+    "serverFiles": 189,
+    "dependencyInputs": 1743,
+    "applicationDifferences": [],
+    "serverDifferences": [],
+    "dependencyDifferencesWithinRun": [],
+    "fixtureDifferences": [],
+    "fontDifferences": [],
+    "outputDifferences": [],
+    "runtime": {
+      "node": "v24.19.0",
+      "platform": "linux",
+      "architecture": "x64",
+      "osRelease": "6.18.57",
+      "packages": {
+        "esbuild": "0.28.2",
+        "postcss": "8.5.6",
+        "postcss-import": "15.1.0",
+        "tailwindcss": "3.4.17",
+        "autoprefixer": "10.4.21",
+        "react": "18.3.1",
+        "react-dom": "18.3.1",
+        "react-router-dom": "6.26.2",
+        "unpdf": "1.8.1",
+        "zod": "4.6.2"
+      }
+    },
+    "policy": "Every recorded application/server/config/lockfile/fixture/font/dependency input and generated bundle/style output must match the frozen build. Server pinning does not imply that backend endpoints ran in the browser."
+  },
+  "sourceHashesVerifiedBeforeAndAfter": true,
+  "errors": [],
+  "consoleErrors": [],
+  "failedRequests": [],
+  "blockedRequests": [],
+  "limitations": [
+    "The actual builder and local text inspection/index code are composed offline with injected synthetic SourceJob responses; signed-in navigation, real provider interpretation and persistence are not exercised.",
+    "Text attachment inspection is real. The physical/printed PDF page scenario uses original synthetic extracted-page strings, not the user PDF or a PDF parser.",
+    "Chromium viewport emulation does not establish physical iOS/iPadOS behavior."
+  ]
+}

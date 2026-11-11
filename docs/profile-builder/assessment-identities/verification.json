@@ -1,0 +1,119 @@
+{
+  "date": "2026-11-11",
+  "baselineCommit": "51da022b13fb49dea5b9fc16752eca59d19e8c5e",
+  "status": "PASS",
+  "scope": {
+    "assessmentDiscoveryVersion": 3,
+    "documentIndexVersion": 6,
+    "profileMode": "One selected assessment per source-backed profile",
+    "manualCodeAuthority": "User reference unless independently present in the selected source; never an evidence or approval override",
+    "savedManualCodeLocation": "Existing template.designDecisions annotation, after validated drafting",
+    "databaseMigrationRequired": false
+  },
+  "checks": {
+    "baselineCleanInstallRepair": {
+      "status": "PASS",
+      "check": "npm ci --dry-run",
+      "reason": "Baseline package.json and bun.lock declared two existing development plugins missing from the npm lockfile.",
+      "lockfileOnlyAdditions": {
+        "@lovable.dev/vite-plugin-dev-server-bridge": "1.3.3",
+        "@lovable.dev/vite-plugin-hmr-gate": "1.8.2"
+      },
+      "existingLockedPackagesUpgraded": 0,
+      "installedDependencyTreeReplaced": false
+    },
+    "fullRepositoryCheck": {
+      "status": "PASS",
+      "command": "npm run check",
+      "testFiles": 202,
+      "tests": 3379,
+      "appTypes": "PASS",
+      "strictSharedPhysicsTypes": "PASS",
+      "criticalLint": "PASS",
+      "edgeIdentifierCheck": "PASS",
+      "edgeBundles": 39,
+      "productionBuild": "PASS",
+      "buildSeconds": 16.57
+    },
+    "denoTypecheck": {
+      "status": "PASS",
+      "deno": "2.5.6",
+      "entryPoints": [
+        "supabase/functions/profile-builder/index.ts",
+        "supabase/functions/extract-exam-questions/index.ts"
+      ],
+      "mode": "deno check without executing handlers or making model calls"
+    },
+    "browser": {
+      "status": "PASS",
+      "evidence": "browser/results/",
+      "viewportThemeCases": 8,
+      "scenarioGroups": 48,
+      "applicationConfigFiles": 829,
+      "serverConfigFiles": 189,
+      "installedDependencyInputs": 1743,
+      "strictFrozenHashesSnapshotAndWorkingCheckout": "PASS",
+      "relocatedCheckoutWithSpaces": "PASS",
+      "applicationAndServerHashNegativeControls": "PASS",
+      "selectedImagesVisuallyReviewed": 4,
+      "providerAndDatabase": "Synthetic API; actual UI, local source inspection and document index. No live calls."
+    },
+    "assessmentJobRegression": {
+      "status": "PASS",
+      "file": "supabase/tests/profile-builder-assessment-identities.test.ts",
+      "tests": 12,
+      "evidence": "Controlled providers and an owner-scoped in-memory store; actual prepare, follow-up, confirm, draft and save-contract code"
+    },
+    "dependencyGraph": {
+      "status": "PASS",
+      "entryPointsChecked": 39,
+      "affectedFunctions": [
+        "extract-exam-questions",
+        "profile-builder"
+      ],
+      "report": "edge-function-dependencies.json"
+    },
+    "focusedRegression": {
+      "discoveryTests": 42,
+      "documentIndexTests": 96,
+      "assessmentJobTests": 12,
+      "builderResolutionTests": 42,
+      "status": "PASS",
+      "includedInFullSuite": true
+    },
+    "beforeAfterNegativeControl": {
+      "status": "PASS",
+      "report": "before-after.json",
+      "method": "Actual baseline/current discovery and document index applied to an original synthetic Edexcel-shaped source using the reported titles. No model calls; not a replay of the private uploaded PDF.",
+      "before": {
+        "assessmentCount": 10,
+        "ambiguous": true,
+        "page14CoverageComplete": false
+      },
+      "after": {
+        "assessmentCount": 3,
+        "ambiguous": false,
+        "page14CoverageComplete": true,
+        "retainedPaper1Facts": true,
+        "paper2FactsIncluded": false
+      }
+    }
+  },
+  "constraints": {
+    "paidModelCalls": 0,
+    "studentLogins": 0,
+    "liveDataWrites": 0,
+    "existingProfilesOrExamsEdited": 0,
+    "migrationsApplied": 0,
+    "functionsDeployed": 0,
+    "websitePublished": false,
+    "liveBackendRevisionsVerified": false,
+    "liveDatabasePermissionsVerified": false
+  },
+  "limitations": [
+    "The actual private Business PDF and failed live job were unavailable; source fixtures reproduce the reported labels and document layout rather than that private file.",
+    "Offline provider responses test orchestration and source-evidence gates, not the quality of a future real model extraction.",
+    "Browser component composition with a synthetic API does not establish live backend behavior or physical iOS/iPadOS behavior.",
+    "The previous strict backend schema rejects the new optional request fields; matching deployment revisions must be verified before fresh builds."
+  ]
+}

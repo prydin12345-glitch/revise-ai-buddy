@@ -5,7 +5,7 @@ import {
   type AssessmentScopeResolution,
 } from "./profile-document-index.ts";
 
-export const ASSESSMENT_DISCOVERY_VERSION = 2;
+export const ASSESSMENT_DISCOVERY_VERSION = 3;
 export type SourceAssessmentKind =
   "paper" | "unit" | "component" | "assessment";
 export interface AssessmentDiscoveryDocument {
@@ -24,6 +24,8 @@ export interface AssessmentSourceReference {
 export interface DiscoveredAssessment {
   id: string;
   label: string;
+  /** Stable matching value, separate from the presentation title. */
+  canonicalComponent: string;
   componentCode?: string;
   kind: SourceAssessmentKind;
   qualification?: string;
@@ -81,6 +83,7 @@ interface FoundAssessment {
   base?: string;
   qualification?: string;
   references: AssessmentSourceReference[];
+  aliases?: string[];
 }
 const clean = (value: string) => value.replace(/\s+/g, " ").trim();
 const titleCaseKind = (kind: string) =>
@@ -125,7 +128,10 @@ function cleanHeadingTail(tail: string): string {
     .replace(/\(\s*\)/g, "");
   const label = clean(
     withoutCode.replace(/^[\s:(\u2013\u2014-]+|[\s)\u2013\u2014-]+$/g, ""),
-  );
+  // AO weighting tables repeat a title followed by several numeric ranges and
+  // a percentage. Remove only that explicit column shape, never arbitrary
+  // numbers or a legitimate year/range inside an assessment name.
+  ).replace(/\s+(?:\d+(?:\.\d+)?\s*[-\u2010-\u2015]\s*\d+(?:\.\d+)?\s+){2,}\d+(?:\.\d+)?\s*%\s*$/, "");
   if (!label || metadataLine.test(label)) return "";
   // Flattened weighting tables contain "Paper 1  Paper 2" column headers
   // and "Paper 1  85  x1  85" rows. These are not alternative paper titles.
@@ -176,6 +182,17 @@ function followingTitle(lines: string[], index: number): string {
   return clean(next);
 }
 
+function wrappedTitle(lines: string[], index: number, tail: string): string {
+  const next = followingTitle(lines, index);
+  // A continuation starts in lower case; a capitalised neighbouring heading
+  // cannot silently become part of this title. Paragraphs/instructions are
+  // already excluded by followingTitle. Bound this to one literal line.
+  if (!tail || !next || !/^[\p{Ll}]/u.test(next) || next.split(/\s+/).length > 8)
+    return tail;
+  const joined = `${tail} ${next}`;
+  return joined.length <= 140 && !metadataLine.test(next) ? joined : tail;
+}
+
 function collectPage(
   document: AssessmentDiscoveryDocument,
   page: number,
@@ -193,7 +210,8 @@ function collectPage(
       const kind = numbered[1].toLowerCase() as SourceAssessmentKind;
       const base = `${titleCaseKind(kind)} ${numbered[2]}`;
       const rawTail = numbered[3];
-      const tail = cleanHeadingTail(rawTail);
+      const cleanedTail = cleanHeadingTail(rawTail);
+      const tail = wrappedTitle(lines, index, cleanedTail);
       // Bare headings are useful; running references such as "Paper 1 is..."
       // and optional instructions such as "Paper 1 or Paper 2" are not.
       if (
@@ -209,6 +227,8 @@ function collectPage(
       const references = [literalReference(document, page, original)];
       if (extraTitle && !tail)
         references.push(literalReference(document, page, lines[index + 1]));
+      if (tail !== cleanedTail)
+        references.push(literalReference(document, page, lines[index + 1]));
       if (near.line && near.line.trim() !== original)
         references.push(literalReference(document, page, near.line));
       found.push({
@@ -216,6 +236,7 @@ function collectPage(
         base,
         label: extraTitle ? `${base} — ${extraTitle}` : base,
         ...(near.code ? { componentCode: near.code } : {}),
+        aliases: [...new Set([line, `${base}${cleanedTail ? ` — ${cleanedTail}` : ""}`])],
         references,
       });
       continue;
@@ -311,6 +332,31 @@ function mergeReferences(
   // Repeated running headers can appear hundreds of times. These are citations
   // for dropdown identity only; no assessment rules are truncated here.
   target.splice(8);
+}
+
+function mergeAssessment(target: FoundAssessment, other: FoundAssessment) {
+  mergeReferences(target.references, other.references);
+  target.aliases = [...new Set([
+    ...(target.aliases ?? []), target.label,
+    ...(other.aliases ?? []), other.label,
+  ])].sort();
+}
+
+/** Exact source aliases only. A shared bare paper name cannot select between
+ * distinct components, qualifications or conflicting source titles. */
+export function resolveSourceAssessment(
+  candidates: readonly DiscoveredAssessment[],
+  value: string,
+): DiscoveredAssessment | null {
+  const key = normaliseAssessmentAlias(value);
+  if (!key) return null;
+  const exactId = candidates.find(candidate => candidate.id === value);
+  if (exactId) return exactId;
+  const matches = candidates.filter(candidate =>
+    [candidate.componentCode, candidate.canonicalComponent, candidate.label, ...candidate.aliases]
+      .some(alias => alias && normaliseAssessmentAlias(alias) === key),
+  );
+  return matches.length === 1 ? matches[0] : null;
 }
 
 /**
@@ -420,7 +466,7 @@ export async function discoverSourceAssessments(
       qualification: assessment.qualification ?? "",
     });
     const existing = groups.get(key);
-    if (existing) mergeReferences(existing.references, assessment.references);
+    if (existing) mergeAssessment(existing, assessment);
     else {
       const item = { ...assessment, references: [] };
       mergeReferences(item.references, assessment.references);
@@ -440,7 +486,7 @@ export async function discoverSourceAssessments(
     );
     if (named.length === 1) {
       item.label = `${item.base} — ${named[0].label}`;
-      mergeReferences(item.references, named[0].references);
+      mergeAssessment(item, named[0]);
     }
   }
   // A short contents entry and its detailed heading refer to one option when
@@ -458,12 +504,22 @@ export async function discoverSourceAssessments(
           ),
       );
       if (numbered) {
-        mergeReferences(numbered.references, item.references);
+        mergeAssessment(numbered, item);
         return false;
       }
     }
-    if (!item.base || item.label !== item.base || item.componentCode)
-      return true;
+    // A title repeated without a code can join its uniquely coded identity;
+    // different explicit codes are never collapsed because they share a title.
+    if (!item.componentCode) {
+      const coded = values.filter(other => other !== item && other.componentCode &&
+        other.qualification === item.qualification && other.kind === item.kind &&
+        normaliseAssessmentAlias(other.label) === normaliseAssessmentAlias(item.label));
+      if (coded.length === 1) {
+        mergeAssessment(coded[0], item);
+        return false;
+      }
+    }
+    if (!item.base || item.label !== item.base || item.componentCode) return true;
     const detailed = values.filter(
       (other) =>
         other !== item &&
@@ -471,8 +527,11 @@ export async function discoverSourceAssessments(
         (!item.qualification || other.qualification === item.qualification) &&
         (other.label !== other.base || other.componentCode),
     );
-    if (detailed.length === 1) {
-      mergeReferences(detailed[0].references, item.references);
+    const identities = detailed.filter(other => other.componentCode || !detailed.some(coded =>
+      coded.componentCode && coded.qualification === other.qualification &&
+      normaliseAssessmentAlias(coded.label) === normaliseAssessmentAlias(other.label)));
+    if (identities.length === 1) {
+      mergeAssessment(identities[0], item);
       return false;
     }
     return true;
@@ -511,11 +570,25 @@ export async function discoverSourceAssessments(
     };
   const candidates = await Promise.all(
     collapsed.map(async (assessment) => {
+      const sameBase = assessment.base ? collapsed.filter(other =>
+        other.base === assessment.base && other.qualification === assessment.qualification) : [];
+      const canonicalComponent = assessment.componentCode ??
+        (assessment.base && sameBase.length === 1 ? assessment.base : assessment.label);
       const identity = {
         kind: assessment.kind,
-        label: normaliseAssessmentAlias(assessment.label),
+        component: normaliseAssessmentAlias(canonicalComponent),
         code: assessment.componentCode?.toLowerCase() ?? "",
+        // Preserve real conflicts sharing a code rather than making their IDs
+        // collide. In the normal unique case, presentation titles are not IDs.
+        ...(assessment.componentCode && collapsed.some(other => other !== assessment &&
+          other.componentCode?.toLowerCase() === assessment.componentCode?.toLowerCase() &&
+          other.qualification === assessment.qualification)
+          ? { conflictingLabel: normaliseAssessmentAlias(assessment.label) } : {}),
         qualification: assessment.qualification ?? "",
+        requestedQualification: scope.qualification?.trim().toLowerCase() ?? "",
+        subject: scope.subject?.trim().toLowerCase() ?? "",
+        course: scope.course?.trim().toLowerCase() ?? "",
+        organisation: scope.organisation?.trim().toLowerCase() ?? "",
         sources: [
           ...new Set(
             assessment.references.map((reference) => reference.checksum),
@@ -525,6 +598,7 @@ export async function discoverSourceAssessments(
       return {
         id: `source-assessment-${(await checksum(canonical(identity))).slice(0, 24)}`,
         label: assessment.label,
+        canonicalComponent,
         ...(assessment.componentCode
           ? { componentCode: assessment.componentCode }
           : {}),
@@ -535,10 +609,11 @@ export async function discoverSourceAssessments(
         aliases: [
           ...new Set([
             assessment.label,
+            ...(assessment.aliases ?? []),
             ...(assessment.base ? [assessment.base] : []),
             ...(assessment.componentCode ? [assessment.componentCode] : []),
           ]),
-        ],
+        ].filter(alias => alias.length <= 180),
         references: assessment.references,
       };
     }),
