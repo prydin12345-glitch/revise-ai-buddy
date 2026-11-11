@@ -91,7 +91,12 @@ export const invokeProfileBuilder: BuilderApi = async (input) => {
     if (error.context instanceof Response) {
       try {
         const body = await error.context.clone().json();
-        if (typeof body.error === "string") message = body.error.slice(0, 500);
+        if (typeof body.error === "string") {
+          message = body.error.slice(0, 500);
+          if (error.context.status === 400 && input.action === "prepare_source" &&
+              (input.selectedAssessmentId || input.manualComponentCode) && /^Invalid profile input\b/i.test(body.error))
+            message = "Profile Builder could not accept the assessment details. Its backend may need the matching update. Your attached files and saved profiles are unchanged.";
+        }
         else if (error.context.status === 404 && body.code === "NOT_FOUND")
           message =
             "Profile Builder is not available yet. Its backend service needs to be deployed. Your saved profiles are unchanged.";

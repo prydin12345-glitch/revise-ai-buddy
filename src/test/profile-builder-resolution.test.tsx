@@ -701,6 +701,23 @@ it("cancelling Start again keeps the builder and its unfinished request open", a
   expect(api).not.toHaveBeenCalled();
 });
 
+it("Escape dismisses Start again without closing or clearing the current build", async () => {
+  pending.read.mockResolvedValueOnce({ jobId: crypto.randomUUID() });
+  const onOpenChange = vi.fn();
+  const api = vi.fn();
+  render(<ExamProfileBuilder {...base} onOpenChange={onOpenChange}
+    educationalLevel="undergrad" curriculumRegion="US" examBoard="Example University" api={api} />);
+  await screen.findByRole("button", { name: "Resume request" });
+  fireEvent.click(screen.getByRole("button", { name: "Start again" }));
+  expect(screen.getByRole("alertdialog")).toBeVisible();
+  fireEvent.keyDown(document, { key: "Escape", code: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+  expect(screen.getByRole("button", { name: "Resume request" })).toBeVisible();
+  expect(onOpenChange).not.toHaveBeenCalled();
+  expect(pending.clear).not.toHaveBeenCalled();
+  expect(api).not.toHaveBeenCalled();
+});
+
 it("a lost source-preparation response keeps the same receipt for a free status check", async () => {
   const calls: any[] = [];
   const api: BuilderApi = async (input) => {
@@ -1417,4 +1434,133 @@ it("shows one missing question, retains the upload and read, and continues the s
   expect(localInspection.inspect).toHaveBeenCalledTimes(inspections);
   expect(pending.clear).not.toHaveBeenCalled();
   expect(screen.getByText("combined-spec.txt")).toBeVisible();
+});
+
+async function manualCodeSource(code?: string) {
+  pending.read.mockResolvedValue(null);
+  localInspection.inspect.mockResolvedValue({
+    version: 3,
+    candidates: [{
+      id: "source-business-paper-1",
+      label: "Paper 1 — Marketing, people and global businesses",
+      canonicalComponent: code ?? "Paper 1",
+      ...(code ? { componentCode: code } : {}),
+      kind: "paper", aliases: ["Paper 1"], references: [],
+    }], warnings: [], needsManualEntry: false, ambiguous: false,
+  });
+  const calls: Record<string, any>[] = [];
+  const api: BuilderApi = async input => {
+    calls.push(input);
+    return {job: {
+      jobId: String(input.requestId), stage: "ready", mode: "short_practice",
+      identity: identitySchema.parse(input.identity),
+      progress: {completed: 1, total: 1}, message: "Ready",
+      ...(input.manualComponentCode ? {manualComponentCode: {value: (input.manualComponentCode as any).value, status: "user_provided" as const}} : {}),
+    }};
+  };
+  const onOpenChange = vi.fn();
+  render(<ExamProfileBuilder {...base} subjectName="Business" examBoard="Edexcel" api={api} onOpenChange={onOpenChange} />);
+  fireEvent.click(screen.getByRole("button", {name: "Upload syllabus"}));
+  const bytes = new TextEncoder().encode("A-level Business\nPaper 1\nMarketing, people and global businesses\n100 marks");
+  fireEvent.change(screen.getByLabelText("Syllabus or assessment brief"), {target: {files: [{name: "business.txt", type: "text/plain", size: bytes.length, arrayBuffer: async () => bytes.buffer}]}});
+  await screen.findByRole("option", {name: "Paper 1 — Marketing, people and global businesses"});
+  fireEvent.change(screen.getByLabelText("Assessment"), {target: {value: "source-business-paper-1"}});
+  await waitFor(() => expect(screen.getByRole("button", {name: "Read syllabus"})).toBeEnabled());
+  return {calls, onOpenChange};
+}
+
+const clickWithPointer = async (button: HTMLElement) => {
+  // Radix installs its document pointer listener on the next task after mounting.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  fireEvent.pointerDown(button, {button: 0, pointerType: "mouse"});
+  fireEvent.mouseDown(button, {button: 0});
+  fireEvent.pointerUp(button, {button: 0, pointerType: "mouse"});
+  fireEvent.mouseUp(button, {button: 0});
+  fireEvent.click(button);
+};
+
+it("allows a discovered assessment with no code to keep that optional field blank", async () => {
+  const {calls} = await manualCodeSource();
+  expect(screen.getByLabelText("Paper / component code")).toHaveValue("");
+  fireEvent.click(screen.getByRole("button", {name: "Read syllabus"}));
+  await waitFor(() => expect(calls).toHaveLength(1));
+  expect(calls[0].identity.component).toBe("Paper 1");
+  expect(calls[0].selectedAssessmentId).toBe("source-business-paper-1");
+  expect(calls[0]).not.toHaveProperty("manualComponentCode");
+});
+
+it("confirms a manual code separately without replacing the source assessment or clearing the upload", async () => {
+  const {calls, onOpenChange} = await manualCodeSource();
+  fireEvent.change(screen.getByLabelText("Paper / component code"), {target: {value: "9bs0/01"}});
+  expect(screen.getByText("business.txt")).toBeVisible();
+  expect(screen.getByLabelText("Paper")).toHaveValue("source-business-paper-1");
+  fireEvent.click(screen.getByRole("button", {name: "Read syllabus"}));
+  expect(calls).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", {name: "Confirm code"}));
+  const dialog = screen.getByRole("alertdialog", {name: "Use this component code?"});
+  expect(dialog).toHaveTextContent("9BS0/01");
+  expect(dialog).toHaveTextContent("has not been verified");
+  await clickWithPointer(within(dialog).getByRole("button", {name: "Use code"}));
+  expect(onOpenChange).not.toHaveBeenCalledWith(false);
+  expect(screen.getByRole("dialog", {name: "Build your exam profile"})).toBeVisible();
+  expect(screen.getByLabelText("Paper / component code")).toHaveValue("9BS0/01");
+  expect(screen.getByText("business.txt")).toBeVisible();
+  expect(screen.getByLabelText("Paper")).toHaveValue("source-business-paper-1");
+  fireEvent.click(screen.getByRole("button", {name: "Read syllabus"}));
+  await waitFor(() => expect(calls).toHaveLength(1));
+  expect(calls[0].identity.component).toBe("Paper 1");
+  expect(calls[0].manualComponentCode).toEqual({value: "9BS0/01", confirmed: true});
+  expect(calls[0].uploads).toHaveLength(1);
+});
+
+it("cancelling a replacement manual code restores the previously confirmed reference without closing the builder", async () => {
+  const {calls, onOpenChange} = await manualCodeSource();
+  const input = screen.getByLabelText("Paper / component code");
+  fireEvent.change(input, {target: {value: "9BS0/01"}});
+  fireEvent.click(screen.getByRole("button", {name: "Confirm code"}));
+  fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", {name: "Use code"}));
+  fireEvent.change(input, {target: {value: "9BS0/02"}});
+  fireEvent.click(screen.getByRole("button", {name: "Confirm code"}));
+  await clickWithPointer(within(screen.getByRole("alertdialog")).getByRole("button", {name: "Cancel"}));
+  expect(onOpenChange).not.toHaveBeenCalledWith(false);
+  expect(screen.getByRole("dialog", {name: "Build your exam profile"})).toBeVisible();
+  expect(input).toHaveValue("9BS0/01");
+  expect(screen.getByText("business.txt")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", {name: "Read syllabus"}));
+  await waitFor(() => expect(calls).toHaveLength(1));
+  expect(calls[0].manualComponentCode).toEqual({value: "9BS0/01", confirmed: true});
+});
+
+it("does not allow manual confirmation to override a different code found in the source", async () => {
+  const {calls} = await manualCodeSource("9BS0/01");
+  fireEvent.change(screen.getByLabelText("Paper / component code"), {target: {value: "9BS0/02"}});
+  expect(screen.queryByRole("button", {name: "Confirm code"})).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", {name: "Read syllabus"}));
+  expect(calls).toHaveLength(0);
+  expect(screen.getAllByRole("alert").some(node => /does not match the selected assessment/.test(node.textContent ?? ""))).toBe(true);
+});
+
+it("requires confirmation again after the source selection changes", async () => {
+  await manualCodeSource();
+  fireEvent.change(screen.getByLabelText("Paper / component code"), {target: {value: "9BS0/01"}});
+  fireEvent.click(screen.getByRole("button", {name: "Confirm code"}));
+  fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", {name: "Use code"}));
+  fireEvent.change(screen.getByLabelText("Official specification URL"), {target: {value: "https://example.edu/other-spec.pdf"}});
+  expect(screen.queryByText("User-entered code. Your syllabus will still determine the assessment details.")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", {name: "Confirm code"})).not.toBeInTheDocument();
+  expect(screen.getByText("business.txt")).toBeVisible();
+});
+
+
+it("Escape dismisses only manual-code confirmation and restores its previous value", async () => {
+  const {onOpenChange} = await manualCodeSource();
+  fireEvent.change(screen.getByLabelText("Paper / component code"), {target: {value: "9BS0/01"}});
+  fireEvent.click(screen.getByRole("button", {name: "Confirm code"}));
+  expect(screen.getByRole("alertdialog")).toBeVisible();
+  fireEvent.keyDown(document, {key: "Escape", code: "Escape"});
+  await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+  expect(onOpenChange).not.toHaveBeenCalledWith(false);
+  expect(screen.getByRole("dialog", {name: "Build your exam profile"})).toBeVisible();
+  expect(screen.getByLabelText("Paper / component code")).toHaveValue("");
+  expect(screen.getByText("business.txt")).toBeVisible();
 });

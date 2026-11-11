@@ -6,7 +6,7 @@
  * Private page text belongs only in the owned preparation receipt. Only an
  * explicitly reviewed public source pack may enter a shared catalogue.
  */
-export const DOCUMENT_INDEX_VERSION = 5;
+export const DOCUMENT_INDEX_VERSION = 6;
 export const INDEXED_DOCUMENT_LIMITS = {
   maxBytes: 3_000_000,
   maxPages: 240,
@@ -87,6 +87,13 @@ function qualificationHeading(line: string): SourceQualification | undefined {
   // comparison columns and component rows must not create section boundaries.
   if (/\b(?:paper|unit|component)\s*\d|[|;]|\b\d+\s*marks?\b/i.test(text))
     return undefined;
+  // Awarding-body titles are source identity too. Do not turn ordinary prose
+  // mentioning a qualification into an anchor, or merge Advanced Subsidiary
+  // GCE with Advanced GCE. A title remains short and standalone.
+  const gce = text.match(
+    /^(?:(?:[A-Za-z][A-Za-z &'’.-]{0,60}\s+)?Level\s+3\s+)?Advanced(\s+Subsidiary)?\s+GCE(?:\s+in\s+[A-Za-z][A-Za-z &'’.,/-]{0,80})?(?:\s*\([A-Za-z0-9 ,/]+\))?$/i,
+  );
+  if (gce) return gce[1] ? "AS" : "A-level";
   const tail =
     "(?:\\s+[A-Za-z][A-Za-z &'-]{0,80})?(?:\\s*\\([A-Za-z0-9 ,/]+\\))?";
   if (
@@ -340,9 +347,7 @@ function courseBlocks(texts: string[], requested: string) {
         value.match(
           /^(?:course|qualification|specification)\s+code\s*:\s*([A-Za-z0-9]{3,12})\s*$/i,
         )?.[1] ??
-        (/^(?:AS(?:[- ]level)?|A[\s\u2010-\u2015-]*level|GCSE|GCE)\b/i.test(
-          value,
-        )
+        (heading || /^(?:GCSE|GCE)\b/i.test(value)
           ? value.match(/\(([A-Za-z0-9]{3,12})\)\s*$/)?.[1]
           : undefined);
       const courseHeading = exactCourseCode(headingCode);
@@ -540,7 +545,12 @@ export function scopeDocumentQualification(
       fragment.text.split("\n").some((line) => assessmentRow.test(line.trim())),
     );
     const safelyAnchored =
-      rows.length > 0 &&
+      // A clarification narrows the same already-unambiguous source. It must
+      // not invent a new identity requirement merely because the user named
+      // a page. Ambiguous full-document comparisons still need literal row
+      // anchors before the selection can resolve them.
+      !result.ambiguous ||
+      (rows.length > 0 &&
       rows.every((fragment) => {
         const anchored =
           (requestedCourse && fragment.course === requestedCourse) ||
@@ -573,7 +583,7 @@ export function scopeDocumentQualification(
               codes.every((code) => code === requestedCourse))
           );
         });
-      });
+      }));
     const reason = safelyAnchored
       ? undefined
       : (result.reason ??
@@ -606,10 +616,25 @@ export interface SourceDocumentIndex {
   chunks: SourceDocumentChunk[];
   selectedPages: number[];
   omittedPages: number[];
-  coverage: { complete: boolean; reason?: string };
+  coverage: { complete: boolean; reason?: string; code?: SourceIndexCoverageCode };
+  pageDiagnostics?: Array<{
+    page: number;
+    printedPage?: number;
+    status: "selected" | "blocked" | "not_matched";
+    code?: SourceIndexCoverageCode;
+    reason?: string;
+  }>;
   warnings: string[];
   resolution?: AssessmentScopeResolution;
 }
+export type SourceIndexCoverageCode =
+  | "qualification_scope"
+  | "assessment_not_found"
+  | "optional_assessment_scope"
+  | "referenced_page_unresolved"
+  | "evidence_capacity"
+  | "no_assessment_evidence"
+  | "assessment_boundary_ambiguous";
 
 const normalize = (value: string) =>
   value
@@ -625,7 +650,7 @@ const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const pageLines = (text: string) => text.split("\n");
 const componentPattern = /\b(?:paper|unit|component)\s+(\d{1,2}(?:[a-z])?)\b/gi;
 const componentCodePattern = /\b[A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]{0,2}\b/g;
-const topicPattern = /^\s*(?:Topic|Module)\s+(\d{1,2})\b/i;
+const topicPattern = /^\s*(?:Topic|Module|Theme)\s+(\d{1,2})\b/i;
 const rulePattern =
   /^(?:assessment(?:\s+(?:overview|information|objectives|requirements|guidance))?\s*$|(?:appendix\s+\d+\s*[:.\u2013-]\s*)?(?:qualification at a glance|(?:mathematical|maths|practical|experimental)\s+(?:skills|requirements)|command words|mark(?:ing)?\s+scheme(?:\s+conventions)?|(?:total\s+)?marks|duration|time allowed|calculator(?:s|\s+policy)?|answer all questions|all questions are compulsory|tier(?:s|ing)?|(?:this (?:paper|assessment) is )?untiered)\b)/i;
 const headingPattern =
@@ -738,7 +763,7 @@ function makePages(texts: string[]): SourceDocumentPage[] {
 function topicsIn(text: string) {
   const result = new Set<number>();
   for (const match of text.matchAll(
-    /\b(?:topics?|modules?)\s+(\d{1,2})\s*(?:to|through|[\u2013\u2014-])\s*(\d{1,2})\b/gi,
+    /\b(?:topics?|modules?|themes?)\s+(\d{1,2})\s*(?:to|through|[\u2013\u2014-])\s*(\d{1,2})\b/gi,
   )) {
     const first = Number(match[1]),
       last = Number(match[2]);
@@ -746,11 +771,11 @@ function topicsIn(text: string) {
       for (let n = first; n <= last; n++) result.add(n);
   }
   for (const match of text.matchAll(
-    /\b(?:topics?|modules?)\s+((?:\d{1,2}\s*(?:,|and|&)\s*)+\d{1,2})\b/gi,
+    /\b(?:topics?|modules?|themes?)\s+((?:\d{1,2}\s*(?:,|and|&)\s*)+\d{1,2})\b/gi,
   ))
     for (const number of match[1].match(/\d{1,2}/g) ?? [])
       result.add(Number(number));
-  for (const match of text.matchAll(/\b(?:topics?|modules?)\s+(\d{1,2})\b/gi))
+  for (const match of text.matchAll(/\b(?:topics?|modules?|themes?)\s+(\d{1,2})\b/gi))
     result.add(Number(match[1]));
   return result;
 }
@@ -790,7 +815,8 @@ function packPages(pages: Array<{ page: number; text: string }>) {
 }
 
 /**
- * Read every page before selecting evidence. Short briefs are retained whole.
+ * Read every page before selecting evidence. Short single-assessment briefs
+ * remain whole; every source excludes sibling assessment/content blocks.
  * Large specifications use matched component pages, component topic headings,
  * shared assessment rules and explicit page cross-references. A failed match,
  * unresolved reference or overflow is returned as incomplete; no budget-based
@@ -808,11 +834,41 @@ export function indexDocumentPages(
       selection.sourcePages,
     ),
     allowed = new Map<number, Array<[number, number]>>();
+  const contextScope = selection.sourcePages
+    ? scopeDocumentQualification(texts, selection.qualification, selection.course)
+    : scope;
+  const contextAllowed = new Map<number, Array<[number, number]>>();
+  for (const fragment of contextScope.fragments)
+    contextAllowed.set(fragment.page, [
+      ...(contextAllowed.get(fragment.page) ?? []),
+      [fragment.startOffset, fragment.endOffset],
+    ]);
   for (const fragment of scope.fragments)
     allowed.set(fragment.page, [
       ...(allowed.get(fragment.page) ?? []),
       [fragment.startOffset, fragment.endOffset],
     ]);
+  // A focused page still needs the document's literal course/qualification
+  // heading as context. Retain just those referenced headings, not unrelated
+  // pages or unselected assessment rules.
+  if (selection.sourcePages)
+    for (const fragment of scope.fragments)
+      for (const reference of [fragment.qualificationReference, fragment.courseReference]) {
+        if (!reference || selection.sourcePages.includes(reference.page)) continue;
+        const source = pages[reference.page - 1];
+        let offset = 0;
+        for (const line of pageLines(source.text)) {
+          if (line.trim() === reference.text) {
+            const start = offset + line.indexOf(reference.text);
+            allowed.set(reference.page, [
+              ...(allowed.get(reference.page) ?? []),
+              [start, start + reference.text.length],
+            ]);
+            break;
+          }
+          offset += line.length + 1;
+        }
+      }
   const exactCode = (value: string) => {
     const code = value.normalize("NFKC").trim().toLowerCase();
     return /^[a-z0-9]{3,12}\/\d{1,3}[a-z]{0,2}$/.test(code) ? code : null;
@@ -848,6 +904,156 @@ export function indexDocumentPages(
         allowed.delete(page.page);
       }
     }
+  const requested = requestedPattern(selection);
+  const allSourceComponents = new Set(pages.flatMap((page) =>
+    (allowed.get(page.page) ?? []).flatMap(([start, end]) => componentsIn(page.text.slice(start, end)))));
+  const ambiguousAssessmentPages = new Set<number>();
+  const matchedAssessmentPages = new Set<number>();
+  const assessmentBoundaries = new Map<number, Array<{ start: number; selected: boolean }>>();
+  // Separate assessment blocks before choosing chunks, including short PDFs.
+  // Every interval is still a literal span of its original physical page.
+  // A heading's block ends at the next assessment heading, not five lines
+  // later; sibling marks, durations and content cannot bleed into it.
+  for (const page of pages) {
+    const intervals = allowed.get(page.page) ?? [];
+    const lines = pageLines(page.text);
+    const boundaries: Array<{ start: number; selected: boolean; ambiguous: boolean }> = [];
+    let offset = 0;
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+      const line = lines[lineIndex], text = line.trim();
+      const inScope = (contextAllowed.get(page.page) ?? []).some(([start, end]) => offset < end && offset + line.length > start);
+      const numbered = /^(?:(?:AS(?:[- ]level)?|A[\s\u2010-\u2015-]*level)\s+)?(?:paper|unit|component)\s*\d{1,3}[A-Za-z]?\b/i.test(text)
+        && !/^(?:(?:AS(?:[- ]level)?|A[\s\u2010-\u2015-]*level)\s+)?(?:paper|unit|component)\s*\d{1,3}[A-Za-z]?\s+(?:is|are|will|may|must|can|should|includes?|covers?|assesses?|requires?|contains?|consists?|has|uses?|contributes?|accounts?|examines?|tests?|students?|candidates?)\b/i.test(text);
+      const named = /^(?:assessment|examination|exam|test|coursework|project)\s*[:\u2013\u2014-]\s*\S/i.test(text);
+      const codeOnly = /^[A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]{0,2}$/.test(text);
+      // A code immediately following a numbered heading belongs to its block.
+      // It is considered below when deciding which heading was requested.
+      const followsHeading = codeOnly && boundaries.length > 0 && lineIndex > 0
+        && /^(?:paper|unit|component)\s*\d/i.test(lines[lineIndex - 1].trim());
+      if (inScope && (numbered || named || (codeOnly && !followsHeading))) {
+        const identifiers = new Set(componentsIn(normalize(text)));
+        const ambiguous = identifiers.size > 1;
+        const following: string[] = [line];
+        for (let next = lineIndex + 1; next < Math.min(lines.length, lineIndex + 3); next++) {
+          if (codeOnly || /^(?:(?:AS|A[ -]?level)\s+)?(?:paper|unit|component)\s*\d/i.test(lines[next].trim())
+            || /^(?:assessment|examination|exam|test|coursework|project)\s*[:\u2013\u2014-]/i.test(lines[next].trim())) break;
+          following.push(lines[next]);
+        }
+        const nearby = following.join("\n");
+        const codes = [...nearby.matchAll(componentCodePattern)].map((match) => match[0].toLowerCase());
+        const codeConflict = positiveCodes.size > 0 && codes.length > 0 && !codes.some((code) => positiveCodes.has(code));
+        const selected = !ambiguous && !codeConflict && (requested.test(normalize(text))
+          || codes.some((code) => positiveCodes.has(code)));
+        boundaries.push({ start: offset, selected, ambiguous });
+        if (selected) matchedAssessmentPages.add(page.page);
+        if (ambiguous && requested.test(normalize(text))) ambiguousAssessmentPages.add(page.page);
+      }
+      offset += line.length + 1;
+    }
+    assessmentBoundaries.set(page.page, boundaries);
+    if (!boundaries.length) continue;
+    const retained: Array<[number, number]> = [[0, boundaries[0].start]];
+    boundaries.forEach((boundary, index) => {
+      if (boundary.selected) retained.push([boundary.start, boundaries[index + 1]?.start ?? page.text.length]);
+    });
+    const clipped = intervals.flatMap(([start, end]) => retained
+      .map(([blockStart, blockEnd]) => [Math.max(start, blockStart), Math.min(end, blockEnd)] as [number, number])
+      .filter(([from, to]) => to > from));
+    allowed.set(page.page, clipped.sort(([a], [b]) => a - b));
+  }
+  // Detailed content is shared across papers in a specification. Only an
+  // explicit selected-paper topic/module/theme range may narrow those blocks;
+  // neither the student's selection nor proximity invents an allocation.
+  const allocatedTopics = new Set<number>();
+  for (const page of pages) {
+    const boundaries = assessmentBoundaries.get(page.page) ?? [];
+    boundaries.forEach((boundary, index) => {
+      if (!boundary.selected) return;
+      const end = boundaries[index + 1]?.start ?? page.text.length;
+      const text = (allowed.get(page.page) ?? []).map(([from, to]) =>
+        page.text.slice(Math.max(from, boundary.start), Math.max(Math.max(from, boundary.start), Math.min(to, end))))
+        .join("\n");
+      for (const number of topicsIn(text)) allocatedTopics.add(number);
+    });
+  }
+  // Assessment ownership continues across physical page breaks. Bare duration,
+  // calculator or answer-choice lines never become shared just because their
+  // heading was on the previous page. Only explicit document/content section
+  // boundaries can leave that assessment block.
+  let assessmentOwner: boolean | undefined;
+  for (const page of pages) {
+    const boundaries: Array<{ start: number; owner: boolean | undefined }> =
+      (assessmentBoundaries.get(page.page) ?? []).map((boundary) => ({ start: boundary.start, owner: boundary.selected }));
+    let offset = 0;
+    const lines = pageLines(page.text);
+    const firstLine = lines.findIndex((line) => line.trim());
+    lines.forEach((line, lineIndex) => {
+      const text = line.trim();
+      const inScope = (contextAllowed.get(page.page) ?? []).some(([start, end]) => offset < end && offset + line.length > start);
+      if (inScope) {
+        const topic = line.match(topicPattern);
+        const skillHeading = /^(?:Mathematical|Maths|Practical|Experimental)\s+(?:skills|requirements)$/i.test(text);
+        const proof: string[] = [];
+        if (skillHeading && lineIndex === firstLine)
+          for (let next = lineIndex + 1; next < Math.min(lines.length, lineIndex + 14); next++) {
+            if (/^(?:(?:AS|A[ -]?level)\s+)?(?:paper|unit|component)\s*\d/i.test(lines[next].trim())) break;
+            proof.push(lines[next]);
+          }
+        const courseWideSkills = skillHeading && /\b(?:(?:across|throughout|for)\s+(?:(?:the|this|whole|entire)\s+)*qualification|(?:all|every)\s+(?:examination\s+)?(?:papers?|assessments?))\b/i.test(proof.join(" ").slice(0, 2_000));
+        const global = /^(?:Subject content|Assessment objectives|Scheme of assessment|Qualification at a glance|Specification overview|Appendix(?:\s+\d+)?(?:\s*[:\u2013\u2014-].*)?)$/i.test(text)
+          || courseWideSkills;
+        // An unallocated topic heading is not proof of a course-wide section.
+        // Keep the current assessment owner until an explicit allocation or
+        // shared chapter establishes a different scope.
+        if (topic && allocatedTopics.size) boundaries.push({ start: offset, owner: allocatedTopics.has(Number(topic[1])) });
+        else if (global) boundaries.push({ start: offset, owner: undefined });
+      }
+      offset += line.length + 1;
+    });
+    boundaries.sort((a, b) => a.start - b.start);
+    const retained: Array<[number, number]> = [];
+    let start = 0;
+    for (const boundary of boundaries) {
+      if (assessmentOwner !== false && boundary.start > start) retained.push([start, boundary.start]);
+      start = boundary.start;
+      assessmentOwner = boundary.owner;
+    }
+    if (assessmentOwner !== false) retained.push([start, page.text.length]);
+    allowed.set(page.page, (allowed.get(page.page) ?? []).flatMap(([from, to]) => retained
+      .map(([start, end]) => [Math.max(from, start), Math.min(to, end)] as [number, number])
+      .filter(([from, to]) => to > from)));
+  }
+  if (allocatedTopics.size)
+    for (const page of pages) {
+      const boundaries: Array<{ start: number; number: number }> = [];
+      let offset = 0;
+      for (const line of pageLines(page.text)) {
+        const topic = line.match(topicPattern);
+        if (topic) boundaries.push({ start: offset, number: Number(topic[1]) });
+        offset += line.length + 1;
+      }
+      if (!boundaries.length) continue;
+      const retained: Array<[number, number]> = [[0, boundaries[0].start]];
+      boundaries.forEach((boundary, index) => {
+        if (allocatedTopics.has(boundary.number))
+          retained.push([boundary.start, boundaries[index + 1]?.start ?? page.text.length]);
+      });
+      allowed.set(page.page, (allowed.get(page.page) ?? []).flatMap(([start, end]) => retained
+        .map(([from, to]) => [Math.max(start, from), Math.min(end, to)] as [number, number])
+        .filter(([from, to]) => to > from)).sort(([a], [b]) => a - b));
+    }
+  // Heading references may repeat across fragments. Merge them before masking
+  // so offsets remain positions in the original page rather than duplicated
+  // reconstructed text.
+  for (const [page, intervals] of allowed) {
+    const merged: Array<[number, number]> = [];
+    for (const interval of [...intervals].sort(([a], [b]) => a - b)) {
+      const previous = merged[merged.length - 1];
+      if (previous && interval[0] <= previous[1]) previous[1] = Math.max(previous[1], interval[1]);
+      else merged.push([...interval]);
+    }
+    allowed.set(page, merged);
+  }
   // Masking is used only to locate candidate lines. Retrieval below always
   // slices the original page at allowed offsets, so no invented whitespace or
   // AS-only text can enter a supplied evidence excerpt.
@@ -862,17 +1068,21 @@ export function indexDocumentPages(
     text += page.text.slice(offset).replace(/[^\r\n]/g, " ");
     return { ...page, text };
   });
-  const requested = requestedPattern(selection),
-    total = pages.reduce((sum, page) => sum + page.text.length, 0),
+  const total = pages.reduce((sum, page) => sum + page.text.length, 0),
     matches = scanPages.filter((page) => requested.test(normalize(page.text))),
-    allComponents = new Set(
-      scanPages.flatMap((page) => componentsIn(page.text)),
-    ),
+    allComponents = allSourceComponents,
     selected = new Map<number, Array<[number, number]>>(),
     warnings: string[] = [];
   let reason = scope.reason ?? optionAmbiguity;
+  let reasonCode: SourceIndexCoverageCode | undefined = scope.reason
+    ? "qualification_scope" : optionAmbiguity ? "optional_assessment_scope" : undefined;
+  const fail = (detail: string, code: SourceIndexCoverageCode) => {
+    if (!reason) { reason = detail; reasonCode = code; }
+  };
+  if ([...ambiguousAssessmentPages].some((page) => selection.sourcePages?.includes(page) && !matchedAssessmentPages.has(page)))
+    fail("The selected page combines assessment columns that could not be separated safely. Choose a page with a distinct assessment block.", "assessment_boundary_ambiguous");
   const addPage = (page: SourceDocumentPage) =>
-    selected.set(page.page, [...(allowed.get(page.page) ?? [])]);
+    allowed.get(page.page)?.length && selected.set(page.page, [...allowed.get(page.page)!]);
   const addWindow = (
     page: SourceDocumentPage,
     line: number,
@@ -942,17 +1152,10 @@ export function indexDocumentPages(
         "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.";
     const topicNumbers = new Set<number>();
     for (const page of matches) {
-      if (new Set(componentsIn(page.text)).size <= 1) {
-        addPage(page);
-        for (const topic of topicsIn(page.text)) topicNumbers.add(topic);
-      } else {
-        // A comparison/contents page can describe several papers. Retrieve
-        // the matching row with context, without treating the other rows'
-        // topic ranges as this paper's scope.
-        pageLines(page.text).forEach((line, index) => {
-          if (requested.test(normalize(line))) addWindow(page, index, 1, 5);
-        });
-      }
+      // Sibling assessment blocks were removed above. Keep the entire literal
+      // selected block, however many wrapped lines its title/rules occupy.
+      addPage(page);
+      for (const topic of topicsIn(page.text)) topicNumbers.add(topic);
     }
     // Identity/edition information usually appears on the first readable cover.
     const first = scanPages.find((page) => page.text.trim());
@@ -1037,11 +1240,19 @@ export function indexDocumentPages(
   const selectedPages = [...selected.keys()].sort((a, b) => a - b),
     selectedText = selectedPages.flatMap((page) => snippets(pages[page - 1])),
     chunks = packPages(selectedText);
+  if (selection.sourcePages && !selectedText.some((snippet) => selection.sourcePages!.includes(snippet.page)))
+    fail("No selected assessment or shared assessment passage was located on the requested pages.", "assessment_not_found");
   if (chunks.length > INDEXED_DOCUMENT_LIMITS.maxChunks)
     reason ??=
       "The assessment evidence is larger than one bounded build can analyse. Add a component-specific assessment brief or use a reviewed source.";
   if (!chunks.length)
     reason ??= "No assessment evidence could be located in this source.";
+  if (reason && !reasonCode)
+    reasonCode = /which paper|locate this assessment/i.test(reason) ? "assessment_not_found"
+      : /larger than|bounded build|capacity/i.test(reason) ? "evidence_capacity"
+      : /referenced|refers to topic/i.test(reason) ? "referenced_page_unresolved"
+      : /optional topic/i.test(reason) ? "optional_assessment_scope"
+      : "no_assessment_evidence";
   return {
     version: DOCUMENT_INDEX_VERSION,
     pages,
@@ -1050,7 +1261,20 @@ export function indexDocumentPages(
     omittedPages: pages
       .filter((page) => !selected.has(page.page))
       .map((page) => page.page),
-    coverage: reason ? { complete: false, reason } : { complete: true },
+    coverage: reason ? { complete: false, reason, code: reasonCode } : { complete: true },
+    ...(selection.sourcePages ? { pageDiagnostics: selection.sourcePages.map((page) => {
+      const candidate = selectedText.some((snippet) => snippet.page === page && snippet.text.trim());
+      return {
+        page,
+        ...(pages[page - 1].printedPage !== undefined ? { printedPage: pages[page - 1].printedPage } : {}),
+        status: candidate && !["assessment_not_found", "no_assessment_evidence"].includes(reasonCode ?? "")
+          ? reason ? "blocked" as const : "selected" as const : "not_matched" as const,
+        ...(reason ? { code: reasonCode, reason } : !candidate ? {
+          code: "assessment_not_found" as const,
+          reason: "No selected assessment or shared assessment passage was located on this page.",
+        } : {}),
+      };
+    }) } : {}),
     warnings,
     ...(scope.resolution ? { resolution: scope.resolution } : {}),
   };

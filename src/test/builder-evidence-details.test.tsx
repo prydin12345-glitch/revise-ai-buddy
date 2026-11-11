@@ -114,3 +114,18 @@ it("keeps historical resolved checks out of a successful review", () => {
     screen.queryByLabelText("Verified assessment facts"),
   ).not.toBeInTheDocument();
 });
+
+it("distinguishes a located but blocked page from a missing assessment and shows printed labels", () => {
+  render(<BuilderEvidenceDetails job={{ ...job, pageReview: [{
+    document: 1, requestedPages: [14, 15], readPages: [], skippedPages: [14, 15],
+    diagnostics: [
+      {page: 14, printedPage: 12, status: "blocked", code: "qualification_scope", reason: "The qualification cannot be established from the source."},
+      {page: 15, status: "not_matched", code: "assessment_not_found"},
+    ],
+  }] }} />);
+  const status = screen.getByRole("status");
+  expect(status).toHaveTextContent("PDF page 14 (printed page 12): located, but could not be used.");
+  expect(status).toHaveTextContent("The qualification cannot be established from the source.");
+  expect(status).toHaveTextContent("PDF page 15: the selected assessment was not found on this page.");
+  expect(status).not.toHaveTextContent("None of the selected PDF pages could be matched");
+});

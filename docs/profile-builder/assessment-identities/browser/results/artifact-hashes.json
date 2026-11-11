@@ -1,0 +1,17 @@
+{
+  "status": "PASS",
+  "files": {
+    "app-source-hashes.json": "e502e4fdebbf81db60b3c7b8766164a3840489a453b8b5da0a483accb2d06b59",
+    "server-source-hashes.json": "9f43da57d7c68d6c8a652dd3e494472d678b6cd19dbfcaea792d39edeeed6aa4",
+    "dependency-input-hashes.json": "69a0323d3859f3921d0c74ee0b45d051538137ccdd95718d0902f0a960b5a892",
+    "build-manifest.json": "007def0f2289c358e25d7d793854f7ad750c2ee63a0109f6f7e17dfe6bf0916a",
+    "browser-results.json": "20a45eb3486d513fa59dd037cb37016bb119469b0556317a3d64bbec84ce7e10",
+    "hash-verification.json": "1d5de6141bf3c8ae1e12a66363d740335537f5b86c46c10cd310fc87d12f5f07",
+    "portability-verification.json": "e33f924d791aa0610f0ff784f10d7149ebb77da43ca2201699636db1de737c81",
+    "laptop-light-clean-assessment.png": "332a6fc9cb315e7d2de566f7491ac56453a742a6c3658ae412565ddcb705ccb9",
+    "phone-dark-page-diagnostic.png": "1674a6bd999bf7fe5f3ea84898ae58a96394257890f0a26142bb44f63a0df78d",
+    "narrow-phone-dark-code-confirmation.png": "957c903660119a2e2fd9adf125480846200c29571d3f3c1909c92bd176960301",
+    "narrow-phone-light-shared-page-ready.png": "07bac73cfe911b94a7c52c3dd17a04babd91d0103a40a545b9d193c696162c3d",
+    "visual-review.json": "2dae66ca026e99bd41dae66723dad8a97d2fd735879557ee22fedfe4c516ef31"
+  }
+}

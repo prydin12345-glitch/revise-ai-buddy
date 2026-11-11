@@ -1,0 +1,32 @@
+{
+  "status": "PASS",
+  "snapshotPathContainsSpaces": true,
+  "invocationCwdOutsideCheckout": true,
+  "dependenciesReusedViaSymlink": true,
+  "externalArtifactDirectory": true,
+  "pinnedFontDirectoryVerified": true,
+  "snapshotHashesMatch": true,
+  "workingCheckoutHashesMatch": true,
+  "temporaryMutationsRejected": [
+    {
+      "file": "src/index.css",
+      "category": "applicationDifferences",
+      "exitCode": 1,
+      "reportedDifferences": [
+        "src/index.css"
+      ]
+    },
+    {
+      "file": "supabase/functions/_shared/profile-document-index.ts",
+      "category": "serverDifferences",
+      "exitCode": 1,
+      "reportedDifferences": [
+        "supabase/functions/_shared/profile-document-index.ts"
+      ]
+    }
+  ],
+  "mutationsRestored": true,
+  "limitations": [
+    "The relocated checkout reuses the installed application dependency tree; this is not a clean cross-platform install or a live backend check."
+  ]
+}

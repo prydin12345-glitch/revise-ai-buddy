@@ -1,0 +1,44 @@
+{
+  "date": "2026-11-11",
+  "method": "Original synthetic source using reported titles; actual old/new parser and index, no model calls",
+  "cases": [
+    {
+      "revision": "before",
+      "assessmentCount": 10,
+      "ambiguous": true,
+      "labels": [
+        "Paper 1 — Marketing, people and global businesses",
+        "Paper 2 — Business activities, decisions and strategy",
+        "Paper 3 — Investigating business in a competitive environment",
+        "Paper 1 — Marketing, people and global businesses 6 - 8 7 - 9 9 - 11 8 - 10 35%",
+        "Paper 2 — Business activities, decisions and strategy 6 - 8 7 - 9 9 - 11 8 - 10 35%",
+        "Paper 3 — Investigating business in a competitive environment 6 - 8 7 - 9 9 - 11 8 - 10 30%",
+        "Paper 3 — Investigating business in a competitive",
+        "Paper 1",
+        "Paper 2",
+        "Paper 3"
+      ],
+      "page14Coverage": {
+        "complete": false,
+        "reason": "The selected pages do not clearly identify your course's assessment overview. Add a focused assessment brief."
+      },
+      "paper2FactsIncluded": false,
+      "retainedPaper1Facts": false
+    },
+    {
+      "revision": "after",
+      "assessmentCount": 3,
+      "ambiguous": false,
+      "labels": [
+        "Paper 1 — Marketing, people and global businesses",
+        "Paper 2 — Business activities, decisions and strategy",
+        "Paper 3 — Investigating business in a competitive environment"
+      ],
+      "page14Coverage": {
+        "complete": true
+      },
+      "paper2FactsIncluded": false,
+      "retainedPaper1Facts": true
+    }
+  ]
+}

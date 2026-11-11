@@ -128,6 +128,18 @@ function Field({
     </label>
   );
 }
+const normaliseComponentCode = (value: string) =>
+  value.replace(/\s/g, "").toUpperCase();
+const validManualCode = (value: string) =>
+  /^[A-Z0-9][A-Z0-9/_.-]{1,47}$/.test(value) && /\d/.test(value);
+const savedManualCode = (template: ProfileTemplate) => {
+  const value = template.designDecisions
+    .map((decision) => decision.match(
+      /^User-entered component code: ([A-Z0-9/_.-]+) \(not verified from the source\)\.$/,
+    )?.[1])
+    .find(Boolean) ?? "";
+  return validManualCode(value) ? value : "";
+};
 const uuid = () => crypto.randomUUID();
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 const proposalFromContext = (ctx: SavedTemplateContext): BuilderProposal => ({
@@ -198,6 +210,9 @@ export function ExamProfileBuilder({
   const [manualAssessment, setManualAssessment] = useState(false);
   const [componentCode, setComponentCode] = useState("");
   const [codeEdited, setCodeEdited] = useState(false);
+  const [confirmedManualCode, setConfirmedManualCode] = useState("");
+  const [manualCodeDialogOpen, setManualCodeDialogOpen] = useState(false);
+  const manualCodeAccepted = useRef(false);
   // Catalogue defaults describe the current course, not the edition of an
   // uploaded syllabus. Only a deliberate override pins an upload's version.
   const [versionExplicit, setVersionExplicit] = useState(false);
@@ -280,6 +295,8 @@ export function ExamProfileBuilder({
       setAssessmentId("");
       setAssessmentName("");
       setComponentCode("");
+      setConfirmedManualCode("");
+      setManualCodeDialogOpen(false);
       setManualAssessment(false);
       setSourceId("");
       setPresetId("");
@@ -289,6 +306,8 @@ export function ExamProfileBuilder({
       return;
     }
     if (!open) return;
+    setConfirmedManualCode("");
+    setManualCodeDialogOpen(false);
     setSourceId("");
     const ctx = initialProfile?.profile_template as
       SavedTemplateContext | undefined;
@@ -304,8 +323,10 @@ export function ExamProfileBuilder({
       );
       setAssessmentId(selected?.id ?? "");
       setAssessmentName(selected?.label ?? ctx.template.identity.component);
-      setComponentCode(selected?.componentCode ?? "");
-      setCodeEdited(false);
+      const restoredCode = savedManualCode(ctx.template);
+      setComponentCode(selected?.componentCode ?? restoredCode);
+      setCodeEdited(!!restoredCode && !selected);
+      setConfirmedManualCode(restoredCode);
       setManualAssessment(!selected);
       setMode(ctx.template.mode);
       setPresetId(ctx.presetId ?? "");
@@ -484,6 +505,8 @@ export function ExamProfileBuilder({
     value: string | null,
   ) => {
     setError("");
+    setConfirmedManualCode("");
+    setManualCodeDialogOpen(false);
     if (key === "specificationVersion")
       setVersionExplicit(!!value?.trim());
     else if (["organisation", "qualification", "country", "course"].includes(key))
@@ -547,6 +570,7 @@ export function ExamProfileBuilder({
     setPresetId("");
   };
   const choosePreset = (id: string) => {
+    setConfirmedManualCode("");
     invalidatePreview();
     setPresetId(id);
     setError("");
@@ -574,6 +598,7 @@ export function ExamProfileBuilder({
       );
   };
   const chooseSource = (id: string) => {
+    setConfirmedManualCode("");
     invalidatePreview();
     setSourceId(id);
     setSourceChoice("source");
@@ -600,6 +625,7 @@ export function ExamProfileBuilder({
         sourceJob.missingItems?.[0]?.field === "source");
     const changed = await attachments.selectFiles(files);
     if (!changed) return;
+    setConfirmedManualCode("");
     invalidatePreview();
     setReplacingSource(sourceFollowup);
     setSourceChoice("upload");
@@ -608,6 +634,7 @@ export function ExamProfileBuilder({
     setError("");
   };
   const removeAttachment = (id: string) => {
+    setConfirmedManualCode("");
     if (sourceChoice === "upload" && step !== "review") {
       invalidatePreview();
       setStep("details");
@@ -615,6 +642,7 @@ export function ExamProfileBuilder({
     attachments.remove(id);
   };
   const clearAttachments = () => {
+    setConfirmedManualCode("");
     if (sourceChoice === "upload" && step !== "review") {
       invalidatePreview();
       setStep("details");
@@ -638,16 +666,18 @@ export function ExamProfileBuilder({
       const discovered = discovery?.candidates.find(
         (candidate) =>
           candidate.componentCode === job.identity?.component ||
-          candidate.label === job.identity?.component,
+          candidate.label === job.identity?.component ||
+          candidate.canonicalComponent === job.identity?.component,
       );
       setAssessmentId(selected?.id ?? discovered?.id ?? "");
       setAssessmentName(
         selected?.label ?? discovered?.label ?? job.identity.component,
       );
       setComponentCode(
-        selected?.componentCode ?? discovered?.componentCode ?? "",
+        selected?.componentCode ?? discovered?.componentCode ?? job.manualComponentCode?.value ?? "",
       );
-      setCodeEdited(false);
+      setCodeEdited(!!job.manualComponentCode && !selected?.componentCode && !discovered?.componentCode);
+      setConfirmedManualCode(job.manualComponentCode?.value ?? "");
       setManualAssessment(!selected && !discovered);
       setSourceChoice("upload");
     }
@@ -709,6 +739,12 @@ export function ExamProfileBuilder({
     const payload = {
       action: "prepare_source",
       identity: resolvedIdentity,
+      ...(selectedDocument ? { selectedAssessmentId: selectedDocument.id } : {}),
+      ...(confirmedManualCode &&
+      normaliseComponentCode(effectiveCode) === confirmedManualCode &&
+      !selectedPaper?.componentCode && !selectedDocument?.componentCode
+        ? { manualComponentCode: { value: confirmedManualCode, confirmed: true } }
+        : {}),
       specificationVersionIntent:
         versionExplicit &&
         classifySpecificationVersion(resolvedIdentity.specificationVersion).kind === "explicit"
@@ -1047,6 +1083,8 @@ export function ExamProfileBuilder({
       ? selectedDocument.kind[0].toUpperCase() + selectedDocument.kind.slice(1)
       : "Assessment";
   const chooseAssessment = (value: string, preserveModule = false) => {
+    setConfirmedManualCode("");
+    setManualCodeDialogOpen(false);
     invalidatePreview();
     setError("");
     if (value === "__manual") {
@@ -1069,7 +1107,7 @@ export function ExamProfileBuilder({
     setCodeEdited(false);
     setIdentity((previous) => ({
       ...previous,
-      component: known?.id ?? found?.componentCode ?? found?.label ?? "",
+      component: known?.id ?? found?.canonicalComponent ?? found?.componentCode ?? found?.label ?? "",
       module: preserveModule ? previous.module : undefined,
     }));
   };
@@ -1124,6 +1162,7 @@ export function ExamProfileBuilder({
     } else {
       const candidate = discovered ?? {
         ...choice,
+        canonicalComponent: choice.componentCode ?? choice.label,
         aliases: [
           choice.label,
           ...(choice.componentCode ? [choice.componentCode] : []),
@@ -1148,11 +1187,12 @@ export function ExamProfileBuilder({
       setAssessmentName(candidate.label);
       setComponentCode(candidate.componentCode ?? "");
       setCodeEdited(false);
+      setConfirmedManualCode("");
       setIdentity((previous) => ({
         ...previous,
-        component: candidate.componentCode ?? candidate.label,
+        component: candidate.canonicalComponent ?? candidate.componentCode ?? candidate.label,
         module:
-          previous.component === (candidate.componentCode ?? candidate.label)
+          previous.component === (candidate.canonicalComponent ?? candidate.componentCode ?? candidate.label)
             ? previous.module
             : undefined,
       }));
@@ -1166,18 +1206,26 @@ export function ExamProfileBuilder({
     : (selectedPaper?.componentCode ??
       selectedDocument?.componentCode ??
       componentCode);
-  const codeError = effectiveCode.trim()
+  const enteredCode = normaliseComponentCode(effectiveCode);
+  const manualCodeAllowed = sourceChoice === "upload" && attachments.files.length > 0 &&
+    !selectedPaper && !selectedDocument?.componentCode &&
+    (!!selectedDocument || manualAssessment);
+  const codeError = /[\u0000-\u001f\u007f]/.test(effectiveCode)
+    ? "Enter the component code without line breaks or control characters."
+    : enteredCode
     ? selectedPaper
       ? builderValidateComponentCode(identity, selectedPaper.id, effectiveCode)
-      : selectedDocument?.componentCode &&
-          effectiveCode.replace(/\s/g, "").toLowerCase() !==
-            selectedDocument.componentCode.replace(/\s/g, "").toLowerCase()
+      : selectedDocument?.componentCode && enteredCode !== normaliseComponentCode(selectedDocument.componentCode)
         ? "This code does not match the selected assessment in your source. Choose the matching assessment or restore its code."
-        : selectedDocument && !selectedDocument.componentCode
-          ? "This source does not give a code for the selected assessment. Clear the optional code; we will resolve it during source checks."
-          : !manualAssessment
-            ? "Choose the assessment before changing its technical code."
-            : null
+        : !selectedDocument && !manualAssessment
+          ? "Choose the assessment before changing its technical code."
+          : !selectedPaper && !selectedDocument?.componentCode && !manualCodeAllowed
+            ? "Attach a syllabus to save a manual component reference."
+          : manualCodeAllowed && !validManualCode(enteredCode)
+            ? "Enter a component code using letters, numbers, slashes or hyphens."
+            : manualCodeAllowed && enteredCode !== confirmedManualCode
+              ? "Confirm this manually entered code before continuing."
+              : null
     : null;
   const confirmationLabel = builderAssessmentLabel({
     ...identity,
@@ -1242,11 +1290,7 @@ export function ExamProfileBuilder({
       }
       const requested = {
         ...identity,
-        component:
-          selectedPaper?.id ??
-          (manualAssessment && effectiveCode.trim()
-            ? effectiveCode.trim()
-            : identity.component),
+        component: selectedPaper?.id ?? identity.component,
       };
       const resolved = resolveBuilderChoice(requested, mode);
       const hasEvidence =
@@ -1335,13 +1379,27 @@ export function ExamProfileBuilder({
       <Dialog
         open={open}
         onOpenChange={(v) => {
-          if (!v && !restartOpen) close();
+          if (!v && !restartOpen && !manualCodeDialogOpen) close();
         }}
       >
         <DialogContent
           hideCloseButton
           onInteractOutside={(event) => {
-            if (restartOpen) event.preventDefault();
+            if (restartOpen || manualCodeDialogOpen) event.preventDefault();
+          }}
+          onPointerDownOutside={(event) => {
+            if (restartOpen || manualCodeDialogOpen) event.preventDefault();
+          }}
+          onEscapeKeyDown={(event) => {
+            if (manualCodeDialogOpen) {
+              event.preventDefault();
+              setComponentCode(confirmedManualCode);
+              setCodeEdited(!!confirmedManualCode);
+              setManualCodeDialogOpen(false);
+            } else if (restartOpen) {
+              event.preventDefault();
+              setRestartOpen(false);
+            }
           }}
           className="profile-builder flex max-h-[90dvh] w-[calc(100%_-_1.5rem)] flex-col gap-0 overflow-hidden rounded-2xl border-border bg-card p-0 text-foreground sm:max-w-2xl"
         >
@@ -1659,6 +1717,7 @@ export function ExamProfileBuilder({
                   onClick={() => {
                     invalidatePreview();
                     setSourceChoice("upload");
+                    setConfirmedManualCode("");
                     setSourceId("");
                     setSourceUrl("");
                     setError("");
@@ -1875,6 +1934,7 @@ export function ExamProfileBuilder({
                         onChange={(event) => {
                           invalidatePreview();
                           setAssessmentName(event.target.value);
+                          setConfirmedManualCode("");
                           setIdentity((previous) => ({
                             ...previous,
                             component: event.target.value,
@@ -1966,6 +2026,7 @@ export function ExamProfileBuilder({
                           onClick={() => {
                             invalidatePreview();
                             setSourceChoice("upload");
+                            setConfirmedManualCode("");
                             setError("");
                           }}
                         >
@@ -1990,6 +2051,7 @@ export function ExamProfileBuilder({
                           onClick={() => {
                             invalidatePreview();
                             setSourceChoice("unverified");
+                            setConfirmedManualCode("");
                             setError("");
                           }}
                         >
@@ -2095,6 +2157,20 @@ export function ExamProfileBuilder({
                             {codeError}
                           </p>
                         )}
+                        {manualCodeAllowed && enteredCode &&
+                          validManualCode(enteredCode) && !/[\u0000-\u001f\u007f]/.test(effectiveCode) && enteredCode !== confirmedManualCode && (
+                          <Button type="button" size="sm" variant="outline" onClick={() => {
+                            manualCodeAccepted.current = false;
+                            setManualCodeDialogOpen(true);
+                          }}>
+                            Confirm code
+                          </Button>
+                        )}
+                        {manualCodeAllowed && enteredCode && enteredCode === confirmedManualCode && (
+                          <p className="text-xs text-muted-foreground">
+                            User-entered code. Your syllabus will still determine the assessment details.
+                          </p>
+                        )}
                       </Field>
                       <Field label="Education stage">
                         {select(
@@ -2196,6 +2272,7 @@ export function ExamProfileBuilder({
                             onChange={(e) => {
                               invalidatePreview();
                               setSourceUrl(e.target.value);
+                              setConfirmedManualCode("");
                               setSourceId("");
                               setSourceChoice("source");
                             }}
@@ -2964,6 +3041,34 @@ export function ExamProfileBuilder({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AlertDialog open={manualCodeDialogOpen} onOpenChange={(value) => {
+        if (!value && !manualCodeAccepted.current) {
+          setComponentCode(confirmedManualCode);
+          setCodeEdited(!!confirmedManualCode);
+        }
+        setManualCodeDialogOpen(value);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Use this component code?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Save {enteredCode} as your reference for {assessmentName || identity.component}. This code has not been verified from your syllabus and will not change the selected assessment.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              manualCodeAccepted.current = true;
+              setComponentCode(enteredCode);
+              setCodeEdited(true);
+              setConfirmedManualCode(enteredCode);
+              setError("");
+            }}>
+              Use code
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog open={restartOpen} onOpenChange={setRestartOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

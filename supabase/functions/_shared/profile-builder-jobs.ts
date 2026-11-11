@@ -30,6 +30,8 @@ import { biologyPaperOptions } from "./biology-course-packs.ts";
 import {
   discoverSourceAssessments,
   normaliseAssessmentAlias,
+  resolveSourceAssessment,
+  type DiscoveredAssessment,
 } from "./profile-assessment-discovery.ts";
 import {
   classifySpecificationVersion,
@@ -73,6 +75,13 @@ export const sourceJobRequestSchema = z.discriminatedUnion("action", [
       identity: identitySchema,
       /** Omitted legacy requests preserve their explicit version constraint. */
       specificationVersionIntent: z.enum(["source", "explicit"]).optional(),
+      selectedAssessmentId: z.string().trim().min(1).max(120).optional(),
+      manualComponentCode: z.object({
+        value: z.string().min(1).max(48).regex(/^[^\u0000-\u001f\u007f]*$/, "Enter a code without control characters.")
+          .transform((value) => value.replace(/\s/g, "").toUpperCase())
+          .refine((value) => /^[A-Z0-9][A-Z0-9/_.-]{1,47}$/.test(value) && /\d/.test(value), "Enter a valid assessment code."),
+        confirmed: z.literal(true),
+      }).strict().optional(),
       mode: modeSchema,
       uploads: z.array(uploadSchema).min(1).max(3),
     })
@@ -118,6 +127,7 @@ export interface SourceAssessmentChoice {
   label: string;
   kind: "paper" | "unit" | "component" | "assessment";
   componentCode?: string;
+  canonicalComponent?: string;
 }
 export interface SourceMissingItem {
   field: "assessment" | "module" | "source_pages" | "source";
@@ -135,12 +145,14 @@ export interface SourceJobView {
   message: string;
   needs?: string[];
   assessmentChoices?: SourceAssessmentChoice[];
+  manualComponentCode?: { value: string; status: "user_provided" | "source_verified" };
   validationIssues?: SourceValidationIssue[];
   pageReview?: Array<{
     document: number;
     requestedPages: number[];
     readPages: number[];
     skippedPages: number[];
+    diagnostics?: import("./profile-document-index.ts").SourceDocumentIndex["pageDiagnostics"];
   }>;
   reviewedFacts?: {
     tier?: {
@@ -186,6 +198,10 @@ export interface SourceJobData {
   }>;
   /** Explicit follow-up intent; never evidence and never the immutable intake hash. */
   selectionIdentity?: TemplateIdentity;
+  selectedAssessmentId?: string;
+  /** Reconstructed from owned source text, never accepted client aliases. */
+  sourceAssessment?: DiscoveredAssessment;
+  manualComponentCode?: SourceJobView["manualComponentCode"];
   identity: TemplateIdentity;
   /** Private bounded parsed text retained for deterministic same-job re-indexing. */
   retainedDocuments?: SourceDocument[];
@@ -388,6 +404,7 @@ export function sourceJobView(r: SourceJobRecord): SourceJobView {
     revision: r.revision,
     ...(awaiting ? { missingItems: r.data.missingItems } : {}),
     identity: r.data.identity,
+    ...(r.data.manualComponentCode ? { manualComponentCode: r.data.manualComponentCode } : {}),
     mode: r.data.mode,
     progress: {
       completed: r.data.cursor + (r.stage === "complete" ? 1 : 0),
@@ -605,7 +622,10 @@ function pageQuestion(
       )
       .map((page) => ({
         value: `${i + 1}:${page.page}`,
-        label: `${documents.length > 1 ? `Document ${i + 1} · ` : ""}Page ${page.page}`,
+        label: `${documents.length > 1 ? `Document ${i + 1} · ` : ""}PDF page ${page.page}${(() => {
+          const last = page.text.trim().split("\n").at(-1)?.trim();
+          return last && /^\d{1,3}$/.test(last) && Number(last) !== page.page ? ` · printed page ${Number(last)}` : "";
+        })()}`,
       })),
   );
   return {
@@ -642,11 +662,12 @@ async function sourceQuestions(
   }
   if (problems.componentMissing && found.candidates.length) {
     data.assessmentChoices = found.candidates.map(
-      ({ id, label, kind, componentCode }) => ({
+      ({ id, label, kind, componentCode, canonicalComponent }) => ({
         id,
         label,
         kind,
         ...(componentCode ? { componentCode } : {}),
+        canonicalComponent,
       }),
     );
     items.push({
@@ -933,6 +954,47 @@ function sameSelectedModule(
   return false;
 }
 
+class SourceAssessmentSelectionError extends Error {}
+
+/** Resolve presentation aliases from this owner's actual upload, not client claims. */
+async function bindSourceAssessment(data: SourceJobData, documents: SourceDocument[]) {
+  const discovery = await discoverSourceAssessments(documents.map((document) => ({
+    id: document.id, checksum: document.checksum, pages: document.pages.map((page) => page.text),
+  })), data.identity);
+  const selected = resolveSourceAssessment(discovery.candidates, data.selectedAssessmentId ?? data.identity.component);
+  if (data.selectedAssessmentId && (!selected ||
+      resolveSourceAssessment(discovery.candidates, data.identity.component)?.id !== selected.id))
+    throw new SourceAssessmentSelectionError("The selected assessment could not be verified in these files. Choose its matching assessment again.");
+  if (selected) {
+    if (selected.componentCode && !resolveSourceAssessment(discovery.candidates, selected.componentCode))
+      throw new SourceAssessmentSelectionError("These sources give conflicting details for the selected assessment code. Add its focused assessment overview.");
+    data.sourceAssessment = {
+      ...selected,
+      aliases: selected.aliases.filter((alias) => resolveSourceAssessment(discovery.candidates, alias)?.id === selected.id),
+    };
+    data.selectedAssessmentId = selected.id;
+    data.identity.component = selected.canonicalComponent ?? selected.componentCode ?? selected.label;
+    data.selectionIdentity = { ...data.identity };
+  }
+  const manual = data.manualComponentCode;
+  if (!manual) return;
+  const code = (value: string) => value.replace(/\s/g, "").toUpperCase();
+  const detected = selected?.componentCode;
+  const other = resolveSourceAssessment(discovery.candidates, manual.value);
+  if ((detected && code(detected) !== code(manual.value)) || (other && other.id !== selected?.id))
+    throw new SourceAssessmentSelectionError("The entered code belongs to a different assessment in your source. Choose that assessment or correct the code.");
+  manual.status = detected && code(detected) === code(manual.value) ? "source_verified" : "user_provided";
+}
+
+function ownedDocumentSelection(data: SourceJobData): DocumentSelection {
+  const selection = trustedDocumentSelection(data.identity);
+  const source = data.sourceAssessment;
+  if (source) selection.componentAliases = [...new Set([
+    ...(selection.componentAliases ?? []), source.canonicalComponent ?? source.label, ...source.aliases,
+  ])];
+  return selection;
+}
+
 export async function prepareSourceJob(
   owner: string,
   input: Extract<SourceJobRequest, { action: "prepare_source" }>,
@@ -987,6 +1049,8 @@ export async function prepareSourceJob(
       indexVersion: DOCUMENT_INDEX_VERSION,
       followupPolicyVersion: 1,
       sourceEditionPolicyVersion: 1,
+      assessmentSelectionPolicyVersion: 1,
+      selectedAssessmentId: input.selectedAssessmentId,
       specificationVersionIntent: input.specificationVersionIntent ?? "explicit",
       provenancePolicyVersion: 2,
       catalogueTier: resolveCatalogueTier(input.identity),
@@ -1011,6 +1075,10 @@ export async function prepareSourceJob(
   const data: SourceJobData = {
     version: 1,
     requestedIdentity: input.identity,
+    ...(input.selectedAssessmentId ? { selectedAssessmentId: input.selectedAssessmentId } : {}),
+    ...(parsedInput.manualComponentCode ? {
+      manualComponentCode: { value: parsedInput.manualComponentCode.value, status: "user_provided" as const },
+    } : {}),
     ...(input.specificationVersionIntent
       ? { specificationVersionIntent: input.specificationVersionIntent }
       : {}),
@@ -1054,7 +1122,9 @@ export async function prepareSourceJob(
   if (!leased.leaseToken || leased.stage !== "reading") return view(leased);
   const processingStarted = Date.now();
   try {
+    let documentsRead = false;
     const readDocuments = async () => {
+      if (documentsRead) return;
       for (let i = 0; i < input.uploads.length; i++) {
         const u = input.uploads[i],
           bytes = Uint8Array.from(atob(u.base64), (c) => c.charCodeAt(0));
@@ -1090,8 +1160,16 @@ export async function prepareSourceJob(
         // Conflicting uploads stay visible to the same strict cover gate below.
         if (covers.length) data.identity.specificationVersion = covers[0].value;
       }
+      documentsRead = true;
     };
     const candidateCache = await deps.store.cached(owner, sourceKey);
+    // The new selection is always checked against the actual owned upload,
+    // even on a cache hit. A user reference is not a new assessment fact and
+    // must not force another model extraction of otherwise reusable evidence.
+    if (input.selectedAssessmentId || input.manualComponentCode) {
+      await readDocuments();
+      await bindSourceAssessment(data, documents);
+    }
     // A resumed job keeps its original receipt/source key. Never serve evidence
     // reselected for another paper under the original cache identity.
     const cached =
@@ -1107,6 +1185,7 @@ export async function prepareSourceJob(
       stage = data.needs.length ? "needs_details" : "ready";
     } else {
       await readDocuments();
+      if (!data.sourceAssessment) await bindSourceAssessment(data, documents);
       const coverConflict = documents
         .map((document) =>
           coverSpecificationIssueConflict(
@@ -1121,7 +1200,7 @@ export async function prepareSourceJob(
       for (const doc of documents) {
         const index = indexDocumentPages(
           doc.pages.map((p) => p.text),
-          trustedDocumentSelection(data.identity),
+          ownedDocumentSelection(data),
         );
         if (!index.coverage.complete) {
           componentMissing ||=
@@ -1241,6 +1320,8 @@ export async function prepareSourceJob(
     data.needs = [
       /password|encrypt/i.test(reason)
         ? "This PDF is protected. Choose an unlocked, text-based syllabus or assessment brief."
+        : error instanceof SourceAssessmentSelectionError
+          ? error.message
         : /no readable|no text|scanned|OCR/i.test(reason)
           ? "This PDF has no readable text. Choose a text-based syllabus or assessment brief."
           : /time|deadline/i.test(reason)
@@ -1850,7 +1931,7 @@ export async function answerSourceJob(
     const chosen = data.assessmentChoices?.find(
       (choice) => choice.id === answer,
     );
-    const component = chosen?.componentCode ?? chosen?.label ?? answer;
+    const component = chosen?.canonicalComponent ?? chosen?.componentCode ?? chosen?.label ?? answer;
     if (
       !chosen &&
       !documents.some((doc) =>
@@ -1875,7 +1956,12 @@ export async function answerSourceJob(
     // Refine intent only; source evidence still has to prove the actual identity.
     const old = data.identity.component;
     data.identity.component = component;
-    if (old !== component) delete data.identity.module;
+    if (old !== component) {
+      delete data.identity.module;
+      delete data.manualComponentCode;
+    }
+    delete data.selectedAssessmentId;
+    delete data.sourceAssessment;
     data.selectionIdentity = { ...data.identity };
   } else if (item.field === "module") {
     if (snapshot.callIntents)
@@ -1915,18 +2001,12 @@ export async function answerSourceJob(
     delete data.missingItems;
     delete data.assessmentChoices;
     data.needs = [];
+    if (!data.sourceAssessment || item.field === "assessment") await bindSourceAssessment(data, documents);
     const pendingChunks: SourceChunk[] = [];
     let componentMissing = false,
       qualificationAmbiguous = false;
     for (const document of documents) {
-      const selection = trustedDocumentSelection(data.identity);
-      const chosen = snapshot.data.assessmentChoices?.find(
-        (choice) => choice.id === answer,
-      );
-      if (chosen && chosen.componentCode === data.identity.component)
-        selection.componentAliases = [
-          ...new Set([...(selection.componentAliases ?? []), chosen.label]),
-        ];
+      const selection = ownedDocumentSelection(data);
       if (pageSelection)
         selection.sourcePages = [...(pageSelection.get(document.id) ?? [])];
       // Full-document scope is established before optional page filtering. The
@@ -1957,6 +2037,7 @@ export async function answerSourceJob(
           skippedPages: requestedPages.filter(
             (page) => !readPages.includes(page),
           ),
+          ...(index.pageDiagnostics ? { diagnostics: index.pageDiagnostics } : {}),
         });
       }
       if (!index.coverage.complete) {
@@ -1973,11 +2054,10 @@ export async function answerSourceJob(
         );
       }
       for (const chunk of index.chunks) {
-        const pages = pageSelection
-          ? chunk.pages.filter((page) =>
-              pageSelection.get(document.id)?.has(page.page),
-            )
-          : chunk.pages;
+        // The index already narrows the chosen pages and includes only their
+        // literal course/qualification anchors. Keep those anchors in the
+        // provider evidence rather than dropping the established identity.
+        const pages = chunk.pages;
         if (!pages.length) continue;
         pendingChunks.push({
           id: `${document.id}-followup-${r.revision}-${chunk.id}`,
@@ -2300,6 +2380,8 @@ export async function advanceSourceJob(
     let template: ProfileTemplate;
     try {
       template = templateSchema.parse(result.value);
+      // A model may not impersonate a user's explicit code confirmation.
+      template.designDecisions = template.designDecisions.filter((decision) => !/^User-entered component code:/i.test(decision.trim()));
       if (data.specificationVersionIntent === "source")
         template.identity.specificationVersion =
           data.identity.specificationVersion;
@@ -2312,6 +2394,10 @@ export async function advanceSourceJob(
         throw Error("The draft changed the assessment you confirmed.");
       compileTemplate(template);
       validateEvidenceTemplate(template, data.evidence);
+      if (data.manualComponentCode?.status === "user_provided") {
+        if (template.designDecisions.length >= 20) template.designDecisions.pop();
+        template.designDecisions.push(`User-entered component code: ${data.manualComponentCode.value} (not verified from the source).`);
+      }
       const gaps = structureGaps(data.evidence).map((g) => g.warning);
       if (gaps.length && template.warnings.length < 20)
         template.warnings.push(
