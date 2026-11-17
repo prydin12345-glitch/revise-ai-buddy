@@ -6,7 +6,7 @@
  * Private page text belongs only in the owned preparation receipt. Only an
  * explicitly reviewed public source pack may enter a shared catalogue.
  */
-export const DOCUMENT_INDEX_VERSION = 6;
+export const DOCUMENT_INDEX_VERSION = 7;
 export const INDEXED_DOCUMENT_LIMITS = {
   maxBytes: 3_000_000,
   maxPages: 240,
@@ -359,23 +359,24 @@ function courseBlocks(texts: string[], requested: string) {
         if (!codes.size && isRow)
           for (
             let next = index + 1;
-            next <= Math.min(index + 2, lines.length - 1);
+            next <= Math.min(index + 4, lines.length - 1);
             next++
           ) {
             const following = lines[next].trim();
             if (
-              !following ||
               assessmentRow.test(following) ||
               qualificationHeading(following)
             )
               break;
             const code = following.match(
-              /^(?:(?:paper|unit|component|assessment)\s+code\s*:\s*|\()?([A-Za-z0-9]{3,12})\/\d{1,3}[A-Za-z]{0,2}\)?$/i,
+              /^(?:\*?\s*(?:paper|unit|component|assessment)\s+code\s*:\s*|\()?([A-Za-z0-9]{3,12})\/\d{1,3}[A-Za-z]{0,2}\)?$/i,
             );
             if (code) {
               codes.add(code[1].toLowerCase());
               break;
             }
+            if (following && (!/^[\p{L}][\p{L}\p{N}\s,&'’/()\u2010-\u2015-]{1,140}$/u.test(following) ||
+                /^(?:overview|duration|marks?|total|time|\d)\b/i.test(following))) break;
           }
       }
       const continuesCodedRow =
@@ -761,6 +762,9 @@ function makePages(texts: string[]): SourceDocumentPage[] {
 }
 
 function topicsIn(text: string) {
+  // Line wrapping changes no allocation: match only the literal words and
+  // numbers, while allowing a list/range to continue on the next PDF line.
+  text = text.replace(/\s+/g, " ");
   const result = new Set<number>();
   for (const match of text.matchAll(
     /\b(?:topics?|modules?|themes?)\s+(\d{1,2})\s*(?:to|through|[\u2013\u2014-])\s*(\d{1,2})\b/gi,
@@ -909,15 +913,14 @@ export function indexDocumentPages(
     (allowed.get(page.page) ?? []).flatMap(([start, end]) => componentsIn(page.text.slice(start, end)))));
   const ambiguousAssessmentPages = new Set<number>();
   const matchedAssessmentPages = new Set<number>();
-  const assessmentBoundaries = new Map<number, Array<{ start: number; selected: boolean }>>();
+  const assessmentBoundaries = new Map<number, Array<{ start: number; selected: boolean; anchor?: string }>>();
   // Separate assessment blocks before choosing chunks, including short PDFs.
   // Every interval is still a literal span of its original physical page.
   // A heading's block ends at the next assessment heading, not five lines
   // later; sibling marks, durations and content cannot bleed into it.
   for (const page of pages) {
-    const intervals = allowed.get(page.page) ?? [];
     const lines = pageLines(page.text);
-    const boundaries: Array<{ start: number; selected: boolean; ambiguous: boolean }> = [];
+    const boundaries: Array<{ start: number; selected: boolean; ambiguous: boolean; anchor?: string }> = [];
     let offset = 0;
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
       const line = lines[lineIndex], text = line.trim();
@@ -932,26 +935,52 @@ export function indexDocumentPages(
         && /^(?:paper|unit|component)\s*\d/i.test(lines[lineIndex - 1].trim());
       if (inScope && (numbered || named || (codeOnly && !followsHeading))) {
         const identifiers = new Set(componentsIn(normalize(text)));
-        const ambiguous = identifiers.size > 1;
         const following: string[] = [line];
-        for (let next = lineIndex + 1; next < Math.min(lines.length, lineIndex + 3); next++) {
+        for (let next = lineIndex + 1; next < Math.min(lines.length, lineIndex + 5); next++) {
           if (codeOnly || /^(?:(?:AS|A[ -]?level)\s+)?(?:paper|unit|component)\s*\d/i.test(lines[next].trim())
             || /^(?:assessment|examination|exam|test|coursework|project)\s*[:\u2013\u2014-]/i.test(lines[next].trim())) break;
+          const nextText = lines[next].trim();
+          if (nextText && !/[A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]{0,2}\b/.test(nextText) &&
+              (!/^[\p{L}][\p{L}\p{N}\s,&'’/()\u2010-\u2015-]{1,140}$/u.test(nextText) ||
+               /^(?:overview|duration|marks?|total|time)\b/i.test(nextText))) break;
           following.push(lines[next]);
         }
         const nearby = following.join("\n");
         const codes = [...nearby.matchAll(componentCodePattern)].map((match) => match[0].toLowerCase());
+        const ambiguous = identifiers.size > 1 || new Set(codes).size > 1;
         const codeConflict = positiveCodes.size > 0 && codes.length > 0 && !codes.some((code) => positiveCodes.has(code));
         const selected = !ambiguous && !codeConflict && (requested.test(normalize(text))
           || codes.some((code) => positiveCodes.has(code)));
-        boundaries.push({ start: offset, selected, ambiguous });
+        boundaries.push({ start: offset, selected, ambiguous,
+          ...(selected && codes.length === 1 && !codeOnly ? { anchor: `${normalize(text)}:${codes[0]}` } : {}),
+        });
         if (selected) matchedAssessmentPages.add(page.page);
         if (ambiguous && requested.test(normalize(text))) ambiguousAssessmentPages.add(page.page);
       }
       offset += line.length + 1;
     }
     assessmentBoundaries.set(page.page, boundaries);
+  }
+  if (selection.sourcePages && !scope.ambiguous && !contextScope.ambiguous) {
+    const anchors = new Set(selection.sourcePages.flatMap(page =>
+      (assessmentBoundaries.get(page) ?? []).flatMap(boundary => boundary.anchor ? [boundary.anchor] : [])));
+    // A focused summary is a navigation hint, not a reason to discard another
+    // overview of this same literal heading/code (for example its duration).
+    for (const page of pages) {
+      const boundaries = assessmentBoundaries.get(page.page) ?? [];
+      boundaries.forEach((boundary, index) => {
+        if (!boundary.anchor || !anchors.has(boundary.anchor)) return;
+        const end = boundaries[index + 1]?.start ?? page.text.length;
+        allowed.set(page.page, [...(allowed.get(page.page) ?? []), ...(contextAllowed.get(page.page) ?? [])
+          .map(([from, to]) => [Math.max(from, boundary.start), Math.min(to, end)] as [number, number])
+          .filter(([from, to]) => to > from)]);
+      });
+    }
+  }
+  for (const page of pages) {
+    const boundaries = assessmentBoundaries.get(page.page) ?? [];
     if (!boundaries.length) continue;
+    const intervals = allowed.get(page.page) ?? [];
     const retained: Array<[number, number]> = [[0, boundaries[0].start]];
     boundaries.forEach((boundary, index) => {
       if (boundary.selected) retained.push([boundary.start, boundaries[index + 1]?.start ?? page.text.length]);
@@ -976,6 +1005,20 @@ export function indexDocumentPages(
       for (const number of topicsIn(text)) allocatedTopics.add(number);
     });
   }
+  if (selection.sourcePages && allocatedTopics.size)
+    for (const page of pages) {
+      let offset = 0;
+      for (const line of pageLines(page.text)) {
+        const topic = line.match(topicPattern);
+        if (topic && allocatedTopics.has(Number(topic[1]))) {
+          const end = Math.min(page.text.length, offset + line.length + 1);
+          allowed.set(page.page, [...(allowed.get(page.page) ?? []), ...(contextAllowed.get(page.page) ?? [])
+            .map(([from, to]) => [Math.max(from, offset), Math.min(to, end)] as [number, number])
+            .filter(([from, to]) => to > from)]);
+        }
+        offset += line.length + 1;
+      }
+    }
   // Assessment ownership continues across physical page breaks. Bare duration,
   // calculator or answer-choice lines never become shared just because their
   // heading was on the previous page. Only explicit document/content section
@@ -1150,12 +1193,11 @@ export function indexDocumentPages(
     if (!matches.length)
       reason ??=
         "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.";
-    const topicNumbers = new Set<number>();
+    const topicNumbers = allocatedTopics;
     for (const page of matches) {
       // Sibling assessment blocks were removed above. Keep the entire literal
       // selected block, however many wrapped lines its title/rules occupy.
       addPage(page);
-      for (const topic of topicsIn(page.text)) topicNumbers.add(topic);
     }
     // Identity/edition information usually appears on the first readable cover.
     const first = scanPages.find((page) => page.text.trim());

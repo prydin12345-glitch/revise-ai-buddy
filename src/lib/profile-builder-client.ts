@@ -81,6 +81,17 @@ export async function clearPendingBuilderJob(
 export type BuilderApi = (
   input: Record<string, unknown>,
 ) => Promise<BuilderResponse>;
+const inputFieldLabels: Record<string, string> = {
+  "identity.country": "country", "identity.educationSystem": "education system",
+  "identity.stage": "education stage", "identity.qualification": "educational level",
+  "identity.subject": "subject", "identity.organisation": "exam board or institution",
+  "identity.course": "course", "identity.component": "assessment",
+  "identity.specificationVersion": "specification version", "identity.tier": "tier",
+  "identity.module": "optional topic", "identity.institution": "institution",
+  selectedAssessmentId: "selected assessment", "manualComponentCode.value": "component code",
+  "manualComponentCode.confirmed": "component code confirmation", uploads: "attached files",
+  mode: "assessment mode", requestId: "request receipt",
+};
 export const invokeProfileBuilder: BuilderApi = async (input) => {
   const { data, error } = await supabase.functions.invoke("profile-builder", {
     body: input,
@@ -93,7 +104,10 @@ export const invokeProfileBuilder: BuilderApi = async (input) => {
         const body = await error.context.clone().json();
         if (typeof body.error === "string") {
           message = body.error.slice(0, 500);
-          if (error.context.status === 400 && input.action === "prepare_source" &&
+          if (error.context.status === 400 && body.code === "INVALID_PROFILE_INPUT" && Array.isArray(body.fields)) {
+            const labels = [...new Set(body.fields.filter((field: unknown) => typeof field === "string" && Object.prototype.hasOwnProperty.call(inputFieldLabels, field)).map((field: string) => inputFieldLabels[field]))];
+            if (labels.length) message += ` Check: ${labels.join(", ")}.`;
+          } else if (error.context.status === 400 && input.action === "prepare_source" &&
               (input.selectedAssessmentId || input.manualComponentCode) && /^Invalid profile input\b/i.test(body.error))
             message = "Profile Builder could not accept the assessment details. Its backend may need the matching update. Your attached files and saved profiles are unchanged.";
         }

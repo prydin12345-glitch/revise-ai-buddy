@@ -130,12 +130,15 @@ export function builderInitialIdentity(c: BuilderContext): TemplateIdentity {
     tier: null,
   };
   const courses = builderCourses(identity);
-  const course = courses.find((v) => v.id === canonicalCourseId(c.courseId));
+  const course = courses.find((v) =>
+    v.id === canonicalCourseId(c.courseId) ||
+    (!!c.courseId && !!v.specificationCode && codeKey(v.specificationCode) === codeKey(c.courseId)),
+  ) ?? (!c.courseId && courses.length === 1 ? courses[0] : undefined);
   if (course) identity.course = course.specificationCode ?? course.id;
-  if (course?.tierMode === "untiered" || qualification === "A-level")
+  if (course?.tierMode === "untiered")
     identity.tier = "not_tiered";
-  else if (["foundation", "higher"].includes(c.tier ?? ""))
-    identity.tier = c.tier as "foundation" | "higher";
+  else if (["foundation", "higher", "not_tiered"].includes(c.tier ?? ""))
+    identity.tier = c.tier as TemplateIdentity["tier"];
   return identity;
 }
 export function builderCourses(i: TemplateIdentity): BuilderCourse[] {
@@ -174,8 +177,8 @@ export function builderCourses(i: TemplateIdentity): BuilderCourse[] {
     id: course.id,
     label: course.label,
     specificationCode: course.courseCode,
-    tierMode: "untiered" as const,
-    tiers: ["not_tiered"] as CourseCapability["tiers"],
+    tierMode: course.tier === "not_tiered" ? "untiered" as const : "tiered" as const,
+    tiers: (course.tier ? [course.tier] : []) as CourseCapability["tiers"],
     boards: [norm(course.board)],
   }));
   const combined = [...existing, ...reviewed, ...metadata];
@@ -191,7 +194,7 @@ export function builderSelectedCourse(
   if (i.course && norm(i.course) !== norm(`${i.qualification} ${i.subject}`))
     return (
       options.find(
-        (v) => v.id === i.course || v.specificationCode === i.course,
+        (v) => v.id === canonicalCourseId(i.course) || (!!v.specificationCode && codeKey(v.specificationCode) === codeKey(i.course)),
       ) ?? null
     );
   return options.length === 1 ? options[0] : null;
@@ -337,10 +340,7 @@ export function resolveBuilderChoice(
   );
   if (paper?.requiredOptions?.length && !option)
     throw Error(`Choose the optional topic you study for ${paper.label}.`);
-  const tier =
-    course?.tierMode === "untiered" || i.qualification === "A-level"
-      ? "not_tiered"
-      : i.tier;
+  const tier = course?.tierMode === "untiered" ? "not_tiered" : i.tier;
   const entries = approvalCatalogue().filter(
     (e) =>
       e.course === course?.id &&

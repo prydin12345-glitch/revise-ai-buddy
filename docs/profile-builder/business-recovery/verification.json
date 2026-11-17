@@ -1,0 +1,147 @@
+{
+  "date": "2026-11-17",
+  "baseline": "de30799d3d9adc26454437e46bb343a1b0aa4289",
+  "branch": "codex/business-profile-recovery",
+  "status": "PASS",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.9.0",
+    "deno": "2.5.6",
+    "nodeEngine": ">=22 <25",
+    "ciNode": "22",
+    "npmPin": "none found"
+  },
+  "lockfileRepair": {
+    "separateCommit": "d36076d5f7821813a922ff106fb1b13d5965d41f",
+    "changedPackageEntries": [
+      "",
+      "node_modules/@lovable.dev/vite-plugin-hmr-gate"
+    ],
+    "lockedVersion": "1.8.3",
+    "registryIntegrity": "resolved and verified by npm; not invented",
+    "packageJsonAndBunLockUnchanged": true
+  },
+  "checks": {
+    "cleanInstall": {
+      "command": "npm ci --cache /tmp/examly-business-npm-cache",
+      "exitCode": 0,
+      "packagesAdded": 866
+    },
+    "dependencyTree": {
+      "command": "npm ls --depth=0 --cache /tmp/examly-business-npm-cache",
+      "exitCode": 0
+    },
+    "repository": {
+      "command": "npm run check",
+      "exitCode": 0,
+      "testFiles": 207,
+      "tests": 3521,
+      "appTypes": "PASS",
+      "physicsTypes": "PASS",
+      "criticalLint": "PASS",
+      "edgeIdentifierCheck": "PASS",
+      "edgeBundles": 39,
+      "productionBuild": "PASS",
+      "productionBuildSeconds": 20.21
+    },
+    "deno": {
+      "exitCode": 0,
+      "commandPrefix": "DENO_TLS_CA_STORE=system DENO_DIR=/tmp/examly-business-deno-cache /tmp/examly-business-tools/node_modules/.bin/deno check --no-lock --config supabase/functions/profile-builder/deno.json",
+      "entryPoints": [
+        "supabase/functions/extract-exam-questions/index.ts",
+        "supabase/functions/generate-practice-questions/index.ts",
+        "supabase/functions/get-practice-questions/index.ts",
+        "supabase/functions/grade-practice-question/index.ts",
+        "supabase/functions/profile-builder/index.ts",
+        "supabase/functions/publish-exam/index.ts",
+        "supabase/functions/save-exam-format/index.ts",
+        "supabase/functions/save-exam-timer/index.ts",
+        "supabase/functions/submit-exam/index.ts",
+        "supabase/functions/upload-exam/index.ts"
+      ],
+      "tlsVerificationDisabled": false,
+      "handlersExecuted": false
+    },
+    "publicPdf": {
+      "baselineChoices": 7,
+      "baselineAmbiguous": true,
+      "currentChoices": 3,
+      "currentAmbiguous": false,
+      "currentFullAndFocusedRuns": 6,
+      "allComplete": true,
+      "paper3Page46RetainsPage15Duration": true,
+      "noSiblingComponentCodes": true,
+      "reports": [
+        "reference-baseline.json",
+        "reference-current.json"
+      ]
+    },
+    "browser": {
+      "cases": 12,
+      "viewports": [
+        "1440x1000 laptop",
+        "834x1194 iPad",
+        "390x844 phone"
+      ],
+      "themes": [
+        "light",
+        "dark"
+      ],
+      "scenarios": [
+        "confirmation",
+        "controlled failure"
+      ],
+      "status": "PASS",
+      "applicationHashInputs": 832,
+      "serverHashInputs": 192,
+      "dependencyHashInputs": 1743,
+      "beforeAndAfterHashVerification": "PASS",
+      "externalRequests": 0,
+      "uncaughtOrConsoleErrors": 0,
+      "selectedScreenshotsVisuallyReviewed": 3,
+      "report": "browser/results/browser-results.json"
+    },
+    "clientHandlerRoundtrip": "Actual frontend invokeProfileBuilder -> real bundled handler -> owner-scoped in-memory RPC -> confirm/draft/save/restore; blank/default/explicit courses, codes, unknown tier and rejected-input safety",
+    "controlledOfficialBuild": "Official sparse text replay at parser boundary -> selected Paper 3 -> page-46 follow-up -> preserved page-15 duration -> validated draft complete. Controlled provider; no live model or database."
+  },
+  "preservation": {
+    "envUnchanged": true,
+    "startingWorkBranchPreserved": true,
+    "originalOfflineWorkspaceUntouched": true,
+    "packageJsonUnchanged": true,
+    "bunLockUnchanged": true
+  },
+  "warnings": [
+    "Existing package deprecation notices during installation",
+    "Outdated Browserslist dataset",
+    "Production chunks larger than 500 kB",
+    "Rollup removed an unrecognized annotation in a dependency",
+    "PDF standard-font-data warnings with font rendering disabled; extraction tests pass"
+  ],
+  "limitations": [
+    "Public Pearson reference is not the user private upload",
+    "No live paid AI build or production backend smoke test",
+    "Chromium viewport emulation is not physical iOS/iPadOS certification",
+    "Unknown or unsafe PDF layout uses original parser order and may require a clearer page",
+    "Format recovery skips complete clauses above the existing 200-character quote limit",
+    "Business remains a user-created, unapproved profile; no new approved adapter or unsupported source facts"
+  ],
+  "deployment": {
+    "performed": false,
+    "websitePublished": false,
+    "migrationRequired": false,
+    "affectedFunctions": [
+      "extract-exam-questions",
+      "generate-practice-questions",
+      "get-practice-questions",
+      "grade-practice-question",
+      "profile-builder",
+      "publish-exam",
+      "save-exam-format",
+      "save-exam-timer",
+      "submit-exam",
+      "upload-exam"
+    ],
+    "handoff": "deployment.md"
+  }
+}

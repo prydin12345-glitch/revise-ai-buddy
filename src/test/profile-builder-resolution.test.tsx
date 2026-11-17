@@ -1436,7 +1436,7 @@ it("shows one missing question, retains the upload and read, and continues the s
   expect(screen.getByText("combined-spec.txt")).toBeVisible();
 });
 
-async function manualCodeSource(code?: string) {
+async function manualCodeSource(code?: string, warnings: string[] = [], failed = false) {
   pending.read.mockResolvedValue(null);
   localInspection.inspect.mockResolvedValue({
     version: 3,
@@ -1446,13 +1446,14 @@ async function manualCodeSource(code?: string) {
       canonicalComponent: code ?? "Paper 1",
       ...(code ? { componentCode: code } : {}),
       kind: "paper", aliases: ["Paper 1"], references: [],
-    }], warnings: [], needsManualEntry: false, ambiguous: false,
+    }], warnings, needsManualEntry: false, ambiguous: warnings.length > 0,
   });
   const calls: Record<string, any>[] = [];
   const api: BuilderApi = async input => {
     calls.push(input);
     return {job: {
-      jobId: String(input.requestId), stage: "ready", mode: "short_practice",
+      jobId: String(input.requestId), stage: failed ? "failed" : "ready", mode: "short_practice",
+      assessmentConfirmed: true,
       identity: identitySchema.parse(input.identity),
       progress: {completed: 1, total: 1}, message: "Ready",
       ...(input.manualComponentCode ? {manualComponentCode: {value: (input.manualComponentCode as any).value, status: "user_provided" as const}} : {}),
@@ -1487,6 +1488,37 @@ it("allows a discovered assessment with no code to keep that optional field blan
   expect(calls[0].identity.component).toBe("Paper 1");
   expect(calls[0].selectedAssessmentId).toBe("source-business-paper-1");
   expect(calls[0]).not.toHaveProperty("manualComponentCode");
+});
+
+it("suppresses obsolete local ambiguity warnings after the owned assessment is confirmed, including a failed extraction", async () => {
+  const warning = "These sources mix assessment identities. Choose the exact assessment.";
+  const { calls } = await manualCodeSource(undefined, [warning], true);
+  expect(screen.getByText(warning)).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Read syllabus" }));
+  await waitFor(() => expect(calls).toHaveLength(1));
+  await waitFor(() => expect(screen.queryByText(warning)).not.toBeInTheDocument());
+  expect(screen.getByText("business.txt")).toBeVisible();
+  expect(calls[0].identity).toMatchObject({ course: "A-level Business", tier: null, specificationVersion: "Not verified" });
+});
+
+it("retains an upload when course identity is cleared and accepts an optional blank component code", async () => {
+  const { calls } = await manualCodeSource();
+  fireEvent.change(screen.getByLabelText("Course / specification code"), { target: { value: "9BS0" } });
+  await waitFor(() => expect(localInspection.inspect).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(screen.queryByText("Finding assessment names in your attached files…")).not.toBeInTheDocument());
+  fireEvent.change(screen.getByLabelText("Course / specification code"), { target: { value: "" } });
+  await waitFor(() => expect(localInspection.inspect).toHaveBeenCalledTimes(3));
+  await waitFor(() => expect(screen.queryByText("Finding assessment names in your attached files…")).not.toBeInTheDocument());
+  const option = await screen.findByRole("option", { name: "Paper 1 — Marketing, people and global businesses" });
+  fireEvent.change(screen.getByRole("combobox", { name: /^(Assessment|Paper)$/ }), { target: { value: option.getAttribute("value") } });
+  expect(screen.getByRole("combobox", { name: /^(Assessment|Paper)$/ })).toHaveValue(option.getAttribute("value"));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Read syllabus" })).toBeEnabled());
+  expect(screen.getByText("business.txt")).toBeVisible();
+  expect(screen.getByLabelText("Paper / component code")).toHaveValue("");
+  fireEvent.click(screen.getByRole("button", { name: "Read syllabus" }));
+  await waitFor(() => expect(calls).toHaveLength(1));
+  expect(calls[0].uploads).toHaveLength(1);
+  expect(calls[0].identity).toMatchObject({ course: "A-level Business", tier: null, component: "Paper 1" });
 });
 
 it("confirms a manual code separately without replacing the source assessment or clearing the upload", async () => {

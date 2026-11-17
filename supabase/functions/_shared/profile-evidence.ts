@@ -8,6 +8,7 @@ import {
 import { resolveCatalogueTier } from "./profile-catalogue-evidence.ts";
 import { assertSourceSpecificationIssues } from "./profile-source-version.ts";
 import { sourceTextIncludes } from "./source-text-match.ts";
+import { sourceResponseFormats } from "./profile-response-format-evidence.ts";
 export const EVIDENCE_VERSION = 1,
   MAX_DOCUMENT_BYTES = 3_000_000,
   MAX_DOCUMENT_PAGES = 120,
@@ -314,15 +315,21 @@ export function validateEvidence(raw: unknown): ProfileEvidence {
     !/choose|either|optional|answer (?:any|only) /i.test(selection)
   )
     throw Error("Optional rule contradicts its evidence.");
-  const f = supporting("formats");
+  const formats = new Set(
+    supportingClaims("formats").flatMap((claim) => {
+      const document = e.documents.find((d) => d.id === claim.documentId)!;
+      const location = document.locations.find((l) => l.id === claim.locationId)!;
+      // Reviewed registry records historically cite a format list with a short
+      // anchor. Uploaded/model claims must name each format in their own quote.
+      return sourceResponseFormats(
+        document.authority === "official_registered" ? location.text : claim.quote,
+        location.text,
+        location.section,
+      );
+    }),
+  );
   for (const type of e.facts.formats) {
-    const regex =
-      type === "mcq_single"
-        ? /multiple.choice|mcq|single.select/i
-        : type === "short_answer"
-          ? /short|structured|calculation/i
-          : /extended|essay|long.form|open.response|long[\s\u2010-\u2015-]+answer/i;
-    if (!regex.test(f))
+    if (!formats.has(type))
       throw Error("Response format contradicts its evidence.");
   }
   return e;

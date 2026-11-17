@@ -115,6 +115,15 @@ it("keeps historical resolved checks out of a successful review", () => {
   ).not.toBeInTheDocument();
 });
 
+it("shows trusted selected assessment and physical pages alongside a rejected result", () => {
+  const view = render(<BuilderEvidenceDetails job={{ ...job,
+    validationIssues: [{ attempt: 1, stage: "extraction", code: "missing_reference", message: "The topic list needs a matching source reference." }],
+    validationContext: { component: "Paper 1", documents: [{ document: 1, pages: [14, 15] }] },
+  }} />);
+  expect(screen.getByLabelText("Profile validation details")).toHaveTextContent("Selected assessment: Paper 1.");
+  expect(view.container).toHaveTextContent("Document 1 · Selected PDF pages: 14, 15.");
+});
+
 it("distinguishes a located but blocked page from a missing assessment and shows printed labels", () => {
   render(<BuilderEvidenceDetails job={{ ...job, pageReview: [{
     document: 1, requestedPages: [14, 15], readPages: [], skippedPages: [14, 15],

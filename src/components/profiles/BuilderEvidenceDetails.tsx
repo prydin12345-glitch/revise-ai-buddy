@@ -45,6 +45,16 @@ export function BuilderEvidenceDetails({ job }: { job: SourceJobView }) {
           <summary className="cursor-pointer font-medium">
             What needs checking
           </summary>
+          {job.validationContext && (
+            <div className="mt-3 space-y-1 break-words text-muted-foreground [overflow-wrap:anywhere]">
+              <p>Selected assessment: {job.validationContext.component}.</p>
+              {job.validationContext.documents.map(document => document.pages.length > 0 && (
+                <p key={document.document}>
+                  Document {document.document} · Selected PDF pages: {document.pages.join(", ")}.
+                </p>
+              ))}
+            </div>
+          )}
           <ol className="mt-3 space-y-2 text-muted-foreground">
             {job.validationIssues!.map((issue) => (
               <li key={`${issue.stage}-${issue.attempt}`}>

@@ -40,6 +40,7 @@ import {
 } from "./profile-version-context.ts";
 import { completeOwnedAssessmentEvidence } from "./profile-evidence-ingestion.ts";
 import { sourceTextIncludes } from "./source-text-match.ts";
+import { sourceResponseFormatQuotes } from "./profile-response-format-evidence.ts";
 import {
   coverSpecificationIssue,
   coverSpecificationIssueConflict,
@@ -147,6 +148,12 @@ export interface SourceJobView {
   assessmentChoices?: SourceAssessmentChoice[];
   manualComponentCode?: { value: string; status: "user_provided" | "source_verified" };
   validationIssues?: SourceValidationIssue[];
+  /** Selection and physical pages from the owned checkpoint, never rejected output. */
+  validationContext?: {
+    component: string;
+    documents: Array<{ document: number; pages: number[] }>;
+  };
+  assessmentConfirmed?: boolean;
   pageReview?: Array<{
     document: number;
     requestedPages: number[];
@@ -404,6 +411,7 @@ export function sourceJobView(r: SourceJobRecord): SourceJobView {
     revision: r.revision,
     ...(awaiting ? { missingItems: r.data.missingItems } : {}),
     identity: r.data.identity,
+    ...(r.data.sourceAssessment ? { assessmentConfirmed: true } : {}),
     ...(r.data.manualComponentCode ? { manualComponentCode: r.data.manualComponentCode } : {}),
     mode: r.data.mode,
     progress: {
@@ -429,6 +437,16 @@ export function sourceJobView(r: SourceJobRecord): SourceJobView {
               message,
             }),
           ),
+          validationContext: {
+            component: r.data.sourceAssessment?.canonicalComponent ?? r.data.sourceAssessment?.componentCode ??
+              r.data.selectionIdentity?.component ?? r.data.requestedIdentity.component,
+            documents: r.data.documents.map((document, index) => ({
+              document: index + 1,
+              pages: [...new Set(r.data.chunks.flatMap(chunk => chunk.sources)
+                .filter(source => source.documentId === document.id)
+                .flatMap(source => source.pages.map(page => page.page)))].sort((a, b) => a - b),
+            })),
+          },
         }
       : {}),
     ...(tier || hasRules
@@ -1724,42 +1742,55 @@ export function fillFormatsFromCitedBlock(
   if (evidence.facts.formats.length) return evidence;
   const cited = new Set(
     evidence.claims
-      .filter((c) => ["marks", "durationMinutes", "topics"].includes(c.field))
+      .filter(
+        (c) =>
+          c.rule !== "unknown" &&
+          ["marks", "durationMinutes", "topics"].includes(c.field),
+      )
       .map((c) => `${c.documentId}\u0000${c.locationId}`),
   );
-  const sentence =
-    /[^.\n]*(?:short|long)[\s-]+answer[^.\n]*|[^.\n]*multiple[\s-]choice[^.\n]*/i;
+  const e = structuredClone(evidence);
   for (const d of evidence.documents) {
     if (d.authority !== "owner_supplied" || d.state !== "active") continue;
     for (const l of d.locations) {
       if (!cited.has(`${d.id}\u0000${l.id}`)) continue;
-      const flat = l.text.replace(/\s+/g, " ");
-      const m = flat.match(sentence);
-      if (!m) continue;
-      const quote = m[0].trim().slice(0, 200);
-      const formats: ProfileEvidence["facts"]["formats"] = [];
-      if (/multiple[\s-]choice/i.test(quote)) formats.push("mcq_single");
-      if (/short[\s-]+(?:and[\s-]+long[\s-]+)?answer|short answer/i.test(quote))
-        formats.push("short_answer");
-      if (/long[\s-]+answer/i.test(quote)) formats.push("long_form");
-      if (!formats.length) continue;
-      const e = structuredClone(evidence);
-      e.facts.formats = formats;
-      e.claims.push({
-        field: "formats",
-        documentId: d.id,
-        locationId: l.id,
-        quote,
-        rule: "mandatory",
-      });
-      try {
-        return validateEvidence(e);
-      } catch {
-        return evidence;
+      for (const { quote, formats } of sourceResponseFormatQuotes(
+        l.text,
+        l.section,
+      )) {
+        if (formats.every((format) => e.facts.formats.includes(format))) continue;
+        const alreadyCited = e.claims.some(
+          (claim) =>
+            claim.field === "formats" &&
+            claim.documentId === d.id &&
+            claim.locationId === l.id &&
+            (claim.rule === "mandatory" ||
+              (claim.rule === "observed" &&
+                ["specification", "institution_brief"].includes(d.kind))) &&
+            sourceTextIncludes(
+              claim.quote.replace(/[.!?;]$/, ""),
+              quote.replace(/[.!?;]$/, ""),
+            ),
+        );
+        if (!alreadyCited && e.claims.length >= 60) continue;
+        e.facts.formats = [...new Set([...e.facts.formats, ...formats])];
+        if (!alreadyCited)
+          e.claims.push({
+            field: "formats",
+            documentId: d.id,
+            locationId: l.id,
+            quote,
+            rule: "mandatory",
+          });
       }
     }
   }
-  return evidence;
+  if (!e.facts.formats.length) return evidence;
+  try {
+    return validateEvidence(e);
+  } catch {
+    return evidence;
+  }
 }
 /** Paper-structure facts a student may set themselves if the source omits them. */
 export function structureGaps(e: ProfileEvidence) {
