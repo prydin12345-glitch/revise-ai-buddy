@@ -1,7 +1,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
-const { root, dir, artifacts, fontDir, sharedFontDir, repoRequire, sha256 } = require('./runtime.cjs');
+const { root, artifacts, fontDir, sharedFontDir, repoRequire, sha256 } = require('./runtime.cjs');
+const dir = process.env.PROFILE_BUILDER_FIXTURE_DIR ? path.resolve(process.env.PROFILE_BUILDER_FIXTURE_DIR) : __dirname;
 
 (async () => {
   const preparedFonts = require('./setup-fonts.cjs').verifyFonts();
@@ -14,7 +15,10 @@ const { root, dir, artifacts, fontDir, sharedFontDir, repoRequire, sha256 } = re
     plugins: [{ name: 'offline-supabase-guard', setup(build) {
       build.onResolve({ filter: /integrations\/supabase\/client/ }, () => ({ path: 'client', namespace: 'synthetic' }));
       build.onLoad({ filter: /.*/, namespace: 'synthetic' }, () => ({ loader: 'js', contents: `const blocked=()=>{throw Error('Live Supabase access is blocked in this offline verification fixture')};export const supabase={functions:{invoke:blocked},auth:{getSession:async()=>({data:{session:{user:{id:'synthetic-browser-owner'}}}}),getUser:async()=>({data:{user:{id:'synthetic-browser-owner'}}})},from:blocked};` }));
-    } }],
+    } }, ...(process.env.PROFILE_BUILDER_STALE_WARNING_FIXTURE === '1' ? [{ name: 'controlled-legacy-warning', setup(build) {
+      build.onResolve({ filter: /^@\/lib\/inspect-profile-attachments$/ }, () => ({ path: 'inspection', namespace: 'legacy-warning' }));
+      build.onLoad({ filter: /.*/, namespace: 'legacy-warning' }, () => ({ resolveDir: root, loader: 'js', contents: `import {inspectProfileAttachments as inspect} from ${JSON.stringify(path.join(root, 'src/lib/inspect-profile-attachments.ts'))};export async function inspectProfileAttachments(...args){const result=await inspect(...args);return {...result,warnings:["Earlier local inspection could not separate these assessments."],ambiguous:true};}` }));
+    } }] : [])],
   });
   const config = repoRequire('tailwindcss/loadConfig')(path.join(root, 'tailwind.config.ts'));
   const scannedPatterns = config.content.map(pattern => path.resolve(root, pattern));
@@ -37,7 +41,8 @@ const { root, dir, artifacts, fontDir, sharedFontDir, repoRequire, sha256 } = re
   const hashes = files => Object.fromEntries(files.map(file => [file, sha256(path.join(root, file))]));
   const localFixtureFiles = ['runtime.cjs', 'build.cjs', 'browser.cjs', 'view.tsx', 'verify-hashes.py', 'setup-fonts.cjs'];
   const sharedFixtureFiles = ['runtime.cjs', 'setup-fonts.cjs', 'fonts-manifest.json'];
-  const fixtureInputs = [...localFixtureFiles.map(file => relative(path.join(dir, file))), ...sharedFixtureFiles.map(file => relative(path.join(sharedFontDir, file)))];
+  const reusedFixtureFiles = dir === __dirname ? [] : localFixtureFiles.map(file => relative(path.join(__dirname, file)));
+  const fixtureInputs = [...new Set([...localFixtureFiles.map(file => relative(path.join(dir, file))), ...reusedFixtureFiles, ...sharedFixtureFiles.map(file => relative(path.join(sharedFontDir, file)))])];
   const packages = ['esbuild', 'postcss', 'postcss-import', 'tailwindcss', 'autoprefixer', 'react', 'react-dom', 'react-router-dom', 'unpdf', 'zod'];
   const versions = Object.fromEntries(packages.map(name => [name, JSON.parse(fs.readFileSync(path.join(root, 'node_modules', name, 'package.json'), 'utf8')).version]));
   const write = (name, data) => fs.writeFileSync(path.join(artifacts, name), JSON.stringify(data, null, 2) + '\n');

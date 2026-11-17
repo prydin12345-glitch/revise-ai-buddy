@@ -61,6 +61,7 @@ export function normaliseAssessmentAlias(value: string): string {
 }
 
 const explicitComponentCode = /\b([A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]{0,2})\b/;
+const componentCodeLine = /^(?:\*?\s*(?:paper|unit|component|assessment)\s+code\s*:\s*|\()?([A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]{0,2})\)?$/i;
 const numberedHeading =
   /^(?:(?:\d+(?:\.\d+)*[.)]?)\s+)?(paper|unit|component)\s*(?:no\.?\s*)?([A-Za-z]?\d{1,3}[A-Za-z]{0,2})(?=$|\s|[:(\u2013\u2014-])\s*(.*)$/i;
 const labelledAssessment =
@@ -82,6 +83,7 @@ interface FoundAssessment {
   componentCode?: string;
   base?: string;
   qualification?: string;
+  edition?: string;
   references: AssessmentSourceReference[];
   aliases?: string[];
 }
@@ -105,20 +107,23 @@ function codeNear(
 ): { code?: string; line?: string } {
   const current = lines[index].match(explicitComponentCode);
   if (current) return { code: current[1], line: lines[index] };
-  for (let offset = 1; offset <= 2; offset++) {
+  for (let offset = 1; offset <= 4; offset++) {
     const line = lines[index + offset]?.trim();
-    if (!line || numberedHeading.test(line) || labelledAssessment.test(line))
+    if (line === undefined || numberedHeading.test(line) || labelledAssessment.test(line))
       break;
-    const code = line.match(
-      /^(?:(?:paper|unit|component|assessment)\s+code\s*:\s*|\()?([A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]{0,2})\)?$/i,
-    );
+    const code = line.match(componentCodeLine);
     if (code) return { code: code[1], line: lines[index + offset] };
+    // Only a short wrapped title or layout gap may separate a heading/code.
+    if (line && !followingTitle(lines, index + offset - 1)) break;
   }
   const previous = lines[index - 1]?.trim();
-  const previousCode = previous?.match(
-    /^(?:(?:paper|unit|component|assessment)\s+code\s*:\s*|\()?([A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]{0,2})\)?$/i,
-  );
-  if (previousCode) return { code: previousCode[1], line: lines[index - 1] };
+  const previousCode = previous?.match(componentCodeLine);
+  // A labelled code already belongs to the heading above it. It cannot also
+  // verify the next paper or turn a nearby content/weighting line into a title.
+  if (previousCode && !/code\s*:/i.test(previous!) &&
+      !numberedHeading.test(lines[index].trim()) &&
+      !labelledAssessment.test(lines[index].trim()))
+    return { code: previousCode[1], line: lines[index - 1] };
   return {};
 }
 
@@ -156,12 +161,13 @@ function cleanHeadingTail(tail: string): string {
 }
 
 function followingTitle(lines: string[], index: number): string {
-  const next = lines[index + 1]?.trim() ?? "";
+  const next = (lines[index + 1]?.trim() ?? "").replace(/\s*\.$/, "");
   if (
     !next ||
     numberedHeading.test(next) ||
     labelledAssessment.test(next) ||
     metadataLine.test(next) ||
+    /^(?:\*?\s*(?:paper|unit|component|assessment)\s+code\s*:|overview\b|\d+(?:\.\d+)?\s*%)/i.test(next) ||
     namedAssessment.test(next)
   )
     return "";
@@ -179,7 +185,7 @@ function followingTitle(lines: string[], index: number): string {
     )
   )
     return "";
-  return clean(next);
+  return cleanHeadingTail(next);
 }
 
 function wrappedTitle(lines: string[], index: number, tail: string): string {
@@ -203,7 +209,7 @@ function collectPage(
   for (let index = 0; index < lines.length; index++) {
     const original = lines[index].trim(),
       line = clean(original);
-    if (!line || line.length > 240 || instructionLine.test(line)) continue;
+    if (!line || line.length > 240 || instructionLine.test(line) || componentCodeLine.test(line)) continue;
     const numbered = line.match(numberedHeading);
     const near = codeNear(lines, index);
     if (numbered) {
@@ -331,7 +337,17 @@ function mergeReferences(
   );
   // Repeated running headers can appear hundreds of times. These are citations
   // for dropdown identity only; no assessment rules are truncated here.
+  const codeReferences = target.filter(reference => explicitComponentCode.test(reference.quote)).slice(-3);
   target.splice(8);
+  // A late appendix may be the only literal code evidence. Never discard that
+  // evidence while retaining the inferred heading/code association.
+  for (const reference of codeReferences)
+    if (!target.includes(reference)) {
+      let replace = target.length - 1;
+      while (replace >= 0 && codeReferences.includes(target[replace])) replace--;
+      if (replace >= 0) target[replace] = reference;
+    }
+  target.sort((a, b) => a.checksum.localeCompare(b.checksum) || a.page - b.page || a.quote.localeCompare(b.quote));
 }
 
 function mergeAssessment(target: FoundAssessment, other: FoundAssessment) {
@@ -356,7 +372,26 @@ export function resolveSourceAssessment(
     [candidate.componentCode, candidate.canonicalComponent, candidate.label, ...candidate.aliases]
       .some(alias => alias && normaliseAssessmentAlias(alias) === key),
   );
-  return matches.length === 1 ? matches[0] : null;
+  if (matches.length) return matches.length === 1 ? matches[0] : null;
+  const codes = [...value.matchAll(new RegExp(explicitComponentCode.source, "g"))];
+  if (codes.length !== 1) return null;
+  const title = normaliseAssessmentAlias(value.replace(codes[0][0], "").replace(/\(\s*\)/g, ""));
+  const combined = candidates.filter(candidate =>
+    candidate.componentCode?.toLowerCase() === codes[0][1].toLowerCase() &&
+    [candidate.label, ...candidate.aliases].some(alias => normaliseAssessmentAlias(alias) === title));
+  return combined.length === 1 ? combined[0] : null;
+}
+
+const sameScope = (a: FoundAssessment, b: FoundAssessment) =>
+  a.qualification === b.qualification && a.edition === b.edition;
+
+function sourceEdition(pages: string[]): string | undefined {
+  for (const page of pages)
+    for (const line of page.split("\n")) {
+      const edition = clean(line).match(/^(?:Specification\s*[-\u2010-\u2015:]\s*)?((?:Issue|Version)\s+\d[\w.\s,\u2010-\u2015-]*?)(?:\s*©.*)?$/i);
+      if (edition) return normaliseAssessmentAlias(edition[1]);
+    }
+  return undefined;
 }
 
 /**
@@ -394,6 +429,7 @@ export async function discoverSourceAssessments(
   let resolution: AssessmentScopeResolution | undefined;
   const found = documents
     .flatMap((document) => {
+      const edition = sourceEdition(document.pages);
       const scoped = scopeDocumentQualification(
         document.pages,
         scope.qualification,
@@ -415,6 +451,7 @@ export async function discoverSourceAssessments(
       return scoped.fragments.flatMap((fragment) =>
         collectPage(document, fragment.page, fragment.text).map(
           (assessment) => {
+            if (edition) assessment.edition = edition;
             if (fragment.qualification)
               assessment.qualification = fragment.qualification;
             if (fragment.qualificationReference)
@@ -464,6 +501,7 @@ export async function discoverSourceAssessments(
       code: assessment.componentCode?.toLowerCase() ?? "",
       kind: assessment.kind,
       qualification: assessment.qualification ?? "",
+      edition: assessment.edition ?? "",
     });
     const existing = groups.get(key);
     if (existing) mergeAssessment(existing, assessment);
@@ -473,14 +511,32 @@ export async function discoverSourceAssessments(
       groups.set(key, item);
     }
   }
-  const values = [...groups.values()];
+  let values = [...groups.values()];
+  // A coded appendix row ("Paper 1: CODE") and a named overview describe
+  // one identity only when both its title and code are unique in that scope.
+  // Require a shared source before attaching a code to an uncoded title.
+  const absorbed = new Set<FoundAssessment>();
+  for (const bare of values) {
+    if (!bare.base || bare.label !== bare.base || !bare.componentCode) continue;
+    const peers = values.filter(other => other !== bare && sameScope(other, bare) && other.base === bare.base);
+    const titles = peers.filter(other => other.label !== other.base);
+    if (new Set(titles.map(other => normaliseAssessmentAlias(other.label))).size !== 1 ||
+        new Set([bare, ...peers].flatMap(other => other.componentCode ? [other.componentCode.toLowerCase()] : [])).size !== 1) continue;
+    const target = titles.find(other => other.componentCode) ?? titles.find(other =>
+      other.references.some(reference => bare.references.some(code => code.checksum === reference.checksum)));
+    if (!target) continue;
+    target.componentCode = bare.componentCode;
+    mergeAssessment(target, bare);
+    absorbed.add(bare);
+  }
+  values = values.filter(item => !absorbed.has(item));
   for (const item of values) {
     if (!item.base || item.label !== item.base || !item.componentCode) continue;
     const named = values.filter(
       (other) =>
         !other.base &&
         other.kind === "component" &&
-        other.qualification === item.qualification &&
+        sameScope(other, item) &&
         other.componentCode?.toLowerCase() ===
           item.componentCode?.toLowerCase(),
     );
@@ -496,7 +552,7 @@ export async function discoverSourceAssessments(
       const numbered = values.find(
         (other) =>
           other.base &&
-          other.qualification === item.qualification &&
+          sameScope(other, item) &&
           other.componentCode?.toLowerCase() ===
             item.componentCode?.toLowerCase() &&
           normaliseAssessmentAlias(other.label).endsWith(
@@ -512,7 +568,7 @@ export async function discoverSourceAssessments(
     // different explicit codes are never collapsed because they share a title.
     if (!item.componentCode) {
       const coded = values.filter(other => other !== item && other.componentCode &&
-        other.qualification === item.qualification && other.kind === item.kind &&
+        sameScope(other, item) && other.kind === item.kind &&
         normaliseAssessmentAlias(other.label) === normaliseAssessmentAlias(item.label));
       if (coded.length === 1) {
         mergeAssessment(coded[0], item);
@@ -524,11 +580,11 @@ export async function discoverSourceAssessments(
       (other) =>
         other !== item &&
         other.base === item.base &&
-        (!item.qualification || other.qualification === item.qualification) &&
+        sameScope(other, item) &&
         (other.label !== other.base || other.componentCode),
     );
     const identities = detailed.filter(other => other.componentCode || !detailed.some(coded =>
-      coded.componentCode && coded.qualification === other.qualification &&
+      coded.componentCode && sameScope(coded, other) &&
       normaliseAssessmentAlias(coded.label) === normaliseAssessmentAlias(other.label)));
     if (identities.length === 1) {
       mergeAssessment(identities[0], item);
@@ -541,7 +597,7 @@ export async function discoverSourceAssessments(
     const alias = normaliseAssessmentAlias(assessment.base ?? assessment.label);
     const keys = ambiguity.get(alias) ?? new Set<string>();
     keys.add(
-      `${assessment.qualification ?? ""}:${assessment.componentCode?.toLowerCase() ?? ""}:${normaliseAssessmentAlias(assessment.label)}`,
+      `${assessment.qualification ?? ""}:${assessment.edition ?? ""}:${assessment.componentCode?.toLowerCase() ?? ""}:${normaliseAssessmentAlias(assessment.label)}`,
     );
     ambiguity.set(alias, keys);
   }
@@ -585,6 +641,7 @@ export async function discoverSourceAssessments(
           other.qualification === assessment.qualification)
           ? { conflictingLabel: normaliseAssessmentAlias(assessment.label) } : {}),
         qualification: assessment.qualification ?? "",
+        edition: assessment.edition ?? "",
         requestedQualification: scope.qualification?.trim().toLowerCase() ?? "",
         subject: scope.subject?.trim().toLowerCase() ?? "",
         course: scope.course?.trim().toLowerCase() ?? "",

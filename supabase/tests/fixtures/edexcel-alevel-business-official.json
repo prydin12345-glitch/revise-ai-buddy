@@ -1,0 +1,584 @@
+{
+  "source": {
+    "url": "https://qualifications.pearson.com/content/dam/pdf/A%20Level/Business%20Studies/2015/specification-and-sample-assessment-materials/9781446914694-gce2015-a-bus-web.pdf",
+    "sha256": "8d66018d0a9d826cdb9729c78012d73f5e7ab32bd8946f9eb9fd501827c9829f",
+    "bytes": 574854,
+    "physicalPageCount": 68,
+    "retrievedOn": "2026-11-17",
+    "parser": "unpdf@1.8.1",
+    "extraction": "extractIndexedPdfPages with readablePdfText; actual PDF.js item stream, physical PDF page order"
+  },
+  "description": "Sparse literal excerpts for regression only; absent physical pages are blank. Assessment pages 14, 15, 45 and 46 are complete. Remaining pages retain only relevant title/code, weighting, or wrapped heading lines. Geometry captures only the heading/code/weighting sidebar item spans on pages 14 and 15.",
+  "excerpts": [
+    {
+      "page": 1,
+      "text": "Specifi cation \nPearson Edexcel Level 3 Advanced GCE in Business (9BS0) \nFirst teaching from September 2015\nFirst certification from 2017   Issue 1 \nA Level\nBusiness "
+    },
+    {
+      "page": 14,
+      "text": "Pearson Edexcel Level 3 Advanced GCE in Business\nSpecification – Issue 1 – September 2014   © Pearson Education Limited 2014\n2\nStudents must complete all assessment in May/June in any single year. \nPaper 1: Marketing, people and global businesses\n*Paper code: 9BS0/01 \n●   Externally assessed \n●   Availability: May/June \n●   First assessment: 2017 \n35% of the\ntotal\nqualification\nOverview of content \nPaper 1 will assess marketing, people and global businesses. Questions will be\ndrawn from Themes 1 and 4, and from local, national and global contexts. \nOverview of assessment \n●   Written examination. \n●   The paper comprises two sections. \n●   Students answer all questions from both sections. \n●   Sections A and B each comprise one data response question broken down into\na number of parts, including one extended open-response question. \n●   Duration: 2 hours. \n●   100 marks available. \nPaper 2: Business activities, decisions and strategy\n*Paper code: 9BS0/02 \n●   Externally assessed \n●   Availability: May/June \n●   First assessment: 2017 \n35% of the\ntotal\nqualification\nOverview of content \nPaper 2 will assess business finance and operations, business decisions and\nstrategy. Questions will be drawn from Themes 2 and 3, and from local, national\nand global contexts. \nOverview of assessment \n●   Written examination. \n●   The paper comprises two sections. \n●   Students answer all questions from both sections. \n●   Sections A and B each comprise one data response question broken down into\na number of parts, including one extended open-response question. \n●   Duration: 2 hours. \n●   100 marks available. "
+    },
+    {
+      "page": 15,
+      "text": "Pearson Edexcel Level 3 Advanced GCE in Business\nSpecification – Issue 1 – September 2014   © Pearson Education Limited 2014\n3 \nPaper 3: Investigating business in a competitive environment\n*Paper code: 9BS0/03 \n●   Externally assessed \n●   Availability: May/June \n●   First assessment: 2017 \n30% of the\ntotal\nqualification\nOverview of content \nPaper 3 will assess content across all four themes. Questions will be drawn from\nlocal, national and global contexts.\nFor Paper 3, there will be a pre-released context document issued on our website\nin November of the previous year. A new context will be given to centres each\nyear and will relate to the examination series for the following summer.\nThe context will focus on a broad context, such as an industry or market in which\nbusinesses operate. The question paper will be in two sections.\nThe first section will focus on the broad context provided. This will be outlined to\ncentres through the pre-released document. Questions will focus on the broad\ncontext.\nThe second section will focus on at least one strand within the context provided,\nsuch as a particular business.\nEach section will contain unseen stimulus materials comprising quantitative and\nqualitative evidence. Students are required to apply their knowledge and\nunderstanding from Themes 1, 2, 3 and 4 and their understanding of the broad\ncontext to this evidence.\nStudents cannot take any of their research or investigation data carried out as part\nof the pre-release into the examination. \nOverview of assessment \n●   Written examination. \n●   The paper comprises two sections. \n●   Students answer all questions from both sections. \n●   Sections A and B each comprise one data response question broken down into\na number of parts, including one extended open-response question. \n●   Duration: 2 hours. \n●   100 marks available.\n*See   Appendix 5: Codes   for a description of this code and all other codes relevant\nto this qualification. "
+    },
+    {
+      "page": 17,
+      "text": "Theme 1: Marketing and people"
+    },
+    {
+      "page": 25,
+      "text": "Theme 2: Managing business activities"
+    },
+    {
+      "page": 31,
+      "text": "Theme 3: Business decisions and strategy"
+    },
+    {
+      "page": 39,
+      "text": "Theme 4: Global business"
+    },
+    {
+      "page": 45,
+      "text": "Pearson Edexcel Level 3 Advanced GCE in Business\nSpecification – Issue 1 – September 2014   © Pearson Education Limited 2014\n33 \nAssessment\nAssessment summary\nSummary of table of assessment \nStudents must complete all assessment in May/June in any single year. \nPaper 1: Marketing, people and global businesses\n*Paper code: 9BS0/01\n35% of the\ntotal\nqualification \n●   Each question is drawn from topics across Themes 1 and 4, and\nfrom one or more of the following contexts: local, national or\nglobal. \n●   Sections A and B each comprise one data response question\nbroken down into a number of parts, including one extended\nopen-response question. \n●   First assessment: May/June 2017. \n●   The assessment is 2 hours. \n●   The assessment comprises 2 questions. \n●   The assessment comprises 100 marks. \nPaper 2: Business activities, decisions and strategy\n*Paper code: 9BS0/02\n35% of the\ntotal\nqualification \n●   Each question is drawn from topics across Themes 2 and 3, and\nfrom one or more of the following contexts: local, national or\nglobal. \n●   Sections A and B each comprise one data response question\nbroken down into a number of parts, including one extended\nopen-response question. \n●   First assessment: May/June 2017. \n●   The assessment is 2 hours. \n●   The assessment comprises 2 questions. \n●   The assessment comprises 100 marks. "
+    },
+    {
+      "page": 46,
+      "text": "Pearson Edexcel Level 3 Advanced GCE in Business\nSpecification – Issue 1 – September 2014   © Pearson Education Limited 2014\n34 \nPaper 3: Investigating business in a competitive environment\n*Paper code: 9BS0/03\n30% of the\ntotal\nqualification \n●   Each question is drawn from one or more of the following\ncontexts: local, national or global. \n●   Section A will focus on the broad context provided in the\npre-released document issued on our website in the November\nof the previous year. Section B will focus on at least one strand\nwithin the context provided. \n●   Each section will contain unseen stimulus materials comprising\nquantitative and qualitative evidence. Students are required to\napply their knowledge and understanding from Themes 1, 2, 3\nand 4 and their understanding of the broad context to this\nevidence. \n●   Questions in Sections A and B each comprise one data response\nquestion broken down into a number of parts, including one\nextended open-response question. \n●   Students   cannot   take any of their research or investigation\ndata carried out as part of the pre-release into the examination. \n●   First assessment: May/June 2017. \n●   The assessment comprises 2 questions. \n●   The assessment comprises 100 marks.\nThe sample assessment materials can be found in the   Pearson Edexcel Level 3\nAdvanced GCE in Business Sample Assessment Materials   document.\n*See   Appendix 5:   Codes for description of this code and all other codes relevant to\nthis qualification. "
+    },
+    {
+      "page": 48,
+      "text": "Breakdown of Assessment Objectives \nAssessment Objectives\nPaper   AO1   AO2   AO3   AO4\nTotal for all\nassessment\nobjectives \nPaper 1: Marketing, people and global businesses   6 – 8   7 – 9   9 – 11   8 – 10   35%\nPaper 2: Business activities, decisions and strategy   6 – 8   7 – 9   9 – 11   8 – 10   35%\nPaper 3: Investigating business in a competitive environment   5 – 7   5 – 7   9 – 11   9 – 11   30% \n"
+    },
+    {
+      "page": 52,
+      "text": "Paper 3:   Investigating business in a competitive\nenvironment . \n"
+    },
+    {
+      "page": 67,
+      "text": "Paper 1: 9BS0/01\nPaper 2: 9BS0/02\nPaper 3: 9BS0/03\n"
+    }
+  ],
+  "geometryExcerpts": [
+    {
+      "page": 14,
+      "startItem": 7,
+      "endItemExclusive": 25,
+      "text": "Paper 1: Marketing, people and global businesses\n*Paper code: 9BS0/01 \n●   Externally assessed \n●   Availability: May/June \n●   First assessment: 2017 \n35% of the\ntotal\nqualification\n",
+      "items": [
+        {
+          "str": "Paper 1: Marketing, people and global businesses",
+          "width": 278.878644,
+          "height": 10.02,
+          "transform": [
+            10.02,
+            0,
+            0,
+            10.02,
+            85.08,
+            730.2803
+          ],
+          "hasEOL": true
+        },
+        {
+          "str": "*Paper code: 9BS0/01",
+          "width": 126.99448200000027,
+          "height": 10.02,
+          "transform": [
+            10.02,
+            0,
+            0,
+            10.02,
+            377.94,
+            711.3203
+          ],
+          "hasEOL": false
+        },
+        {
+          "str": "",
+          "width": 0,
+          "height": 0,
+          "transform": [
+            7.98,
+            0,
+            0,
+            7.98,
+            85.08,
+            691.8203
+          ],
+          "hasEOL": true
+        },
+        {
+          "str": "●",
+          "width": 4.81992,
+          "height": 7.98,
+          "transform": [
+            7.98,
+            0,
+            0,
+            7.98,
+            85.08,
+            691.8203
+          ],
+          "hasEOL": false
+        },
+        {
+          "str": " ",
+          "width": 1.6516390977443614,
+          "height": 0,
+          "transform": [
+            7.98,
+            0,
+            0,
+            7.98,
+            89.89992,
+            691.8203
+          ],
+          "hasEOL": false
+        },
+        {
+          "str": "Externally assessed",
+          "width": 98.694996,
+          "height": 10.02,
+          "transform": [
+            10.02,
+            0,
+            0,
+            10.02,
+            103.08,
+            691.8203
+          ],
+          "hasEOL": false
+        },
+        {
+          "str": "",
+          "width": 0,
+          "height": 0,
+          "transform": [
+            7.98,
+            0,
+            0,
+            7.98,
+            85.08,
+            675.8003
+          ],
+          "hasEOL": true
+        },
+        {
+          "str": "●",
+          "width": 4.81992,
+          "height": 7.98,
+          "transform": [
+            7.98,
+            0,
+            0,
+            7.98,
+            85.08,
+            675.8003
+          ],
+          "hasEOL": false
+        },
+        {
+          "str": " ",
+          "width": 1.6516390977443614,
+          "height": 0,
+          "transform": [
+            7.98,
+            0,
+            0,
+            7.98,
+            89.89992,
+            675.8003
+          ],
+          "hasEOL": false
+        },
+        {
+          "str": "Availability: May/June",
+          "width": 110.75807400000004,
+          "height": 10.02,
+          "transform": [
+            10.02,
+            0,
+            0,
+            10.02,
+            103.08,
+            675.8003
+          ],
+          "hasEOL": false
+        },
+        {
+          "str": "",
+          "width": 0,
+          "height": 0,
+          "transform": [
+            7.98,
+            0,
+            0,
+            7.98,
+            85.08,
+            659.7803
+          ],
+          "hasEOL": true
+        },
+        {
+          "str": "●",
+          "width": 4.81992,
+          "height": 7.98,
+          "transform": [
+            7.98,
+            0,
+            0,
+            7.98,
+            85.08,
+            659.7803
+          ],
+          "hasEOL": false
+        },
+        {
+          "str": " ",
+          "width": 1.6516390977443614,
+          "height": 0,
+          "transform": [
+            7.98,
+            0,
+            0,
+            7.98,
+            89.89992,
+            659.7803
+          ],
+          "hasEOL": false
+        },
+        {
+          "str": "First assessment: 2017",
+          "width": 117.79812600000004,
+          "height": 10.02,
+          "transform": [
+            10.02,
+            0,
+            0,
+            10.02,
+            103.08,
+            659.7803
+          ],
+          "hasEOL": false
+        },
+        {
+          "str": "",
+          "width": 0,
+          "height": 0,
+          "transform": [
+            10.02,
+            0,
+            0,
+            10.02,
+            423.66,
+            687.3203
+          ],
+          "hasEOL": true
+        },
+        {
+          "str": "35% of the",
+          "width": 63.16207200000004,
+          "height": 10.02,
+          "transform": [
+            10.02,
+            0,
+            0,
+            10.02,
+            423.66,
+            687.3203
+          ],
+          "hasEOL": true
+        },
+        {
+          "str": "total",
+          "width": 26.162220000000108,
+          "height": 10.02,
+          "transform": [
+            10.02,
+            0,
+            0,
+            10.02,
+            423.66,
+            674.3003
+          ],
+          "hasEOL": true
+        },
+        {
+          "str": "qualification",
+          "width": 69.8193600000002,
+          "height": 10.02,
+          "transform": [
+            10.02,
+            0,
+            0,
+            10.02,
+            423.66,
+            661.2803
+          ],
+          "hasEOL": true
+        }
+      ]
+    },
+    {
+      "page": 15,
+      "startItem": 6,
+      "endItemExclusive": 24,
+      "text": "Paper 3: Investigating business in a competitive environment\n*Paper code: 9BS0/03 \n●   Externally assessed \n●   Availability: May/June \n●   First assessment: 2017 \n30% of the\ntotal\nqualification\n",
+      "items": [
+        {
+          "str": "Paper 3: Investigating business in a competitive environment",
+          "width": 346.99159799999956,
+          "height": 10.02,
+          "transform": [
+            10.02,
+            0,
+            0,
+            10.02,
+            85.08,
+            743.3003
+          ],
+          "hasEOL": true
+        },
+        {
+          "str": "*Paper code: 9BS0/03",
+          "width": 127.01853000000027,
+          "height": 10.02,
+          "transform": [
+            10.02,
+            0,
+            0,
+            10.02,
+            369.05681999999996,
+            724.2803
+          ],
+          "hasEOL": false
+        },
+        {
+          "str": "",
+          "width": 0,
+          "height": 0,
+          "transform": [
+            7.98,
+            0,
+            0,
+            7.98,
+            85.08,
+            704.7803
+          ],
+          "hasEOL": true
+        },
+        {
+          "str": "●",
+          "width": 4.81992,
+          "height": 7.98,
+          "transform": [
+            7.98,
+            0,
+            0,
+            7.98,
+            85.08,
+            704.7803
+          ],
+          "hasEOL": false
+        },
+        {
+          "str": " ",
+          "width": 1.6516390977443614,
+          "height": 0,
+          "transform": [
+            7.98,
+            0,
+            0,
+            7.98,
+            89.89992,
+            704.7803
+          ],
+          "hasEOL": false
+        },
+        {
+          "str": "Externally assessed",
+          "width": 98.694996,
+          "height": 10.02,
+          "transform": [
+            10.02,
+            0,
+            0,
+            10.02,
+            103.08,
+            704.7803
+          ],
+          "hasEOL": false
+        },
+        {
+          "str": "",
+          "width": 0,
+          "height": 0,
+          "transform": [
+            7.98,
+            0,
+            0,
+            7.98,
+            85.08,
+            688.8203
+          ],
+          "hasEOL": true
+        },
+        {
+          "str": "●",
+          "width": 4.81992,
+          "height": 7.98,
+          "transform": [
+            7.98,
+            0,
+            0,
+            7.98,
+            85.08,
+            688.8203
+          ],
+          "hasEOL": false
+        },
+        {
+          "str": " ",
+          "width": 1.6516390977443614,
+          "height": 0,
+          "transform": [
+            7.98,
+            0,
+            0,
+            7.98,
+            89.89992,
+            688.8203
+          ],
+          "hasEOL": false
+        },
+        {
+          "str": "Availability: May/June",
+          "width": 110.75807400000004,
+          "height": 10.02,
+          "transform": [
+            10.02,
+            0,
+            0,
+            10.02,
+            103.08,
+            688.8203
+          ],
+          "hasEOL": false
+        },
+        {
+          "str": "",
+          "width": 0,
+          "height": 0,
+          "transform": [
+            7.98,
+            0,
+            0,
+            7.98,
+            85.08,
+            672.8003
+          ],
+          "hasEOL": true
+        },
+        {
+          "str": "●",
+          "width": 4.81992,
+          "height": 7.98,
+          "transform": [
+            7.98,
+            0,
+            0,
+            7.98,
+            85.08,
+            672.8003
+          ],
+          "hasEOL": false
+        },
+        {
+          "str": " ",
+          "width": 1.6516390977443614,
+          "height": 0,
+          "transform": [
+            7.98,
+            0,
+            0,
+            7.98,
+            89.89992,
+            672.8003
+          ],
+          "hasEOL": false
+        },
+        {
+          "str": "First assessment: 2017",
+          "width": 117.79812600000004,
+          "height": 10.02,
+          "transform": [
+            10.02,
+            0,
+            0,
+            10.02,
+            103.08,
+            672.8003
+          ],
+          "hasEOL": false
+        },
+        {
+          "str": "",
+          "width": 0,
+          "height": 0,
+          "transform": [
+            10.02,
+            0,
+            0,
+            10.02,
+            423.66,
+            700.2803
+          ],
+          "hasEOL": true
+        },
+        {
+          "str": "30% of the",
+          "width": 63.16207200000004,
+          "height": 10.02,
+          "transform": [
+            10.02,
+            0,
+            0,
+            10.02,
+            423.66,
+            700.2803
+          ],
+          "hasEOL": true
+        },
+        {
+          "str": "total",
+          "width": 26.162220000000108,
+          "height": 10.02,
+          "transform": [
+            10.02,
+            0,
+            0,
+            10.02,
+            423.66,
+            687.3203
+          ],
+          "hasEOL": true
+        },
+        {
+          "str": "qualification",
+          "width": 69.8193600000002,
+          "height": 10.02,
+          "transform": [
+            10.02,
+            0,
+            0,
+            10.02,
+            423.66,
+            674.3003
+          ],
+          "hasEOL": true
+        }
+      ]
+    }
+  ]
+}

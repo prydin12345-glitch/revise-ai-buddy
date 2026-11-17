@@ -25,6 +25,8 @@ export interface AssessmentMetadataCourse {
   qualification: string;
   country: string;
   courseCode: string;
+  /** Explicit reviewed course fact; never infer this from qualification text. */
+  tier: TemplateIdentity["tier"];
   specificationVersion: string;
   assessmentKind: AssessmentKind;
   papers: readonly AssessmentOption[];
@@ -83,6 +85,7 @@ export const ASSESSMENT_METADATA_COURSES: readonly AssessmentMetadataCourse[] =
       qualification: "A-level",
       country: "GB",
       courseCode: "7408",
+      tier: "not_tiered",
       specificationVersion: "v1.4-july-2026",
       assessmentKind: "Paper",
       papers: [paper("7408", 1), paper("7408", 2), physicsPaper3],
@@ -104,6 +107,7 @@ export const ASSESSMENT_METADATA_COURSES: readonly AssessmentMetadataCourse[] =
       qualification: "A-level",
       country: "GB",
       courseCode: "7405",
+      tier: "not_tiered",
       specificationVersion: "v1.2-july-2026",
       assessmentKind: "Paper",
       papers: [

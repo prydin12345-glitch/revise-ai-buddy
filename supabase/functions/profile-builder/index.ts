@@ -16,6 +16,7 @@ import {
 import { canonical, checksum } from "../_shared/profile-template.ts";
 import { resolveSavedTemplate } from "../_shared/profile-template-context.ts";
 import { evaluateApproval } from "../_shared/preset-approval.ts";
+import { normaliseSourceRequest } from "../_shared/profile-builder-identity.ts";
 import {
   sourceJobRequestSchema,
   createProfileBuilderJobStore,
@@ -33,6 +34,19 @@ const headers = {
 };
 const reply = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers });
+const inputFields = new Set([
+  "identity.country", "identity.educationSystem", "identity.stage", "identity.qualification",
+  "identity.subject", "identity.organisation", "identity.course", "identity.component",
+  "identity.specificationVersion", "identity.tier", "identity.module", "identity.institution",
+  "selectedAssessmentId", "manualComponentCode.value", "manualComponentCode.confirmed", "uploads", "mode", "requestId",
+]);
+const invalidInput = (issues: Array<{ path: PropertyKey[] }>) => reply({
+  error: "Invalid profile input. Check required fields and supported formats.",
+  code: "INVALID_PROFILE_INPUT",
+  // Paths are schema-owned labels. Values and Zod messages may contain rejected
+  // input, so neither is returned as diagnostic context.
+  fields: [...new Set(issues.map(issue => issue.path.join(".")).filter(field => inputFields.has(field)))],
+}, 400);
 class SafeError extends Error {
   constructor(
     message: string,
@@ -150,7 +164,9 @@ Deno.serve(async (req) => {
         "answer_source",
       ].includes(raw?.action)
     ) {
-      const request = sourceJobRequestSchema.parse(raw);
+      const parsed = sourceJobRequestSchema.safeParse(normaliseSourceRequest(raw));
+      if (!parsed.success) return invalidInput(parsed.error.issues);
+      const request = parsed.data;
       const deps: SourceJobDeps = {
         store: createProfileBuilderJobStore(rpc),
         providerReady,
@@ -240,7 +256,9 @@ Deno.serve(async (req) => {
               : await confirmSourceJob(user.id, request.jobId, request, deps);
       return reply({ job });
     }
-    const input = builderRequestSchema.parse(raw);
+    const parsed = builderRequestSchema.safeParse(raw);
+    if (!parsed.success) return invalidInput(parsed.error.issues);
+    const input = parsed.data;
     if (input.action === "propose") {
       const proposal = await proposeProfile(user.id, input, {
         providerReady,

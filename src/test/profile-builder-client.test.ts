@@ -93,6 +93,18 @@ it("returns confirmed backend responses unchanged", async () => {
   expect(await invokeProfileBuilder({ action: "propose" })).toBe(data);
 });
 
+it("shows only recognised input field names from structured diagnostics", async () => {
+  http(400, {
+    error: "Invalid profile input. Check required fields and supported formats.", code: "INVALID_PROFILE_INPUT",
+    fields: ["identity.course", "identity.tier", "PRIVATE_REJECTED_OUTPUT", "__proto__", { value: "PRIVATE_VALUE" }],
+    detail: "PRIVATE_MODEL_JSON",
+  });
+  await expect(invokeProfileBuilder({ action: "prepare_source", selectedAssessmentId: "chosen" })).rejects.toThrow(
+    "Invalid profile input. Check required fields and supported formats. Check: course, tier.",
+  );
+  expect(invoke).toHaveBeenCalledOnce();
+});
+
 it("retains only an opaque job receipt and isolates pending builds by account and subject", async () => {
   const first = crypto.randomUUID(),
     second = crypto.randomUUID();

@@ -3,6 +3,7 @@ import {
   builderInitialIdentity,
   builderCourses,
   builderPapers,
+  builderSelectedCourse,
   resolveBuilderChoice,
 } from "@/lib/profile-builder-resolution";
 import { SOURCE_REGISTRY } from "../../supabase/functions/_shared/profile-source-registry";
@@ -106,4 +107,25 @@ describe("student-facing reviewed assessment resolution", () => {
     expect(international.sourceId).toBe("");
     expect(international.identity.country).toBe("US");
   });
+});
+
+it("preserves unknown A-level tiers and uses explicit catalogue tier facts only", () => {
+  const unknown = builderInitialIdentity({ subject: "Business", board: "Edexcel", level: "level3", region: "GB" });
+  expect(unknown).toMatchObject({ tier: null, course: "" });
+  expect(resolveBuilderChoice({ ...unknown, component: "Paper 1" }, "short_practice").identity).toMatchObject({
+    tier: null, course: "A-level Business", specificationVersion: "Not verified",
+  });
+  const explicit = builderInitialIdentity({ subject: "Business", board: "Edexcel", level: "level3", region: "GB", tier: "higher" });
+  expect(explicit.tier).toBe("higher");
+  const known = builderInitialIdentity({ subject: "Physics", board: "AQA", level: "level3", region: "GB" });
+  expect(known).toMatchObject({ course: "7408", tier: "not_tiered" });
+});
+
+it("resolves saved course codes with typography and leaves unknown explicit courses unresolved", () => {
+  const initial = builderInitialIdentity({ subject: "Biology", board: "Pearson Edexcel", level: "level3", region: "GB", courseId: " 9bI0 " });
+  expect(initial.course).toBe("9BI0");
+  expect(builderSelectedCourse({ ...initial, course: " 9bi0 " })?.id).toBe("pearson_edexcel_alevel_biology_b_9bi0");
+  const physics = builderInitialIdentity({ subject: "Physics", board: "AQA", level: "level3", region: "GB" });
+  expect(builderSelectedCourse({ ...physics, course: "A-level Physics" })?.specificationCode).toBe("7408");
+  expect(builderSelectedCourse({ ...physics, course: "Another course" })).toBeNull();
 });

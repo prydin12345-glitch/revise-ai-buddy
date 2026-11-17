@@ -1,5 +1,6 @@
 import { MAX_DOCUMENT_PAGES, MAX_EXTRACTED_TEXT } from "./profile-evidence.ts";
 import { INDEXED_DOCUMENT_LIMITS } from "./profile-document-index.ts";
+import { readablePdfText, type PdfTextItem } from "./profile-pdf-layout.ts";
 async function beforeDeadline<T>(
   pending: Promise<T>,
   deadline: number,
@@ -54,7 +55,7 @@ export interface TextDocument {
   numPages: number;
   getPage: (page: number) => Promise<{
     getTextContent: () => Promise<{
-      items: Array<{ str?: string; hasEOL?: boolean }>;
+      items: PdfTextItem[];
     }>;
     cleanup?: () => void | Promise<void>;
   }>;
@@ -99,9 +100,7 @@ export async function extractPdfPages(
       try {
         const c = await beforeDeadline(p.getTextContent(), deadline),
           text = limits.preserveLines
-            ? c.items
-                .map((x) => (x.str ?? "") + (x.hasEOL ? "\n" : " "))
-                .join("")
+            ? readablePdfText(c.items)
             : c.items.map((x) => x.str ?? "").join(" ");
         chars += text.length;
         if (chars > limits.maxCharacters)

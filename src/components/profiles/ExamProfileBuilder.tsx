@@ -89,6 +89,7 @@ import {
 } from "@/lib/profile-builder-resolution";
 import { ALL_LEVELS } from "@/lib/educational-levels";
 import { classifySpecificationVersion } from "../../../supabase/functions/_shared/profile-version-context";
+import { normaliseSourceIdentity } from "../../../supabase/functions/_shared/profile-builder-identity";
 
 interface Props {
   open: boolean;
@@ -442,7 +443,7 @@ export function ExamProfileBuilder({
           subject: subjectName,
           course:
             builderSelectedCourse(identity)?.specificationCode ??
-            identity.course,
+            normaliseSourceIdentity(identity).course,
         }),
       )
       .then((result) => {
@@ -559,8 +560,7 @@ export function ExamProfileBuilder({
         next.tier = null;
       }
       if (
-        builderSelectedCourse(next)?.tierMode === "untiered" ||
-        next.qualification === "A-level"
+        builderSelectedCourse(next)?.tierMode === "untiered"
       )
         next.tier = "not_tiered";
       if ((key === "institution" || key === "module") && !value)
@@ -738,7 +738,7 @@ export function ExamProfileBuilder({
     setReplacingSource(false);
     const payload = {
       action: "prepare_source",
-      identity: resolvedIdentity,
+      identity: normaliseSourceIdentity(resolvedIdentity),
       ...(selectedDocument ? { selectedAssessmentId: selectedDocument.id } : {}),
       ...(confirmedManualCode &&
       normaliseComponentCode(effectiveCode) === confirmedManualCode &&
@@ -1738,6 +1738,8 @@ export function ExamProfileBuilder({
             )}
             {!focusedFollowup &&
             discovery?.warnings.length &&
+            !sourceJob?.assessmentConfirmed &&
+            !(sourceJob?.identity && ["ready", "complete"].includes(sourceJob.stage)) &&
             step === "details" ? (
               <p className="text-xs text-muted-foreground">
                 {discovery.warnings[0]}
@@ -2185,8 +2187,7 @@ export function ExamProfileBuilder({
                         )}
                       </Field>
                     </div>
-                    {!selectedCourse &&
-                      identity.qualification !== "A-level" && (
+                    {!selectedCourse && (
                         <Field label="Assessment tier">
                           {select(
                             identity.tier ?? "",
