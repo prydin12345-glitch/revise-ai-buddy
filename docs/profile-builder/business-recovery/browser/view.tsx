@@ -5,6 +5,7 @@ import { ExamProfileBuilder } from '../../../../src/components/profiles/ExamProf
 import { WorkspaceContext, WorkspaceStore } from '../../../../src/hooks/use-workspace-session';
 import type { BuilderApi, SourceJobView } from '../../../../src/lib/profile-builder-client';
 import { indexDocumentPages } from '../../../../supabase/functions/_shared/profile-document-index';
+import { sourceValidationRecord, SourceIdentityValidationError, SourceCallUncertainError } from '../../../../supabase/functions/_shared/profile-builder-diagnostics';
 
 const owner = 'synthetic-browser-owner';
 const store = new WorkspaceStore(owner);
@@ -39,8 +40,16 @@ const api: BuilderApi = async (input: any) => {
     const job: SourceJobView = {
       jobId: input.requestId, revision: 1, stage: scenario === 'errors' ? 'failed' : scenario === 'pages' ? 'needs_details' : 'ready', canAdvance: false,
       identity: { ...input.identity, course: '9BS0', specificationVersion: 'Synthetic source edition 2026' }, assessmentConfirmed: true,
-      ...(scenario === 'errors' ? { validationIssues: [{ attempt: 1, stage: 'extraction' as const, code: 'missing_reference', message: 'The topic list needs a matching source reference.' }], validationContext: { component: input.identity.component, documents: [{ document: 1, pages: [14, 15] }] } } : {}),
-      mode: input.mode, progress: { completed: 1, total: 1 }, message: 'Synthetic source check completed.',
+      ...(scenario === 'errors' ? {
+        validationIssues: [
+          sourceValidationRecord(new SourceIdentityValidationError('component'), 'extraction', 1),
+          sourceValidationRecord(new SourceCallUncertainError(), 'extraction', 2),
+        ].map(({ detail: _private, ...issue }) => issue),
+        validationContext: { component: input.identity.component, documents: [{ document: 1, pages: [14, 15] }] },
+        needs: ['The source service could not finish. This request will not repeat a possibly charged call. Your saved profiles are unchanged.'],
+      } : {}),
+      mode: input.mode, progress: { completed: 1, total: 1 },
+      message: scenario === 'errors' ? 'This build stopped safely. Your saved profiles are unchanged.' : 'Synthetic source check completed.',
       ...(input.manualComponentCode ? { manualComponentCode: { value: input.manualComponentCode.value, status: 'user_provided' as const } } : {}),
       ...(scenario === 'pages' ? { missingItems: [{ field: 'source_pages', question: 'Which PDF page shows the assessment overview?', choices: [{ value: '1:14', label: 'PDF page 14 (printed page 12)' }, { value: '1:15', label: 'PDF page 15 (printed page 13)' }] }] } : {}),
     };

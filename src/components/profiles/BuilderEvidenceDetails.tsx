@@ -53,6 +53,7 @@ export function BuilderEvidenceDetails({ job }: { job: SourceJobView }) {
                   Document {document.document} · Selected PDF pages: {document.pages.join(", ")}.
                 </p>
               ))}
+              <p className="text-xs">The reader uses selected passages from these pages.</p>
             </div>
           )}
           <ol className="mt-3 space-y-2 text-muted-foreground">

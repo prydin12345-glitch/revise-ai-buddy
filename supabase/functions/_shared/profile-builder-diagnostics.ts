@@ -10,6 +10,25 @@ export interface SourceValidationRecord extends SourceValidationIssue {
   detail: string;
 }
 
+export type SourceIdentityField = "country" | "educationSystem" | "stage" | "qualification" |
+  "subject" | "organisation" | "course" | "component" | "specificationVersion" | "tier" |
+  "institution" | "module" | "mode";
+const identityNames: Record<SourceIdentityField, string> = {
+  country: "country", educationSystem: "education system", stage: "education stage",
+  qualification: "qualification", subject: "subject", organisation: "exam board or institution",
+  course: "course code", component: "paper or assessment", specificationVersion: "specification edition",
+  tier: "tier", institution: "institution", module: "optional topic or module", mode: "practice mode",
+};
+/** Schema-owned field and reason only; rejected values never enter public diagnostics. */
+export class SourceIdentityValidationError extends Error {
+  constructor(public field: SourceIdentityField, public reason: "conflict" | "removed" | "reference" = "conflict") {
+    super(`Assessment identity ${reason}: ${field}.`);
+  }
+}
+export class SourceCallUncertainError extends Error {
+  constructor() { super("The source service did not confirm this call's outcome."); }
+}
+
 /** Controlled student-facing reasons, without rejected JSON, quotes or tokens. */
 export function sourceValidationRecord(
   error: unknown,
@@ -23,6 +42,25 @@ export function sourceValidationRecord(
     stage === "draft"
       ? "The draft did not match the supported profile structure."
       : "The returned assessment data did not match the supported source format.";
+  if (error instanceof SourceIdentityValidationError) {
+    return {
+      attempt: Math.max(1, Math.min(3, attempt)), stage,
+      code: error.reason === "reference" ? "missing_reference" : "identity_conflict",
+      field: error.field,
+      message: error.reason === "reference"
+        ? `The returned ${identityNames[error.field]} needs a matching source reference.`
+        : error.reason === "removed"
+          ? `The returned assessment omitted the selected ${identityNames[error.field]}.`
+          : `The returned ${identityNames[error.field]} did not match your selection.`,
+      detail: detail.slice(0, 800),
+    };
+  }
+  if (error instanceof SourceCallUncertainError) {
+    return { attempt: Math.max(1, Math.min(3, attempt)), stage,
+      code: "provider_outcome_unknown",
+      message: "The source service did not confirm whether this attempt completed. It will not be retried automatically.",
+      detail };
+  }
   const missing = detail.match(
     /Known source fact lacks a mandatory reference: (\w+)/,
   );

@@ -122,6 +122,7 @@ it("shows trusted selected assessment and physical pages alongside a rejected re
   }} />);
   expect(screen.getByLabelText("Profile validation details")).toHaveTextContent("Selected assessment: Paper 1.");
   expect(view.container).toHaveTextContent("Document 1 · Selected PDF pages: 14, 15.");
+  expect(view.container).toHaveTextContent("The reader uses selected passages from these pages.");
 });
 
 it("distinguishes a located but blocked page from a missing assessment and shows printed labels", () => {

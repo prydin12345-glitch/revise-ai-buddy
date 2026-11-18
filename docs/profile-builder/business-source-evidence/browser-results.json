@@ -1,0 +1,418 @@
+{
+  "status": "PASS",
+  "boundary": "Actual UI and source inspection, synthetic API. Real client-to-handler and controlled source-job tests are separate; no live AI, backend, private uploads or student records.",
+  "cases": [
+    {
+      "viewport": {
+        "name": "laptop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "scenario": "business",
+      "candidates": [
+        {
+          "value": "source-assessment-5e04e063f74445ac0070ab85",
+          "label": "Paper 1 — Marketing, people and global businesses"
+        },
+        {
+          "value": "source-assessment-7f16324617dcd9fd3c96b1a3",
+          "label": "Paper 2 — Business activities, decisions and strategy"
+        },
+        {
+          "value": "source-assessment-b39b3971fab8dc5e1b9c3fd4",
+          "label": "Paper 3 — Investigating business in a competitive environment"
+        }
+      ],
+      "courseBefore": "",
+      "code": "9BS0/01",
+      "uploadRetained": true,
+      "obsoleteWarningRemoved": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "laptop-light-business.png"
+    },
+    {
+      "viewport": {
+        "name": "laptop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "scenario": "errors",
+      "candidates": [
+        {
+          "value": "source-assessment-5e04e063f74445ac0070ab85",
+          "label": "Paper 1 — Marketing, people and global businesses"
+        },
+        {
+          "value": "source-assessment-7f16324617dcd9fd3c96b1a3",
+          "label": "Paper 2 — Business activities, decisions and strategy"
+        },
+        {
+          "value": "source-assessment-b39b3971fab8dc5e1b9c3fd4",
+          "label": "Paper 3 — Investigating business in a competitive environment"
+        }
+      ],
+      "courseBefore": "",
+      "code": "9BS0/01",
+      "uploadRetained": true,
+      "obsoleteWarningRemoved": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "laptop-light-errors.png"
+    },
+    {
+      "viewport": {
+        "name": "laptop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "scenario": "business",
+      "candidates": [
+        {
+          "value": "source-assessment-5e04e063f74445ac0070ab85",
+          "label": "Paper 1 — Marketing, people and global businesses"
+        },
+        {
+          "value": "source-assessment-7f16324617dcd9fd3c96b1a3",
+          "label": "Paper 2 — Business activities, decisions and strategy"
+        },
+        {
+          "value": "source-assessment-b39b3971fab8dc5e1b9c3fd4",
+          "label": "Paper 3 — Investigating business in a competitive environment"
+        }
+      ],
+      "courseBefore": "",
+      "code": "9BS0/01",
+      "uploadRetained": true,
+      "obsoleteWarningRemoved": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "laptop-dark-business.png"
+    },
+    {
+      "viewport": {
+        "name": "laptop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "scenario": "errors",
+      "candidates": [
+        {
+          "value": "source-assessment-5e04e063f74445ac0070ab85",
+          "label": "Paper 1 — Marketing, people and global businesses"
+        },
+        {
+          "value": "source-assessment-7f16324617dcd9fd3c96b1a3",
+          "label": "Paper 2 — Business activities, decisions and strategy"
+        },
+        {
+          "value": "source-assessment-b39b3971fab8dc5e1b9c3fd4",
+          "label": "Paper 3 — Investigating business in a competitive environment"
+        }
+      ],
+      "courseBefore": "",
+      "code": "9BS0/01",
+      "uploadRetained": true,
+      "obsoleteWarningRemoved": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "laptop-dark-errors.png"
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "light",
+      "scenario": "business",
+      "candidates": [
+        {
+          "value": "source-assessment-5e04e063f74445ac0070ab85",
+          "label": "Paper 1 — Marketing, people and global businesses"
+        },
+        {
+          "value": "source-assessment-7f16324617dcd9fd3c96b1a3",
+          "label": "Paper 2 — Business activities, decisions and strategy"
+        },
+        {
+          "value": "source-assessment-b39b3971fab8dc5e1b9c3fd4",
+          "label": "Paper 3 — Investigating business in a competitive environment"
+        }
+      ],
+      "courseBefore": "",
+      "code": "9BS0/01",
+      "uploadRetained": true,
+      "obsoleteWarningRemoved": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "ipad-light-business.png"
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "light",
+      "scenario": "errors",
+      "candidates": [
+        {
+          "value": "source-assessment-5e04e063f74445ac0070ab85",
+          "label": "Paper 1 — Marketing, people and global businesses"
+        },
+        {
+          "value": "source-assessment-7f16324617dcd9fd3c96b1a3",
+          "label": "Paper 2 — Business activities, decisions and strategy"
+        },
+        {
+          "value": "source-assessment-b39b3971fab8dc5e1b9c3fd4",
+          "label": "Paper 3 — Investigating business in a competitive environment"
+        }
+      ],
+      "courseBefore": "",
+      "code": "9BS0/01",
+      "uploadRetained": true,
+      "obsoleteWarningRemoved": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "ipad-light-errors.png"
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "dark",
+      "scenario": "business",
+      "candidates": [
+        {
+          "value": "source-assessment-5e04e063f74445ac0070ab85",
+          "label": "Paper 1 — Marketing, people and global businesses"
+        },
+        {
+          "value": "source-assessment-7f16324617dcd9fd3c96b1a3",
+          "label": "Paper 2 — Business activities, decisions and strategy"
+        },
+        {
+          "value": "source-assessment-b39b3971fab8dc5e1b9c3fd4",
+          "label": "Paper 3 — Investigating business in a competitive environment"
+        }
+      ],
+      "courseBefore": "",
+      "code": "9BS0/01",
+      "uploadRetained": true,
+      "obsoleteWarningRemoved": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "ipad-dark-business.png"
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "dark",
+      "scenario": "errors",
+      "candidates": [
+        {
+          "value": "source-assessment-5e04e063f74445ac0070ab85",
+          "label": "Paper 1 — Marketing, people and global businesses"
+        },
+        {
+          "value": "source-assessment-7f16324617dcd9fd3c96b1a3",
+          "label": "Paper 2 — Business activities, decisions and strategy"
+        },
+        {
+          "value": "source-assessment-b39b3971fab8dc5e1b9c3fd4",
+          "label": "Paper 3 — Investigating business in a competitive environment"
+        }
+      ],
+      "courseBefore": "",
+      "code": "9BS0/01",
+      "uploadRetained": true,
+      "obsoleteWarningRemoved": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "ipad-dark-errors.png"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "scenario": "business",
+      "candidates": [
+        {
+          "value": "source-assessment-5e04e063f74445ac0070ab85",
+          "label": "Paper 1 — Marketing, people and global businesses"
+        },
+        {
+          "value": "source-assessment-7f16324617dcd9fd3c96b1a3",
+          "label": "Paper 2 — Business activities, decisions and strategy"
+        },
+        {
+          "value": "source-assessment-b39b3971fab8dc5e1b9c3fd4",
+          "label": "Paper 3 — Investigating business in a competitive environment"
+        }
+      ],
+      "courseBefore": "",
+      "code": "9BS0/01",
+      "uploadRetained": true,
+      "obsoleteWarningRemoved": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "phone-light-business.png"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "scenario": "errors",
+      "candidates": [
+        {
+          "value": "source-assessment-5e04e063f74445ac0070ab85",
+          "label": "Paper 1 — Marketing, people and global businesses"
+        },
+        {
+          "value": "source-assessment-7f16324617dcd9fd3c96b1a3",
+          "label": "Paper 2 — Business activities, decisions and strategy"
+        },
+        {
+          "value": "source-assessment-b39b3971fab8dc5e1b9c3fd4",
+          "label": "Paper 3 — Investigating business in a competitive environment"
+        }
+      ],
+      "courseBefore": "",
+      "code": "9BS0/01",
+      "uploadRetained": true,
+      "obsoleteWarningRemoved": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "phone-light-errors.png"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "scenario": "business",
+      "candidates": [
+        {
+          "value": "source-assessment-5e04e063f74445ac0070ab85",
+          "label": "Paper 1 — Marketing, people and global businesses"
+        },
+        {
+          "value": "source-assessment-7f16324617dcd9fd3c96b1a3",
+          "label": "Paper 2 — Business activities, decisions and strategy"
+        },
+        {
+          "value": "source-assessment-b39b3971fab8dc5e1b9c3fd4",
+          "label": "Paper 3 — Investigating business in a competitive environment"
+        }
+      ],
+      "courseBefore": "",
+      "code": "9BS0/01",
+      "uploadRetained": true,
+      "obsoleteWarningRemoved": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "phone-dark-business.png"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "scenario": "errors",
+      "candidates": [
+        {
+          "value": "source-assessment-5e04e063f74445ac0070ab85",
+          "label": "Paper 1 — Marketing, people and global businesses"
+        },
+        {
+          "value": "source-assessment-7f16324617dcd9fd3c96b1a3",
+          "label": "Paper 2 — Business activities, decisions and strategy"
+        },
+        {
+          "value": "source-assessment-b39b3971fab8dc5e1b9c3fd4",
+          "label": "Paper 3 — Investigating business in a competitive environment"
+        }
+      ],
+      "courseBefore": "",
+      "code": "9BS0/01",
+      "uploadRetained": true,
+      "obsoleteWarningRemoved": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "phone-dark-errors.png"
+    }
+  ],
+  "errors": [],
+  "blockedRequests": [],
+  "hashesBefore": {
+    "status": "PASS",
+    "applicationFiles": 834,
+    "serverFiles": 193,
+    "dependencyInputs": 1743,
+    "applicationDifferences": [],
+    "serverDifferences": [],
+    "dependencyDifferencesWithinRun": [],
+    "fixtureDifferences": [],
+    "fontDifferences": [],
+    "outputDifferences": [],
+    "runtime": {
+      "node": "v24.19.0",
+      "platform": "linux",
+      "architecture": "x64",
+      "osRelease": "6.18.57",
+      "packages": {
+        "esbuild": "0.28.2",
+        "postcss": "8.5.6",
+        "postcss-import": "15.1.0",
+        "tailwindcss": "3.4.17",
+        "autoprefixer": "10.4.21",
+        "react": "18.3.1",
+        "react-dom": "18.3.1",
+        "react-router-dom": "6.26.2",
+        "unpdf": "1.8.1",
+        "zod": "4.6.2"
+      }
+    },
+    "policy": "Every recorded application/server/config/lockfile/fixture/font/dependency input and generated bundle/style output must match the frozen build. Server pinning does not imply that backend endpoints ran in the browser."
+  },
+  "hashesAfter": {
+    "status": "PASS",
+    "applicationFiles": 834,
+    "serverFiles": 193,
+    "dependencyInputs": 1743,
+    "applicationDifferences": [],
+    "serverDifferences": [],
+    "dependencyDifferencesWithinRun": [],
+    "fixtureDifferences": [],
+    "fontDifferences": [],
+    "outputDifferences": [],
+    "runtime": {
+      "node": "v24.19.0",
+      "platform": "linux",
+      "architecture": "x64",
+      "osRelease": "6.18.57",
+      "packages": {
+        "esbuild": "0.28.2",
+        "postcss": "8.5.6",
+        "postcss-import": "15.1.0",
+        "tailwindcss": "3.4.17",
+        "autoprefixer": "10.4.21",
+        "react": "18.3.1",
+        "react-dom": "18.3.1",
+        "react-router-dom": "6.26.2",
+        "unpdf": "1.8.1",
+        "zod": "4.6.2"
+      }
+    },
+    "policy": "Every recorded application/server/config/lockfile/fixture/font/dependency input and generated bundle/style output must match the frozen build. Server pinning does not imply that backend endpoints ran in the browser."
+  }
+}

@@ -137,6 +137,113 @@ async function expectBlockedBeforeModel(input: any, fixture: ReturnType<typeof r
 }
 
 describe("owned assessment identity and manually confirmed component codes", () => {
+  it.each(["Paper 1", `Paper 1 — ${titles[0]}`, `Paper 1 — ${titles[0]} (9BS0/01)`, "9bs0 / 01"])("accepts source-proven alias %s for selected 9BS0/01 without spending a repair call", async alias => {
+    const pages = businessPages(true), input = await inputFor(pages), fixture = runtime(pages);
+    const original = fixture.model.getMockImplementation()!;
+    fixture.model.mockImplementation(async (system, payload) => {
+      const result: any = await original(system, payload);
+      if (result.value.evidence) {
+        result.value.evidence.identity.component = alias;
+        const document = result.value.evidence.documents[0];
+        document.locations.push({ id: "paper-heading", page: 14, section: "Assessment identity", text: `Paper 1: ${titles[0]} (9BS0/01)` });
+        result.value.identityClaims.push({ field: "component", documentId: document.id, locationId: "paper-heading", quote: "Paper 1" });
+      }
+      return result;
+    });
+    await prepareSourceJob(owner, input, fixture.deps);
+    const ready = await advanceSourceJob(owner, input.requestId, fixture.deps);
+    expect(ready.stage, JSON.stringify(ready)).toBe("ready");
+    expect(ready.identity?.component).toBe("9BS0/01");
+    expect(ready.validationIssues).toBeUndefined();
+    expect(fixture.model).toHaveBeenCalledOnce();
+    await confirmSourceJob(owner, input.requestId, { identity: ready.identity!, mode: ready.mode }, fixture.deps);
+    expect((await advanceSourceJob(owner, input.requestId, fixture.deps)).stage).toBe("complete");
+    expect(fixture.model).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps owned canonical identity when extraction and drafting use the supported Business and board labels", async () => {
+    const pages = businessPages(true), input = await inputFor(pages), fixture = runtime(pages);
+    const original = fixture.model.getMockImplementation()!;
+    fixture.model.mockImplementation(async (system, payload) => {
+      const result: any = await original(system, payload);
+      const identity = result.value.evidence?.identity ?? result.value.identity;
+      Object.assign(identity, { component: "Paper 1", organisation: "Edexcel", subject: "Business Studies", country: "UK" });
+      return result;
+    });
+    await prepareSourceJob(owner, input, fixture.deps);
+    const ready = await advanceSourceJob(owner, input.requestId, fixture.deps);
+    expect(ready.stage, JSON.stringify(ready)).toBe("ready");
+    expect(ready.identity).toMatchObject({ component: "9BS0/01", organisation: "Pearson Edexcel", subject: "Business", country: "GB", tier: "not_tiered" });
+    await confirmSourceJob(owner, input.requestId, { identity: ready.identity!, mode: ready.mode }, fixture.deps);
+    const completed = await advanceSourceJob(owner, input.requestId, fixture.deps);
+    expect(completed.stage, JSON.stringify(completed)).toBe("complete");
+    expect(completed.proposal?.template.identity).toEqual(ready.identity);
+    expect(fixture.model).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["Paper 2", "9BS0/02", "8BS0/01", "PRIVATE_REJECTED_PAPER"])("rejects genuinely different paper %s and reports only the controlled field", async component => {
+    const pages = businessPages(true), input = await inputFor(pages), fixture = runtime(pages);
+    const original = fixture.model.getMockImplementation()!;
+    fixture.model.mockImplementation(async (system, payload) => {
+      const result: any = await original(system, payload);
+      if (result.value.evidence) result.value.evidence.identity.component = component;
+      return result;
+    });
+    await prepareSourceJob(owner, input, fixture.deps);
+    await advanceSourceJob(owner, input.requestId, fixture.deps);
+    const failed = await advanceSourceJob(owner, input.requestId, fixture.deps);
+    expect(failed.stage).toBe("failed");
+    expect(failed.validationIssues?.[0]).toMatchObject({ code: "identity_conflict", field: "component" });
+    expect(failed.validationIssues?.[0].message).toMatch(/paper or assessment/);
+    expect(JSON.stringify(failed)).not.toContain(component);
+    expect(failed.proposal).toBeUndefined();
+    expect(fixture.memory.records.get(ownerKey(owner, input.requestId))!.data.evidence).toBeNull();
+  });
+
+  it("distinguishes a field mismatch from a later unconfirmed service call and never replays the possibly charged attempt", async () => {
+    const pages = businessPages(true), input = await inputFor(pages), fixture = runtime(pages);
+    const original = fixture.model.getMockImplementation()!;
+    fixture.model.mockImplementation(async (system, payload) => {
+      if (fixture.model.mock.calls.length === 2) throw Error("PRIVATE_PROVIDER_ERROR");
+      const result: any = await original(system, payload);
+      result.value.evidence.identity.component = "9BS0/02";
+      return result;
+    });
+    await prepareSourceJob(owner, input, fixture.deps);
+    expect((await advanceSourceJob(owner, input.requestId, fixture.deps)).stage).toBe("identifying");
+    const failed = await advanceSourceJob(owner, input.requestId, fixture.deps);
+    expect(failed.stage).toBe("failed");
+    expect(failed.needs?.join()).toMatch(/possibly charged/);
+    expect(failed.validationIssues).toMatchObject([
+      { attempt: 1, code: "identity_conflict", field: "component" },
+      { attempt: 2, code: "provider_outcome_unknown" },
+    ]);
+    expect(JSON.stringify(failed)).not.toMatch(/PRIVATE_PROVIDER_ERROR|invalidExtraction|detail/);
+    await getSourceJob(owner, input.requestId, fixture.deps);
+    await advanceSourceJob(owner, input.requestId, fixture.deps);
+    await prepareSourceJob(owner, input, fixture.deps);
+    expect(fixture.model).toHaveBeenCalledTimes(2);
+    expect(fixture.memory.usage.at(-1)).toMatchObject({ outcome: "unknown_provider_cost" });
+  });
+
+  it("keeps rejected edition metadata private even when a genuine identity conflict needs a new source", async () => {
+    const pages = businessPages(true), input = await inputFor(pages), fixture = runtime(pages);
+    const original = fixture.model.getMockImplementation()!;
+    fixture.model.mockImplementation(async (system, payload) => {
+      const result: any = await original(system, payload);
+      result.value.evidence.identity.specificationVersion = "Issue 1";
+      result.value.evidence.documents[0].version = "Issue 2 PRIVATE_REJECTED_EDITION";
+      return result;
+    });
+    await prepareSourceJob(owner, input, fixture.deps);
+    const blocked = await advanceSourceJob(owner, input.requestId, fixture.deps);
+    expect(blocked.stage).toBe("needs_details");
+    expect(blocked.validationIssues?.[0]).toMatchObject({ code: "identity_conflict", field: "specificationVersion" });
+    expect(JSON.stringify(blocked)).not.toContain("PRIVATE_REJECTED_EDITION");
+    expect(fixture.memory.records.get(ownerKey(owner, input.requestId))!.data.validationIssues?.[0].detail).toContain("PRIVATE_REJECTED_EDITION");
+    expect(fixture.model).toHaveBeenCalledOnce();
+  });
+
   it("offers exactly three Business assessments and starts the selected paper without a false page question", async () => {
     const pages = businessPages(), input = await inputFor(pages), fixture = runtime(pages);
     const found = await discoverSourceAssessments([

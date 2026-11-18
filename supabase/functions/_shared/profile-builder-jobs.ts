@@ -41,9 +41,11 @@ import {
 import { completeOwnedAssessmentEvidence } from "./profile-evidence-ingestion.ts";
 import { sourceTextIncludes } from "./source-text-match.ts";
 import { sourceResponseFormatQuotes } from "./profile-response-format-evidence.ts";
+import { canonicaliseOwnedSourceIdentity } from "./profile-source-identity.ts";
 import {
   coverSpecificationIssue,
   coverSpecificationIssueConflict,
+  specificationIssue,
   SourceSpecificationVersionConflict,
 } from "./profile-source-version.ts";
 import {
@@ -56,6 +58,9 @@ import { resolveCatalogueTier } from "./profile-catalogue-evidence.ts";
 import { resolveReviewedAssessmentRules } from "./profile-reviewed-assessment-rules.ts";
 import {
   sourceValidationRecord,
+  SourceIdentityValidationError,
+  SourceCallUncertainError,
+  type SourceIdentityField,
   type SourceValidationIssue,
   type SourceValidationRecord,
 } from "./profile-builder-diagnostics.ts";
@@ -1379,7 +1384,12 @@ const extractionSchema = z
     identityClaims: z.array(identityClaimSchema).max(20),
   })
   .strict();
-class SourceIdentityConflict extends Error {}
+class SourceIdentityConflict extends SourceIdentityValidationError {
+  constructor(message: string, field: SourceIdentityField = "specificationVersion", public trustedContext?: string) {
+    super(field);
+    this.message = message;
+  }
+}
 function checkExtracted(
   raw: unknown,
   data: SourceJobData,
@@ -1387,6 +1397,7 @@ function checkExtracted(
 ): ProfileEvidence {
   const parsed = extractionSchema.parse(raw),
     uploaded = parsed.evidence;
+  uploaded.identity = canonicaliseOwnedSourceIdentity(uploaded.identity, data.identity, data.sourceAssessment);
   const selected = data.selectionIdentity ?? data.requestedIdentity;
   const suppliedIds = new Set(chunk.sources.map((s) => s.documentId));
   if (
@@ -1526,6 +1537,8 @@ function checkExtracted(
     const previous = data.identity[key],
       next = e.identity[key];
     if (previous === next) continue;
+    if (key === "component" && data.sourceAssessment?.componentCode)
+      throw new SourceIdentityValidationError("component");
     if (
       key === "tier" &&
       previous === null &&
@@ -1535,11 +1548,9 @@ function checkExtracted(
     )
       continue;
     if (next === undefined)
-      throw Error("A saved assessment detail was removed during reading.");
+      throw new SourceIdentityValidationError(key, "removed");
     if (!mutable.has(key) || (key === "tier" && previous !== null))
-      throw Error(
-        "The document describes a different course. Check your assessment choices.",
-      );
+      throw new SourceIdentityValidationError(key);
     const c = parsed.identityClaims.find((claim) => claim.field === key);
     const l =
       c &&
@@ -1547,16 +1558,14 @@ function checkExtracted(
         .find((doc) => doc.id === c.documentId)
         ?.locations.find((loc) => loc.id === c.locationId);
     if (!c || !l || !sourceTextIncludes(l.text, c.quote))
-      throw Error(
-        "A discovered course detail needs a matching source reference.",
-      );
+      throw new SourceIdentityValidationError(key, "reference");
     const identityValue =
       next === "not_tiered"
         ? /untiered|not[ -]tiered|no tiers/i.test(c.quote)
         : typeof next === "string" &&
           norm(c.quote).toLowerCase().includes(norm(next).toLowerCase());
     if (!identityValue)
-      throw Error("A discovered course detail does not match its source.");
+      throw new SourceIdentityValidationError(key, "reference");
     if (
       key === "course" &&
       ![
@@ -1566,9 +1575,7 @@ function checkExtracted(
       ].includes(String(selected.course)) &&
       next !== selected.course
     )
-      throw Error(
-        "The document's course differs from your selected qualification.",
-      );
+      throw new SourceIdentityValidationError("course");
     if (
       key === "specificationVersion" &&
       data.specificationVersionIntent !== "source" &&
@@ -1579,10 +1586,17 @@ function checkExtracted(
         data.requestedIdentity.specificationVersion,
         String(next),
       )
-    )
+    ) {
+      const sourceEdition = l.text.split("\n").map(line => line.trim()).find(line =>
+        line.length <= 120 && specificationIssue(line) && line === String(next));
+      const trustedContext = sourceEdition
+        ? `The source states ${sourceEdition}, but this profile selects ${data.requestedIdentity.specificationVersion}. Add the matching source version. Your saved profiles are unchanged.`
+        : undefined;
       throw new SourceIdentityConflict(
-        `Your PDF is an older or different edition of this specification (${String(next)}), but Examly checks against ${data.requestedIdentity.specificationVersion}. It is the same course, but details can change between editions, so the build stopped. Upload the current specification from the exam board's website. Your saved profiles are unchanged.`,
+        trustedContext ?? "The source describes a different specification edition.",
+        "specificationVersion", trustedContext,
       );
+    }
     if (
       key === "module" &&
       selected.module &&
@@ -1590,6 +1604,7 @@ function checkExtracted(
     )
       throw new SourceIdentityConflict(
         "The source describes a different optional topic or module. Check the selected option and source.",
+        "module",
       );
     if (key === "component") {
       const requested = selected.component,
@@ -1605,9 +1620,7 @@ function checkExtracted(
           !/^(?:paper|unit)/i.test(requested) &&
           requested.toLowerCase() !== found.toLowerCase())
       )
-        throw Error(
-          "The document describes a different paper. Check your component choice.",
-        );
+        throw new SourceIdentityValidationError("component");
     }
     if (
       data.partials.length &&
@@ -1617,9 +1630,7 @@ function checkExtracted(
         specificationVersionsEquivalent(String(previous), String(next))
       )
     )
-      throw Error(
-        "The documents disagree about the course version or component.",
-      );
+      throw new SourceIdentityValidationError(key);
   }
   // Name "Sections 1 - 5" style pointers from this read onward, within this
   // batch's share of the reference budget; the merged pass retries otherwise.
@@ -2281,6 +2292,12 @@ export async function advanceSourceJob(
         {
           schema: z.toJSONSchema(extractionSchema),
           identity: data.identity,
+          selectedAssessment: data.sourceAssessment ? {
+            component: data.identity.component,
+            label: data.sourceAssessment.label,
+            aliases: data.sourceAssessment.aliases,
+            instruction: "Copy the confirmed identity. Read this paper only; a sibling's presence on a shared page is not a conflict. Shared qualification information does not establish paper-specific topics or assessment rules.",
+          } : undefined,
           reviewedContext: {
             tier: resolveCatalogueTier(data.identity),
             assessmentRules: (() => {
@@ -2411,6 +2428,7 @@ export async function advanceSourceJob(
     let template: ProfileTemplate;
     try {
       template = templateSchema.parse(result.value);
+      template.identity = canonicaliseOwnedSourceIdentity(template.identity, data.identity, data.sourceAssessment);
       // A model may not impersonate a user's explicit code confirmation.
       template.designDecisions = template.designDecisions.filter((decision) => !/^User-entered component code:/i.test(decision.trim()));
       if (data.specificationVersionIntent === "source")
@@ -2418,11 +2436,10 @@ export async function advanceSourceJob(
           data.identity.specificationVersion;
       // Only a student can add topics beyond the source; a draft cannot.
       delete template.addedTopics;
-      if (
-        canonical(template.identity) !== canonical(data.identity) ||
-        template.mode !== data.mode
-      )
-        throw Error("The draft changed the assessment you confirmed.");
+      const changed = (Object.keys({ ...data.identity, ...template.identity }) as Array<keyof TemplateIdentity>)
+        .find(key => template.identity[key] !== data.identity[key]);
+      if (changed) throw new SourceIdentityValidationError(changed);
+      if (template.mode !== data.mode) throw new SourceIdentityValidationError("mode");
       compileTemplate(template);
       validateEvidenceTemplate(template, data.evidence);
       if (data.manualComponentCode?.status === "user_provided") {
@@ -2470,6 +2487,8 @@ export async function advanceSourceJob(
       ),
     );
   } catch (error) {
+    if (callStarted && !result)
+      rememberValidation(new SourceCallUncertainError(), r.stage === "drafting" ? "draft" : "extraction");
     if (
       result &&
       !data.validationIssues?.some(
@@ -2482,7 +2501,7 @@ export async function advanceSourceJob(
       );
     data.needs = [
       error instanceof SourceIdentityConflict
-        ? error.message
+        ? (error.trustedContext ?? sourceValidationRecord(error, "extraction", r.callIntents + 1).message)
         : error instanceof SourceQuotaUnavailable
           ? SOURCE_QUOTA_MESSAGE
           : result
