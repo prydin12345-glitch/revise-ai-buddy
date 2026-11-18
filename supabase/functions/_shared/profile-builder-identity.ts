@@ -4,6 +4,8 @@ import { REVIEWED_ASSESSMENT_COURSES } from "./profile-assessment-catalogue.ts";
 import type { TemplateIdentity } from "./profile-template.ts";
 
 const key = (value: string) => value.replace(/\s+/g, "").toLowerCase();
+export const isSourceCoursePlaceholder = (identity: Pick<TemplateIdentity, "course" | "qualification" | "subject">) =>
+  !identity.course.trim() || key(identity.course) === key(`${identity.qualification} ${identity.subject}`);
 
 /** Intake placeholders describe a choice, never source evidence or a saved template.
  * Only prepare_source may accept blank course/version fields. All other fields
@@ -20,7 +22,7 @@ export function normaliseSourceIdentity(input: TemplateIdentity): TemplateIdenti
       key(course.organisation) === key(identity.organisation) && course.qualification === identity.qualification,
     ).map(course => ({ id: course.id, code: course.courseCode, untiered: false })),
   ].filter((course, index, all) => all.findIndex(item => item.id === course.id) === index) : [];
-  const placeholder = !identity.course.trim() || key(identity.course) === key(`${identity.qualification} ${identity.subject}`);
+  const placeholder = isSourceCoursePlaceholder(identity);
   const selected = placeholder
     ? courses.length === 1 ? courses[0] : undefined
     : courses.find(course => key(course.id) === key(canonicalCourseId(identity.course) ?? identity.course) || key(course.code) === key(identity.course));

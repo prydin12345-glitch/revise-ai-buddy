@@ -89,7 +89,7 @@ import {
 } from "@/lib/profile-builder-resolution";
 import { ALL_LEVELS } from "@/lib/educational-levels";
 import { classifySpecificationVersion } from "../../../supabase/functions/_shared/profile-version-context";
-import { normaliseSourceIdentity } from "../../../supabase/functions/_shared/profile-builder-identity";
+import { isSourceCoursePlaceholder, normaliseSourceIdentity } from "../../../supabase/functions/_shared/profile-builder-identity";
 
 interface Props {
   open: boolean;
@@ -1083,6 +1083,8 @@ export function ExamProfileBuilder({
       ? selectedDocument.kind[0].toUpperCase() + selectedDocument.kind.slice(1)
       : "Assessment";
   const chooseAssessment = (value: string, preserveModule = false) => {
+    if (!value || (value !== "__manual" && !papers.some(paper => paper.id === value) &&
+      !discovery?.candidates.some(candidate => candidate.id === value))) return;
     setConfirmedManualCode("");
     setManualCodeDialogOpen(false);
     invalidatePreview();
@@ -1107,6 +1109,8 @@ export function ExamProfileBuilder({
     setCodeEdited(false);
     setIdentity((previous) => ({
       ...previous,
+      ...(found?.courseCode && found.courseCodeReference && isSourceCoursePlaceholder(previous)
+        ? { course: found.courseCode } : {}),
       component: known?.id ?? found?.canonicalComponent ?? found?.componentCode ?? found?.label ?? "",
       module: preserveModule ? previous.module : undefined,
     }));
@@ -1339,6 +1343,7 @@ export function ExamProfileBuilder({
     onChange: (v: string) => void,
     options: [string, string][],
     label: string,
+    disablePlaceholder = false,
   ) => (
     <select
       aria-label={label}
@@ -1347,7 +1352,7 @@ export function ExamProfileBuilder({
       onChange={(e) => onChange(e.target.value)}
     >
       {options.map(([id, text]) => (
-        <option key={id} value={id}>
+        <option key={id} value={id} disabled={disablePlaceholder && !id}>
           {text}
         </option>
       ))}
@@ -1918,6 +1923,7 @@ export function ExamProfileBuilder({
                           : []),
                       ],
                       assessmentKind,
+                      true,
                     )}
                     {!papers.length &&
                       !discovery?.candidates.length &&

@@ -29,6 +29,44 @@ const pagesOf = () => {
 const snippetsOf = (index: ReturnType<typeof indexDocumentPages>) => index.chunks.flatMap(chunk => chunk.pages);
 
 describe("public Business PDF assessment regressions (offline excerpts)", () => {
+  it("keeps coded paper IDs stable across local placeholders, source course autofill and subject aliases", async () => {
+    const pages = pagesOf();
+    const expected = await discoverSourceAssessments([source(pages)], scope);
+    for (const subject of ["Business", "Business Studies"])
+      for (const course of ["", `A-level ${subject}`, "9bs0", "9BS0"])
+        for (const organisation of ["Edexcel", "Pearson Edexcel"]) {
+          const found = await discoverSourceAssessments([source(pages, "random-browser-file-id")], { ...scope, course, subject, organisation });
+          expect(found.candidates.map(candidate => candidate.id)).toEqual(expected.candidates.map(candidate => candidate.id));
+        }
+    // A genuine source-course mismatch still yields no valid ID to submit.
+    expect((await discoverSourceAssessments([source(pages)], { ...scope, course: "8BS0" })).candidates).toEqual([]);
+    expect((await discoverSourceAssessments([source(pages)], { ...scope, qualification: "AS" })).candidates).toEqual([]);
+  });
+
+  it("supplies the selected paper's parent course only with a literal same-source course declaration", async () => {
+    const found = await discoverSourceAssessments([source(pagesOf())], { ...scope, course: "A-level Business" });
+    for (const candidate of found.candidates) {
+      expect(candidate.courseCode).toBe("9BS0");
+      const reference = candidate.courseCodeReference!;
+      expect(reference.checksum).toBe(fixture.source.sha256);
+      expect(pagesOf()[reference.page - 1]).toContain(reference.quote);
+      expect(reference.quote).toContain("(9BS0)");
+    }
+    for (const pages of [
+      ["A-level Business\nPaper 1: Marketing (9BS0/01)\n100 marks"],
+      ["A-level Business (9BS1)\nPaper 1: Marketing (9BS0/01)\n100 marks"],
+    ]) {
+      const unproven = await discoverSourceAssessments([source(pages)], { ...scope, course: "" });
+      expect(unproven.candidates[0].componentCode).toBe("9BS0/01");
+      expect(unproven.candidates[0].courseCode).toBeUndefined();
+    }
+    const unrelated = await discoverSourceAssessments([
+      source(["A-level Business\nPaper 1: Marketing (9BS0/01)\n100 marks"], "assessment", "a".repeat(64)),
+      source(["A-level Business (9BS0)"], "unrelated", "b".repeat(64)),
+    ], { ...scope, course: "" });
+    expect(unrelated.candidates[0].courseCode).toBeUndefined();
+  });
+
   it("replays captured real PDF.js heading/code/sidebar geometry through the current extractor", async () => {
     const extracted = await extractIndexedPdfPages(new TextEncoder().encode("%PDF-fixture"), async () => ({
       numPages: fixture.geometryExcerpts.length,

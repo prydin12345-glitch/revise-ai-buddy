@@ -46,6 +46,13 @@ const { chromium } = require(process.env.PLAYWRIGHT_CORE_PATH || '/tmp/examly-bu
           assert.ok(candidates.every((candidate, index) => candidate.label.startsWith(`Paper ${index + 1} — `)));
           await assessment().selectOption(candidates[0].value);
           await advanced();
+          await page.waitForFunction(() => !document.body.innerText.includes('Finding assessment names in your attached files…'));
+          assert.equal(await assessment().inputValue(), candidates[0].value, 'Source selection survives course autofill and local reinspection');
+          assert.equal(await page.getByLabel('Course / specification code', { exact: true }).inputValue(), '9BS0');
+          assert.equal(await assessment().locator('option[value=""]').evaluate(option => option.disabled), true, 'Assessment placeholder is disabled');
+          await assessment().focus();
+          await page.keyboard.press('Home');
+          assert.equal(await assessment().inputValue(), candidates[0].value, 'Keyboard navigation skips the disabled placeholder');
           assert.equal(await page.getByLabel('Paper / component code', { exact: true }).inputValue(), '9BS0/01');
           assert.equal(await page.getByRole('list', { name: 'Attached source files' }).locator('li').count(), 1);
           assert.ok(await page.getByText('Earlier local inspection could not separate these assessments.', { exact: true }).isVisible());
@@ -54,7 +61,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_CORE_PATH || '/tmp/examly-bu
           await page.waitForFunction(() => window.__counts().calls.length === 1);
           await page.getByText('Earlier local inspection could not separate these assessments.', { exact: true }).waitFor({ state: 'hidden' });
           const calls = await page.evaluate(() => window.__counts().calls);
-          assert.equal(calls[0].identity.course, courseBefore || 'A-level Business Studies');
+          assert.equal(calls[0].identity.course, '9BS0');
           assert.equal(calls[0].identity.tier, null);
           assert.equal(calls[0].uploads.length, 1);
           assert.equal(calls[0].uploads[0].bytes, Buffer.byteLength(text));

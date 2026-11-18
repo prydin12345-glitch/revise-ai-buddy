@@ -5,7 +5,7 @@ import {
   type AssessmentScopeResolution,
 } from "./profile-document-index.ts";
 
-export const ASSESSMENT_DISCOVERY_VERSION = 3;
+export const ASSESSMENT_DISCOVERY_VERSION = 4;
 export type SourceAssessmentKind =
   "paper" | "unit" | "component" | "assessment";
 export interface AssessmentDiscoveryDocument {
@@ -27,6 +27,10 @@ export interface DiscoveredAssessment {
   /** Stable matching value, separate from the presentation title. */
   canonicalComponent: string;
   componentCode?: string;
+  /** Parent code printed in a course heading in the same source, not inferred
+   * from an arbitrary manual component reference. */
+  courseCode?: string;
+  courseCodeReference?: AssessmentSourceReference;
   kind: SourceAssessmentKind;
   qualification?: string;
   aliases: string[];
@@ -394,6 +398,26 @@ function sourceEdition(pages: string[]): string | undefined {
   return undefined;
 }
 
+function sourceCourseCode(
+  assessment: FoundAssessment,
+  documents: AssessmentDiscoveryDocument[],
+): { courseCode: string; courseCodeReference: AssessmentSourceReference } | undefined {
+  const prefix = assessment.componentCode?.match(/^([A-Za-z0-9]{3,12})\/\d{1,3}[A-Za-z]{0,2}$/)?.[1];
+  if (!prefix) return;
+  const code = prefix.toUpperCase();
+  const declared = new RegExp(`(?:\\(\\s*${code}\\s*\\)|\\b(?:course|specification|subject|qualification)\\s+(?:code|number)\\s*:\\s*${code}\\b)`, "i");
+  for (const document of documents) {
+    if (!assessment.references.some(reference => reference.checksum === document.checksum)) continue;
+    for (const [index, page] of document.pages.entries())
+      for (const line of page.split("\n")) {
+        if (line.length > 240 || instructionLine.test(line) ||
+          !/\b(?:GCE|GCSE|A[\s\u2010-\u2015-]*level|AS|qualification|specification|course|subject)\b/i.test(line) ||
+          !declared.test(line)) continue;
+        return { courseCode: code, courseCodeReference: literalReference(document, index + 1, line) };
+      }
+  }
+}
+
 /**
  * Extracts choices from source text only. It neither verifies course identity
  * nor awards approval; callers bind the result to an owned request receipt and
@@ -630,7 +654,7 @@ export async function discoverSourceAssessments(
         other.base === assessment.base && other.qualification === assessment.qualification) : [];
       const canonicalComponent = assessment.componentCode ??
         (assessment.base && sameBase.length === 1 ? assessment.base : assessment.label);
-      const identity = {
+      const sourceIdentity = {
         kind: assessment.kind,
         component: normaliseAssessmentAlias(canonicalComponent),
         code: assessment.componentCode?.toLowerCase() ?? "",
@@ -641,16 +665,22 @@ export async function discoverSourceAssessments(
           other.qualification === assessment.qualification)
           ? { conflictingLabel: normaliseAssessmentAlias(assessment.label) } : {}),
         qualification: assessment.qualification ?? "",
-        edition: assessment.edition ?? "",
-        requestedQualification: scope.qualification?.trim().toLowerCase() ?? "",
-        subject: scope.subject?.trim().toLowerCase() ?? "",
-        course: scope.course?.trim().toLowerCase() ?? "",
-        organisation: scope.organisation?.trim().toLowerCase() ?? "",
+        // Source checksums already pin the edition. A coded paper's identity
+        // must survive blank/default course fields, subject aliases and local
+        // versus server parsing of a cover's typography.
+        ...(!assessment.componentCode ? { edition: assessment.edition ?? "" } : {}),
         sources: [
           ...new Set(
             assessment.references.map((reference) => reference.checksum),
           ),
         ].sort(),
+      };
+      const identity = assessment.componentCode ? sourceIdentity : {
+        ...sourceIdentity,
+        requestedQualification: scope.qualification?.trim().toLowerCase() ?? "",
+        subject: scope.subject?.trim().toLowerCase() ?? "",
+        course: scope.course?.trim().toLowerCase() ?? "",
+        organisation: scope.organisation?.trim().toLowerCase() ?? "",
       };
       return {
         id: `source-assessment-${(await checksum(canonical(identity))).slice(0, 24)}`,
@@ -659,6 +689,7 @@ export async function discoverSourceAssessments(
         ...(assessment.componentCode
           ? { componentCode: assessment.componentCode }
           : {}),
+        ...sourceCourseCode(assessment, documents),
         kind: assessment.kind,
         ...(assessment.qualification
           ? { qualification: assessment.qualification }
