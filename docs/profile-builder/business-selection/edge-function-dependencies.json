@@ -1,0 +1,19 @@
+{
+  "baseline": "23d9350e17f9ec48873857ca26265b9c6aadb101",
+  "method": "esbuild transitive input graph for all real Edge entry points; handlers are not executed",
+  "entryPointsChecked": 39,
+  "changedServerModules": [
+    "supabase/functions/_shared/profile-assessment-discovery.ts",
+    "supabase/functions/_shared/profile-builder-identity.ts"
+  ],
+  "affected": [
+    {
+      "function": "profile-builder",
+      "entryPoint": "supabase/functions/profile-builder/index.ts",
+      "changedInputs": [
+        "supabase/functions/_shared/profile-assessment-discovery.ts",
+        "supabase/functions/_shared/profile-builder-identity.ts"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "date": "2026-11-18",
+  "baseline": "23d9350e17f9ec48873857ca26265b9c6aadb101",
+  "branch": "codex/business-profile-selection",
+  "status": "PASS",
+  "change": {
+    "discoveryVersion": 4,
+    "codedIdsBoundToSourceNotMutableCourseLabels": true,
+    "courseAutofill": "Only from a literal same-source parent-code declaration and discovered component",
+    "placeholder": "Disabled native option; empty event is a no-op; keyboard skips it",
+    "serverSelectionVerification": "Unchanged strict source/code/ID checks"
+  },
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.9.0",
+    "deno": "2.5.6",
+    "playwright": "1.62.0",
+    "browser": "System Chromium"
+  },
+  "checks": {
+    "dependencies": {
+      "command": "npm ls --depth=0 --cache /tmp/examly-business-npm-cache",
+      "exitCode": 0
+    },
+    "repository": {
+      "command": "npm run check",
+      "exitCode": 0,
+      "testFiles": 208,
+      "tests": 3527,
+      "frontendTypes": "PASS",
+      "physicsTypes": "PASS",
+      "criticalLint": "PASS",
+      "edgeIdentifierCheck": "PASS",
+      "edgeBundles": 39,
+      "productionBuild": "PASS",
+      "buildSeconds": 20.89
+    },
+    "backendTypes": {
+      "command": "DENO_TLS_CA_STORE=system DENO_DIR=/tmp/examly-business-deno-cache /tmp/examly-business-tools/node_modules/.bin/deno check --no-lock --config supabase/functions/profile-builder/deno.json supabase/functions/profile-builder/index.ts",
+      "exitCode": 0,
+      "TLSVerificationDisabled": false
+    },
+    "newFormToHandlerRegression": {
+      "file": "src/test/profile-builder-source-selection.test.tsx",
+      "tests": 4,
+      "boundary": "Actual React form, unmocked source inspection, real client and bundled handler, controlled provider and owner-scoped in-memory RPC",
+      "allPapersReachConfirmation": true,
+      "uploadsPreserved": true,
+      "unknownTierPreserved": true,
+      "explicitCoursePreserved": true,
+      "manualReferenceDoesNotAutofillCourse": true
+    },
+    "newSourceRegressions": {
+      "file": "supabase/tests/profile-business-discovery-index.test.ts",
+      "added": 2,
+      "covers": [
+        "Stable IDs across 16 course/subject/board combinations",
+        "Wrong qualification/course remains excluded",
+        "Literal parent-code reference",
+        "No inferred parent from only a component code",
+        "No cross-document parent-code authority"
+      ]
+    },
+    "browser": {
+      "cases": 12,
+      "viewports": [
+        "laptop 1440x1000",
+        "iPad 834x1194",
+        "phone 390x844"
+      ],
+      "themes": [
+        "light",
+        "dark"
+      ],
+      "scenarios": [
+        "confirmation",
+        "controlled failure"
+      ],
+      "status": "PASS",
+      "defaultCourseAutofilled": "9BS0",
+      "selectionSurvivesReinspection": true,
+      "placeholderDisabledAndKeyboardSkipped": true,
+      "applicationHashInputs": 833,
+      "serverHashInputs": 192,
+      "beforeAfterFrozenHashes": "PASS",
+      "externalRequests": 0,
+      "errors": 0
+    },
+    "publicReference": {
+      "report": "public-reference.json",
+      "choices": 3,
+      "automaticAndFocusedChecks": 6,
+      "allComplete": true,
+      "privateUploadAccessed": false
+    },
+    "gitDiffCheck": "PASS",
+    "packageAndLockfilesChanged": false,
+    "envChanged": false
+  },
+  "affectedFunctions": [
+    "profile-builder"
+  ],
+  "dependencyGraph": "edge-function-dependencies.json",
+  "deployment": {
+    "performed": false,
+    "matchingFrontendAndBackendRequired": true,
+    "migrationRequired": false,
+    "liveBackendRevisionVerified": false
+  },
+  "limitations": [
+    "No paid model build or live student data used",
+    "Public PDF is not the private upload",
+    "Browser viewport emulation is not physical iOS/iPadOS certification",
+    "Version 4 coded IDs require matching profile-builder backend; refresh the source selection after release"
+  ],
+  "warnings": [
+    "Existing package deprecation notices",
+    "Outdated Browserslist data",
+    "Production chunks over 500 kB",
+    "Rollup annotation warning from a dependency",
+    "PDF standard-font-data warnings with rendering disabled; reference extraction passes"
+  ]
+}
