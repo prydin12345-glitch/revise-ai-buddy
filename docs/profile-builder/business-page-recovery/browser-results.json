@@ -1,0 +1,304 @@
+{
+  "status": "PASS",
+  "boundary": "Actual UI/local inspection and deterministic public-excerpt indexing; controlled API. Backend/client build-flow regressions run separately. No live AI, account, database or private upload.",
+  "cases": [
+    {
+      "viewport": {
+        "name": "laptop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "scenario": "pages",
+      "noHorizontalOverflow": true,
+      "explicitActionOnly": true,
+      "uploadRetained": true,
+      "screenshot": "laptop-light-pages.png"
+    },
+    {
+      "viewport": {
+        "name": "laptop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "scenario": "tier",
+      "noHorizontalOverflow": true,
+      "explicitActionOnly": true,
+      "uploadRetained": true,
+      "screenshot": "laptop-light-tier.png"
+    },
+    {
+      "viewport": {
+        "name": "laptop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "scenario": "failed",
+      "noHorizontalOverflow": true,
+      "explicitActionOnly": true,
+      "uploadRetained": true,
+      "screenshot": "laptop-light-failed.png"
+    },
+    {
+      "viewport": {
+        "name": "laptop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "scenario": "pages",
+      "noHorizontalOverflow": true,
+      "explicitActionOnly": true,
+      "uploadRetained": true,
+      "screenshot": "laptop-dark-pages.png"
+    },
+    {
+      "viewport": {
+        "name": "laptop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "scenario": "tier",
+      "noHorizontalOverflow": true,
+      "explicitActionOnly": true,
+      "uploadRetained": true,
+      "screenshot": "laptop-dark-tier.png"
+    },
+    {
+      "viewport": {
+        "name": "laptop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "scenario": "failed",
+      "noHorizontalOverflow": true,
+      "explicitActionOnly": true,
+      "uploadRetained": true,
+      "screenshot": "laptop-dark-failed.png"
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "light",
+      "scenario": "pages",
+      "noHorizontalOverflow": true,
+      "explicitActionOnly": true,
+      "uploadRetained": true,
+      "screenshot": "ipad-light-pages.png"
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "light",
+      "scenario": "tier",
+      "noHorizontalOverflow": true,
+      "explicitActionOnly": true,
+      "uploadRetained": true,
+      "screenshot": "ipad-light-tier.png"
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "light",
+      "scenario": "failed",
+      "noHorizontalOverflow": true,
+      "explicitActionOnly": true,
+      "uploadRetained": true,
+      "screenshot": "ipad-light-failed.png"
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "dark",
+      "scenario": "pages",
+      "noHorizontalOverflow": true,
+      "explicitActionOnly": true,
+      "uploadRetained": true,
+      "screenshot": "ipad-dark-pages.png"
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "dark",
+      "scenario": "tier",
+      "noHorizontalOverflow": true,
+      "explicitActionOnly": true,
+      "uploadRetained": true,
+      "screenshot": "ipad-dark-tier.png"
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "dark",
+      "scenario": "failed",
+      "noHorizontalOverflow": true,
+      "explicitActionOnly": true,
+      "uploadRetained": true,
+      "screenshot": "ipad-dark-failed.png"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "scenario": "pages",
+      "noHorizontalOverflow": true,
+      "explicitActionOnly": true,
+      "uploadRetained": true,
+      "screenshot": "phone-light-pages.png"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "scenario": "tier",
+      "noHorizontalOverflow": true,
+      "explicitActionOnly": true,
+      "uploadRetained": true,
+      "screenshot": "phone-light-tier.png"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "scenario": "failed",
+      "noHorizontalOverflow": true,
+      "explicitActionOnly": true,
+      "uploadRetained": true,
+      "screenshot": "phone-light-failed.png"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "scenario": "pages",
+      "noHorizontalOverflow": true,
+      "explicitActionOnly": true,
+      "uploadRetained": true,
+      "screenshot": "phone-dark-pages.png"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "scenario": "tier",
+      "noHorizontalOverflow": true,
+      "explicitActionOnly": true,
+      "uploadRetained": true,
+      "screenshot": "phone-dark-tier.png"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "scenario": "failed",
+      "noHorizontalOverflow": true,
+      "explicitActionOnly": true,
+      "uploadRetained": true,
+      "screenshot": "phone-dark-failed.png"
+    }
+  ],
+  "errors": [],
+  "blockedRequests": [],
+  "hashesBefore": {
+    "status": "PASS",
+    "applicationFiles": 837,
+    "serverFiles": 193,
+    "dependencyInputs": 1743,
+    "applicationDifferences": [],
+    "serverDifferences": [],
+    "dependencyDifferencesWithinRun": [],
+    "fixtureDifferences": [],
+    "fontDifferences": [],
+    "outputDifferences": [],
+    "runtime": {
+      "node": "v24.19.0",
+      "platform": "linux",
+      "architecture": "x64",
+      "osRelease": "6.18.57",
+      "packages": {
+        "esbuild": "0.28.2",
+        "postcss": "8.5.6",
+        "postcss-import": "15.1.0",
+        "tailwindcss": "3.4.17",
+        "autoprefixer": "10.4.21",
+        "react": "18.3.1",
+        "react-dom": "18.3.1",
+        "react-router-dom": "6.26.2",
+        "unpdf": "1.8.1",
+        "zod": "4.6.2"
+      }
+    },
+    "policy": "Every recorded application/server/config/lockfile/fixture/font/dependency input and generated bundle/style output must match the frozen build. Server pinning does not imply that backend endpoints ran in the browser."
+  },
+  "hashesAfter": {
+    "status": "PASS",
+    "applicationFiles": 837,
+    "serverFiles": 193,
+    "dependencyInputs": 1743,
+    "applicationDifferences": [],
+    "serverDifferences": [],
+    "dependencyDifferencesWithinRun": [],
+    "fixtureDifferences": [],
+    "fontDifferences": [],
+    "outputDifferences": [],
+    "runtime": {
+      "node": "v24.19.0",
+      "platform": "linux",
+      "architecture": "x64",
+      "osRelease": "6.18.57",
+      "packages": {
+        "esbuild": "0.28.2",
+        "postcss": "8.5.6",
+        "postcss-import": "15.1.0",
+        "tailwindcss": "3.4.17",
+        "autoprefixer": "10.4.21",
+        "react": "18.3.1",
+        "react-dom": "18.3.1",
+        "react-router-dom": "6.26.2",
+        "unpdf": "1.8.1",
+        "zod": "4.6.2"
+      }
+    },
+    "policy": "Every recorded application/server/config/lockfile/fixture/font/dependency input and generated bundle/style output must match the frozen build. Server pinning does not imply that backend endpoints ran in the browser."
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "status": "PASS",
+  "branch": "codex/business-page-recovery",
+  "baseline": "06661f92cda1c8a46dfc5283a43d8e71ed6054b6",
+  "runtime": {
+    "node": "v24.19.0",
+    "npm": "11.9.0",
+    "deno": "2.5.6",
+    "playwright": "1.62.0"
+  },
+  "dependencies": {
+    "command": "npm ls --depth=0 --cache /tmp/examly-business-npm-cache",
+    "exitCode": 0,
+    "packageAndLockfilesChanged": false,
+    "envChanged": false
+  },
+  "repositoryChecks": {
+    "command": "npm run check",
+    "exitCode": 0,
+    "frontendTypecheck": "PASS",
+    "physicsTypecheck": "PASS",
+    "criticalLint": "PASS",
+    "testFiles": 213,
+    "testsPassed": 3644,
+    "testsFailed": 0,
+    "edgeIdentifierCheck": "PASS",
+    "edgeBundles": 39,
+    "productionBuildSeconds": 24.43
+  },
+  "backendTypes": {
+    "command": "DENO_TLS_CA_STORE=system DENO_DIR=/tmp/examly-business-deno-cache /tmp/examly-business-tools/node_modules/.bin/deno check --no-lock --config supabase/functions/profile-builder/deno.json supabase/functions/profile-builder/index.ts supabase/functions/extract-exam-questions/index.ts",
+    "exitCode": 0
+  },
+  "publicReference": {
+    "sha256": "8d66018d0a9d826cdb9729c78012d73f5e7ab32bd8946f9eb9fd501827c9829f",
+    "physicalPages": 68,
+    "bytes": 574854,
+    "baselinePassingCases": 7,
+    "currentPassingCases": 19,
+    "totalCases": 19,
+    "continuationFixtureMatchesExtractedPublicPages": true,
+    "boundary": "Public Pearson reference, not a private uploaded file."
+  },
+  "controlledBuildFlows": [
+    "Reported Paper 1 list 13,14,17,18,39,40,45 accepted on same job; original facts retained; profile completed in 3 controlled model calls, one parse and one reservation.",
+    "Real production client and bundled handler accept explicit unknown-tier-practice answer, change full_mock to short_practice locally, confirm/save/restore with tier null and not_approved; 2 controlled provider calls total.",
+    "Unknown model tier guesses are not source facts; quoted known tiers are retained; genuine concrete and cited contradictions remain blocked.",
+    "Restart confirmation retains files, identity, mode and edition; no new preparation until explicit Read syllabus. Other-subject receipts remain untouched.",
+    "Restored failed receipt performs status only and restores the uniquely matching assessment after asynchronous local discovery."
+  ],
+  "browser": {
+    "cases": 18,
+    "status": "PASS",
+    "viewports": [
+      "laptop 1440x1000",
+      "iPad 834x1194",
+      "phone 390x844"
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "scenarios": [
+      "reported page list",
+      "explicit unknown-tier practice",
+      "failed-build restart"
+    ],
+    "noHorizontalOverflow": true,
+    "errors": [],
+    "blockedRequests": [],
+    "frozenInputOutputHashes": "PASS",
+    "artifacts": "/tmp/profile-builder-business-page-recovery",
+    "visuallyInspected": [
+      "phone-light-failed.png",
+      "ipad-dark-pages.png",
+      "phone-light-tier.png"
+    ],
+    "boundary": "Actual UI/local inspection and deterministic indexing; controlled API, Chromium viewport emulation."
+  },
+  "deploymentFunctions": [
+    "profile-builder",
+    "extract-exam-questions"
+  ],
+  "documentIndexVersion": 9,
+  "warnings": [
+    "Existing Browserslist age and Vite bundle/annotation warnings.",
+    "PDF standard-font-data warnings during text extraction."
+  ],
+  "limitations": [
+    "No live paid AI build or provider-log access.",
+    "No private uploads, student data or production profile writes.",
+    "No physical iOS/iPadOS or complete accessibility certification.",
+    "No merge, deployment, website publication or database migration."
+  ]
+}

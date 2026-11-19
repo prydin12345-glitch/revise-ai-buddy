@@ -101,7 +101,7 @@ export const sourceJobRequestSchema = z.discriminatedUnion("action", [
       revision: z.number().int().min(0),
       answers: z
         .partialRecord(
-          z.enum(["assessment", "module", "source_pages", "source"]),
+          z.enum(["assessment", "module", "source_pages", "source", "tier"]),
           z.string().trim().min(1).max(180),
         )
         .refine(
@@ -136,7 +136,7 @@ export interface SourceAssessmentChoice {
   canonicalComponent?: string;
 }
 export interface SourceMissingItem {
-  field: "assessment" | "module" | "source_pages" | "source";
+  field: "assessment" | "module" | "source_pages" | "source" | "tier";
   question: string;
   choices?: Array<{ value: string; label: string }>;
 }
@@ -636,10 +636,17 @@ function pageQuestion(
   documents: SourceDocument[],
   question?: string,
 ): SourceMissingItem {
-  const choices = documents.flatMap((document, i) =>
+  const topicNeed = /topics|syllabus page|section.*topic/i.test(question ?? data.needs[0] ?? "");
+  const choices = documents.flatMap((document, i) => {
+    const topicPages = topicNeed ? new Set(indexDocumentPages(
+      document.pages.map(page => page.text), ownedDocumentSelection(data),
+    ).chunks.flatMap(chunk => chunk.pages.filter(page =>
+      /^\s*(?:(?:Theme|Topic|Module)\s+\d|\d{1,2}(?:\.\d{1,2}){1,3}\s)/mi.test(page.text),
+    ).map(page => page.page))) : undefined;
+    return (
     document.pages
       .filter((page) =>
-        /\b(?:paper|component|unit)\s*\d|assessment (?:overview|structure)|qualification at a glance/i.test(
+        topicPages ? topicPages.has(page.page) : /\b(?:paper|component|unit)\s*\d|assessment (?:overview|structure)|qualification at a glance/i.test(
           page.text,
         ),
       )
@@ -649,8 +656,8 @@ function pageQuestion(
           const last = page.text.trim().split("\n").at(-1)?.trim();
           return last && /^\d{1,3}$/.test(last) && Number(last) !== page.page ? ` · printed page ${Number(last)}` : "";
         })()}`,
-      })),
-  );
+      })));
+  });
   return {
     field: "source_pages",
     question:
@@ -718,6 +725,14 @@ async function sourceQuestions(
   return items;
 }
 function evidenceSourceQuestions(data: SourceJobData): SourceMissingItem[] {
+  // Silence about tiers is missing evidence, not a reason to keep asking for
+  // topic pages. Only a deliberate choice may relax this to unknown practice.
+  if (unknownTierPracticeAvailable(data))
+    return [{
+      field: "tier",
+      question: "These sources do not establish the assessment tier. You can continue as short practice with the tier unverified, or change the source or details.",
+      choices: [{ value: "unknown_practice", label: "Continue as short practice with tier unverified" }],
+    }];
   // A student's answer cannot establish missing marks/time/rules. Ask where the
   // source states them; all facts still pass the same extraction/quote gates.
   const question = data.needs[0];
@@ -738,6 +753,14 @@ function evidenceSourceQuestions(data: SourceJobData): SourceMissingItem[] {
         )
       : sourceQuestion(data, question),
   ];
+}
+function unknownTierPracticeAvailable(data: SourceJobData): boolean {
+  const e = data.evidence;
+  return Boolean(e && e.facts.tier === null && !e.conflicts.length &&
+    !e.claims.some(claim => claim.field === "tier") &&
+    !e.catalogueFacts?.length &&
+    data.partials.every(part => part.facts.tier === null && !part.claims.some(claim => claim.field === "tier")) &&
+    (data.identity.tier !== null || data.mode === "full_mock"));
 }
 function extractionCapacity(data: SourceJobData, chunk?: SourceChunk) {
   const parts = data.partials;
@@ -1431,6 +1454,14 @@ function checkExtracted(
         );
     }
   }
+  // A null source fact cannot establish a guessed tier. Preserve the selected
+  // identity when the model omits it, or keep an unknown selection unknown.
+  // Concrete contradictory selections and cited tier claims still validate.
+  if (uploaded.identity.tier !== data.identity.tier && uploaded.facts.tier === null &&
+      !uploaded.claims.some(claim => claim.field === "tier") &&
+      !parsed.identityClaims.some(claim => claim.field === "tier") &&
+      (data.identity.tier === null || uploaded.identity.tier === null))
+    uploaded.identity.tier = data.identity.tier;
   const batches = data.chunks.length;
   if (
     uploaded.claims.length > Math.floor(60 / batches) ||
@@ -1522,6 +1553,11 @@ function checkExtracted(
       throw new SourceIdentityConflict(error.message);
     throw error;
   }
+  // The already validated fact has its own literal quote (or catalogue
+  // provenance); it does not need a second, model-authored identity claim.
+  const tierFromFact = e.identity.tier === null && e.facts.tier !== null &&
+    (data.identity.tier === null || data.identity.tier === e.facts.tier);
+  if (tierFromFact) e.identity.tier = e.facts.tier;
   const mutable = new Set([
     "course",
     "component",
@@ -1537,6 +1573,7 @@ function checkExtracted(
     const previous = data.identity[key],
       next = e.identity[key];
     if (previous === next) continue;
+    if (key === "tier" && tierFromFact) continue;
     if (key === "component" && data.sourceAssessment?.componentCode)
       throw new SourceIdentityValidationError("component");
     if (
@@ -1959,6 +1996,30 @@ export async function answerSourceJob(
     throw Error(
       "Add the relevant assessment source. Typed answers cannot replace source evidence.",
     );
+  if (item.field === "tier") {
+    if (answer !== "unknown_practice" || !unknownTierPracticeAvailable(snapshot.data))
+      throw Error("This tier needs matching source evidence. Change the details or source.");
+    const r = await deps.store.acquire(owner, id);
+    if (!r.leaseToken) return view(r);
+    if (r.stage !== "ready" || r.revision !== input.revision)
+      return view(await deps.store.commit(r, { stage: r.stage, data: r.data, elapsedMs: 0 }));
+    try {
+      const data = structuredClone(r.data);
+      data.identity.tier = null;
+      data.mode = "short_practice";
+      data.selectionIdentity = { ...(data.selectionIdentity ?? data.identity), tier: null };
+      data.evidence!.identity.tier = null;
+      data.partials = data.partials.map(part => ({ ...part, identity: { ...part.identity, tier: null } }));
+      data.needs = missingRequirements(data);
+      if (data.needs.length) data.missingItems = evidenceSourceQuestions(data);
+      else delete data.missingItems;
+      checkedCheckpoint(data);
+      return view(await deps.store.commit(r, { stage: "ready", data, elapsedMs: 0 }));
+    } catch (error) {
+      await deps.store.commit(r, { stage: r.stage, data: r.data, elapsedMs: 0 });
+      throw error;
+    }
+  }
   const data = structuredClone(snapshot.data),
     documents = data.retainedDocuments;
   if (!documents?.length)
@@ -2429,6 +2490,15 @@ export async function advanceSourceJob(
     try {
       template = templateSchema.parse(result.value);
       template.identity = canonicaliseOwnedSourceIdentity(template.identity, data.identity, data.sourceAssessment);
+      // A draft has no authority to discover a tier. Unknown source evidence
+      // remains unknown; omission of an already confirmed tier is not a change.
+      if (data.identity.tier === null && data.evidence.facts.tier === null)
+        template.identity.tier = null;
+      else if (template.identity.tier === null)
+        template.identity.tier = data.identity.tier;
+      if (data.identity.tier === null && data.evidence.facts.tier === null)
+        template.warnings = [...new Set([...template.warnings,
+          "Assessment tier remains unverified; this profile is practice, not a verified full mock."] )];
       // A model may not impersonate a user's explicit code confirmation.
       template.designDecisions = template.designDecisions.filter((decision) => !/^User-entered component code:/i.test(decision.trim()));
       if (data.specificationVersionIntent === "source")

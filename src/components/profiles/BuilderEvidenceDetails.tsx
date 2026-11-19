@@ -26,7 +26,7 @@ export function BuilderEvidenceDetails({ job }: { job: SourceJobView }) {
                 ? "selected for reading."
                 : page.status === "blocked"
                   ? `located, but could not be used. ${page.reason ?? "The assessment details need checking."}`
-                  : `the selected assessment was not found on this page. ${page.reason ?? "Check the PDF page number and the printed page label."}`}
+                  : `we couldn’t safely link this page to the selected assessment. ${page.reason ?? "Check the physical PDF page counter and the printed page label."}`}
             </span>
           )) : <>{review.readPages.length
             ? `PDF pages selected for reading: ${review.readPages.join(", ")}.`
@@ -34,6 +34,7 @@ export function BuilderEvidenceDetails({ job }: { job: SourceJobView }) {
           {review.skippedPages.length > 0 && (
             <> PDF pages {review.skippedPages.join(", ")} were skipped because they could not be safely matched to this assessment.</>
           )}</>}
+          <span className="mt-1 block text-xs">Page selection alone does not verify assessment facts.</span>
         </p>
       ))}
       {showIssues ? (

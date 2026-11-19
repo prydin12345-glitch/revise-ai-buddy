@@ -1,0 +1,617 @@
+{
+  "source": {
+    "checksum": "8d66018d0a9d826cdb9729c78012d73f5e7ab32bd8946f9eb9fd501827c9829f",
+    "bytes": 574854,
+    "physicalPages": 68,
+    "continuationFixtureLiteral": true,
+    "boundary": "Public Pearson reference; not a private uploaded copy."
+  },
+  "revision": "06661f92cda1c8a46dfc5283a43d8e71ed6054b6",
+  "discoveredAssessments": [
+    {
+      "label": "Paper 1 — Marketing, people and global businesses",
+      "code": "9BS0/01"
+    },
+    {
+      "label": "Paper 2 — Business activities, decisions and strategy",
+      "code": "9BS0/02"
+    },
+    {
+      "label": "Paper 3 — Investigating business in a competitive environment",
+      "code": "9BS0/03"
+    }
+  ],
+  "cases": [
+    {
+      "paper": "9BS0/01",
+      "sourcePages": "automatic",
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": true
+      },
+      "selectedPages": [
+        1,
+        13,
+        14,
+        17,
+        39,
+        45,
+        48,
+        67
+      ],
+      "characters": 3398,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": true,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/01",
+      "sourcePages": [
+        18
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": false,
+        "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.",
+        "code": "assessment_not_found"
+      },
+      "selectedPages": [],
+      "diagnostics": [
+        {
+          "page": 18,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        }
+      ],
+      "characters": 0,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": false,
+      "bounded": true,
+      "passed": false
+    },
+    {
+      "paper": "9BS0/01",
+      "sourcePages": [
+        40
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": false,
+        "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.",
+        "code": "assessment_not_found"
+      },
+      "selectedPages": [],
+      "diagnostics": [
+        {
+          "page": 40,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        }
+      ],
+      "characters": 0,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": false,
+      "bounded": true,
+      "passed": false
+    },
+    {
+      "paper": "9BS0/01",
+      "sourcePages": [
+        18,
+        40
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": false,
+        "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.",
+        "code": "assessment_not_found"
+      },
+      "selectedPages": [],
+      "diagnostics": [
+        {
+          "page": 18,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        },
+        {
+          "page": 40,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        }
+      ],
+      "characters": 0,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": false,
+      "bounded": true,
+      "passed": false
+    },
+    {
+      "paper": "9BS0/01",
+      "sourcePages": [
+        13,
+        14,
+        17,
+        18,
+        39,
+        40,
+        45
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": true
+      },
+      "selectedPages": [
+        13,
+        14,
+        17,
+        39,
+        45
+      ],
+      "diagnostics": [
+        {
+          "page": 13,
+          "status": "selected"
+        },
+        {
+          "page": 14,
+          "status": "selected"
+        },
+        {
+          "page": 17,
+          "status": "selected"
+        },
+        {
+          "page": 18,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "No selected assessment or shared assessment passage was located on this page."
+        },
+        {
+          "page": 39,
+          "status": "selected"
+        },
+        {
+          "page": 40,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "No selected assessment or shared assessment passage was located on this page."
+        },
+        {
+          "page": 45,
+          "status": "selected"
+        }
+      ],
+      "characters": 1911,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": false,
+      "bounded": true,
+      "passed": false
+    },
+    {
+      "paper": "9BS0/01",
+      "sourcePages": [
+        26
+      ],
+      "expectedCoverage": false,
+      "coverage": {
+        "complete": false,
+        "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.",
+        "code": "assessment_not_found"
+      },
+      "selectedPages": [],
+      "diagnostics": [
+        {
+          "page": 26,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        }
+      ],
+      "characters": 0,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": false,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/01",
+      "sourcePages": [
+        32
+      ],
+      "expectedCoverage": false,
+      "coverage": {
+        "complete": false,
+        "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.",
+        "code": "assessment_not_found"
+      },
+      "selectedPages": [],
+      "diagnostics": [
+        {
+          "page": 32,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        }
+      ],
+      "characters": 0,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": false,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/02",
+      "sourcePages": "automatic",
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": true
+      },
+      "selectedPages": [
+        1,
+        13,
+        14,
+        25,
+        31,
+        45,
+        48,
+        67
+      ],
+      "characters": 3198,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": true,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/02",
+      "sourcePages": [
+        26
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": false,
+        "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.",
+        "code": "assessment_not_found"
+      },
+      "selectedPages": [],
+      "diagnostics": [
+        {
+          "page": 26,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        }
+      ],
+      "characters": 0,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": false,
+      "bounded": true,
+      "passed": false
+    },
+    {
+      "paper": "9BS0/02",
+      "sourcePages": [
+        32
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": false,
+        "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.",
+        "code": "assessment_not_found"
+      },
+      "selectedPages": [],
+      "diagnostics": [
+        {
+          "page": 32,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        }
+      ],
+      "characters": 0,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": false,
+      "bounded": true,
+      "passed": false
+    },
+    {
+      "paper": "9BS0/02",
+      "sourcePages": [
+        26,
+        32
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": false,
+        "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.",
+        "code": "assessment_not_found"
+      },
+      "selectedPages": [],
+      "diagnostics": [
+        {
+          "page": 26,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        },
+        {
+          "page": 32,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        }
+      ],
+      "characters": 0,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": false,
+      "bounded": true,
+      "passed": false
+    },
+    {
+      "paper": "9BS0/02",
+      "sourcePages": [
+        18
+      ],
+      "expectedCoverage": false,
+      "coverage": {
+        "complete": false,
+        "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.",
+        "code": "assessment_not_found"
+      },
+      "selectedPages": [],
+      "diagnostics": [
+        {
+          "page": 18,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        }
+      ],
+      "characters": 0,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": false,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/02",
+      "sourcePages": [
+        40
+      ],
+      "expectedCoverage": false,
+      "coverage": {
+        "complete": false,
+        "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.",
+        "code": "assessment_not_found"
+      },
+      "selectedPages": [],
+      "diagnostics": [
+        {
+          "page": 40,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        }
+      ],
+      "characters": 0,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": false,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/03",
+      "sourcePages": "automatic",
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": true
+      },
+      "selectedPages": [
+        1,
+        13,
+        15,
+        17,
+        25,
+        31,
+        39,
+        45,
+        46,
+        48,
+        52,
+        67
+      ],
+      "characters": 6991,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": true,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/03",
+      "sourcePages": [
+        18
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": false,
+        "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.",
+        "code": "assessment_not_found"
+      },
+      "selectedPages": [
+        18
+      ],
+      "diagnostics": [
+        {
+          "page": 18,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        }
+      ],
+      "characters": 0,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": false,
+      "bounded": true,
+      "passed": false
+    },
+    {
+      "paper": "9BS0/03",
+      "sourcePages": [
+        26
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": false,
+        "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.",
+        "code": "assessment_not_found"
+      },
+      "selectedPages": [
+        26
+      ],
+      "diagnostics": [
+        {
+          "page": 26,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        }
+      ],
+      "characters": 0,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": false,
+      "bounded": true,
+      "passed": false
+    },
+    {
+      "paper": "9BS0/03",
+      "sourcePages": [
+        32
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": false,
+        "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.",
+        "code": "assessment_not_found"
+      },
+      "selectedPages": [
+        32
+      ],
+      "diagnostics": [
+        {
+          "page": 32,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        }
+      ],
+      "characters": 0,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": false,
+      "bounded": true,
+      "passed": false
+    },
+    {
+      "paper": "9BS0/03",
+      "sourcePages": [
+        40
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": false,
+        "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.",
+        "code": "assessment_not_found"
+      },
+      "selectedPages": [
+        40
+      ],
+      "diagnostics": [
+        {
+          "page": 40,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        }
+      ],
+      "characters": 0,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": false,
+      "bounded": true,
+      "passed": false
+    },
+    {
+      "paper": "9BS0/03",
+      "sourcePages": [
+        18,
+        26,
+        32,
+        40
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": false,
+        "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.",
+        "code": "assessment_not_found"
+      },
+      "selectedPages": [
+        18
+      ],
+      "diagnostics": [
+        {
+          "page": 18,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        },
+        {
+          "page": 26,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        },
+        {
+          "page": 32,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        },
+        {
+          "page": 40,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        }
+      ],
+      "characters": 0,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": false,
+      "bounded": true,
+      "passed": false
+    }
+  ],
+  "passed": 7,
+  "total": 19
+}
