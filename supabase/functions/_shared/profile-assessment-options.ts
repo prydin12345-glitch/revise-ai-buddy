@@ -21,12 +21,21 @@ export interface AssessmentMetadataCourse {
   id: string;
   label: string;
   subject: string;
+  subjectAliases?: readonly string[];
   board: string;
   qualification: string;
   country: string;
   courseCode: string;
   /** Explicit reviewed course fact; never infer this from qualification text. */
   tier: TemplateIdentity["tier"];
+  /** Reviewed regulator wording linked to this exact qualification record. */
+  tierSource?: {
+    url: string;
+    title: string;
+    quote: string;
+    checksum: string;
+    accessedOn: string;
+  };
   specificationVersion: string;
   assessmentKind: AssessmentKind;
   papers: readonly AssessmentOption[];
@@ -77,6 +86,45 @@ const physicsPaper3: AssessmentOption = {
 
 export const ASSESSMENT_METADATA_COURSES: readonly AssessmentMetadataCourse[] =
   [
+    {
+      id: "pearson_alevel_business_9bs0",
+      label: "Pearson Edexcel A-level Business",
+      subject: "Business",
+      subjectAliases: ["Business Studies"],
+      board: "Pearson Edexcel",
+      qualification: "A-level",
+      country: "GB",
+      courseCode: "9BS0",
+      tier: "not_tiered",
+      tierSource: {
+        url: "https://www.gov.uk/government/news/publication-of-gcse-and-a-level-assessment-arrangements-for-2017",
+        title: "Ofqual: Publication of GCSE and A level assessment arrangements for 2017",
+        quote: "In line with current practice, all reformed AS and A levels will be untiered.",
+        checksum: "f242ceb77d74d31d425543f320b4a9acc76d26438b2955137fcceb22792dc7aa",
+        accessedOn: "2026-11-19",
+      },
+      specificationVersion: "Issue 1 September 2014",
+      assessmentKind: "Paper",
+      papers: [
+        "Marketing, people and global businesses",
+        "Business activities, decisions and strategy",
+        "Investigating business in a competitive environment",
+      ].map((title, index) => ({
+        id: `paper_${index + 1}`,
+        label: `Paper ${index + 1} — ${title}`,
+        kind: "Paper" as const,
+        componentCode: `9BS0/0${index + 1}`,
+        aliases: [`Paper ${index + 1}`, `Paper${index + 1}`, title, `9BS0/0${index + 1}`],
+      })),
+      source: {
+        url: "https://qualifications.pearson.com/content/dam/pdf/A%20Level/Business%20Studies/2015/specification-and-sample-assessment-materials/9781446914694-gce2015-a-bus-web.pdf",
+        title: "Pearson Edexcel Level 3 Advanced GCE in Business specification",
+        version: "Issue 1 September 2014",
+        accessedOn: "2026-11-19",
+        physicalPages: [1, 14, 15, 45, 46, 67],
+        checksum: "8d66018d0a9d826cdb9729c78012d73f5e7ab32bd8946f9eb9fd501827c9829f",
+      },
+    },
     {
       id: "aqa_alevel_physics_7408",
       label: "AQA A-level Physics",
@@ -132,9 +180,10 @@ export function assessmentMetadataCourses(identity: Partial<TemplateIdentity>) {
   return ASSESSMENT_METADATA_COURSES.filter(
     (course) =>
       ["GB", "UK", "United Kingdom"].includes(identity.country ?? "") &&
-      course.subject.toLowerCase() === identity.subject?.trim().toLowerCase() &&
+      (!identity.stage || identity.stage === "Secondary") &&
+      [course.subject, ...(course.subjectAliases ?? [])].some(subject => subject.toLowerCase() === identity.subject?.trim().toLowerCase()) &&
       course.board.toLowerCase() ===
-        identity.organisation?.trim().toLowerCase() &&
+        identity.organisation?.trim().toLowerCase().replace(/^edexcel$/, "pearson edexcel") &&
       course.qualification === identity.qualification,
   );
 }

@@ -1,0 +1,81 @@
+{
+  "status": "PASS",
+  "boundary": "Public references only; not a private upload or a live AI build.",
+  "referenceFiles": [
+    {
+      "kind": "Pearson specification",
+      "sha256": "8d66018d0a9d826cdb9729c78012d73f5e7ab32bd8946f9eb9fd501827c9829f",
+      "bytes": 574854
+    },
+    {
+      "kind": "Ofqual tiering guidance",
+      "sha256": "f242ceb77d74d31d425543f320b4a9acc76d26438b2955137fcceb22792dc7aa",
+      "bytes": 81344
+    },
+    {
+      "kind": "Ofqual qualification register",
+      "sha256": "0a53a08422f573484b090ab9228fd8151812f5fe2c94b09a3418ebcc687c7c5a",
+      "bytes": 30186
+    }
+  ],
+  "physicalPages": 68,
+  "papers": [
+    {
+      "code": "9BS0/01",
+      "label": "Paper 1 — Marketing, people and global businesses",
+      "coverage": {
+        "complete": true
+      },
+      "literal": true,
+      "bounded": true,
+      "siblingsExcluded": true,
+      "duration120": true,
+      "marks100": true,
+      "tier": {
+        "version": 1,
+        "field": "tier",
+        "source": "assessment_catalogue",
+        "courseId": "pearson_alevel_business_9bs0",
+        "value": "not_tiered"
+      }
+    },
+    {
+      "code": "9BS0/02",
+      "label": "Paper 2 — Business activities, decisions and strategy",
+      "coverage": {
+        "complete": true
+      },
+      "literal": true,
+      "bounded": true,
+      "siblingsExcluded": true,
+      "duration120": true,
+      "marks100": true,
+      "tier": {
+        "version": 1,
+        "field": "tier",
+        "source": "assessment_catalogue",
+        "courseId": "pearson_alevel_business_9bs0",
+        "value": "not_tiered"
+      }
+    },
+    {
+      "code": "9BS0/03",
+      "label": "Paper 3 — Investigating business in a competitive environment",
+      "coverage": {
+        "complete": true
+      },
+      "literal": true,
+      "bounded": true,
+      "siblingsExcluded": true,
+      "duration120": true,
+      "marks100": true,
+      "tier": {
+        "version": 1,
+        "field": "tier",
+        "source": "assessment_catalogue",
+        "courseId": "pearson_alevel_business_9bs0",
+        "value": "not_tiered"
+      }
+    }
+  ]
+}

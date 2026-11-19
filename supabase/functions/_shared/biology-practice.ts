@@ -5,6 +5,7 @@ import {EDEXCEL_B_SPECIFICATION,EDEXCEL_B_P1_RULES,EDEXCEL_B_P1_OUTCOMES} from '
 import {pearsonBiologyLevelsIssue} from './edexcel-alevel-biology-b-validation.ts';
 import {paperPlanForAttempt} from './course-selection.ts';
 import {OCR_ALEVEL_P3_RULES,OCR_ALEVEL_P3_OUTCOMES} from './ocr-alevel-biology-paper3-scope.ts';
+import {foldSourceText} from './source-text-match.ts';
 import {OCR_ALEVEL_P2_V2_RULES} from './ocr-alevel-biology-paper2-v2-contract.ts';
 import {OCR_ALEVEL_P2_RULES,OCR_ALEVEL_P2_OUTCOMES} from './ocr-alevel-biology-paper2-scope.ts';
 import {singleChoiceKey} from './single-choice-marking.ts';
@@ -122,15 +123,24 @@ export function normalizeBiologyPracticePayload(payload: unknown, context: any):
   })};
 }
 
-export function assertBiologyPractice(rows: any[], context: any): void {
+export function assertBiologyPractice(rows: any[], context: any, requestedTopics: readonly string[] = []): void {
   if (context?.profile_template?.plan) {
-    const plan = templateSnapshotPlan(context.profile_template)!;
+    templateSnapshotPlan(context.profile_template);
+    // A quiz draws from the saved syllabus, independently of which topics
+    // happened to receive a part in the full paper's draft layout.
+    const saved = new Set<string>(context.profile_template.context.template.topics.map(foldSourceText));
+    const requested = requestedTopics.filter(topic => typeof topic === 'string' && topic.trim()).map(foldSourceText);
+    // Exact saved-topic toggles narrow scope. Free-text subtopic requests still
+    // use the saved parent scope; this code cannot invent a parent mapping.
+    const allowed = requested.length && requested.every(topic => saved.has(topic)) ? new Set(requested) : saved;
     if (!rows.length) throw new Error('Template practice returned no questions.');
     const result = validateQuestionCandidates(rows);
     if (!result.ok) throw new Error(describeDefects(result.defects));
     for (const row of rows) {
       if (unsupportedTemplateResource(row)) throw new Error('A reviewed course/asset adapter is required for this practice resource.');
-      if (!plan.parts.some(p => p.topic === (row.subtopic ?? row.topic_tag))) throw new Error('Practice part is outside the saved topic scope.');
+      const topic = foldSourceText(String(row.subtopic ?? row.topic_tag ?? ''));
+      if (!saved.has(topic)) throw new Error('Practice part is outside the saved topic scope.');
+      if (!allowed.has(topic)) throw new Error('Practice part is outside the selected quiz topics.');
       if (isMcqType(row.question_type)) { singleChoiceKey(row); if (Number(row.marks)!==1 || coerceMcqOptions(row)?.length!==4) throw new Error('Template MCQs need one mark and four choices.'); }
     }
     return;

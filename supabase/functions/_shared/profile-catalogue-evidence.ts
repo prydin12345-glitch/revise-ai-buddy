@@ -17,7 +17,7 @@ const key = (value: string) => value.trim().toLowerCase();
 export function resolveCatalogueTier(
   identity: TemplateIdentity,
 ): CatalogueTierFact | null {
-  if (!["GB", "UK", "United Kingdom"].includes(identity.country)) return null;
+  if (identity.stage !== "Secondary" || !["GB", "UK", "United Kingdom"].includes(identity.country)) return null;
   const metadata = assessmentMetadataCourses(identity).find((course) =>
     [course.id, course.courseCode].some(
       (value) => key(value) === key(identity.course),
@@ -25,7 +25,7 @@ export function resolveCatalogueTier(
   );
   // These reviewed metadata records identify A-level courses, but do not
   // provide or approve an assessment blueprint.
-  if (metadata?.qualification === "A-level")
+  if (metadata?.tier === "not_tiered")
     return {
       version: 1,
       field: "tier",

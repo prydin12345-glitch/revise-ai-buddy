@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { ExamProfileBuilder } from "@/components/profiles/ExamProfileBuilder";
 import { ExamProfileModal } from "@/components/stats/ExamProfileModal";
@@ -23,6 +24,7 @@ import {
   pearsonTemplate,
 } from "../../supabase/tests/profile-builder-fixtures";
 import type { BuilderApi } from "@/lib/profile-builder-client";
+import { supabase } from "@/integrations/supabase/client";
 vi.mock("@/hooks/useUserPreferences", () => ({
   useUserPreferences: () => ({
     preferences: { preferred_educational_level: "level3" },
@@ -47,9 +49,12 @@ Object.defineProperty(HTMLElement.prototype, "scrollTo", {
   configurable: true,
   value: vi.fn(),
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 const entry = APPROVAL_REGISTRY.find(
-  (e) => e.component === "H420/03" && e.mode === "short_practice",
+  (e) => e.component === "H420/03" && e.mode === "full_mock",
 )!;
 const props = {
   open: true,
@@ -69,7 +74,8 @@ function memoryApi() {
       let p: BuilderProposal;
       if (input.presetId) p = templateFromPreset(String(input.presetId));
       else {
-        const t = input.sourceId ? pearsonTemplate() : templateFixture();
+        const t = input.sourceId ? pearsonTemplate(input.mode === "full_mock" ? "full_mock" : "short_practice") : templateFixture();
+        t.mode = input.mode as typeof t.mode;
         p = {
           proposalVersion: 1,
           promptVersion: 1,
@@ -110,8 +116,8 @@ const enterManualAssessment = (value: string) => {
     target: { value },
   });
 };
-async function approvedReview(api: BuilderApi) {
-  render(<ExamProfileBuilder {...props} api={api} />);
+async function approvedReview(api: BuilderApi, initialMode?: "short_practice") {
+  render(<ExamProfileBuilder {...props} initialMode={initialMode} api={api} />);
   fireEvent.change(screen.getByLabelText("Course variant"), {
     target: { value: "ocr_alevel_biology_a_h420" },
   });
@@ -144,15 +150,87 @@ it("uses the existing editor container and keeps the manual route available", ()
     screen.getByRole("button", { name: "Advanced settings" }),
   ).toBeInTheDocument();
 });
-it("approved OCR Paper 3 previews its actual marks, parts and an accessible star", async () => {
+it.each([false, true])("new modal builder uses full paper when initialBuilder is %s", async initialBuilder => {
+  const proposal = templateFromPreset(entry.id);
+  vi.mocked(supabase.functions.invoke).mockResolvedValue({
+    data: { proposal, proposalId: crypto.randomUUID() }, error: null,
+  });
+  render(<ExamProfileModal open onOpenChange={vi.fn()} subjectName="Biology"
+    subjectColor="#378b63" examBoard="OCR" availableTopics={[]} onSave={vi.fn()}
+    initialBuilder={initialBuilder} />);
+  if (!initialBuilder) fireEvent.click(screen.getByRole("button", { name: "Build profile for me" }));
+  expect(screen.getByText("Full paper profile.")).toBeVisible();
+  expect(screen.queryByLabelText("Assessment mode")).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Course variant"), { target: { value: "ocr_alevel_biology_a_h420" } });
+  fireEvent.change(screen.getByLabelText("Paper"), { target: { value: "paper_3" } });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  expect(supabase.functions.invoke).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Yes, build it" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Save profile" })).toBeEnabled());
+  expect(supabase.functions.invoke).toHaveBeenCalledExactlyOnceWith("profile-builder", {
+    body: expect.objectContaining({ action: "propose", mode: "full_mock", presetId: entry.id }),
+  });
+});
+it.each(["full_mock", "short_practice", "custom"] as const)("only offers approved presets compatible with %s", mode => {
+  render(<ExamProfileBuilder {...props} initialMode={mode} api={vi.fn()} />);
+  const options = within(screen.getByLabelText("Approved preset")).getAllByRole("option", { hidden: true });
+  const ids = options.slice(1).map(option => (option as HTMLOptionElement).value);
+  if (mode === "custom") expect(ids).toEqual([]);
+  else expect(ids.length).toBeGreaterThan(0);
+  for (const id of ids) expect(templateFromPreset(id).template.mode).toBe(mode);
+  expect(screen.queryByLabelText("Assessment mode")).not.toBeInTheDocument();
+});
+it.each(["short_practice", "custom"] as const)("modal editing and saving retain the saved %s mode", async mode => {
+  const r = memoryApi(), template = templateFixture();
+  template.mode = mode;
+  const proposal: BuilderProposal = {
+    proposalVersion: 1, promptVersion: 1, template, origin: "model_knowledge_ai",
+    evidence: null, evidenceVersion: null, presetId: null, profileSettings: null,
+  };
+  const receipt = crypto.randomUUID(), id = crypto.randomUUID();
+  const saved = prepareProfileSave(proposal, template);
+  r.proposals.set(receipt, proposal);
+  vi.mocked(supabase.functions.invoke).mockImplementation(async (_name, options) => ({
+    data: await r.api(options!.body as Record<string, unknown>), error: null,
+  }));
+  render(<ExamProfileModal open onOpenChange={vi.fn()} subjectName="Biology"
+    subjectColor="#378b63" availableTopics={[]} onSave={vi.fn()}
+    initialData={{ id, profile_name: "Legacy profile", topics: template.topics, question_count: 2,
+      profile_template: { ...saved.context, proposalId: receipt } }} />);
+  expect(screen.getByText(mode === "short_practice" ? "Short practice" : "Custom assessment", { selector: "span" })).toBeVisible();
+  expect(r.calls).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
+  fireEvent.change(screen.getByLabelText("Profile name"), { target: { value: "Renamed legacy profile" } });
+  expect(screen.queryByLabelText("Assessment mode")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
+  await waitFor(() => expect(r.profiles.size).toBe(1));
+  expect(r.calls).toEqual([expect.objectContaining({ action: "save", profileId: id,
+    proposalId: receipt, profileName: "Renamed legacy profile", template: expect.objectContaining({ mode }) })]);
+  expect(r.profiles.get(id).profile_template.template.mode).toBe(mode);
+  cleanup();
+  render(<ExamProfileBuilder {...props} initialProfile={r.profiles.get(id)} initialMode="full_mock" api={r.api} />);
+  expect(screen.getByText(mode === "short_practice" ? "Short practice" : "Custom assessment", { selector: "span" })).toBeVisible();
+  expect(r.calls).toHaveLength(1);
+});
+it("defaults to a full OCR Paper 3 with its actual marks, parts and an accessible star", async () => {
   const r = memoryApi();
   await approvedReview(r.api);
   expect(
     screen.getByRole("img", { name: "Examly-approved preset" }),
   ).toBeInTheDocument();
-  expect(screen.getByText("20", { selector: "strong" })).toBeInTheDocument();
+  expect(screen.getByText("70", { selector: "strong" })).toBeInTheDocument();
+  expect(screen.getByText("90", { selector: "strong" })).toBeInTheDocument();
+  expect(r.calls[0].mode).toBe("full_mock");
   expect(r.calls[0].presetId).toBe(entry.id);
   expect(screen.getByRole("button", { name: "Save profile" })).toBeEnabled();
+});
+it("retains an explicitly requested legacy short preset without showing a mode selector", async () => {
+  const r = memoryApi();
+  await approvedReview(r.api, "short_practice");
+  expect(r.calls[0]).toMatchObject({ mode: "short_practice" });
+  expect(templateFromPreset(r.calls[0].presetId).template.mode).toBe("short_practice");
+  expect(screen.getByText("20", { selector: "strong" })).toBeInTheDocument();
+  expect(screen.queryByLabelText("Assessment mode")).not.toBeInTheDocument();
 });
 it("editing generation settings removes active approval, and explicit restore recovers it", async () => {
   const r = memoryApi();
@@ -205,7 +283,7 @@ it("invalid edited mark totals block confirmation rather than becoming generatio
   await approvedReview(r.api);
   fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
   fireEvent.change(screen.getByLabelText("Total marks"), {
-    target: { value: "21" },
+    target: { value: "71" },
   });
   expect(screen.getByRole("button", { name: "Save profile" })).toBeDisabled();
   expect(screen.getByRole("alert")).toHaveTextContent(/Achievable marks/);
@@ -246,9 +324,14 @@ it("missing source requires explicit choice and never starts a model-backed prop
     screen.queryByRole("button", { name: "Yes, build it" }),
   ).not.toBeInTheDocument();
   expect(screen.getByRole("alert")).toHaveTextContent(/Add your syllabus/);
+  expect(screen.getByText("Full paper profile.")).toBeVisible();
+  expect(screen.getByText(/Choose quiz topics and length later/)).toBeVisible();
+  expect(screen.queryByLabelText("Assessment mode")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "General practice without a syllabus" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("option", { name: /Full mock|Short practice|Custom assessment/ })).not.toBeInTheDocument();
   expect(r.calls).toHaveLength(0);
 });
-it("general practice opt-in is labelled honestly and full mock is disabled", () => {
+it.each(["short_practice", "custom"] as const)("keeps explicit legacy %s general-practice opt-in and API mode", async mode => {
   const r = memoryApi();
   render(
     <ExamProfileBuilder
@@ -257,6 +340,7 @@ it("general practice opt-in is labelled honestly and full mock is disabled", () 
       curriculumRegion="US"
       educationalLevel="undergrad"
       examBoard="Example University"
+      initialMode={mode}
       api={r.api}
     />,
   );
@@ -267,14 +351,14 @@ it("general practice opt-in is labelled honestly and full mock is disabled", () 
   expect(
     screen.getByText(/may not match your real assessment/),
   ).toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText("Assessment mode"), {
-    target: { value: "full_mock" },
-  });
+  expect(screen.queryByLabelText("Assessment mode")).not.toBeInTheDocument();
+  expect(screen.queryByText("Full paper profile.")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-  expect(
-    screen.queryByRole("button", { name: "Yes, build it" }),
-  ).not.toBeInTheDocument();
-  expect(screen.getByRole("alert")).toHaveTextContent(/Choose Short practice/);
+  expect(r.calls).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", { name: "Yes, build it" }));
+  await screen.findByRole("button", { name: "Edit profile" });
+  expect(r.calls).toHaveLength(1);
+  expect(r.calls[0]).toMatchObject({ action: "propose", mode, unverified: true });
 });
 it("a cancelled in-flight response cannot reopen preview or save a profile", async () => {
   let resolve: any;

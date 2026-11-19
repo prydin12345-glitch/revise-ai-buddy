@@ -1,0 +1,129 @@
+{
+  "status": "PASS",
+  "branch": "codex/full-paper-profiles",
+  "baseline": "d7314b9600376b9032939d427028f1edc2eff1bc",
+  "runtime": {
+    "node": "v24.19.0",
+    "npm": "11.9.0",
+    "deno": "2.5.6",
+    "playwright": "1.62.0"
+  },
+  "dependencies": {
+    "command": "npm ls --depth=0 --cache /tmp/examly-business-npm-cache",
+    "exitCode": 0,
+    "packageAndLockfilesChanged": false,
+    "envChanged": false
+  },
+  "repositoryCheck": {
+    "command": "npm run check",
+    "exitCode": 0,
+    "testFiles": 215,
+    "testsPassed": 3674,
+    "testsFailed": 0,
+    "frontendTypes": "PASS",
+    "physicsTypes": "PASS",
+    "criticalLint": "PASS",
+    "edgeBundles": 39,
+    "productionBuildSeconds": 21.1
+  },
+  "backendTypes": {
+    "status": "PASS",
+    "exitCode": 0,
+    "entrypoints": [
+      "supabase/functions/extract-exam-questions/index.ts",
+      "supabase/functions/generate-practice-questions/index.ts",
+      "supabase/functions/get-practice-questions/index.ts",
+      "supabase/functions/grade-practice-question/index.ts",
+      "supabase/functions/profile-builder/index.ts",
+      "supabase/functions/publish-exam/index.ts",
+      "supabase/functions/save-exam-format/index.ts",
+      "supabase/functions/save-exam-timer/index.ts",
+      "supabase/functions/submit-exam/index.ts",
+      "supabase/functions/upload-exam/index.ts"
+    ],
+    "method": "Deno check --no-lock with profile-builder/deno.json; each affected function import map was checked to be identical. DENO_TLS_CA_STORE=system and writable /tmp/examly-business-deno-cache.",
+    "command": "/tmp/examly-business-tools/node_modules/.bin/deno check --no-lock --config supabase/functions/profile-builder/deno.json supabase/functions/extract-exam-questions/index.ts supabase/functions/generate-practice-questions/index.ts supabase/functions/get-practice-questions/index.ts supabase/functions/grade-practice-question/index.ts supabase/functions/profile-builder/index.ts supabase/functions/publish-exam/index.ts supabase/functions/save-exam-format/index.ts supabase/functions/save-exam-timer/index.ts supabase/functions/submit-exam/index.ts supabase/functions/upload-exam/index.ts"
+  },
+  "publicSources": {
+    "status": "PASS",
+    "referenceFiles": [
+      "Public Pearson Business specification (68 pages)",
+      "Ofqual untiered-policy publication",
+      "Ofqual register entry 601/4673/4"
+    ],
+    "qualification": "Pearson Edexcel Level 3 Advanced GCE in Business (9BS0)",
+    "papers": 3,
+    "allPapersRetain100Marks120Minutes": true,
+    "literalAndBounded": true,
+    "siblingEvidenceExcluded": true,
+    "tierFactProvenance": "Explicit reviewed course catalogue record, supported by regulator wording; not a fabricated PDF claim.",
+    "qualificationNumber": "601/4673/4",
+    "pdfRegisterIdentityLinked": true
+  },
+  "controlledFlows": [
+    "Actual form \u2192 production client \u2192 bundled handler binds each of the three Business codes to an owned upload in full_mock mode.",
+    "Actual client \u2192 handler confirms, drafts and saves a full Business profile with catalogue tier, no tier quote and no practice downgrade; 2 controlled provider calls.",
+    "Captured public Paper 3 full_mock completes a page-46 followup with page-15 duration retained.",
+    "Both quiz entrypoints use a 100-mark/120-minute full profile to generate a 2-question filtered quiz without changing the profile.",
+    "Saved topics without a planned question remain valid quiz scope; deselected or outside-source topics are rejected before saving.",
+    "Existing short/custom profile editing and explicit legacy mode callers remain supported."
+  ],
+  "negativeControls": {
+    "businessCatalogueBeforeFix": "4 failures / 14 tests: missing record/provenance and no concrete-tier contradiction check for Business.",
+    "quizScopeBeforeFix": "2 failures / 4 tests: saved unplanned topic rejected and deselected topic persisted."
+  },
+  "browser": {
+    "status": "PASS",
+    "cases": 24,
+    "viewports": [
+      "laptop 1440x1000",
+      "iPad 834x1194",
+      "phone 390x844"
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "scenarios": [
+      "Business Paper 1",
+      "Business Paper 2",
+      "Business Paper 3",
+      "unreviewed course requires source"
+    ],
+    "noModeChooser": true,
+    "fullMockModeRetained": true,
+    "noHorizontalOverflow": true,
+    "errors": [],
+    "blockedRequests": [],
+    "hashesBeforeAfter": "PASS",
+    "artifacts": "/tmp/profile-builder-full-paper-profiles",
+    "visuallyInspected": [
+      "phone-light-paper1.png",
+      "ipad-dark-unknown.png"
+    ],
+    "boundary": "Actual UI/local discovery, controlled API; Chromium emulation, not physical iOS/iPadOS."
+  },
+  "affectedFunctions": [
+    "extract-exam-questions",
+    "generate-practice-questions",
+    "get-practice-questions",
+    "grade-practice-question",
+    "profile-builder",
+    "publish-exam",
+    "save-exam-format",
+    "save-exam-timer",
+    "submit-exam",
+    "upload-exam"
+  ],
+  "limitations": [
+    "No live paid AI generation or private upload inspection.",
+    "No student-data access, production profile writes, migration, merge, deployment or website publication.",
+    "Free-text child-topic requests stay within saved parent scope; no new semantic parent mapping is claimed.",
+    "No physical iOS/iPadOS or complete accessibility certification."
+  ],
+  "existingWarnings": [
+    "Browserslist data age",
+    "Vite chunk size and dependency annotation warnings",
+    "PDF standard-font-data warning during text extraction"
+  ]
+}

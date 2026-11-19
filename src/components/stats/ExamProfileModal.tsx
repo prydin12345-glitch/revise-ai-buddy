@@ -981,7 +981,7 @@ export const ExamProfileModal = ({
     subjectName={subjectName} examBoard={initialData?.exam_board||examBoard||preferences?.preferred_exam_board}
     educationalLevel={initialData?.educational_tier||finalTier||preferences?.preferred_educational_level}
     curriculumRegion={preferences?.curriculum_region} courseId={selectedCourseId} paperId={selectedPaperId}
-    assessmentTier={assessmentTier} initialMode={paperMode} initialProfile={initialData}
+    assessmentTier={assessmentTier} initialMode={initialData ? paperMode : "full_mock"} initialProfile={initialData}
     onManual={()=>setBuilderOpen(false)} onDelete={onDelete} />;
 
   return (

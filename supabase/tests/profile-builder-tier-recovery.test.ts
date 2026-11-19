@@ -6,8 +6,8 @@ import { memoryJobStore, ownerKey } from "./profile-builder-jobs-fixtures";
 import { ownerEvidence, templateFixture } from "./profile-builder-fixtures";
 
 const owner = "94000000-0000-4000-8000-000000000001";
-const brief = "Pearson Edexcel A-level Business (9BS0)\nPaper 1: Marketing (9BS0/01)\n6 marks; 30 minutes.\nMarketing and People.\nShort structured answers.\nAnswer all questions.\nNo calculator allowed.";
-const identity: TemplateIdentity = { country: "GB", educationSystem: "UK", stage: "Secondary", qualification: "A-level", subject: "Business", organisation: "Pearson Edexcel", course: "9BS0", component: "Paper 1", specificationVersion: "Not verified", tier: null };
+const brief = "Example Board A-level Unreviewed Studies (UX01)\nPaper 1: Marketing (UX01/01)\n6 marks; 30 minutes.\nMarketing and People.\nShort structured answers.\nAnswer all questions.\nNo calculator allowed.";
+const identity: TemplateIdentity = { country: "GB", educationSystem: "UK", stage: "Secondary", qualification: "A-level", subject: "Unreviewed Studies", organisation: "Example Board", course: "UX01", component: "Paper 1", specificationVersion: "Not verified", tier: null };
 
 async function setup(selected: TemplateIdentity["tier"] = null, modelTier: TemplateIdentity["tier"] = "not_tiered", mode: "short_practice" | "full_mock" = "short_practice", sourceTier: TemplateIdentity["tier"] = null) {
   const memory = memoryJobStore();
@@ -23,7 +23,7 @@ async function setup(selected: TemplateIdentity["tier"] = null, modelTier: Templ
     }
     const evidence = await ownerEvidence();
     evidence.identity = { ...raw.identity, tier: modelTier };
-    evidence.documents[0] = { ...evidence.documents[0], id: raw.documents[0].id, checksum: raw.documents[0].checksum, title: "Synthetic Business assessment", version: raw.identity.specificationVersion, locations: [{ id: "brief", page: 1, section: "Assessment", text }] };
+    evidence.documents[0] = { ...evidence.documents[0], id: raw.documents[0].id, checksum: raw.documents[0].checksum, title: "Synthetic unreviewed assessment", version: raw.identity.specificationVersion, locations: [{ id: "brief", page: 1, section: "Assessment", text }] };
     evidence.facts.topics = ["Marketing", "People"];
     evidence.facts.tier = sourceTier;
     evidence.claims = evidence.claims.filter(claim => claim.field !== "tier").map(claim => ({ ...claim, documentId: raw.documents[0].id, quote: claim.field === "topics" ? "Marketing and People" : claim.quote }));
@@ -54,8 +54,8 @@ it.each(["not_tiered", "higher", "foundation"] as const)("does not promote an un
   expect(r.model).toHaveBeenCalledTimes(2);
 });
 
-it.each(["short_practice", "full_mock"] as const)("offers an explicit local practice alternative when %s cannot verify a selected tier", async mode => {
-  const r = await setup("not_tiered", null, mode);
+it("keeps the legacy practice alternative for an existing short-practice request", async () => {
+  const r = await setup("not_tiered", null, "short_practice");
   const question = await advanceSourceJob(owner, r.requestId, r.deps);
   expect(question.stage, JSON.stringify(question)).toBe("needs_details");
   expect(question.missingItems?.[0]).toMatchObject({ field: "tier", choices: [{ value: "unknown_practice" }] });
@@ -85,6 +85,16 @@ it("does not treat two different concrete tiers as missing information", async (
   const failed = await advanceSourceJob(owner, r.requestId, r.deps);
   expect(failed.stage).toBe("failed");
   expect(failed.validationIssues?.[0]).toMatchObject({ field: "tier", code: "identity_conflict" });
+});
+
+it("keeps a full-paper request full when an unreviewed course has unknown tier evidence", async () => {
+  const r = await setup(null, null, "full_mock");
+  const question = await advanceSourceJob(owner, r.requestId, r.deps);
+  expect(question).toMatchObject({ stage: "needs_details", mode: "full_mock", identity: { tier: null },
+    missingItems: [{ field: "source", question: expect.stringContaining("full-paper profile") }] });
+  await expect(answerSourceJob(owner, r.requestId, { revision: question.revision!, answers: { tier: "unknown_practice" } }, r.deps)).rejects.toThrow(/current assessment question/);
+  expect((await getSourceJob(owner, r.requestId, r.deps)).mode).toBe("full_mock");
+  expect(r.model).toHaveBeenCalledOnce();
 });
 
 it("cannot apply the practice alternative before the server asks it", async () => {

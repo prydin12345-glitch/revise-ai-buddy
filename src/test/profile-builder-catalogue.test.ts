@@ -110,13 +110,18 @@ describe("student-facing reviewed assessment resolution", () => {
 });
 
 it("preserves unknown A-level tiers and uses explicit catalogue tier facts only", () => {
-  const unknown = builderInitialIdentity({ subject: "Business", board: "Edexcel", level: "level3", region: "GB" });
+  const unknown = builderInitialIdentity({ subject: "Unreviewed Studies", board: "Edexcel", level: "level3", region: "GB" });
   expect(unknown).toMatchObject({ tier: null, course: "" });
   expect(resolveBuilderChoice({ ...unknown, component: "Paper 1" }, "short_practice").identity).toMatchObject({
-    tier: null, course: "A-level Business", specificationVersion: "Not verified",
+    tier: null, course: "A-level Unreviewed Studies", specificationVersion: "Not verified",
   });
-  const explicit = builderInitialIdentity({ subject: "Business", board: "Edexcel", level: "level3", region: "GB", tier: "higher" });
+  const explicit = builderInitialIdentity({ subject: "Unreviewed Studies", board: "Edexcel", level: "level3", region: "GB", tier: "higher" });
   expect(explicit.tier).toBe("higher");
+  for (const subject of ["Business", "Business Studies"]) {
+    const reviewed = builderInitialIdentity({ subject, board: "Edexcel", level: "level3", region: "GB" });
+    expect(reviewed).toMatchObject({ course: "9BS0", tier: "not_tiered" });
+    expect(builderPapers(reviewed).map(paper => paper.id)).toEqual(["paper_1", "paper_2", "paper_3"]);
+  }
   const known = builderInitialIdentity({ subject: "Physics", board: "AQA", level: "level3", region: "GB" });
   expect(known).toMatchObject({ course: "7408", tier: "not_tiered" });
 });

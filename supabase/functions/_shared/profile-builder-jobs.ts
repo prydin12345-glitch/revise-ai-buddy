@@ -725,6 +725,11 @@ async function sourceQuestions(
   return items;
 }
 function evidenceSourceQuestions(data: SourceJobData): SourceMissingItem[] {
+  // A full-paper profile keeps its intended scope. Missing tier evidence asks
+  // for a source; it must not force the user into a shorter assessment layout.
+  if (data.mode === "full_mock" && data.evidence?.facts.tier === null)
+    return [sourceQuestion(data,
+      "We could not verify the assessment tier for this full-paper profile. Check the course code and qualification, or add an assessment source that identifies the tier or confirms the course is untiered.")];
   // Silence about tiers is missing evidence, not a reason to keep asking for
   // topic pages. Only a deliberate choice may relax this to unknown practice.
   if (unknownTierPracticeAvailable(data))

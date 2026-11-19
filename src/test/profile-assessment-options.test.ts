@@ -225,7 +225,8 @@ describe("assessment names and technical identities", () => {
     expect(builderCourses({ ...physics(), country: "US" })).toEqual([]);
     expect(
       ASSESSMENT_METADATA_COURSES.every(
-        (course) => course.source.accessedOn === "2026-11-06",
+        (course) => /^\d{4}-\d{2}-\d{2}$/.test(course.source.accessedOn) &&
+          /^[a-f0-9]{64}$/.test(course.source.checksum) && course.source.physicalPages.length > 0,
       ),
     ).toBe(true);
   });
