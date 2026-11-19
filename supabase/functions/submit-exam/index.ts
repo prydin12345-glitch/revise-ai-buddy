@@ -131,13 +131,13 @@ serve(async (req) => {
     }
 
     // Create maps for text answers, latex answers, and table answers
-    const answerMap = new Map(studentAnswers?.map(a => [a.question_id, a.answer_text]) || []);
-    const latexAnswerMap = new Map(studentAnswers?.map(a => [a.question_id, a.answer_latex]) || []);
-    const answerFormatMap = new Map(studentAnswers?.map(a => [a.question_id, a.answer_format]) || []);
-    const tableAnswerMap = new Map(studentAnswers?.map(a => [a.question_id, a.table_answers]) || []);
+    const answerMap = new Map((studentAnswers as any[] | null)?.map((a: any) => [a.question_id, a.answer_text]) || []);
+    const latexAnswerMap = new Map((studentAnswers as any[] | null)?.map((a: any) => [a.question_id, a.answer_latex]) || []);
+    const answerFormatMap = new Map((studentAnswers as any[] | null)?.map((a: any) => [a.question_id, a.answer_format]) || []);
+    const tableAnswerMap = new Map((studentAnswers as any[] | null)?.map((a: any) => [a.question_id, a.table_answers]) || []);
     
     // Preflight every essay choice/key and source before ANY paid marking call.
-    const essayMarking = new Map((questions || []).map(question => {
+    const essayMarking = new Map(((questions || []) as any[]).map((question: any) => {
       if (responseContracts.has(question.id)) return [question.id, null] as const;
       biologyQuestionResourceContext(examData.generation_context, question);
       if((isNewPhysics || isProfileTemplate || [OCR_ALEVEL_BIOLOGY_ID,EDEXCEL_ALEVEL_BIOLOGY_B_ID].includes(examData.generation_context?.course_id))&&question.question_type==='mcq'){
@@ -169,7 +169,7 @@ serve(async (req) => {
     // Score each question
     for (const question of questions || []) {
       totalMarks += question.marks;
-      const studentAnswer = answerMap.get(question.id) || '';
+      const studentAnswer: string = String(answerMap.get(question.id) || '');
       const responseContract = responseContracts.get(question.id);
       if (responseContract) {
         if (Object.prototype.hasOwnProperty.call(selfMarkScores, question.id)) throw new ExamRequestError(400, 'Structured questions are marked from the saved response.');
@@ -182,7 +182,7 @@ serve(async (req) => {
         continue;
       }
 
-      const essay = essayMarking.get(question.id);
+      const essay: any = essayMarking.get(question.id);
       if(essay?.blank){totalScore += 0;results.push({question_id:question.id,score:0,feedback:'No essay answer provided.',is_correct:false});continue;}
 
       // Drawing self-mark short-circuit: trust the student's self-mark score and skip AI grading.

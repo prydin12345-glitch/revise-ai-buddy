@@ -162,7 +162,7 @@ serve(async (req) => {
         ...(isPreview ? {} : {response_snapshot:q.response_snapshot}),
         ...(canRead && q.response_key ? {response_key:q.response_key,response_result:q.response_result} : {})} : {}),
     }));
-    const safeAnswers = (existingAnswers || []).map(answer => canRead ? answer : {
+    const safeAnswers = (existingAnswers || []).map((answer: any) => canRead ? answer : {
       ...answer, score: null, feedback: null, is_correct: null,
     });
     const safeSubmission = submission ? {...submission,

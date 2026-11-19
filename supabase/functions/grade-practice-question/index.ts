@@ -132,7 +132,7 @@ serve(async (req) => {
       const {data:allAnswers,error:answersError}=await supabase.from('practice_question_answers').select('is_correct').eq('user_id',user.id).eq('set_id',setId);
       if(answersError)throw new Error('The result was saved but practice progress could not be read. Please retry.');
       const {error:progressError}=await supabase.from('practice_set_progress').upsert({user_id:user.id,set_id:setId,
-        questions_attempted:allAnswers?.length||0,questions_correct:allAnswers?.filter(a=>a.is_correct).length||0,
+        questions_attempted:allAnswers?.length||0,questions_correct:allAnswers?.filter((a: any) =>a.is_correct).length||0,
         last_accessed_at:new Date().toISOString(),updated_at:new Date().toISOString(),
       },{onConflict:'user_id,set_id'});
       if(progressError)throw new Error('The result was saved but practice progress could not be updated. Please retry.');
@@ -1104,7 +1104,7 @@ serve(async (req) => {
       await supabase.from('practice_set_progress').upsert({
         user_id: user.id, set_id: setId,
         questions_attempted: allAnswers?.length || 0,
-        questions_correct: allAnswers?.filter(a => a.is_correct).length || 0,
+        questions_correct: allAnswers?.filter((a: any) => a.is_correct).length || 0,
         last_accessed_at: new Date().toISOString(), updated_at: new Date().toISOString()
       }, { onConflict: 'user_id,set_id' });
       
@@ -1127,7 +1127,7 @@ serve(async (req) => {
       await supabase.from('practice_set_progress').upsert({
         user_id: user.id, set_id: setId,
         questions_attempted: allAnswers?.length || 0,
-        questions_correct: allAnswers?.filter(a => a.is_correct).length || 0,
+        questions_correct: allAnswers?.filter((a: any) => a.is_correct).length || 0,
         last_accessed_at: new Date().toISOString(), updated_at: new Date().toISOString()
       }, { onConflict: 'user_id,set_id' });
       
@@ -1502,7 +1502,7 @@ serve(async (req) => {
         .eq('set_id', setId);
 
       const questionsAttempted = allAnswers?.length || 0;
-      const questionsCorrect = allAnswers?.filter(a => a.is_correct).length || 0;
+      const questionsCorrect = allAnswers?.filter((a: any) => a.is_correct).length || 0;
 
       await supabase
         .from('practice_set_progress')
@@ -1720,7 +1720,7 @@ Return your grading using the grade_practice_answer function.`;
       .eq('set_id', setId);
 
     const questionsAttempted = allAnswers?.length || 0;
-    const questionsCorrect = allAnswers?.filter(a => a.is_correct).length || 0;
+    const questionsCorrect = allAnswers?.filter((a: any) => a.is_correct).length || 0;
 
     await supabase
       .from('practice_set_progress')
