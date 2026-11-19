@@ -25,6 +25,7 @@ it("lets phones enter ranges and lists and avoids adding a suggested page twice"
   render(<BuilderFollowupQuestions jobId="page-build" summary={summary} onChange={vi.fn()} onAnswer={onAnswer} items={[{ field: "source_pages", question: "Which PDF pages show the assessment?", choices: [{ value: "1:8", label: "Page 8" }, { value: "1:9", label: "Page 9" }] }]} />);
   const input = screen.getByLabelText("Which PDF pages show the assessment?");
   expect(input).toHaveAttribute("inputmode", "text");
+  expect(screen.getByText(/Use the physical PDF page counter, not the printed page number/)).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Page 8" }));
   fireEvent.click(screen.getByRole("button", { name: "Page 8" }));
   expect(input).toHaveValue("8");
@@ -144,4 +145,21 @@ it("disables every editable action during continuation", () => {
   expect(screen.getByRole("button", { name: "Change" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Checking…" })).toBeDisabled();
   expect(onAnswer).not.toHaveBeenCalled();
+});
+
+it("requires an explicit tier recovery choice and submits only that answer", () => {
+  const onAnswer = vi.fn();
+  render(<BuilderFollowupQuestions jobId="tier-build" summary={summary} onChange={vi.fn()} onAnswer={onAnswer} items={[{
+    field: "tier",
+    question: "The source does not verify a tier. How would you like to continue?",
+    choices: [{ value: "unknown_practice", label: "Continue as short practice with tier unverified" }],
+  }]} />);
+  const select = screen.getByRole("combobox");
+  expect(select).toHaveValue("");
+  expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
+  expect(onAnswer).not.toHaveBeenCalled();
+  fireEvent.change(select, { target: { value: "unknown_practice" } });
+  expect(onAnswer).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  expect(onAnswer).toHaveBeenCalledExactlyOnceWith({ tier: "unknown_practice" });
 });

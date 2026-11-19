@@ -108,6 +108,37 @@ it.each(["", "A-level Business", "9BS0"])("real client → handler prepares cour
   expect(r.memory.reservations).toBe(1);
 });
 
+it("real client → handler explicitly changes an unverified full mock to unknown-tier practice without re-reading", async () => {
+  const r = runtime();
+  const requestId = crypto.randomUUID();
+  await invokeProfileBuilder({ action: "prepare_source", requestId,
+    identity: { ...initial(), course: "9BS0", component: "Paper 1", specificationVersion: "", tier: "not_tiered" },
+    specificationVersionIntent: "source", mode: "full_mock",
+    uploads: [{ contentType: "text/plain", base64: Buffer.from(text).toString("base64") }],
+  });
+  const question = (await invokeProfileBuilder({ action: "advance_source", jobId: requestId })).job!;
+  expect(question).toMatchObject({ stage: "needs_details", identity: { tier: "not_tiered" },
+    missingItems: [{ field: "tier" }] });
+  expect(r.provider).toHaveLength(1);
+  const answer = { action: "answer_source", jobId: requestId, revision: question.revision,
+    answers: { tier: "unknown_practice" } };
+  const ready = (await invokeProfileBuilder(answer)).job!;
+  expect(ready).toMatchObject({ stage: "ready", mode: "short_practice", identity: { tier: null } });
+  await invokeProfileBuilder(answer);
+  expect(r.provider).toHaveLength(1);
+  await invokeProfileBuilder({ action: "confirm_source", jobId: requestId, identity: ready.identity, mode: ready.mode });
+  const complete = (await invokeProfileBuilder({ action: "advance_source", jobId: requestId })).job!;
+  expect(complete.stage).toBe("complete");
+  expect(complete.proposal?.evidence?.facts.tier).toBeNull();
+  expect(complete.proposal?.template.warnings.join(" ")).toMatch(/tier.*unverified/i);
+  const saved = await invokeProfileBuilder({ action: "save", proposalId: requestId, profileName: "Synthetic unverified-tier practice", template: complete.proposal!.template });
+  expect(saved.profile?.profile_template.template.mode).toBe("short_practice");
+  expect(saved.profile?.profile_template.template.identity.tier).toBeNull();
+  expect(saved.approval?.status).toBe("not_approved");
+  expect(r.provider).toHaveLength(2);
+  expect(r.memory.reservations).toBe(1);
+});
+
 it("real handler returns schema field labels without rejected input and keeps save identities strict", async () => {
   const r = runtime([]);
   const input = { action: "prepare_source", requestId: crypto.randomUUID(), identity: { ...initial(), course: "", component: "", tier: "PRIVATE_REJECTED_TIER" }, mode: "short_practice", uploads: [{ contentType: "text/plain", base64: Buffer.from(text).toString("base64") }] };

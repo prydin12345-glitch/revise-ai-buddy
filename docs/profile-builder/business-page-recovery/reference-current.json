@@ -1,0 +1,718 @@
+{
+  "source": {
+    "checksum": "8d66018d0a9d826cdb9729c78012d73f5e7ab32bd8946f9eb9fd501827c9829f",
+    "bytes": 574854,
+    "physicalPages": 68,
+    "continuationFixtureLiteral": true,
+    "boundary": "Public Pearson reference; not a private uploaded copy."
+  },
+  "revision": "working checkout",
+  "discoveredAssessments": [
+    {
+      "label": "Paper 1 — Marketing, people and global businesses",
+      "code": "9BS0/01"
+    },
+    {
+      "label": "Paper 2 — Business activities, decisions and strategy",
+      "code": "9BS0/02"
+    },
+    {
+      "label": "Paper 3 — Investigating business in a competitive environment",
+      "code": "9BS0/03"
+    }
+  ],
+  "cases": [
+    {
+      "paper": "9BS0/01",
+      "sourcePages": "automatic",
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": true
+      },
+      "selectedPages": [
+        1,
+        13,
+        14,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        39,
+        40,
+        41,
+        42,
+        43,
+        45,
+        48,
+        67
+      ],
+      "characters": 4667,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": true,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/01",
+      "sourcePages": [
+        18
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": true
+      },
+      "selectedPages": [
+        14,
+        17,
+        18,
+        39,
+        45,
+        48,
+        67
+      ],
+      "diagnostics": [
+        {
+          "page": 18,
+          "status": "selected"
+        }
+      ],
+      "characters": 2572,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": true,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/01",
+      "sourcePages": [
+        40
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": true
+      },
+      "selectedPages": [
+        14,
+        17,
+        39,
+        40,
+        45,
+        48,
+        67
+      ],
+      "diagnostics": [
+        {
+          "page": 40,
+          "status": "selected"
+        }
+      ],
+      "characters": 2937,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": true,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/01",
+      "sourcePages": [
+        18,
+        40
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": true
+      },
+      "selectedPages": [
+        14,
+        17,
+        18,
+        39,
+        40,
+        45,
+        48,
+        67
+      ],
+      "diagnostics": [
+        {
+          "page": 18,
+          "status": "selected"
+        },
+        {
+          "page": 40,
+          "status": "selected"
+        }
+      ],
+      "characters": 4106,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": true,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/01",
+      "sourcePages": [
+        13,
+        14,
+        17,
+        18,
+        39,
+        40,
+        45
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": true
+      },
+      "selectedPages": [
+        13,
+        14,
+        17,
+        18,
+        39,
+        40,
+        43,
+        45,
+        48,
+        67
+      ],
+      "diagnostics": [
+        {
+          "page": 13,
+          "status": "selected"
+        },
+        {
+          "page": 14,
+          "status": "selected"
+        },
+        {
+          "page": 17,
+          "status": "selected"
+        },
+        {
+          "page": 18,
+          "status": "selected"
+        },
+        {
+          "page": 39,
+          "status": "selected"
+        },
+        {
+          "page": 40,
+          "status": "selected"
+        },
+        {
+          "page": 45,
+          "status": "selected"
+        }
+      ],
+      "characters": 4487,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": true,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/01",
+      "sourcePages": [
+        26
+      ],
+      "expectedCoverage": false,
+      "coverage": {
+        "complete": false,
+        "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.",
+        "code": "assessment_not_found"
+      },
+      "selectedPages": [
+        17,
+        39
+      ],
+      "diagnostics": [
+        {
+          "page": 26,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        }
+      ],
+      "characters": 0,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": false,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/01",
+      "sourcePages": [
+        32
+      ],
+      "expectedCoverage": false,
+      "coverage": {
+        "complete": false,
+        "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.",
+        "code": "assessment_not_found"
+      },
+      "selectedPages": [
+        17,
+        39
+      ],
+      "diagnostics": [
+        {
+          "page": 32,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        }
+      ],
+      "characters": 0,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": false,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/02",
+      "sourcePages": "automatic",
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": true
+      },
+      "selectedPages": [
+        1,
+        13,
+        14,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        45,
+        48,
+        67
+      ],
+      "characters": 4366,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": true,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/02",
+      "sourcePages": [
+        26
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": true
+      },
+      "selectedPages": [
+        14,
+        25,
+        26,
+        31,
+        45,
+        48,
+        67
+      ],
+      "diagnostics": [
+        {
+          "page": 26,
+          "status": "selected"
+        }
+      ],
+      "characters": 2441,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": true,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/02",
+      "sourcePages": [
+        32
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": true
+      },
+      "selectedPages": [
+        14,
+        25,
+        31,
+        32,
+        45,
+        48,
+        67
+      ],
+      "diagnostics": [
+        {
+          "page": 32,
+          "status": "selected"
+        }
+      ],
+      "characters": 2503,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": true,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/02",
+      "sourcePages": [
+        26,
+        32
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": true
+      },
+      "selectedPages": [
+        14,
+        25,
+        26,
+        31,
+        32,
+        45,
+        48,
+        67
+      ],
+      "diagnostics": [
+        {
+          "page": 26,
+          "status": "selected"
+        },
+        {
+          "page": 32,
+          "status": "selected"
+        }
+      ],
+      "characters": 3482,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": true,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/02",
+      "sourcePages": [
+        18
+      ],
+      "expectedCoverage": false,
+      "coverage": {
+        "complete": false,
+        "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.",
+        "code": "assessment_not_found"
+      },
+      "selectedPages": [
+        25,
+        31
+      ],
+      "diagnostics": [
+        {
+          "page": 18,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        }
+      ],
+      "characters": 0,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": false,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/02",
+      "sourcePages": [
+        40
+      ],
+      "expectedCoverage": false,
+      "coverage": {
+        "complete": false,
+        "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief.",
+        "code": "assessment_not_found"
+      },
+      "selectedPages": [
+        25,
+        31
+      ],
+      "diagnostics": [
+        {
+          "page": 40,
+          "status": "not_matched",
+          "code": "assessment_not_found",
+          "reason": "We could not locate this assessment in the specification. Check the paper name or provide its assessment brief."
+        }
+      ],
+      "characters": 0,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": false,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/03",
+      "sourcePages": "automatic",
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": true
+      },
+      "selectedPages": [
+        1,
+        13,
+        15,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        39,
+        40,
+        41,
+        42,
+        43,
+        45,
+        46,
+        48,
+        52,
+        67
+      ],
+      "characters": 9828,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": true,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/03",
+      "sourcePages": [
+        18
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": true
+      },
+      "selectedPages": [
+        15,
+        17,
+        18,
+        25,
+        31,
+        39,
+        46,
+        48,
+        52,
+        67
+      ],
+      "diagnostics": [
+        {
+          "page": 18,
+          "status": "selected"
+        }
+      ],
+      "characters": 5785,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": true,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/03",
+      "sourcePages": [
+        26
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": true
+      },
+      "selectedPages": [
+        15,
+        17,
+        25,
+        26,
+        31,
+        39,
+        46,
+        48,
+        52,
+        67
+      ],
+      "diagnostics": [
+        {
+          "page": 26,
+          "status": "selected"
+        }
+      ],
+      "characters": 5595,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": true,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/03",
+      "sourcePages": [
+        32
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": true
+      },
+      "selectedPages": [
+        15,
+        17,
+        25,
+        31,
+        32,
+        39,
+        46,
+        48,
+        52,
+        67
+      ],
+      "diagnostics": [
+        {
+          "page": 32,
+          "status": "selected"
+        }
+      ],
+      "characters": 5657,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": true,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/03",
+      "sourcePages": [
+        40
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": true
+      },
+      "selectedPages": [
+        15,
+        17,
+        25,
+        31,
+        39,
+        40,
+        46,
+        48,
+        52,
+        67
+      ],
+      "diagnostics": [
+        {
+          "page": 40,
+          "status": "selected"
+        }
+      ],
+      "characters": 6150,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": true,
+      "bounded": true,
+      "passed": true
+    },
+    {
+      "paper": "9BS0/03",
+      "sourcePages": [
+        18,
+        26,
+        32,
+        40
+      ],
+      "expectedCoverage": true,
+      "coverage": {
+        "complete": true
+      },
+      "selectedPages": [
+        15,
+        17,
+        18,
+        25,
+        26,
+        31,
+        32,
+        39,
+        40,
+        46,
+        48,
+        52,
+        67
+      ],
+      "diagnostics": [
+        {
+          "page": 18,
+          "status": "selected"
+        },
+        {
+          "page": 26,
+          "status": "selected"
+        },
+        {
+          "page": 32,
+          "status": "selected"
+        },
+        {
+          "page": 40,
+          "status": "selected"
+        }
+      ],
+      "characters": 9339,
+      "literal": true,
+      "siblingsExcluded": true,
+      "focusedSelected": true,
+      "bounded": true,
+      "passed": true
+    }
+  ],
+  "passed": 19,
+  "total": 19
+}

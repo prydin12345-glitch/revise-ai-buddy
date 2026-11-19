@@ -6,7 +6,7 @@
  * Private page text belongs only in the owned preparation receipt. Only an
  * explicitly reviewed public source pack may enter a shared catalogue.
  */
-export const DOCUMENT_INDEX_VERSION = 8;
+export const DOCUMENT_INDEX_VERSION = 9;
 export const INDEXED_DOCUMENT_LIMITS = {
   maxBytes: 3_000_000,
   maxPages: 240,
@@ -710,6 +710,22 @@ function topicHeadingEnd(lines: string[], index: number, start: number) {
   return start + line.length + 1 + (wrapped ? lines[index + 1].length + 1 : 0);
 }
 
+const numberedTopicHeadingPattern = /^\s*(\d{1,2})(?:\.\d{1,2}){1,3}(?:\s|$)/;
+/** Numbered content titles may wrap, but learning outcomes are not titles. */
+function numberedTopicHeadingEnd(lines: string[], index: number, start: number) {
+  let end = start + lines[index].length + 1, characters = lines[index].length;
+  for (let next = index + 1; next < Math.min(lines.length, index + 4); next++) {
+    const text = lines[next].trim();
+    characters += lines[next].length + 1;
+    if (!text || characters > 420 || /[.!?;:]$/.test(text)
+      || /^(?:[a-z]\)|[\u2022\u25cf]|Subject content\b)/i.test(text)
+      || numberedTopicHeadingPattern.test(text) || topicPattern.test(text)
+      || rulePassageBoundary(text) || sharedChapterPattern.test(text)) break;
+    end += lines[next].length + 1;
+  }
+  return end;
+}
+
 const rulePassageBoundary = (line: string) => {
   const text = line.trim();
   return (
@@ -1107,12 +1123,13 @@ export function indexDocumentPages(
   // explicit selected-paper topic/module/theme range may narrow those blocks;
   // neither the student's selection nor proximity invents an allocation.
   const allocatedTopics = new Set<number>();
+  const allocationContext = !scope.ambiguous && !contextScope.ambiguous ? contextAllowed : allowed;
   for (const page of pages) {
     const boundaries = assessmentBoundaries.get(page.page) ?? [];
     boundaries.forEach((boundary, index) => {
       if (!boundary.selected) return;
       const end = boundaries[index + 1]?.start ?? page.text.length;
-      const text = (allowed.get(page.page) ?? []).map(([from, to]) =>
+      const text = (allocationContext.get(page.page) ?? []).map(([from, to]) =>
         page.text.slice(Math.max(from, boundary.start), Math.max(Math.max(from, boundary.start), Math.min(to, end))))
         .join("\n");
       for (const number of topicsIn(text)) allocatedTopics.add(number);
@@ -1170,40 +1187,108 @@ export function indexDocumentPages(
       .map(([start, end]) => [Math.max(from, start), Math.min(to, end)] as [number, number])
       .filter(([from, to]) => to > from)));
   }
+  const topicContent = new Map<number, Array<[number, number]>>();
+  const contentHeadings = new Map<number, Array<[number, number]>>();
+  const focusedContentContext: Array<{ page: number; start: number; end: number }> = [];
+  // undefined is a shared section; null is content whose ownership was lost.
+  let contentTopic: number | null | undefined;
+  let contentContext: Array<{ page: number; start: number; end: number; depth: number }> = [];
   if (allocatedTopics.size)
     for (const page of pages) {
-      const boundaries: Array<{ start: number; headingEnd?: number; number?: number; ambiguous?: boolean }> = [];
+      const boundaries: Array<{ start: number; headingEnd?: number; number?: number | null; context?: typeof contentContext }> = [
+        { start: 0, number: contentTopic, context: contentContext },
+      ];
       const assessments = new Set((assessmentBoundaries.get(page.page) ?? []).map(boundary => boundary.start));
       let offset = 0;
       const lines = pageLines(page.text);
       lines.forEach((line, index) => {
-        const topic = line.match(topicPattern);
+        const topic = line.match(topicPattern), numbered = line.match(numberedTopicHeadingPattern);
         const inScope = (contextAllowed.get(page.page) ?? []).some(([start, end]) => offset < end && offset + line.length > start);
-        if (topic && inScope) boundaries.push({ start: offset, number: Number(topic[1]),
-          headingEnd: Math.min(page.text.length, topicHeadingEnd(lines, index, offset)),
-          ambiguous: [...line.matchAll(/\b(?:Topic|Module|Theme)\s+\d{1,2}\s*:/gi)].length > 1 });
-        else if (inScope && (assessments.has(offset) || sharedChapterPattern.test(line.trim())
-          || qualificationHeading(line) || courseWideSkillHeading(lines, index) || sharedPolicyPassageEnd(lines, index) !== null))
+        // Scope gaps include other qualifications/courses and masked metadata.
+        // Returning to our course does not revive the preceding topic owner.
+        if (!inScope && line.trim()) {
+          contentTopic = null;
+          contentContext = [];
+          boundaries.push({ start: offset, number: null });
+        } else if (inScope && topic) {
+          contentTopic = [...line.matchAll(/\b(?:Topic|Module|Theme)\s+\d{1,2}\b/gi)].length === 1
+            ? Number(topic[1]) : null;
+          const end = Math.min(page.text.length, topicHeadingEnd(lines, index, offset));
+          contentContext = [{ page: page.page, start: offset, end, depth: 1 }];
+          boundaries.push({ start: offset, number: contentTopic,
+            headingEnd: end, context: contentContext });
+        } else if (inScope && (assessments.has(offset) || sharedChapterPattern.test(line.trim())
+          || /^(?:Contents|Table of contents|Qualification at a glance|Specification overview)$/i.test(line.trim())
+          || courseWideSkillHeading(lines, index) || sharedPolicyPassageEnd(lines, index) !== null)) {
+          contentTopic = undefined;
+          contentContext = [];
           boundaries.push({ start: offset });
+        } else if (inScope && numbered && contentTopic != null) {
+          // A different numbering prefix cannot inherit this topic's allocation.
+          if (Number(numbered[1]) !== contentTopic) contentTopic = null;
+          const end = Math.min(page.text.length, numberedTopicHeadingEnd(lines, index, offset));
+          const depth = numbered[0].trim().split(".").length;
+          contentContext = contentTopic === null ? [] : [
+            ...contentContext.filter(heading => heading.depth < depth),
+            { page: page.page, start: offset, end, depth },
+          ];
+          boundaries.push({ start: offset, number: contentTopic,
+            headingEnd: end, context: contentContext });
+        }
         offset += line.length + 1;
       });
-      if (!boundaries.length) continue;
-      const retained: Array<[number, number]> = [[0, boundaries[0].start]];
+      const retained: Array<[number, number]> = [];
       boundaries.forEach((boundary, index) => {
         const end = boundaries[index + 1]?.start ?? page.text.length;
+        if (end <= boundary.start) return;
         if (boundary.number === undefined) { retained.push([boundary.start, end]); return; }
-        if (!allocatedTopics.has(boundary.number) || boundary.ambiguous) return;
+        if (boundary.number === null || !allocatedTopics.has(boundary.number)) return;
         const text = page.text.slice(boundary.start, end);
         const sibling = componentsIn(text).some(component => !requested.test(component))
           || [...text.matchAll(componentCodePattern)].some(match => !requested.test(normalize(match[0])));
         // A shared theme can describe several papers in the same paragraph.
-        // Its heading is useful; that mixed prose cannot prove selected rules.
-        retained.push([boundary.start, sibling ? Math.min(end, boundary.headingEnd!) : end]);
+        // Resume only at an actual numbered subtopic or the next physical page;
+        // mixed introductory prose cannot prove selected assessment rules.
+        const to = sibling ? Math.min(end, boundary.headingEnd ?? boundary.start) : end;
+        if (to <= boundary.start) return;
+        retained.push([boundary.start, to]);
+        // Repeated running titles and page labels alone cannot make a sibling
+        // theme page look like a continuation of the previous allocated theme.
+        if (!page.text.slice(boundary.start, to).split("\n").some(line => line.trim()
+          && !qualificationHeading(line) && !/^\s*\d{1,3}\s*$/.test(line)
+          && !/^\s*Specification\s*[\u2010-\u2015-]/i.test(line))) return;
+        topicContent.set(page.page, [...(topicContent.get(page.page) ?? []), [boundary.start, to]]);
+        if (selection.sourcePages?.includes(page.page))
+          focusedContentContext.push(...(boundary.context ?? []));
+        if (boundary.headingEnd !== undefined)
+          contentHeadings.set(page.page, [...(contentHeadings.get(page.page) ?? []),
+            [boundary.start, Math.min(to, boundary.headingEnd)]]);
       });
       allowed.set(page.page, (allowed.get(page.page) ?? []).flatMap(([start, end]) => retained
         .map(([from, to]) => [Math.max(start, from), Math.min(end, to)] as [number, number])
         .filter(([from, to]) => to > from)).sort(([a], [b]) => a - b));
     }
+  if (selection.sourcePages && !scope.ambiguous && !contextScope.ambiguous
+    && selection.sourcePages.some(page => (topicContent.get(page) ?? []).some(([from, to]) =>
+      (allowed.get(page) ?? []).some(([start, end]) => Math.min(to, end) > Math.max(from, start))))) {
+    for (const heading of focusedContentContext)
+      allowed.set(heading.page, [...(allowed.get(heading.page) ?? []), ...(contextAllowed.get(heading.page) ?? [])
+        .map(([from, to]) => [Math.max(from, heading.start), Math.min(to, heading.end)] as [number, number])
+        .filter(([from, to]) => to > from)]);
+    // A content-page clarification needs its original allocation as context.
+    // Restore only literal selected assessment blocks from the already-scoped
+    // source; never derive a paper allocation from the student's page numbers.
+    for (const page of pages) {
+      const boundaries = assessmentBoundaries.get(page.page) ?? [];
+      boundaries.forEach((boundary, index) => {
+        if (!boundary.selected) return;
+        const end = boundaries[index + 1]?.start ?? page.text.length;
+        allowed.set(page.page, [...(allowed.get(page.page) ?? []), ...(contextAllowed.get(page.page) ?? [])
+          .map(([from, to]) => [Math.max(from, boundary.start), Math.min(to, end)] as [number, number])
+          .filter(([from, to]) => to > from)]);
+      });
+    }
+  }
   // Heading references may repeat across fragments. Merge them before masking
   // so offsets remain positions in the original page rather than duplicated
   // reconstructed text.
@@ -1318,6 +1403,19 @@ export function indexDocumentPages(
       // Sibling assessment blocks were removed above. Keep the entire literal
       // selected block, however many wrapped lines its title/rules occupy.
       addPage(page);
+    }
+    // Focused content pages can continue an allocated topic without repeating
+    // its heading or paper name. Automatic retrieval keeps bounded literal
+    // subtopic titles; only explicitly focused pages supply their full content.
+    for (const page of scanPages) {
+      if (selection.sourcePages?.includes(page.page) && topicContent.get(page.page)?.length)
+        addPage(page);
+      for (const [from, to] of contentHeadings.get(page.page) ?? []) {
+        const intervals = (allowed.get(page.page) ?? [])
+          .map(([start, end]) => [Math.max(start, from), Math.min(end, to)] as [number, number])
+          .filter(([start, end]) => end > start);
+        if (intervals.length) selected.set(page.page, [...(selected.get(page.page) ?? []), ...intervals]);
+      }
     }
     // Identity/edition information usually appears on the first readable cover.
     const first = scanPages.find((page) => page.text.trim());

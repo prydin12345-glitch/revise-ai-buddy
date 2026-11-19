@@ -129,7 +129,8 @@ export function BuilderFollowupQuestions({
                       />
                       {continueButton}
                       <p className="text-xs text-muted-foreground">
-                        Type one page, a range like 8-10, or several pages
+                        Use the physical PDF page counter, not the printed page
+                        number. Type one page, a range like 8-10, or several pages
                         separated by commas (up to 10 pages).
                       </p>
                       {!!item.choices?.length && (

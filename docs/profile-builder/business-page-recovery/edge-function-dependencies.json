@@ -1,0 +1,26 @@
+{
+  "baseline": "06661f92cda1c8a46dfc5283a43d8e71ed6054b6",
+  "method": "esbuild transitive input graph for all real Edge entry points; handlers are not executed",
+  "entryPointsChecked": 39,
+  "changedServerModules": [
+    "supabase/functions/_shared/profile-builder-jobs.ts",
+    "supabase/functions/_shared/profile-document-index.ts"
+  ],
+  "affected": [
+    {
+      "function": "extract-exam-questions",
+      "entryPoint": "supabase/functions/extract-exam-questions/index.ts",
+      "changedInputs": [
+        "supabase/functions/_shared/profile-document-index.ts"
+      ]
+    },
+    {
+      "function": "profile-builder",
+      "entryPoint": "supabase/functions/profile-builder/index.ts",
+      "changedInputs": [
+        "supabase/functions/_shared/profile-builder-jobs.ts",
+        "supabase/functions/_shared/profile-document-index.ts"
+      ]
+    }
+  ]
+}

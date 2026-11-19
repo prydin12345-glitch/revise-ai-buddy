@@ -125,7 +125,7 @@ it("shows trusted selected assessment and physical pages alongside a rejected re
   expect(view.container).toHaveTextContent("The reader uses selected passages from these pages.");
 });
 
-it("distinguishes a located but blocked page from a missing assessment and shows printed labels", () => {
+it("describes conservative page checks without claiming the assessment is absent and keeps printed labels", () => {
   render(<BuilderEvidenceDetails job={{ ...job, pageReview: [{
     document: 1, requestedPages: [14, 15], readPages: [], skippedPages: [14, 15],
     diagnostics: [
@@ -136,6 +136,18 @@ it("distinguishes a located but blocked page from a missing assessment and shows
   const status = screen.getByRole("status");
   expect(status).toHaveTextContent("PDF page 14 (printed page 12): located, but could not be used.");
   expect(status).toHaveTextContent("The qualification cannot be established from the source.");
-  expect(status).toHaveTextContent("PDF page 15: the selected assessment was not found on this page.");
+  expect(status).toHaveTextContent("PDF page 15: we couldn’t safely link this page to the selected assessment.");
+  expect(status).toHaveTextContent("Check the physical PDF page counter and the printed page label.");
+  expect(status).not.toHaveTextContent("was not found on this page");
   expect(status).not.toHaveTextContent("None of the selected PDF pages could be matched");
+});
+
+it("shows page selection as reading progress without claiming its assessment facts are verified", () => {
+  render(<BuilderEvidenceDetails job={{ ...job, pageReview: [{
+    document: 1, requestedPages: [14], readPages: [14], skippedPages: [],
+    diagnostics: [{ page: 14, printedPage: 12, status: "selected" }],
+  }] }} />);
+  expect(screen.getByRole("status")).toHaveTextContent("PDF page 14 (printed page 12): selected for reading.");
+  expect(screen.getByRole("status")).toHaveTextContent("Page selection alone does not verify assessment facts.");
+  expect(screen.queryByLabelText("Verified assessment facts")).not.toBeInTheDocument();
 });

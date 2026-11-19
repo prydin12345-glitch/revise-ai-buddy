@@ -479,6 +479,21 @@ export function ExamProfileBuilder({
     identity.organisation,
     identity.course,
   ]);
+  // Restored files may finish local inspection after the receipt is resumed.
+  // Bind its owned identity to one matching option when that result arrives.
+  useEffect(() => {
+    if (!sourceJob?.identity || !discovery || builderFindAssessment(sourceJob.identity, sourceJob.identity.component)) return;
+    const matches = discovery.candidates.filter(candidate =>
+      [candidate.componentCode, candidate.label, candidate.canonicalComponent].includes(sourceJob.identity!.component));
+    if (matches.length !== 1) return;
+    const selected = matches[0];
+    setAssessmentId(selected.id);
+    setAssessmentName(selected.label);
+    setComponentCode(selected.componentCode ?? sourceJob.manualComponentCode?.value ?? "");
+    setCodeEdited(!!sourceJob.manualComponentCode && !selected.componentCode);
+    setConfirmedManualCode(sourceJob.manualComponentCode?.value ?? "");
+    setManualAssessment(false);
+  }, [discovery, sourceJob]);
   const close = () => {
     run.current++;
     onOpenChange(false);
@@ -655,7 +670,8 @@ export function ExamProfileBuilder({
     setMode(job.mode);
     if (
       job.identity &&
-      (job.stage === "ready" ||
+      (job.stage === "failed" ||
+        job.stage === "ready" ||
         (job.stage === "needs_details" && job.missingItems?.length))
     ) {
       setIdentity(job.identity);
@@ -704,8 +720,12 @@ export function ExamProfileBuilder({
       setStep("details");
       attachments.setStatus(job.missingItems?.length ? "checked" : "error");
     }
-    if (job.stage === "failed") attachments.setStatus("error");
-    if (job.stage === "failed") setError(job.message);
+    if (job.stage === "failed") {
+      attachments.setStatus("error");
+      setError(job.message);
+      setChangingClarification(false);
+      setStep("details");
+    }
   };
   const advanceJob = async (job: SourceJobView, generation: number) => {
     let current = job;
@@ -1379,6 +1399,23 @@ export function ExamProfileBuilder({
     : missingItems;
   const legacyRunning =
     sourceJob?.canAdvance === false && sourceJob.stage === "drafting";
+  const unfinishedSource =
+    step !== "review" &&
+    !!(sourceJob || pendingJobId) &&
+    (sourceJob?.stage !== "ready" || !!error);
+  const blockingSource =
+    step !== "review" &&
+    (sourceJob?.stage === "failed" ||
+      sourceJob?.stage === "needs_details" ||
+      (!!error && !!(sourceJob || pendingJobId)));
+  const changeSourceDetails = () => {
+    // Opening the form keeps the receipt and completed work. An actual edit
+    // invalidates the preview; merely looking must never start another request.
+    setChangingClarification(true);
+    setReplacingSource(false);
+    setChangeKnown(true);
+    setStep("details");
+  };
   return (
     <>
       <Dialog
@@ -1478,14 +1515,16 @@ export function ExamProfileBuilder({
                   You have an unfinished syllabus request.
                 </p>
                 <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setRestartOpen(true)}
-                  >
-                    Start again
-                  </Button>
+                  {!blockingSource && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setRestartOpen(true)}
+                    >
+                      Start again
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     variant="outline"
@@ -1573,21 +1612,6 @@ export function ExamProfileBuilder({
                         : "Continue processing"}
                     </Button>
                   )}
-                {!busy &&
-                  ["needs_details", "failed"].includes(sourceJob.stage) && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        invalidatePreview();
-                        setStep("details");
-                        setChangeKnown(true);
-                      }}
-                    >
-                      Change details or documents
-                    </Button>
-                  )}
               </div>
             )}
             {notice && (
@@ -1652,12 +1676,7 @@ export function ExamProfileBuilder({
                   ]}
                   busy={busy}
                   onAnswer={(answers) => void answerMissing(answers)}
-                  onChange={() => {
-                    setChangingClarification(true);
-                    setReplacingSource(false);
-                    setChangeKnown(true);
-                    setStep("details");
-                  }}
+                  onChange={changeSourceDetails}
                   sourcePicker={
                     focusedSource ? (
                       <div className="space-y-3">
@@ -1690,6 +1709,40 @@ export function ExamProfileBuilder({
                   }
                 />
                 {sourceJob && <BuilderEvidenceDetails job={sourceJob} />}
+              </div>
+            )}
+            {blockingSource && (
+              <div className="flex flex-wrap gap-2" aria-label="Build recovery">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={changeSourceDetails}
+                >
+                  Change details or documents
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => setRestartOpen(true)}
+                >
+                  Start new build
+                </Button>
+                {error && sourceJob &&
+                  !["reading", "identifying", "drafting"].includes(sourceJob.stage) && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => void resumeSource()}
+                    >
+                      Check progress
+                    </Button>
+                  )}
               </div>
             )}
             {!focusedSource && (
@@ -2963,9 +3016,7 @@ export function ExamProfileBuilder({
               variant="ghost"
               disabled={busy}
               onClick={() => {
-                if (focusedFollowup) {
-                  close();
-                } else if (legacyRunning) {
+                if (unfinishedSource || focusedFollowup || legacyRunning) {
                   close();
                 } else if (step === "review") {
                   const discardedReceipt =
@@ -2985,7 +3036,7 @@ export function ExamProfileBuilder({
                 }
               }}
             >
-              {legacyRunning || focusedFollowup
+              {unfinishedSource || legacyRunning || focusedFollowup
                 ? "Close"
                 : step === "details"
                   ? "Manual editor"
@@ -2993,13 +3044,14 @@ export function ExamProfileBuilder({
                     ? "Cancel"
                     : "Change details"}
             </Button>
-            {legacyRunning || hideKnownForm ? null : step === "details" ? (
+            {legacyRunning || hideKnownForm ||
+            (unfinishedSource && step !== "details") ? null : step === "details" ? (
               <Button
                 disabled={
                   busy ||
                   attachments.busy ||
                   discoveryBusy ||
-                  sourceJob?.stage === "needs_details"
+                  unfinishedSource
                 }
                 onClick={reviewChoice}
               >
@@ -3081,8 +3133,10 @@ export function ExamProfileBuilder({
           <AlertDialogHeader>
             <AlertDialogTitle>Start a new build?</AlertDialogTitle>
             <AlertDialogDescription>
-              Your saved profiles and attached files will stay. The current
-              build will no longer be selected.
+              Your saved profiles, attached files and assessment choices will
+              stay. Only the current build request will be cleared. A fresh
+              build may use AI. Starting again makes no AI call; choose Read
+              syllabus or Yes, build it when you are ready.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -3090,6 +3144,9 @@ export function ExamProfileBuilder({
             <AlertDialogAction
               onClick={() => {
                 invalidatePreview();
+                request.current = null;
+                setError("");
+                setChangeKnown(true);
                 setStep("details");
                 setRestartOpen(false);
               }}
