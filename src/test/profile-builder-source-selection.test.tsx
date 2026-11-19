@@ -42,7 +42,8 @@ function runtime() {
     const cover = source.pages.find((page: any) => page.text.includes("Version 2026"));
     expect(selectedText).toContain(`9BS0/0${number}`);
     for (const sibling of [1, 2, 3].filter(n => n !== number)) expect(selectedText).not.toContain(`9BS0/0${sibling}`);
-    evidence.identity = { ...payload.identity, course: "9BS0", specificationVersion: "2026", tier: null };
+    evidence.identity = { ...payload.identity, course: "9BS0", specificationVersion: "2026", tier: null,
+      component: `Paper ${number}`, organisation: "Edexcel", country: "UK", subject: "Business" };
     evidence.documents[0] = { ...evidence.documents[0], id: source.id, checksum: source.checksum,
       title: "Synthetic selected Business assessment", version: "2026",
       // Cover and paper may be separate spans on the same physical page.

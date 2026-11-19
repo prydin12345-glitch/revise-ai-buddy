@@ -6,7 +6,7 @@
  * Private page text belongs only in the owned preparation receipt. Only an
  * explicitly reviewed public source pack may enter a shared catalogue.
  */
-export const DOCUMENT_INDEX_VERSION = 7;
+export const DOCUMENT_INDEX_VERSION = 8;
 export const INDEXED_DOCUMENT_LIMITS = {
   maxBytes: 3_000_000,
   maxPages: 240,
@@ -656,11 +656,65 @@ const rulePattern =
   /^(?:assessment(?:\s+(?:overview|information|objectives|requirements|guidance))?\s*$|(?:appendix\s+\d+\s*[:.\u2013-]\s*)?(?:qualification at a glance|(?:mathematical|maths|practical|experimental)\s+(?:skills|requirements)|command words|mark(?:ing)?\s+scheme(?:\s+conventions)?|(?:total\s+)?marks|duration|time allowed|calculator(?:s|\s+policy)?|answer all questions|all questions are compulsory|tier(?:s|ing)?|(?:this (?:paper|assessment) is )?untiered)\b)/i;
 const headingPattern =
   /^\s*(?:[A-Z][A-Z\s\d,/:&()\u2013-]{3,}|(?:\d+(?:\.\d+)*\s+)?(?:Paper|Unit|Component|Topic|Module|Appendix|Assessment|Qualification|Content|Specification|Mathematical|Practical|Command words)\b)/;
+const numberedAssessmentHeading = (text: string) =>
+  /^(?:(?:AS(?:[- ]level)?|A[\s\u2010-\u2015-]*level)\s+)?(?:paper|unit|component)\s*\d{1,3}[A-Za-z]?\b/i.test(text)
+  && !/^(?:(?:AS(?:[- ]level)?|A[\s\u2010-\u2015-]*level)\s+)?(?:paper|unit|component)\s*\d{1,3}[A-Za-z]?\s+(?:is|are|will|may|must|can|should|includes?|covers?|assesses?|requires?|contains?|consists?|has|uses?|contributes?|accounts?|examines?|tests?|students?|candidates?)\b/i.test(text);
+const plainAssessmentHeadingPattern = /^(?:(?:final|mid[ -]?term|end[ -]of[ -](?:term|course|year|module)|semester\s+\d+)\s+(?:assessment|examination|exam|test)|(?:oral|practical|written)\s+(?:examination|assessment)|coursework|independent (?:investigation|research)|research investigation|practical endorsement)$/i;
+const namedAssessmentHeading = (text: string) => text.length <= 180 && (
+  /^(?:assessment|examination|exam|test|coursework|project)\s*[:\u2013\u2014-]\s*\S/i.test(text)
+  || plainAssessmentHeadingPattern.test(text));
+const sharedRuleScopePattern = /\b(?:(?:across|throughout|for)\s+(?:(?:the|this|whole|entire)\s+)*qualification|(?:all|every)\s+(?:examination\s+)?(?:papers?|assessments?))\b/i;
+const skillHeadingPattern = /^(?:Mathematical|Maths|Practical|Experimental)\s+(?:skills|requirements)$/i;
+const sharedChapterPattern = /^(?:Subject content|Assessment objectives|Scheme of assessment|Appendix(?:\s+\d+)?(?:\s*[:\u2013\u2014-].*)?)$/i;
+
+/** Navigation and qualification summaries cannot establish paper topic facts.
+ * Keep their titles as context, and resume at an actual assessment/shared rule
+ * section on the same page. The original pages remain intact in the index.
+ */
+function assessmentEvidenceIntervals(text: string): Array<[number, number]> {
+  const lines = pageLines(text), retained: Array<[number, number]> = [];
+  let metadata: "contents" | "overview" | undefined, start = 0, offset = 0;
+  lines.forEach((line, index) => {
+    const value = line.trim();
+    const sharedPolicy = metadata === "overview" ? sharedPolicyPassageEnd(lines, index) : null;
+    if (sharedPolicy !== null)
+      retained.push([offset, Math.min(text.length, offset + lines.slice(index, sharedPolicy)
+        .reduce((length, part) => length + part.length + 1, 0))]);
+    if (metadata === "overview" && (
+      numberedAssessmentHeading(value) || (namedAssessmentHeading(value)
+        && (!plainAssessmentHeadingPattern.test(value) || plainAssessmentContext(lines, index)))
+      || /^[A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]{0,2}$/.test(value)
+      || sharedChapterPattern.test(value)
+      || courseWideSkillHeading(lines, index)
+    )) {
+      metadata = undefined;
+      start = offset;
+    }
+    if (!metadata && /^(?:Contents|Table of contents|Qualification at a glance|Specification overview)$/i.test(value)) {
+      retained.push([start, Math.min(text.length, offset + line.length + 1)]);
+      metadata = /contents$/i.test(value) ? "contents" : "overview";
+    }
+    offset += line.length + 1;
+  });
+  if (!metadata) retained.push([start, text.length]);
+  return retained;
+}
+
+/** A wrapped title may continue for one line; prose is not part of its name. */
+function topicHeadingEnd(lines: string[], index: number, start: number) {
+  const line = lines[index], next = lines[index + 1]?.trim();
+  const wrapped = next && next.length <= 140 && !/[.!?;]$/.test(next)
+    && !topicPattern.test(next) && !componentsIn(next).length
+    && ![...next.matchAll(componentCodePattern)].length && !rulePattern.test(next)
+    && (/^[a-z]/.test(next) || /(?:\band|&|[,/-])\s*$/i.test(line));
+  return start + line.length + 1 + (wrapped ? lines[index + 1].length + 1 : 0);
+}
 
 const rulePassageBoundary = (line: string) => {
   const text = line.trim();
   return (
     !!qualificationHeading(text) ||
+    namedAssessmentHeading(text) ||
     rulePattern.test(text) ||
     /^(?:\d+(?:\.\d+)*[.)]?\s+)?(?:(?:Paper|Unit|Component|Topic|Module|Appendix)\s*[A-Z]?\d|Section\s+[A-Z0-9]\b)/i.test(
       text,
@@ -668,6 +722,59 @@ const rulePassageBoundary = (line: string) => {
     /^[A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]{0,2}\b/.test(text)
   );
 };
+/** A bare assessment title needs nearby instructions, not a contents mention. */
+function plainAssessmentContext(lines: string[], index: number) {
+  let characters = 0;
+  for (let next = index + 1; next < Math.min(lines.length, index + 5); next++) {
+    const value = lines[next].trim();
+    characters += lines[next].length + 1;
+    if (characters > 1_000) return false;
+    if (qualificationHeading(value) || topicPattern.test(value)
+      || numberedAssessmentHeading(value) || namedAssessmentHeading(value)
+      || sharedChapterPattern.test(value)) break;
+    if (/^(?:(?:total\s+)?marks|duration|time allowed|answer all questions)\b|\b\d+\s*(?:marks?|minutes?|hours?)\b/i.test(value)) return true;
+  }
+  return false;
+}
+
+/** Only a short, directly scoped policy passage can escape overview masking.
+ * A prohibition is a policy; denied applicability and teaching examples are not.
+ */
+function sharedPolicyPassageEnd(lines: string[], index: number): number | null {
+  const heading = lines[index].trim();
+  if (!/^(?:calculators?(?: policy)?|command words)$/i.test(heading)) return null;
+  const proof: string[] = [];
+  let end = index + 1, characters = 0, sentence = false;
+  const limit = Math.min(lines.length, index + 9);
+  while (end < limit) {
+    const value = lines[end].trim();
+    const policyStatement = /^(?:calculators?\s+(?:are|is|must|may|can|cannot|shall|not)|command words\s+(?:apply|are|must|may|can))\b/i.test(value);
+    if ((!value && proof.length) || (rulePassageBoundary(value) && !policyStatement)
+      || topicPattern.test(value) || sharedChapterPattern.test(value)) break;
+    characters += lines[end].length + 1;
+    if (characters > 1_000) return null;
+    proof.push(lines[end++]);
+    if (endsRuleSentence(value)) { sentence = true; break; }
+  }
+  if (!sentence && end === limit && end < lines.length) return null;
+  const text = proof.join(" ").replace(/\s+/g, " ").replace(/\u2019/g, "'")
+    .replace(/\b(?:doesn't|don't|isn't|aren't|wasn't|weren't|can't|won't)\b/gi, "not");
+  if (!sharedRuleScopePattern.test(text)
+    || /\b(?:teach(?:ing)?|classroom|lessons?|practi[cs]e|practice|examples?|illustrations?)\b/i.test(text)
+    || /\b(?:not|never)\s+(?:\w+\s+){0,3}(?:apply|applicable|shared|common|cover|govern|intended|relevant|valid|universal)\b|\bnot\s+(?:all|every)\b/i.test(text)
+    || (/^command words$/i.test(heading) && /\bnot\s+(?:be\s+)?(?:used|use)\b/i.test(text))) return null;
+  return end;
+}
+function courseWideSkillHeading(lines: string[], index: number) {
+  if (!skillHeadingPattern.test(lines[index].trim())) return false;
+  const proof: string[] = [];
+  for (let next = index + 1; next < Math.min(lines.length, index + 14); next++) {
+    if (rulePassageBoundary(lines[next]) || topicPattern.test(lines[next])
+      || namedAssessmentHeading(lines[next].trim()) || sharedChapterPattern.test(lines[next].trim())) break;
+    proof.push(lines[next]);
+  }
+  return sharedRuleScopePattern.test(proof.join(" ").slice(0, 2_000));
+}
 const endsRuleSentence = (line: string) =>
   /[.!?;][\s"')\]]*$/.test(line.trim());
 
@@ -909,6 +1016,13 @@ export function indexDocumentPages(
       }
     }
   const requested = requestedPattern(selection);
+  for (const page of pages) {
+    const retained = assessmentEvidenceIntervals(page.text);
+    for (const intervals of [allowed, contextAllowed])
+      intervals.set(page.page, (intervals.get(page.page) ?? []).flatMap(([from, to]) => retained
+        .map(([start, end]) => [Math.max(from, start), Math.min(to, end)] as [number, number])
+        .filter(([start, end]) => end > start)));
+  }
   const allSourceComponents = new Set(pages.flatMap((page) =>
     (allowed.get(page.page) ?? []).flatMap(([start, end]) => componentsIn(page.text.slice(start, end)))));
   const ambiguousAssessmentPages = new Set<number>();
@@ -925,9 +1039,8 @@ export function indexDocumentPages(
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
       const line = lines[lineIndex], text = line.trim();
       const inScope = (contextAllowed.get(page.page) ?? []).some(([start, end]) => offset < end && offset + line.length > start);
-      const numbered = /^(?:(?:AS(?:[- ]level)?|A[\s\u2010-\u2015-]*level)\s+)?(?:paper|unit|component)\s*\d{1,3}[A-Za-z]?\b/i.test(text)
-        && !/^(?:(?:AS(?:[- ]level)?|A[\s\u2010-\u2015-]*level)\s+)?(?:paper|unit|component)\s*\d{1,3}[A-Za-z]?\s+(?:is|are|will|may|must|can|should|includes?|covers?|assesses?|requires?|contains?|consists?|has|uses?|contributes?|accounts?|examines?|tests?|students?|candidates?)\b/i.test(text);
-      const named = /^(?:assessment|examination|exam|test|coursework|project)\s*[:\u2013\u2014-]\s*\S/i.test(text);
+      const numbered = numberedAssessmentHeading(text);
+      const named = namedAssessmentHeading(text);
       const codeOnly = /^[A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]{0,2}$/.test(text);
       // A code immediately following a numbered heading belongs to its block.
       // It is considered below when deciding which heading was requested.
@@ -938,7 +1051,7 @@ export function indexDocumentPages(
         const following: string[] = [line];
         for (let next = lineIndex + 1; next < Math.min(lines.length, lineIndex + 5); next++) {
           if (codeOnly || /^(?:(?:AS|A[ -]?level)\s+)?(?:paper|unit|component)\s*\d/i.test(lines[next].trim())
-            || /^(?:assessment|examination|exam|test|coursework|project)\s*[:\u2013\u2014-]/i.test(lines[next].trim())) break;
+            || namedAssessmentHeading(lines[next].trim())) break;
           const nextText = lines[next].trim();
           if (nextText && !/[A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]{0,2}\b/.test(nextText) &&
               (!/^[\p{L}][\p{L}\p{N}\s,&'’/()\u2010-\u2015-]{1,140}$/u.test(nextText) ||
@@ -1029,22 +1142,13 @@ export function indexDocumentPages(
       (assessmentBoundaries.get(page.page) ?? []).map((boundary) => ({ start: boundary.start, owner: boundary.selected }));
     let offset = 0;
     const lines = pageLines(page.text);
-    const firstLine = lines.findIndex((line) => line.trim());
     lines.forEach((line, lineIndex) => {
       const text = line.trim();
       const inScope = (contextAllowed.get(page.page) ?? []).some(([start, end]) => offset < end && offset + line.length > start);
       if (inScope) {
         const topic = line.match(topicPattern);
-        const skillHeading = /^(?:Mathematical|Maths|Practical|Experimental)\s+(?:skills|requirements)$/i.test(text);
-        const proof: string[] = [];
-        if (skillHeading && lineIndex === firstLine)
-          for (let next = lineIndex + 1; next < Math.min(lines.length, lineIndex + 14); next++) {
-            if (/^(?:(?:AS|A[ -]?level)\s+)?(?:paper|unit|component)\s*\d/i.test(lines[next].trim())) break;
-            proof.push(lines[next]);
-          }
-        const courseWideSkills = skillHeading && /\b(?:(?:across|throughout|for)\s+(?:(?:the|this|whole|entire)\s+)*qualification|(?:all|every)\s+(?:examination\s+)?(?:papers?|assessments?))\b/i.test(proof.join(" ").slice(0, 2_000));
-        const global = /^(?:Subject content|Assessment objectives|Scheme of assessment|Qualification at a glance|Specification overview|Appendix(?:\s+\d+)?(?:\s*[:\u2013\u2014-].*)?)$/i.test(text)
-          || courseWideSkills;
+        const global = sharedChapterPattern.test(text) || /^(?:Qualification at a glance|Specification overview)$/i.test(text)
+          || courseWideSkillHeading(lines, lineIndex) || sharedPolicyPassageEnd(lines, lineIndex) !== null;
         // An unallocated topic heading is not proof of a course-wide section.
         // Keep the current assessment owner until an explicit allocation or
         // shared chapter establishes a different scope.
@@ -1068,18 +1172,33 @@ export function indexDocumentPages(
   }
   if (allocatedTopics.size)
     for (const page of pages) {
-      const boundaries: Array<{ start: number; number: number }> = [];
+      const boundaries: Array<{ start: number; headingEnd?: number; number?: number; ambiguous?: boolean }> = [];
+      const assessments = new Set((assessmentBoundaries.get(page.page) ?? []).map(boundary => boundary.start));
       let offset = 0;
-      for (const line of pageLines(page.text)) {
+      const lines = pageLines(page.text);
+      lines.forEach((line, index) => {
         const topic = line.match(topicPattern);
-        if (topic) boundaries.push({ start: offset, number: Number(topic[1]) });
+        const inScope = (contextAllowed.get(page.page) ?? []).some(([start, end]) => offset < end && offset + line.length > start);
+        if (topic && inScope) boundaries.push({ start: offset, number: Number(topic[1]),
+          headingEnd: Math.min(page.text.length, topicHeadingEnd(lines, index, offset)),
+          ambiguous: [...line.matchAll(/\b(?:Topic|Module|Theme)\s+\d{1,2}\s*:/gi)].length > 1 });
+        else if (inScope && (assessments.has(offset) || sharedChapterPattern.test(line.trim())
+          || qualificationHeading(line) || courseWideSkillHeading(lines, index) || sharedPolicyPassageEnd(lines, index) !== null))
+          boundaries.push({ start: offset });
         offset += line.length + 1;
-      }
+      });
       if (!boundaries.length) continue;
       const retained: Array<[number, number]> = [[0, boundaries[0].start]];
       boundaries.forEach((boundary, index) => {
-        if (allocatedTopics.has(boundary.number))
-          retained.push([boundary.start, boundaries[index + 1]?.start ?? page.text.length]);
+        const end = boundaries[index + 1]?.start ?? page.text.length;
+        if (boundary.number === undefined) { retained.push([boundary.start, end]); return; }
+        if (!allocatedTopics.has(boundary.number) || boundary.ambiguous) return;
+        const text = page.text.slice(boundary.start, end);
+        const sibling = componentsIn(text).some(component => !requested.test(component))
+          || [...text.matchAll(componentCodePattern)].some(match => !requested.test(normalize(match[0])));
+        // A shared theme can describe several papers in the same paragraph.
+        // Its heading is useful; that mixed prose cannot prove selected rules.
+        retained.push([boundary.start, sibling ? Math.min(end, boundary.headingEnd!) : end]);
       });
       allowed.set(page.page, (allowed.get(page.page) ?? []).flatMap(([start, end]) => retained
         .map(([from, to]) => [Math.max(start, from), Math.min(end, to)] as [number, number])
@@ -1112,7 +1231,8 @@ export function indexDocumentPages(
     return { ...page, text };
   });
   const total = pages.reduce((sum, page) => sum + page.text.length, 0),
-    matches = scanPages.filter((page) => requested.test(normalize(page.text))),
+    matches = scanPages.filter((page) => requested.test(normalize(page.text))
+      && (matchedAssessmentPages.has(page.page) || !pageLines(page.text).some(line => topicPattern.test(line)))),
     allComponents = allSourceComponents,
     selected = new Map<number, Array<[number, number]>>(),
     warnings: string[] = [];

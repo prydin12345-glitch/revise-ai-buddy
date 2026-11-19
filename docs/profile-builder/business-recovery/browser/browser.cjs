@@ -68,6 +68,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_CORE_PATH || '/tmp/examly-bu
           if (scenario === 'errors') {
             await page.getByLabel('Profile validation details').waitFor();
             assert.match(await page.getByLabel('Profile validation details').innerText(), /Selected PDF pages: 14, 15/);
+            assert.match(await page.getByLabel('Profile validation details').innerText(), /returned paper or assessment did not match your selection/);
+            assert.match(await page.getByLabel('Profile validation details').innerText(), /did not confirm whether this attempt completed/);
           } else await page.getByRole('button', { name: 'Yes, build it', exact: true }).waitFor();
           assert.equal(await page.getByRole('list', { name: 'Attached source files' }).locator('li').count(), 1);
           await bounds('server-confirmed source');

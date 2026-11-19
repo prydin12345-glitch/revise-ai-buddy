@@ -1,0 +1,142 @@
+{
+  "status": "PASS",
+  "branch": "codex/business-source-evidence",
+  "baseline": "1ad1faee7bdf2566fd5b44d252fe37f4f23287ca",
+  "runtime": {
+    "node": "v24.19.0",
+    "npm": "11.9.0",
+    "deno": "2.5.6",
+    "playwright": "1.62.0",
+    "browser": "system Chromium"
+  },
+  "dependencyCheck": {
+    "command": "npm ls --depth=0 --cache /tmp/examly-business-npm-cache",
+    "exitCode": 0,
+    "problems": []
+  },
+  "repositoryCheck": {
+    "command": "npm run check",
+    "exitCode": 0,
+    "frontendTypecheck": "PASS",
+    "physicsTypecheck": "PASS",
+    "criticalLint": "PASS",
+    "testFiles": 210,
+    "testsPassed": 3598,
+    "testsFailed": 0,
+    "edgeIdentifierCheck": "PASS",
+    "edgeFunctionsBundled": 39,
+    "productionBuild": {
+      "status": "PASS",
+      "seconds": 25.38
+    }
+  },
+  "backendTypecheck": {
+    "command": "DENO_TLS_CA_STORE=system DENO_DIR=/tmp/examly-business-deno-cache /tmp/examly-business-tools/node_modules/.bin/deno check --no-lock --config supabase/functions/profile-builder/deno.json supabase/functions/profile-builder/index.ts supabase/functions/extract-exam-questions/index.ts",
+    "exitCode": 0,
+    "entrypoints": [
+      "profile-builder",
+      "extract-exam-questions"
+    ]
+  },
+  "negativeControl": {
+    "status": "EXPECTED FAILURE before the alias correction",
+    "case": "A source-proven Paper 1 response for selected 9BS0/01 remained identifying instead of ready, consuming a repair opportunity.",
+    "afterFix": "Ready after one extraction; complete after one draft; no identity repair call."
+  },
+  "publicReference": {
+    "sha256": "8d66018d0a9d826cdb9729c78012d73f5e7ab32bd8946f9eb9fd501827c9829f",
+    "bytes": 574854,
+    "physicalPages": 68,
+    "path": "/tmp/edexcel-alevel-business-official.pdf",
+    "boundary": "Public Pearson reference, not the user private upload.",
+    "discoveredPapers": 3,
+    "ambiguous": false,
+    "fullAndFocusedScopeCases": 6,
+    "passed": 6,
+    "checks": [
+      "complete coverage",
+      "literal snippets",
+      "selected themes only",
+      "sibling names/codes excluded",
+      "qualification topic tables excluded",
+      "overview and summary retained",
+      "120 minute duration retained",
+      "100 marks retained"
+    ],
+    "baselineLeakReproduced": [
+      "Paper 1 received Theme 2 from the qualification overview",
+      "Paper 1 received sibling-paper teaching prose on allocated theme pages"
+    ]
+  },
+  "browser": {
+    "command": "PROFILE_BUILDER_BROWSER_ARTIFACT_DIR=/tmp/profile-builder-business-source-evidence PLAYWRIGHT_CORE_PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/playwright/driver/package node docs/profile-builder/business-recovery/browser/browser.cjs",
+    "status": "PASS",
+    "cases": 12,
+    "viewports": [
+      "laptop 1440x1000",
+      "iPad 834x1194",
+      "phone 390x844"
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "scenarios": [
+      "selected-paper confirmation",
+      "identity mismatch followed by unconfirmed service outcome"
+    ],
+    "errors": [],
+    "blockedRequests": [],
+    "hashesBeforeAndAfter": "PASS",
+    "artifacts": "/tmp/profile-builder-business-source-evidence",
+    "visuallyInspected": [
+      "phone-light-errors.png",
+      "laptop-dark-errors.png",
+      "ipad-light-business.png"
+    ],
+    "boundary": "Actual UI/local source inspection, synthetic API; Chromium emulation, not physical iOS/iPadOS."
+  },
+  "controlledIntegration": {
+    "frontendClientToRealBundledHandler": "PASS for all three source-selected papers; default course, source code, supported display aliases, unknown tier and persisted uploads retained",
+    "sourceJobs": "PASS for proven aliases in extraction/draft, genuine conflicts, manual-code boundaries, private errors, and no replay after unknown provider cost",
+    "providerAndPersistence": "Controlled synthetic boundaries; no live AI or production profile writes"
+  },
+  "affectedDeployments": [
+    "profile-builder",
+    "extract-exam-questions",
+    "matching frontend preview"
+  ],
+  "protectedFiles": {
+    "package.json": "unchanged",
+    "package-lock.json": "unchanged",
+    "bun.lock": "unchanged",
+    ".env": "unchanged"
+  },
+  "existingWarnings": [
+    "Browserslist data age",
+    "Vite bundle size and dependency annotation warnings",
+    "PDF standard-font-data warning during offline text extraction"
+  ],
+  "limitations": [
+    "No private upload or live provider receipt/log access; original service failure and cost cannot be diagnosed from public pages.",
+    "No paid AI calls or live end-to-end model build.",
+    "No physical iOS/iPadOS or complete accessibility certification.",
+    "No deployment, merge, website publication, migration or student-data access."
+  ],
+  "scopeGuardrailRegression": {
+    "beforeCorrection": "8 failures among 25 tests reproduced overmasking of explicit shared policies and plain named assessments.",
+    "finalScopeTests": 30,
+    "boundaries": [
+      "literal CRLF spans",
+      "short direct shared policies including calculator prohibitions",
+      "nearby instructions for plain named assessments",
+      "no denied scope or teaching-only policy promotion",
+      "qualification, topic and named-assessment boundaries",
+      "bounded line and character lookahead"
+    ]
+  },
+  "frozenScopeHashes": {
+    "supabase/functions/_shared/profile-document-index.ts": "5b0cbfa41e0d62cdcb0732873b87d93930cb99185cef22f6cf98c7ebf592b2c8",
+    "supabase/tests/profile-document-index-business-scope.test.ts": "bd26418efa81e3aa529b3aa2dc298f06ba4cbac4155ec66fbdb4d01712f70173"
+  }
+}
