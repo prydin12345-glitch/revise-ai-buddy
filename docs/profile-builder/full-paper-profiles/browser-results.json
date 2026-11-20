@@ -1,0 +1,406 @@
+{
+  "status": "PASS",
+  "boundary": "Actual UI/local discovery, controlled source API. Provider and generation flows are tested separately; no live AI/account/database.",
+  "cases": [
+    {
+      "viewport": {
+        "name": "laptop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "scenario": "paper1",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "laptop-light-paper1.png"
+    },
+    {
+      "viewport": {
+        "name": "laptop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "scenario": "paper2",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "laptop-light-paper2.png"
+    },
+    {
+      "viewport": {
+        "name": "laptop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "scenario": "paper3",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "laptop-light-paper3.png"
+    },
+    {
+      "viewport": {
+        "name": "laptop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "scenario": "unknown",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "laptop-light-unknown.png"
+    },
+    {
+      "viewport": {
+        "name": "laptop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "scenario": "paper1",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "laptop-dark-paper1.png"
+    },
+    {
+      "viewport": {
+        "name": "laptop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "scenario": "paper2",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "laptop-dark-paper2.png"
+    },
+    {
+      "viewport": {
+        "name": "laptop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "scenario": "paper3",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "laptop-dark-paper3.png"
+    },
+    {
+      "viewport": {
+        "name": "laptop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "scenario": "unknown",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "laptop-dark-unknown.png"
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "light",
+      "scenario": "paper1",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "ipad-light-paper1.png"
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "light",
+      "scenario": "paper2",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "ipad-light-paper2.png"
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "light",
+      "scenario": "paper3",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "ipad-light-paper3.png"
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "light",
+      "scenario": "unknown",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "ipad-light-unknown.png"
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "dark",
+      "scenario": "paper1",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "ipad-dark-paper1.png"
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "dark",
+      "scenario": "paper2",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "ipad-dark-paper2.png"
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "dark",
+      "scenario": "paper3",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "ipad-dark-paper3.png"
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "dark",
+      "scenario": "unknown",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "ipad-dark-unknown.png"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "scenario": "paper1",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "phone-light-paper1.png"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "scenario": "paper2",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "phone-light-paper2.png"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "scenario": "paper3",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "phone-light-paper3.png"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "scenario": "unknown",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "phone-light-unknown.png"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "scenario": "paper1",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "phone-dark-paper1.png"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "scenario": "paper2",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "phone-dark-paper2.png"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "scenario": "paper3",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "phone-dark-paper3.png"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "scenario": "unknown",
+      "mode": "full_mock",
+      "noModeChooser": true,
+      "uploadRetained": true,
+      "noHorizontalOverflow": true,
+      "screenshot": "phone-dark-unknown.png"
+    }
+  ],
+  "errors": [],
+  "blockedRequests": [],
+  "hashesBefore": {
+    "status": "PASS",
+    "applicationFiles": 834,
+    "serverFiles": 193,
+    "dependencyInputs": 1743,
+    "applicationDifferences": [],
+    "serverDifferences": [],
+    "dependencyDifferencesWithinRun": [],
+    "fixtureDifferences": [],
+    "fontDifferences": [],
+    "outputDifferences": [],
+    "runtime": {
+      "node": "v24.19.0",
+      "platform": "linux",
+      "architecture": "x64",
+      "osRelease": "6.18.57",
+      "packages": {
+        "esbuild": "0.28.2",
+        "postcss": "8.5.6",
+        "postcss-import": "15.1.0",
+        "tailwindcss": "3.4.17",
+        "autoprefixer": "10.4.21",
+        "react": "18.3.1",
+        "react-dom": "18.3.1",
+        "react-router-dom": "6.26.2",
+        "unpdf": "1.8.1",
+        "zod": "4.6.2"
+      }
+    },
+    "policy": "Every recorded application/server/config/lockfile/fixture/font/dependency input and generated bundle/style output must match the frozen build. Server pinning does not imply that backend endpoints ran in the browser."
+  },
+  "hashesAfter": {
+    "status": "PASS",
+    "applicationFiles": 834,
+    "serverFiles": 193,
+    "dependencyInputs": 1743,
+    "applicationDifferences": [],
+    "serverDifferences": [],
+    "dependencyDifferencesWithinRun": [],
+    "fixtureDifferences": [],
+    "fontDifferences": [],
+    "outputDifferences": [],
+    "runtime": {
+      "node": "v24.19.0",
+      "platform": "linux",
+      "architecture": "x64",
+      "osRelease": "6.18.57",
+      "packages": {
+        "esbuild": "0.28.2",
+        "postcss": "8.5.6",
+        "postcss-import": "15.1.0",
+        "tailwindcss": "3.4.17",
+        "autoprefixer": "10.4.21",
+        "react": "18.3.1",
+        "react-dom": "18.3.1",
+        "react-router-dom": "6.26.2",
+        "unpdf": "1.8.1",
+        "zod": "4.6.2"
+      }
+    },
+    "policy": "Every recorded application/server/config/lockfile/fixture/font/dependency input and generated bundle/style output must match the frozen build. Server pinning does not imply that backend endpoints ran in the browser."
+  }
+}

@@ -89,6 +89,9 @@ async function upload(subject = "Business", courseId?: string) {
     <ExamProfileBuilder open onOpenChange={vi.fn()} onManual={vi.fn()} accountId={owner}
       subjectName={subject} examBoard="Edexcel" educationalLevel="level3" curriculumRegion="GB" courseId={courseId} />
   </WorkspaceContext.Provider>);
+  expect(screen.getByLabelText("Course / specification code")).toHaveValue(courseId ?? "9BS0");
+  expect(screen.getByText("Full paper profile.")).toBeVisible();
+  expect(invoke).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Upload syllabus" }));
   const bytes = new TextEncoder().encode(text);
   fireEvent.change(screen.getByLabelText("Syllabus or assessment brief"), { target: { files: [{
@@ -98,17 +101,18 @@ async function upload(subject = "Business", courseId?: string) {
   return r;
 }
 
-it.each([0, 1, 2])("the actual form submits and verifies paper %s after course autofill, retaining upload and unknown tier", async index => {
+it.each([0, 1, 2])("the actual form submits reviewed paper %s and binds its owned source, retaining upload and known tier", async index => {
   const r = await upload(index === 1 ? "Business Studies" : "Business");
   const option = screen.getByRole("option", { name: `Paper ${index + 1} — ${titles[index]}` }) as HTMLOptionElement;
   const selectedId = option.value;
-  fireEvent.change(screen.getByRole("combobox", { name: "Assessment" }), { target: { value: selectedId } });
+  expect(selectedId).toBe(`paper_${index + 1}`);
+  fireEvent.change(screen.getByRole("combobox", { name: "Paper" }), { target: { value: selectedId } });
   await waitFor(() => expect(screen.getByLabelText("Course / specification code")).toHaveValue("9BS0"));
   await waitFor(() => expect(screen.queryByText("Finding assessment names in your attached files…")).not.toBeInTheDocument());
   expect(screen.getByRole("combobox", { name: "Paper" })).toHaveValue(selectedId);
   expect(screen.getByLabelText("Paper / component code")).toHaveValue(`9BS0/0${index + 1}`);
   // A disabled placeholder must also be a no-op if a scripted event reaches it.
-  const placeholder = within(screen.getByRole("combobox", { name: "Paper" })).getByRole("option", { name: "Choose an assessment from your syllabus" });
+  const placeholder = within(screen.getByRole("combobox", { name: "Paper" })).getByRole("option", { name: "Choose your paper" });
   expect(placeholder).toBeDisabled();
   fireEvent.change(screen.getByRole("combobox", { name: "Paper" }), { target: { value: "" } });
   expect(screen.getByRole("combobox", { name: "Paper" })).toHaveValue(selectedId);
@@ -119,12 +123,22 @@ it.each([0, 1, 2])("the actual form submits and verifies paper %s after course a
   expect(record.stage, JSON.stringify({ needs: record.data.needs, issues: record.data.validationIssues })).toBe("ready");
   await screen.findByRole("button", { name: "Yes, build it" });
   const prepare = invoke.mock.calls.map(call => call[1].body).find(body => body.action === "prepare_source");
-  expect(prepare).toMatchObject({ selectedAssessmentId: selectedId, identity: { course: "9BS0", component: `9BS0/0${index + 1}`, tier: null } });
+  expect(prepare).toMatchObject({ mode: "full_mock", identity: { course: "9BS0", component: `9BS0/0${index + 1}`, tier: "not_tiered" } });
+  // The catalogue option is a UI choice. Only the owned upload may supply a
+  // source assessment ID; the handler binds it from the exact component code.
+  expect(prepare).not.toHaveProperty("selectedAssessmentId");
+  expect(record.data.selectedAssessmentId).toBe(record.data.sourceAssessment?.id);
+  expect(record.data.selectedAssessmentId).toEqual(expect.any(String));
+  expect(record.data.selectedAssessmentId).not.toBe(selectedId);
+  expect(record.data.sourceAssessment).toMatchObject({ componentCode: `9BS0/0${index + 1}` });
+  expect(record.data.sourceAssessment?.references).toEqual(expect.arrayContaining([
+    expect.objectContaining({ documentId: record.data.documents[0].id, checksum: record.data.documents[0].checksum }),
+  ]));
   expect(prepare.uploads).toHaveLength(1);
   expect(atob(prepare.uploads[0].base64)).toBe(text);
   expect(screen.getByText("synthetic-business.txt")).toBeVisible();
   expect(screen.queryByText(/The selected assessment could not be verified/)).not.toBeInTheDocument();
-  expect([...r.memory.records.values()][0]).toMatchObject({ stage: "ready", data: { identity: { course: "9BS0", component: `9BS0/0${index + 1}`, tier: null } } });
+  expect([...r.memory.records.values()][0]).toMatchObject({ stage: "ready", data: { mode: "full_mock", identity: { course: "9BS0", component: `9BS0/0${index + 1}`, tier: "not_tiered" } } });
   expect(r.provider).toHaveLength(1);
 });
 

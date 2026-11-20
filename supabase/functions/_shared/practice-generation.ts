@@ -216,7 +216,7 @@ export async function generateQuestionsInBackground(
 
       if (cached && isCacheEntryCompatible(cached as any, cacheParams) &&
           (!physicsGeneration || physicsPracticeResult(cached.questions as any[]).ok)) {
-        assertBiologyPractice(cached.questions as any[], generationContext);
+        assertBiologyPractice(cached.questions as any[], generationContext, setData.subtopics ?? []);
         console.log(`Cache HIT slot ${variationSlot} for key ${cacheKey} — skipping AI call`);
         await supabaseClient.from('question_generation_cache')
           .update({ hit_count: (cached.hit_count || 0) + 1 })
@@ -4828,7 +4828,7 @@ Generate questions that are meaningfully different from all of the above.`;
     }
     // ───────────────────────────────────────────────────────────────────
 
-    assertBiologyPractice(questionsToInsert, generationContext);
+    assertBiologyPractice(questionsToInsert, generationContext, setData.subtopics ?? []);
     // Validate the actual saved representation after splitting, graph helpers
     // and leak cleanup, so later rewrites cannot bypass the initial AI gate.
     assertPhysicsPractice(questionsToInsert);

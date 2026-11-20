@@ -313,13 +313,12 @@ it("unsupported university identity needs human names, not invented technical co
   expect(r.presetId).toBe("");
   expect(r.sourceId).toBe("");
 });
-it("Change details returns to human choices before any API request and supports short/full switching", () => {
+it("Change details returns to human choices and retains the full-paper default without an API request", () => {
   const api = vi.fn();
   render(<ExamProfileBuilder {...ocr} api={api} />);
   fireEvent.click(screen.getByRole("button", { name: "Change details" }));
-  fireEvent.change(screen.getByLabelText("Assessment mode"), {
-    target: { value: "full_mock" },
-  });
+  expect(screen.queryByLabelText("Assessment mode")).not.toBeInTheDocument();
+  expect(screen.getByText("Full paper profile.")).toBeVisible();
   confirm();
   expect(screen.getByText(/Full mock using your saved/)).toBeInTheDocument();
   expect(api).not.toHaveBeenCalled();
@@ -410,6 +409,7 @@ it("an uploaded university syllabus discovers identity before confirmation and s
   };
   const template = templateFixture();
   template.identity = discovered;
+  template.mode = "full_mock";
   const evidence = await ownerEvidence();
   evidence.identity = discovered;
   const proposal = {
@@ -428,7 +428,7 @@ it("an uploaded university syllabus discovers identity before confirmation and s
     jobId,
     stage,
     identity: discovered,
-    mode: "short_practice" as const,
+    mode: "full_mock" as const,
     progress: { completed: stage === "identifying" ? 0 : 1, total: 2 },
     message: "Source processing",
     ...(stage === "complete" ? { proposalId: jobId, proposal } : {}),
@@ -486,6 +486,7 @@ it("an uploaded university syllabus discovers identity before confirmation and s
     "prepare_source",
     "advance_source",
   ]);
+  expect(calls[0].mode).toBe("full_mock");
   expect(calls[0].identity.specificationVersion).toBe("Not verified");
   expect(calls[0].uploads).toHaveLength(1);
   expect(Object.keys(calls[0].uploads[0]).sort()).toEqual([
@@ -514,11 +515,17 @@ it("an uploaded university syllabus discovers identity before confirmation and s
   fireEvent.change(screen.getByLabelText("Time limit (minutes)"), {
     target: { value: "31" },
   });
+  expect(screen.getByRole("button", { name: "Save profile" })).toBeDisabled();
+  expect(screen.getByRole("alert")).toHaveTextContent(/duration/i);
+  fireEvent.change(screen.getByLabelText("Time limit (minutes)"), {
+    target: { value: "30" },
+  });
   fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
   await waitFor(() =>
     expect(calls.at(-1).profileName).toBe("My university revision"),
   );
-  expect(calls.at(-1).template.durationMinutes).toBe(31);
+  expect(calls.at(-1).template.durationMinutes).toBe(30);
+  expect(calls.at(-1).template.mode).toBe("full_mock");
 });
 
 it("changing an assessment removes the previous preview before a new build", async () => {
@@ -729,7 +736,7 @@ it("a lost source-preparation response keeps the same receipt for a free status 
         jobId: String(input.jobId),
         stage: "identifying",
         identity: templateFixture().identity,
-        mode: "short_practice",
+        mode: "full_mock",
         progress: { completed: 0, total: 2 },
         message: "Finding assessment rules",
       },
@@ -963,9 +970,8 @@ it("retains visible source files after cancelled or invalid replacement and afte
   });
   expect(screen.getByText("retained-brief.txt")).toBeVisible();
   expect(screen.getByText(/Your attached files are unchanged/)).toBeVisible();
-  fireEvent.change(screen.getByLabelText("Assessment mode"), {
-    target: { value: "full_mock" },
-  });
+  expect(screen.queryByLabelText("Assessment mode")).not.toBeInTheDocument();
+  expect(screen.getByText("Full paper profile.")).toBeVisible();
   fireEvent.change(screen.getByLabelText("Official specification URL"), {
     target: { value: "https://example.edu/brief.pdf" },
   });
@@ -1036,7 +1042,7 @@ it.each([
     fireEvent.change(version, { target: { value: "Version 1.4 July 2026" } });
     fireEvent.change(version, { target: { value: override } });
   }
-  fireEvent.change(screen.getByLabelText("Assessment mode"), { target: { value: "full_mock" } });
+  expect(screen.queryByLabelText("Assessment mode")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Upload syllabus" }));
   const bytes = new TextEncoder().encode("A-level Physics 7408 specification\nVersion 1.3 1 June 2017\nPaper 1 7408/1");
   fireEvent.change(screen.getByLabelText("Syllabus or assessment brief"), {
@@ -1102,9 +1108,8 @@ it("keeps the upload, date context and mode while a targeted source choice corre
   fireEvent.change(screen.getByLabelText("Paper"), {
     target: { value: "paper_1" },
   });
-  fireEvent.change(screen.getByLabelText("Assessment mode"), {
-    target: { value: "full_mock" },
-  });
+  expect(screen.queryByLabelText("Assessment mode")).not.toBeInTheDocument();
+  expect(screen.getByText("Full paper profile.")).toBeVisible();
   fireEvent.change(
     screen.getByLabelText("Specification version / teaching dates (optional)"),
     { target: { value: dates } },
@@ -1169,7 +1174,8 @@ it("keeps the upload, date context and mode while a targeted source choice corre
     screen.queryByLabelText("Assessment found in your source"),
   ).not.toBeInTheDocument();
   expect(screen.getByLabelText("Paper")).toHaveValue("paper_2");
-  expect(screen.getByLabelText("Assessment mode")).toHaveValue("full_mock");
+  expect(screen.queryByLabelText("Assessment mode")).not.toBeInTheDocument();
+  expect(screen.getByText("Full paper profile.")).toBeVisible();
   expect(
     screen.getByLabelText("Specification version / teaching dates (optional)"),
   ).toHaveValue(dates);
@@ -1198,7 +1204,7 @@ it("a named option source choice preserves Astrophysics and cannot silently swit
         job: {
           jobId: String(input.requestId),
           stage: "ready",
-          mode: "short_practice",
+          mode: "full_mock",
           identity: identitySchema.parse(input.identity),
           progress: { completed: 1, total: 2 },
           message: "Ready to confirm.",
@@ -1208,7 +1214,7 @@ it("a named option source choice preserves Astrophysics and cannot silently swit
       job: {
         jobId: String(input.requestId),
         stage: "needs_details",
-        mode: "short_practice",
+        mode: "full_mock",
         identity: identitySchema.parse(input.identity),
         progress: { completed: 0, total: 1 },
         message: "We need a little more assessment information.",
@@ -1318,7 +1324,7 @@ it("shows one missing question, retains the upload and read, and continues the s
           stage: "needs_details",
           revision: 7,
           identity: savedIdentity,
-          mode: "short_practice",
+          mode: "full_mock",
           progress: { completed: 0, total: 1 },
           message: "One detail is missing.",
           missingItems: missing,
@@ -1338,7 +1344,7 @@ it("shows one missing question, retains the upload and read, and continues the s
           stage: "needs_details",
           revision: 8,
           identity: savedIdentity,
-          mode: "short_practice",
+          mode: "full_mock",
           progress: { completed: 0, total: 1 },
           message: "One detail is missing.",
           missingItems: [missing[1]],
@@ -1353,7 +1359,7 @@ it("shows one missing question, retains the upload and read, and continues the s
         stage: "ready",
         revision: 9,
         identity: savedIdentity,
-        mode: "short_practice",
+        mode: "full_mock",
         progress: { completed: 1, total: 2 },
         message: "Ready to confirm.",
       },
@@ -1452,7 +1458,7 @@ async function manualCodeSource(code?: string, warnings: string[] = [], failed =
   const api: BuilderApi = async input => {
     calls.push(input);
     return {job: {
-      jobId: String(input.requestId), stage: failed ? "failed" : "ready", mode: "short_practice",
+      jobId: String(input.requestId), stage: failed ? "failed" : "ready", mode: "full_mock",
       assessmentConfirmed: true,
       identity: identitySchema.parse(input.identity),
       progress: {completed: 1, total: 1}, message: "Ready",
@@ -1460,7 +1466,7 @@ async function manualCodeSource(code?: string, warnings: string[] = [], failed =
     }};
   };
   const onOpenChange = vi.fn();
-  render(<ExamProfileBuilder {...base} subjectName="Business" examBoard="Edexcel" api={api} onOpenChange={onOpenChange} />);
+  render(<ExamProfileBuilder {...base} subjectName="Unreviewed Business" examBoard="Edexcel" api={api} onOpenChange={onOpenChange} />);
   fireEvent.click(screen.getByRole("button", {name: "Upload syllabus"}));
   const bytes = new TextEncoder().encode("A-level Business\nPaper 1\nMarketing, people and global businesses\n100 marks");
   fireEvent.change(screen.getByLabelText("Syllabus or assessment brief"), {target: {files: [{name: "business.txt", type: "text/plain", size: bytes.length, arrayBuffer: async () => bytes.buffer}]}});
@@ -1498,7 +1504,7 @@ it("suppresses obsolete local ambiguity warnings after the owned assessment is c
   await waitFor(() => expect(calls).toHaveLength(1));
   await waitFor(() => expect(screen.queryByText(warning)).not.toBeInTheDocument());
   expect(screen.getByText("business.txt")).toBeVisible();
-  expect(calls[0].identity).toMatchObject({ course: "A-level Business", tier: null, specificationVersion: "Not verified" });
+  expect(calls[0].identity).toMatchObject({ course: "A-level Unreviewed Business", tier: null, specificationVersion: "Not verified" });
 });
 
 it("retains an upload when course identity is cleared and accepts an optional blank component code", async () => {
@@ -1518,7 +1524,7 @@ it("retains an upload when course identity is cleared and accepts an optional bl
   fireEvent.click(screen.getByRole("button", { name: "Read syllabus" }));
   await waitFor(() => expect(calls).toHaveLength(1));
   expect(calls[0].uploads).toHaveLength(1);
-  expect(calls[0].identity).toMatchObject({ course: "A-level Business", tier: null, component: "Paper 1" });
+  expect(calls[0].identity).toMatchObject({ course: "A-level Unreviewed Business", tier: null, component: "Paper 1" });
 });
 
 it("confirms a manual code separately without replacing the source assessment or clearing the upload", async () => {

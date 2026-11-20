@@ -164,7 +164,7 @@ export function ExamProfileBuilder({
   courseId,
   paperId,
   assessmentTier,
-  initialMode,
+  initialMode = "full_mock",
   accountId,
   onManual,
   onDelete,
@@ -186,7 +186,7 @@ export function ExamProfileBuilder({
       tier: assessmentTier,
     }),
   );
-  const [mode, setMode] = useState<ProfileTemplate["mode"]>("short_practice");
+  const [mode, setMode] = useState<ProfileTemplate["mode"]>(initialMode);
   const [changeKnown, setChangeKnown] = useState(false);
   const [editing, setEditing] = useState(false);
   const [presetId, setPresetId] = useState("");
@@ -345,7 +345,7 @@ export function ExamProfileBuilder({
           tier: assessmentTier,
         }),
       );
-      setMode(initialMode === "full_mock" ? "full_mock" : "short_practice");
+      setMode(initialMode);
       setChangeKnown(false);
       setPresetId("");
       setProposal(null);
@@ -368,10 +368,7 @@ export function ExamProfileBuilder({
       setCodeEdited(false);
       setManualAssessment(!!seed.component && !selected);
       try {
-        const resolved = resolveBuilderChoice(
-          seed,
-          initialMode === "full_mock" ? "full_mock" : "short_practice",
-        );
+        const resolved = resolveBuilderChoice(seed, initialMode);
         setIdentity(resolved.identity);
         setPresetId(resolved.presetId);
         setSourceId(resolved.sourceId);
@@ -933,7 +930,9 @@ export function ExamProfileBuilder({
     else if (sourceUrl.trim()) payload.sourceUrl = sourceUrl.trim();
     else {
       setError(
-        "Choose a registered source, upload a syllabus, or explicitly choose general practice.",
+        mode === "full_mock"
+          ? "Choose a registered source or upload a syllabus for your full paper profile."
+          : "Choose a registered source, upload a syllabus, or explicitly choose general practice.",
       );
       return;
     }
@@ -1333,7 +1332,7 @@ export function ExamProfileBuilder({
         mode === "full_mock"
       )
         throw Error(
-          "Choose Short practice for an unverified draft, or add a source for a Full mock.",
+          "Add your syllabus or assessment brief to build a full paper profile.",
         );
       if (!resolved.presetId && sourceChoice === "upload") {
         void prepareSource({
@@ -2045,23 +2044,13 @@ export function ExamProfileBuilder({
                         )}
                       </Field>
                     )}
-                  <Field label="What would you like to practise?">
-                    {select(
-                      mode,
-                      (v) => {
-                        invalidatePreview();
-                        setMode(v as typeof mode);
-                        setPresetId("");
-                      },
-                      [
-                        ["short_practice", "Short practice"],
-                        ["full_mock", "Full mock"],
-                        ["custom", "Custom assessment"],
-                      ],
-                      "Assessment mode",
-                    )}
-                  </Field>
                 </div>
+                {mode === "full_mock" && (
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">Full paper profile.</span>{" "}
+                    Choose quiz topics and length later.
+                  </p>
+                )}
                 {sourceChoicesReady && needEvidence && (
                   <section className="space-y-3 border-t border-border pt-4">
                     <h2 className="text-base font-semibold">
@@ -2095,31 +2084,33 @@ export function ExamProfileBuilder({
                         </Button>
                       </div>
                     )}
-                    <details className="text-sm">
-                      <summary className="cursor-pointer text-xs text-muted-foreground">
-                        Other options
-                      </summary>
-                      <div className="mt-3">
-                        {" "}
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant={
-                            sourceChoice === "unverified"
-                              ? "default"
-                              : "outline"
-                          }
-                          onClick={() => {
-                            invalidatePreview();
-                            setSourceChoice("unverified");
-                            setConfirmedManualCode("");
-                            setError("");
-                          }}
-                        >
-                          General practice without a syllabus
-                        </Button>
-                      </div>
-                    </details>
+                    {mode !== "full_mock" && (
+                      <details className="text-sm">
+                        <summary className="cursor-pointer text-xs text-muted-foreground">
+                          Other options
+                        </summary>
+                        <div className="mt-3">
+                          {" "}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={
+                              sourceChoice === "unverified"
+                                ? "default"
+                                : "outline"
+                            }
+                            onClick={() => {
+                              invalidatePreview();
+                              setSourceChoice("unverified");
+                              setConfirmedManualCode("");
+                              setError("");
+                            }}
+                          >
+                            General practice without a syllabus
+                          </Button>
+                        </div>
+                      </details>
+                    )}
                     {sourceChoice === "unverified" && (
                       <p className="rounded-md bg-warning-light p-3 text-sm">
                         Create an unverified general-practice draft. It may not
@@ -2269,7 +2260,7 @@ export function ExamProfileBuilder({
                           ["", "Resolve from my choices"],
                           ...catalogue
                             .filter((e) =>
-                              builderCourses(identity).some(
+                              e.mode === mode && builderCourses(identity).some(
                                 (c) => c.id === e.course,
                               ),
                             )

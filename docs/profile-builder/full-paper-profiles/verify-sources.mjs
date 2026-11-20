@@ -1,0 +1,40 @@
+import {build} from 'esbuild';
+import {getDocumentProxy} from 'unpdf';
+import {readFile,mkdtemp} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import path from 'node:path';
+import {tmpdir} from 'node:os';
+import {pathToFileURL} from 'node:url';
+
+// Explicit public local reference files; no network, model or account access.
+const [pdfPath,ofqualPath,registerPath]=process.argv.slice(2);
+if(!pdfPath||!ofqualPath||!registerPath)throw Error('Usage: node verify-sources.mjs /tmp/business.pdf /tmp/ofqual.html /tmp/qualification.html');
+const digest=b=>createHash('sha256').update(b).digest('hex');
+const [pdf,ofqual,register]=await Promise.all([pdfPath,ofqualPath,registerPath].map(file=>readFile(file)));
+if(digest(pdf)!=='8d66018d0a9d826cdb9729c78012d73f5e7ab32bd8946f9eb9fd501827c9829f')throw Error('The PDF differs from the reviewed public Pearson reference.');
+if(digest(ofqual)!=='f242ceb77d74d31d425543f320b4a9acc76d26438b2955137fcceb22792dc7aa')throw Error('The Ofqual page differs from the reviewed capture.');
+if(digest(register)!=='0a53a08422f573484b090ab9228fd8151812f5fe2c94b09a3418ebcc687c7c5a')throw Error('The qualification register page differs from the reviewed capture.');
+const plain=b=>b.toString('utf8').replace(/<script[\s\S]*?<\/script>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&nbsp;|&#160;/g,' ').replace(/&amp;/g,'&').replace(/\s+/g,' ').trim();
+if(!plain(ofqual).includes('In line with current practice, all reformed AS and A levels will be untiered.'))throw Error('The regulator wording is absent.');
+for(const value of ['Pearson Edexcel Level 3 Advanced GCE in Business','601/4673/4','GCE A Level'])if(!plain(register).includes(value))throw Error('The register identity is absent: '+value);
+const root=process.cwd(),dir=await mkdtemp(path.join(tmpdir(),'full-paper-sources-'));
+const shared=path.join(root,'supabase/functions/_shared');
+await build({stdin:{contents:`export {extractIndexedPdfPages} from ${JSON.stringify(path.join(shared,'profile-document-io.ts'))};export {discoverSourceAssessments} from ${JSON.stringify(path.join(shared,'profile-assessment-discovery.ts'))};export {indexDocumentPages} from ${JSON.stringify(path.join(shared,'profile-document-index.ts'))};export {resolveCatalogueTier} from ${JSON.stringify(path.join(shared,'profile-catalogue-evidence.ts'))};export {assessmentMetadataCourses} from ${JSON.stringify(path.join(shared,'profile-assessment-options.ts'))};`,resolveDir:root},bundle:true,format:'esm',platform:'node',outfile:path.join(dir,'modules.mjs'),logLevel:'error'});
+const m=await import(pathToFileURL(path.join(dir,'modules.mjs')).href);
+const pages=await m.extractIndexedPdfPages(new Uint8Array(pdf),getDocumentProxy);
+if(!pages[66]?.includes('601/4673/4')||!pages[66]?.includes('9BS0'))throw Error('The PDF does not link the reviewed qualification number and course code.');
+const identity={country:'GB',educationSystem:'UK',stage:'Secondary',qualification:'A-level',subject:'Business',organisation:'Pearson Edexcel',course:'9BS0',component:'9BS0/01',specificationVersion:'Issue 1 September 2014',tier:null};
+const metadata=m.assessmentMetadataCourses(identity)[0];
+if(metadata?.source.checksum!==digest(pdf)||metadata?.tierSource.checksum!==digest(ofqual))throw Error('Catalogue provenance differs from the reviewed captures.');
+const discovery=await m.discoverSourceAssessments([{id:'public-reference',checksum:digest(pdf),pages}],identity);
+if(discovery.ambiguous||discovery.candidates.length!==3)throw Error('The public assessment identities are not unique.');
+const papers=discovery.candidates.map(candidate=>{
+  const index=m.indexDocumentPages(pages,{...identity,component:candidate.canonicalComponent,componentAliases:candidate.aliases});
+  const snippets=index.chunks.flatMap(chunk=>chunk.pages),text=snippets.map(page=>page.text).join('\n');
+  const tier=m.resolveCatalogueTier({...identity,component:candidate.canonicalComponent});
+  const siblings=discovery.candidates.filter(c=>c.id!==candidate.id);
+  const result={code:candidate.componentCode,label:candidate.label,coverage:index.coverage,literal:snippets.every(page=>pages[page.page-1].includes(page.text)),bounded:index.chunks.length<=2&&index.chunks.every(chunk=>chunk.characterCount<=18000),siblingsExcluded:siblings.every(c=>!text.includes(c.componentCode)&&!new RegExp('\\bPaper\\s*'+c.componentCode.slice(-1)+'\\b','i').test(text)),duration120:/Duration:\s*2 hours/.test(text),marks100:/100 marks/.test(text),tier};
+  if(!result.coverage.complete||!result.literal||!result.bounded||!result.siblingsExcluded||!result.duration120||!result.marks100||tier?.value!=='not_tiered')throw Error('A public paper check failed: '+candidate.componentCode);
+  return result;
+});
+console.log(JSON.stringify({status:'PASS',boundary:'Public references only; not a private upload or a live AI build.',referenceFiles:[{kind:'Pearson specification',sha256:digest(pdf),bytes:pdf.length},{kind:'Ofqual tiering guidance',sha256:digest(ofqual),bytes:ofqual.length},{kind:'Ofqual qualification register',sha256:digest(register),bytes:register.length}],physicalPages:pages.length,papers},null,2));

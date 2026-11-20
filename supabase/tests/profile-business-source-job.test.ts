@@ -25,7 +25,7 @@ interface ReadPayload {
   documents: Array<{ id: string; checksum: string; pages: Array<{ page: number; text: string }> }>;
 }
 
-it("builds official Business Paper 3 through a page-46 follow-up, retaining page-15 duration and unknown source rules", async () => {
+it.each(["short_practice", "full_mock"] as const)("builds official Business Paper 3 %s through a page-46 follow-up, retaining page-15 duration", async mode => {
   const pages = Array<string>(fixture.source.physicalPageCount).fill("");
   for (const excerpt of fixture.excerpts) pages[excerpt.page - 1] = excerpt.text;
   // Replay the captured official text at the parser boundary. This envelope is
@@ -62,14 +62,14 @@ it("builds official Business Paper 3 through a page-46 follow-up, retaining page
               response: index % 2 ? "long_form" : "short_answer", demand: "AO2", resource: "none" }],
           })),
         }],
-        warnings: ["Tier and calculator permission remain unknown in these source excerpts."],
+        warnings: ["Calculator permission remains unknown in these source excerpts."],
         designDecisions: ["Four 25-mark groups are an Examly practice layout choice; the specification does not prescribe that distribution."],
       };
       return { value: template, promptTokens: 7, completionTokens: 5 };
     }
     const payload = raw as ReadPayload, source = payload.documents[0];
     const followup = ++reads === 2;
-    expect(payload.identity).toMatchObject({ course: "9BS0", component: "9BS0/03", tier: null });
+    expect(payload.identity).toMatchObject({ course: "9BS0", component: "9BS0/03", tier: followup ? "not_tiered" : null });
     const suppliedText = source.pages.map((page) => page.text).join("\n");
     expect(suppliedText).not.toMatch(/9BS0\/0[12]/);
     expect(source.pages.some((page) => page.page === 15 && page.text.includes("Duration: 2 hours."))).toBe(true);
@@ -123,7 +123,7 @@ it("builds official Business Paper 3 through a page-46 follow-up, retaining page
   const input = {
     action: "prepare_source" as const, requestId, identity: { ...identity, component: selected.label },
     selectedAssessmentId: selected.id, specificationVersionIntent: "source" as const,
-    mode: "short_practice" as const,
+    mode,
     uploads: [{ contentType: "application/pdf" as const, base64: Buffer.from(bytes).toString("base64") }],
   };
   const prepared = await prepareSourceJob(owner, input, deps);
@@ -145,21 +145,22 @@ it("builds official Business Paper 3 through a page-46 follow-up, retaining page
   expect(ready.missingItems).toBeUndefined();
   const evidence = memory.records.get(ownerKey(owner, requestId))!.data.evidence!;
   expect(evidence.facts).toMatchObject({
-    marks: 100, durationMinutes: 120, tier: null, calculator: "unknown", selection: "all_compulsory",
+    marks: 100, durationMinutes: 120, tier: "not_tiered", calculator: "unknown", selection: "all_compulsory",
     formats: ["short_answer", "long_form"],
   });
   const duration = evidence.claims.find((claim) => claim.field === "durationMinutes")!;
   expect(evidence.documents[0].locations.find((location) => location.id === duration.locationId)?.page).toBe(15);
   const format = evidence.claims.find((claim) => claim.field === "formats")!;
   expect(evidence.documents[0].locations.find((location) => location.id === format.locationId)?.page).toBe(46);
-  expect(evidence.catalogueFacts).toBeUndefined();
+  expect(evidence.catalogueFacts?.[0]).toMatchObject({ courseId: "pearson_alevel_business_9bs0", value: "not_tiered" });
   expect(evidence.claims.some((claim) => ["tier", "calculator"].includes(claim.field))).toBe(false);
   expect(evidence.facts.topics).toEqual(["Marketing and people", "Managing business activities", "Business decisions and strategy", "Global business"]);
   await confirmSourceJob(owner, requestId, { identity: ready.identity!, mode: ready.mode }, deps);
   const complete = await advanceSourceJob(owner, requestId, deps);
   expect(complete.stage, JSON.stringify(complete)).toBe("complete");
   expect(complete.proposal?.evidence).toEqual(evidence);
-  expect(complete.proposal?.template.identity.tier).toBeNull();
+  expect(complete.proposal?.template.identity.tier).toBe("not_tiered");
+  expect(complete.proposal?.template.mode).toBe(ready.mode);
   validateEvidenceTemplate(complete.proposal!.template, evidence);
   for (const document of evidence.documents) {
     for (const location of document.locations) expect(sourceTextIncludes(pages[location.page - 1], location.text)).toBe(true);
@@ -173,7 +174,7 @@ it("builds official Business Paper 3 through a page-46 follow-up, retaining page
   expect(memory.records.get(ownerKey(owner, requestId))!.callIntents).toBe(3);
 });
 
-it("accepts the reported Paper 1 page list, preserves its first read and completes practice with no invented tier", async () => {
+it("accepts the reported Paper 1 page list, preserves its first read and completes practice without an invented tier quote", async () => {
   const pages = Array<string>(68).fill("");
   for (const name of ["official", "scope", "continuation"]) {
     const part = JSON.parse(readFileSync(new URL(`./fixtures/edexcel-alevel-business-${name}.json`, import.meta.url), "utf8"));
@@ -228,7 +229,7 @@ it("accepts the reported Paper 1 page list, preserves its first read and complet
   await prepareSourceJob(owner, { action: "prepare_source", requestId, identity, specificationVersionIntent: "source", mode: "short_practice",
     uploads: [{ contentType: "application/pdf", base64: Buffer.from(bytes).toString("base64") }] }, deps);
   const question = await advanceSourceJob(owner, requestId, deps);
-  expect(question).toMatchObject({ stage: "needs_details", missingItems: [{ field: "source_pages" }], identity: { tier: null } });
+  expect(question).toMatchObject({ stage: "needs_details", missingItems: [{ field: "source_pages" }], identity: { tier: "not_tiered" } });
   expect(question.missingItems?.[0].choices?.map(choice => choice.value)).toEqual(expect.arrayContaining(["1:18", "1:40"]));
   expect(question.missingItems?.[0].choices?.map(choice => choice.value)).not.toEqual(expect.arrayContaining(["1:26", "1:32"]));
   const previous = structuredClone(memory.records.get(ownerKey(owner, requestId))!.data.partials[0]);
@@ -244,8 +245,9 @@ it("accepts the reported Paper 1 page list, preserves its first read and complet
   await confirmSourceJob(owner, requestId, { identity: ready.identity!, mode: ready.mode }, deps);
   const complete = await advanceSourceJob(owner, requestId, deps);
   expect(complete.stage, JSON.stringify(complete)).toBe("complete");
-  expect(complete.proposal?.evidence?.facts).toMatchObject({ marks: 100, durationMinutes: 120, topics: ["Meeting customer needs", "Globalisation"], tier: null });
-  expect(complete.proposal?.template.identity.tier).toBeNull();
+  expect(complete.proposal?.evidence?.facts).toMatchObject({ marks: 100, durationMinutes: 120, topics: ["Meeting customer needs", "Globalisation"], tier: "not_tiered" });
+  expect(complete.proposal?.template.identity.tier).toBe("not_tiered");
+  expect(complete.proposal?.template.mode).toBe(ready.mode);
   expect(parsePdf).toHaveBeenCalledOnce();
   expect(model).toHaveBeenCalledTimes(3);
   expect(memory.reservations).toBe(1);

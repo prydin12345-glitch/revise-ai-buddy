@@ -66,7 +66,7 @@ async function attachAndRead() {
   });
   await screen.findByRole("option", { name: assessment });
   fireEvent.change(screen.getByRole("combobox", { name: /^(Assessment|Paper)$/ }), {
-    target: { value: "business-paper-1" },
+    target: { value: "paper_1" },
   });
   await waitFor(() => expect(screen.getByRole("button", { name: "Read syllabus" })).toBeEnabled());
   fireEvent.click(screen.getByRole("button", { name: "Read syllabus" }));
@@ -108,7 +108,7 @@ it.each(recoveryVariants)("offers usable recovery for $label without discarding 
 
   fireEvent.click(change);
   expect(screen.getByLabelText("Educational level")).toBeVisible();
-  expect(screen.getByRole("combobox", { name: /^(Assessment|Paper)$/ })).toHaveValue("business-paper-1");
+  expect(screen.getByRole("combobox", { name: /^(Assessment|Paper)$/ })).toHaveValue("paper_1");
   expect(screen.getByRole("button", { name: "Replace files" })).toBeEnabled();
   expect(screen.getByRole("button", { name: "Read syllabus" })).toBeDisabled();
   expect(await readPendingBuilderJob("Business")).toEqual({ jobId: receipt });
@@ -147,8 +147,10 @@ it("restarts only after confirmation, retains the upload and selections, then pr
   expect(await readPendingBuilderJob("Biology")).toEqual({ jobId: otherReceipt });
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   expect(screen.getByText("business.txt")).toBeVisible();
-  expect(screen.getByRole("combobox", { name: /^(Assessment|Paper)$/ })).toHaveValue("business-paper-1");
-  expect(screen.getByLabelText("Assessment mode")).toHaveValue("full_mock");
+  expect(screen.getByRole("combobox", { name: /^(Assessment|Paper)$/ })).toHaveValue("paper_1");
+  expect(screen.queryByLabelText("Assessment mode")).not.toBeInTheDocument();
+  expect(screen.getByText("Full paper profile.")).toBeVisible();
+  expect(first.mode).toBe("full_mock");
   expect(screen.getByLabelText("Specification version / teaching dates (optional)")).toHaveValue("Issue 1 2026");
   expect(api).toHaveBeenCalledTimes(1);
   expect(props.onDelete).not.toHaveBeenCalled();
@@ -186,7 +188,7 @@ it("reopens a persisted failed receipt through a status check and restores its i
   const change = screen.getByRole("button", { name: "Change details or documents" });
   await waitFor(() => expect(change).toBeEnabled());
   fireEvent.click(change);
-  await waitFor(() => expect(screen.getByRole("combobox", { name: /^(Assessment|Paper)$/ })).toHaveValue("business-paper-1"));
+  await waitFor(() => expect(screen.getByRole("combobox", { name: /^(Assessment|Paper)$/ })).toHaveValue("paper_1"));
   expect(screen.getByText("business.txt")).toBeVisible();
   expect(screen.getByRole("button", { name: "Start new build" })).toBeEnabled();
   expect(api.mock.calls.map(([input]) => input.action)).toEqual(["prepare_source", "source_status"]);
@@ -269,18 +271,24 @@ it("checks a charged confirmation after a lost response instead of offering anot
   expect(api.mock.calls[2][0]).toEqual({ action: "source_status", jobId: ready!.jobId });
 });
 
-it("changes unknown-tier full mock to practice only after the explicit clarification answer", async () => {
-  let original: SourceJobView;
+it("supports a legacy pending tier question only after its explicit clarification answer", async () => {
+  const receipt = crypto.randomUUID();
   const question = "These sources do not establish the assessment tier.";
+  const original = sourceJob({ requestId: receipt, mode: "full_mock", identity: {
+    country: "GB", educationSystem: "GB", stage: "Secondary", qualification: "A-level",
+    subject: "Unreviewed Studies", organisation: "Edexcel", course: "UNREVIEWED101",
+    component: "Paper 1", specificationVersion: "2026", tier: null,
+  } }, { stage: "needs_details",
+    missingItems: [{ field: "tier", question, choices: [{ value: "unknown_practice", label: "Continue as short practice with tier unverified" }] }] });
+  await rememberPendingBuilderJob("Unreviewed Studies", receipt);
   const api = vi.fn<BuilderApi>(async input => {
-    if (input.action === "answer_source") return { job: { ...original!, stage: "ready", revision: 5,
-      mode: "short_practice", identity: { ...original!.identity!, tier: null }, missingItems: [], message: "Ready to confirm." } };
-    original = sourceJob(input, { stage: "needs_details", mode: "full_mock",
-      missingItems: [{ field: "tier", question, choices: [{ value: "unknown_practice", label: "Continue as short practice with tier unverified" }] }] });
+    if (input.action === "answer_source") return { job: { ...original, stage: "ready", revision: 5,
+      mode: "short_practice", identity: { ...original.identity!, tier: null }, missingItems: [], message: "Ready to confirm." } };
+    expect(input).toEqual({ action: "source_status", jobId: receipt });
     return { job: original };
   });
-  render(<ExamProfileBuilder {...props} initialMode="full_mock" api={api} />);
-  await attachAndRead();
+  render(<ExamProfileBuilder {...props} subjectName="Unreviewed Studies" api={api} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Resume request" }));
   const choice = await screen.findByLabelText(question);
   expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
   expect(api).toHaveBeenCalledTimes(1);
@@ -288,8 +296,32 @@ it("changes unknown-tier full mock to practice only after the explicit clarifica
   expect(api).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   await waitFor(() => expect(screen.getByRole("button", { name: "Yes, build it" })).toBeEnabled());
-  expect(api.mock.calls[1][0]).toEqual({ action: "answer_source", jobId: original!.jobId, revision: 4, answers: { tier: "unknown_practice" } });
+  expect(api.mock.calls[1][0]).toEqual({ action: "answer_source", jobId: receipt, revision: 4, answers: { tier: "unknown_practice" } });
   expect(screen.getByText(/Short practice using/)).toBeVisible();
-  expect(screen.getByText("business.txt")).toBeVisible();
+  expect(await readPendingBuilderJob("Unreviewed Studies")).toEqual({ jobId: receipt });
   expect(api).toHaveBeenCalledTimes(2);
+});
+it("keeps a new full-paper request while asking for an actionable source instead of a short-practice tier choice", async () => {
+  const question = "We could not verify the assessment tier for this full-paper profile. Check the course code and qualification, or add an assessment source that identifies the tier or confirms the course is untiered.";
+  const api = vi.fn<BuilderApi>(async input => ({ job: sourceJob(input, {
+    stage: "needs_details", missingItems: [{ field: "source", question }],
+  }) }));
+  render(<ExamProfileBuilder {...props} api={api} />);
+  fireEvent.change(screen.getByLabelText("Course / specification code"), { target: { value: "UNREVIEWED101" } });
+  fireEvent.click(screen.getByRole("button", { name: "Upload syllabus" }));
+  const bytes = new TextEncoder().encode("UNREVIEWED101 Business\nPaper 1\n100 marks");
+  fireEvent.change(screen.getByLabelText("Syllabus or assessment brief"), {
+    target: { files: [{ name: "unreviewed.txt", type: "text/plain", size: bytes.length, arrayBuffer: async () => bytes.buffer }] },
+  });
+  await screen.findByRole("option", { name: assessment });
+  fireEvent.change(screen.getByRole("combobox", { name: "Assessment" }), { target: { value: "business-paper-1" } });
+  await waitFor(() => expect(screen.getByRole("button", { name: "Read syllabus" })).toBeEnabled());
+  fireEvent.click(screen.getByRole("button", { name: "Read syllabus" }));
+  expect(await screen.findByRole("heading", { name: question })).toBeVisible();
+  expect(screen.getByText("Full mock", { selector: "dd" })).toBeVisible();
+  expect(screen.queryByRole("option", { name: /short practice/i })).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Assessment mode")).not.toBeInTheDocument();
+  expect(screen.getByText("unreviewed.txt")).toBeVisible();
+  expect(api).toHaveBeenCalledTimes(1);
+  expect(api.mock.calls[0][0]).toMatchObject({ action: "prepare_source", mode: "full_mock", identity: { course: "UNREVIEWED101", tier: null } });
 });

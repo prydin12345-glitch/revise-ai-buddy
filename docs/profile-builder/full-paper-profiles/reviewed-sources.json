@@ -1,0 +1,19 @@
+{
+  "ofqual-2017": {
+    "url": "https://www.gov.uk/government/news/publication-of-gcse-and-a-level-assessment-arrangements-for-2017",
+    "sha256": "f242ceb77d74d31d425543f320b4a9acc76d26438b2955137fcceb22792dc7aa",
+    "bytes": 81344,
+    "quote": "In line with current practice, all reformed AS and A levels will be untiered."
+  },
+  "ofqual-2016": {
+    "url": "https://www.gov.uk/government/news/further-consultation-outcomes-in-gcse-as-and-a-level-subjects",
+    "sha256": "3bdf70e925e3344d77810e684087643c75e5a56623439fa59254afac0839de06",
+    "bytes": 77615,
+    "quote": "In line with current practice, all reformed AS and A levels will be untiered."
+  },
+  "qualification": {
+    "url": "https://find-a-qualification.services.ofqual.gov.uk/qualifications/60146734",
+    "sha256": "0a53a08422f573484b090ab9228fd8151812f5fe2c94b09a3418ebcc687c7c5a",
+    "bytes": 30186
+  }
+}
