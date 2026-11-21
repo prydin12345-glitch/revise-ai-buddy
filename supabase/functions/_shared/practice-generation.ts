@@ -17,6 +17,8 @@ import { detectLiteraryText, buildLiteraryTextInstructions, buildExtractSafetyIn
 import { translateExamBoard, getBoardMarkSchemeStyle, MULTI_PART_GRAPH_INSTRUCTIONS, buildBiologyInstructions, buildMathsInstructions, buildCircuitInstructions as buildCircuitRuleInstructions, buildPhysicsInstructions } from "./prompt-templates.ts";
 import { buildCacheKey, buildBaseCacheKey, isCacheEntryCompatible, shuffleArray } from "./cache-utils.ts";
 import { establishGenerationContext, assessmentTierPrompt } from "./profile-context.ts";
+import type { snapshotTemplate } from "./profile-template-context.ts";
+import { foldSourceText } from "./source-text-match.ts";
 import { logAIUsage } from "./usage-logger.ts";
 import { splitMultiPartQuestions, ensureRenderableGraphConfigs } from "./question-postprocessor.ts";
 import { detectSubject, needsCircuitRules } from "./subject-detection.ts";
@@ -701,20 +703,34 @@ EXAMPLE QUESTION FORMATS:
       .join('\n\n');
     console.log('Generation context:', generationCtx.region, generationCtx.level);
 
-    // Fetch canonical subtopic list for controlled topic_tag vocabulary
+    // Generic templates use the same saved pool / requested subset as the quiz
+    // scope validator. The subject catalogue can contain broader topic names.
     let canonicalTopicInstruction = '';
-    try {
-      const { data: canonicalTopics } = await supabaseClient
-        .from('subject_subtopics')
-        .select('subtopic')
-        .ilike('subject', `%${setData.subject_id}%`);
-      const topicList = canonicalTopics?.map((t: any) => t.subtopic) ?? [];
-      if (topicList.length > 0) {
-        canonicalTopicInstruction = `\nTOPIC TAG CONTROLLED VOCABULARY (CRITICAL):\nThe "subtopic" field for each question MUST be set to EXACTLY one value from this list — do not invent new values, do not change capitalisation:\n${topicList.join(', ')}\n`;
-        console.log('Canonical topic list loaded:', topicList.length, 'topics');
+    const savedTemplate = generationContext.profile_template as ReturnType<typeof snapshotTemplate>;
+    const savedTopics = savedTemplate?.plan ? savedTemplate.context.template.topics : null;
+    if (savedTopics) {
+      const saved = new Set(savedTopics.map(foldSourceText));
+      const requested = (setData.subtopics ?? [])
+        .filter((topic: unknown): topic is string => typeof topic === 'string' && !!topic.trim())
+        .map(foldSourceText);
+      const selected = requested.length && requested.every((topic: string) => saved.has(topic))
+        ? new Set<string>(requested) : null;
+      const topicList = selected ? savedTopics.filter(topic => selected.has(foldSourceText(topic))) : savedTopics;
+      canonicalTopicInstruction = `\nTOPIC TAG CONTROLLED VOCABULARY (CRITICAL):\nThe "subtopic" field for each question MUST be EXACTLY one saved leaf label from this JSON array; preserve its wording and capitalisation:\n${JSON.stringify(topicList)}\nThis is the authoritative saved profile vocabulary for this quiz. Do not use group headings or unselected sibling topics as tags.\n`;
+    } else {
+      try {
+        const { data: canonicalTopics } = await supabaseClient
+          .from('subject_subtopics')
+          .select('subtopic')
+          .ilike('subject', `%${setData.subject_id}%`);
+        const topicList = canonicalTopics?.map((t: any) => t.subtopic) ?? [];
+        if (topicList.length > 0) {
+          canonicalTopicInstruction = `\nTOPIC TAG CONTROLLED VOCABULARY (CRITICAL):\nThe "subtopic" field for each question MUST be set to EXACTLY one value from this list — do not invent new values, do not change capitalisation:\n${topicList.join(', ')}\n`;
+          console.log('Canonical topic list loaded:', topicList.length, 'topics');
+        }
+      } catch (e) {
+        console.log('Could not fetch canonical topics:', e);
       }
-    } catch (e) {
-      console.log('Could not fetch canonical topics:', e);
     }
 
     // Specialised subject context — for non-standard academic subjects
@@ -2253,7 +2269,7 @@ Return valid JSON via the tool only. No markdown, no code blocks, no preamble.
             (setData.subtopics || []).join(', '),
             effectiveQuestionCount,
             (setData.difficulty_level || 'medium').toLowerCase(),
-          )
+          ) + (savedTopics ? canonicalTopicInstruction : '')
         : prompt;
 
       let response: Response;

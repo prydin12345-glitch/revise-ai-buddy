@@ -29,6 +29,7 @@ import {
 } from "./profile-evidence.ts";
 import { resolveRegisteredSource } from "./profile-source-registry.ts";
 import { completeOwnedAssessmentEvidence } from "./profile-evidence-ingestion.ts";
+import { expandDetailedTopics } from "./profile-topic-details.ts";
 const id = z.string().uuid();
 export const builderRequestSchema = z.discriminatedUnion("action", [
   z
@@ -363,6 +364,9 @@ export async function proposeProfile(
           throw Error("Uploaded evidence location is not in the document.");
       }
       evidence = completeOwnedAssessmentEvidence(evidence);
+      evidence = validateEvidence(expandDetailedTopics(evidence, [{
+        id: evidence.documents[0].id, pages: parsed.pages,
+      }], input.identity));
     }
     if (
       evidence &&
@@ -380,7 +384,7 @@ export async function proposeProfile(
       schema: z.toJSONSchema(templateSchema),
       identity: input.identity,
       mode: input.mode,
-      evidence,
+      evidence: evidence ? { ...evidence, topicDetails: undefined } : null,
       unverified: input.unverified,
       limits: {
         maxParts: 50,

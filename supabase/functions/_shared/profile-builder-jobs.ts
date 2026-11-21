@@ -56,6 +56,7 @@ import {
 } from "./profile-topic-sections.ts";
 import { resolveCatalogueTier } from "./profile-catalogue-evidence.ts";
 import { resolveReviewedAssessmentRules } from "./profile-reviewed-assessment-rules.ts";
+import { expandDetailedTopics } from "./profile-topic-details.ts";
 import {
   sourceValidationRecord,
   SourceIdentityValidationError,
@@ -1101,6 +1102,7 @@ export async function prepareSourceJob(
       followupPolicyVersion: 1,
       sourceEditionPolicyVersion: 1,
       assessmentSelectionPolicyVersion: 1,
+      topicDetailPolicyVersion: 1,
       selectedAssessmentId: input.selectedAssessmentId,
       specificationVersionIntent: input.specificationVersionIntent ?? "explicit",
       provenancePolicyVersion: 2,
@@ -1780,6 +1782,8 @@ function nameSectionTopics(
       expandSectionTopics(e, documents, topicSourcePageSelection(data)),
     );
   e = fillFormatsFromCitedBlock(e);
+  if (documents?.some(document => document.pages?.length))
+    e = validateEvidence(expandDetailedTopics(e, documents, ownedDocumentSelection(data)));
   // A named topic does not prove every unresolved numbered pointer. Keep
   // remaining pointers visible until their entire referenced scope resolves.
   return e;
@@ -2475,7 +2479,9 @@ export async function advanceSourceJob(
         schema: z.toJSONSchema(templateSchema),
         identity: data.identity,
         mode: data.mode,
-        evidence: data.evidence,
+        // The draft needs canonical topic labels, not another copy of every
+        // private learning-point excerpt. The owned proposal retains details.
+        evidence: { ...data.evidence, topicDetails: undefined },
         limits: {
           maxParts: 50,
           supportedResources: ["none", "data_table", "graph"],
