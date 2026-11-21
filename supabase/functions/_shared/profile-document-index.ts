@@ -6,7 +6,7 @@
  * Private page text belongs only in the owned preparation receipt. Only an
  * explicitly reviewed public source pack may enter a shared catalogue.
  */
-export const DOCUMENT_INDEX_VERSION = 9;
+export const DOCUMENT_INDEX_VERSION = 10;
 export const INDEXED_DOCUMENT_LIMITS = {
   maxBytes: 3_000_000,
   maxPages: 240,
@@ -37,6 +37,8 @@ export interface DocumentSelection {
   qualification?: string;
   /** Physical source pages selected in a clarification; never a trust grant. */
   sourcePages?: number[];
+  /** Server-only local topic recovery; never sent to the model or public view. */
+  includeTopicContent?: boolean;
 }
 export type SourceQualification = "AS" | "A-level";
 export interface QualificationFragment {
@@ -627,6 +629,8 @@ export interface SourceDocumentIndex {
   }>;
   warnings: string[];
   resolution?: AssessmentScopeResolution;
+  /** Literal, allocated content spans after qualification and sibling masking. */
+  topicContent?: Array<{ page: number; text: string }>;
 }
 export type SourceIndexCoverageCode =
   | "qualification_scope"
@@ -649,6 +653,35 @@ const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 // Keep CR characters in offsets so every retrieved span remains a literal
 // substring of the original page, including text-file CRLF line endings.
 const pageLines = (text: string) => text.split("\n");
+/** Merge overlaps before intersection so repeated context never duplicates text. */
+function unionIntervals(intervals: Array<[number, number]>) {
+  const merged: Array<[number, number]> = [];
+  for (const [from, to] of [...intervals].sort(([a], [b]) => a - b)) {
+    const previous = merged.at(-1);
+    if (previous && from <= previous[1]) previous[1] = Math.max(previous[1], to);
+    else merged.push([from, to]);
+  }
+  return merged;
+}
+function literalTopicContent(
+  pages: SourceDocumentPage[],
+  content: Map<number, Array<[number, number]>>,
+  allowed: Map<number, Array<[number, number]>>,
+) {
+  return pages.flatMap(page => {
+    const a = unionIntervals(content.get(page.page) ?? []);
+    const b = unionIntervals(allowed.get(page.page) ?? []);
+    const spans: Array<{ page: number; text: string }> = [];
+    let i = 0, j = 0;
+    while (i < a.length && j < b.length) {
+      const from = Math.max(a[i][0], b[j][0]), to = Math.min(a[i][1], b[j][1]);
+      if (to > from) spans.push({ page: page.page, text: page.text.slice(from, to) });
+      if (a[i][1] <= b[j][1]) i++;
+      else j++;
+    }
+    return spans;
+  });
+}
 const componentPattern = /\b(?:paper|unit|component)\s+(\d{1,2}(?:[a-z])?)\b/gi;
 const componentCodePattern = /\b[A-Za-z0-9]{3,12}\/\d{1,3}[A-Za-z]{0,2}\b/g;
 const topicPattern = /^\s*(?:Topic|Module|Theme)\s+(\d{1,2})\b/i;
@@ -710,7 +743,9 @@ function topicHeadingEnd(lines: string[], index: number, start: number) {
   return start + line.length + 1 + (wrapped ? lines[index + 1].length + 1 : 0);
 }
 
-const numberedTopicHeadingPattern = /^\s*(\d{1,2})(?:\.\d{1,2}){1,3}(?:\s|$)/;
+// A scientific value (for example 3.0 × 10⁸) is not a content boundary.
+// Retain it inside its current topic instead of dropping the rest of the page.
+const numberedTopicHeadingPattern = /^\s*(\d{1,2})(?:\.\d{1,2}){1,3}(?![ \t]*(?:[×*+\/=]|[xX][ \t]*\d|[Ee][+-]?\d))(?:[ \t]+(?=\p{L})|[ \t\r]*$)/u;
 /** Numbered content titles may wrap, but learning outcomes are not titles. */
 function numberedTopicHeadingEnd(lines: string[], index: number, start: number) {
   let end = start + lines[index].length + 1, characters = lines[index].length;
@@ -1132,7 +1167,18 @@ export function indexDocumentPages(
       const text = (allocationContext.get(page.page) ?? []).map(([from, to]) =>
         page.text.slice(Math.max(from, boundary.start), Math.max(Math.max(from, boundary.start), Math.min(to, end))))
         .join("\n");
-      for (const number of topicsIn(text)) allocatedTopics.add(number);
+      // A standalone content heading ends the assessment allocation passage.
+      // Otherwise a single-paper brief can accidentally allocate every theme
+      // whose detailed content follows its overview on the same page.
+      const lines = text.split("\n");
+      const contentStart = lines.findIndex(line => {
+        const title = line.match(/^\s*(?:Topic|Module|Theme)\s+\d{1,2}\s*(.*)$/i)?.[1];
+        return title && !/^(?:and|to|through)\b/i.test(title) && (
+          /^[:\u2013\u2014-]\s*\S/.test(title) || /^\p{Lu}/u.test(title)
+        );
+      });
+      const allocation = contentStart < 0 ? text : lines.slice(0, contentStart).join("\n");
+      for (const number of topicsIn(allocation)) allocatedTopics.add(number);
     });
   }
   if (selection.sourcePages && allocatedTopics.size)
@@ -1516,6 +1562,9 @@ export function indexDocumentPages(
   return {
     version: DOCUMENT_INDEX_VERSION,
     pages,
+    ...(selection.includeTopicContent && !scope.ambiguous && !contextScope.ambiguous ? {
+      topicContent: literalTopicContent(pages, topicContent, allowed),
+    } : {}),
     chunks: reason ? [] : chunks,
     selectedPages,
     omittedPages: pages

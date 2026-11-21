@@ -1,0 +1,58 @@
+{
+  "status": "PASS_WITH_OBSERVATION",
+  "topicLayoutStatus": "PASS",
+  "runStartedAt": "2026-11-21T14:30:47.556Z",
+  "browserStatus": "PASS",
+  "hashesBefore": "PASS",
+  "hashesAfter": "PASS",
+  "buildManifestSha256": "a4c121858623ee42d8cc7d09d74cd14347c9249a184e9ed806cdee5660009cc1",
+  "reviewedScreenshots": [
+    {
+      "file": "desktop-light-detailed-outcomes.png",
+      "sha256": "f6d67c11bcfabf444b50c8de571fd66b5636ce165d5949927fff18cf9f8170ed"
+    },
+    {
+      "file": "desktop-dark-detailed-search.png",
+      "sha256": "d8758de1d0333b797a9a9d0482546ce168dfc909ec8f024e6671de52b2cff44a"
+    },
+    {
+      "file": "ipad-dark-detailed-edited.png",
+      "sha256": "40320b82c6d35b8c20343de49e348106c7af272e1f39821d42c3cd01942355a3"
+    },
+    {
+      "file": "ipad-light-legacy-reread-source-choices.png",
+      "sha256": "c9940ef8c78fbbe5af762fc38da6e6fa776c6f01725c3549fddd4bd335516f87"
+    },
+    {
+      "file": "phone-light-detailed-search.png",
+      "sha256": "9543a253233c16f1048f1d478e74d732c5880f4911846f863cab6288ed2f4f39"
+    },
+    {
+      "file": "phone-dark-detailed-outcomes.png",
+      "sha256": "cab76b08847fe2dfdf780e45650fd6e1ba76603d0b01638724f58380214d5474"
+    },
+    {
+      "file": "phone-light-legacy-reread-confirmation.png",
+      "sha256": "919648a5ef905aa4ce4dff673b29fdd521a76e9285fd1400945efd53744a29ef"
+    }
+  ],
+  "findings": [
+    "Desktop source outcomes and dark search have readable exact leaf headings, physical page captions, source prose and visible footer controls.",
+    "Phone light search and dark source outcomes wrap within the dialog without horizontal clipping; long excerpts continue in the vertical scroller.",
+    "The edited iPad profile shows Custom assessment, the retained theme, the added-topic label and updated minutes without clipping.",
+    "The phone legacy re-read confirmation fits the viewport and exposes both actions; the iPad source choices remain usable after confirmation."
+  ],
+  "issues": [
+    {
+      "severity": "non_blocking",
+      "scope": "Existing university qualification alias display in the source-details form; outside the detailed-topic component.",
+      "observation": "After legacy re-read, the saved qualification College (4-year) remains in context and the saved-settings caption, while Educational level displays Choose your level.",
+      "cause": "The select receives identity.qualification but its options include canonical ALL_LEVELS labels rather than regional aliases.",
+      "source": "src/components/profiles/ExamProfileBuilder.tsx:1846",
+      "screenshot": "ipad-light-legacy-reread-source-choices.png",
+      "impact": "No API call or saved-profile mutation; detailed topics, editing, save/reload and legacy safety assertions pass.",
+      "action": "Reported to parent; no application changes made by this harness task."
+    }
+  ],
+  "limits": "Seven selected screenshots inspected through view_image. Chromium viewport/touch emulation does not establish physical iOS/iPadOS behavior or complete assistive-technology coverage."
+}

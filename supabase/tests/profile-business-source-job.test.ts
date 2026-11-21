@@ -174,7 +174,7 @@ it.each(["short_practice", "full_mock"] as const)("builds official Business Pape
   expect(memory.records.get(ownerKey(owner, requestId))!.callIntents).toBe(3);
 });
 
-it("accepts the reported Paper 1 page list, preserves its first read and completes practice without an invented tier quote", async () => {
+it("recovers Paper 1 topics already present in retained pages without asking for the same pages again", async () => {
   const pages = Array<string>(68).fill("");
   for (const name of ["official", "scope", "continuation"]) {
     const part = JSON.parse(readFileSync(new URL(`./fixtures/edexcel-alevel-business-${name}.json`, import.meta.url), "utf8"));
@@ -191,7 +191,7 @@ it("accepts the reported Paper 1 page list, preserves its first read and complet
       const template: ProfileTemplate = { schemaVersion: 1, identity: raw.identity, mode: raw.mode,
         marks: 6, durationMinutes: 10, topics, calculator: "unknown", warnings: [],
         designDecisions: ["This six-mark practice layout is not the official full paper."],
-        sections: [{ id: "practice", title: "Practice", groups: [{ id: "group", parts: topics.map((topic: string, index: number) => ({ id: `part-${index}`, topic, marks: 3, response: "short_answer", demand: "AO1", resource: "none" })) }] }],
+        sections: [{ id: "practice", title: "Practice", groups: [{ id: "group", parts: topics.slice(0, 2).map((topic: string, index: number) => ({ id: `part-${index}`, topic, marks: 3, response: "short_answer", demand: "AO1", resource: "none" })) }] }],
       };
       return { value: template, promptTokens: 1, completionTokens: 1 };
     }
@@ -228,27 +228,27 @@ it("accepts the reported Paper 1 page list, preserves its first read and complet
   const owner = "93000000-0000-4000-8000-000000000002", requestId = crypto.randomUUID();
   await prepareSourceJob(owner, { action: "prepare_source", requestId, identity, specificationVersionIntent: "source", mode: "short_practice",
     uploads: [{ contentType: "application/pdf", base64: Buffer.from(bytes).toString("base64") }] }, deps);
-  const question = await advanceSourceJob(owner, requestId, deps);
-  expect(question).toMatchObject({ stage: "needs_details", missingItems: [{ field: "source_pages" }], identity: { tier: "not_tiered" } });
-  expect(question.missingItems?.[0].choices?.map(choice => choice.value)).toEqual(expect.arrayContaining(["1:18", "1:40"]));
-  expect(question.missingItems?.[0].choices?.map(choice => choice.value)).not.toEqual(expect.arrayContaining(["1:26", "1:32"]));
-  const previous = structuredClone(memory.records.get(ownerKey(owner, requestId))!.data.partials[0]);
-  const reading = await answerSourceJob(owner, requestId, { revision: question.revision!, answers: { source_pages: "13,14,17,18,39,40,45" } }, deps);
-  expect(reading.stage, JSON.stringify(reading)).toBe("identifying");
-  expect(reading.pageReview?.[0]).toMatchObject({ readPages: [13,14,17,18,39,40,45], skippedPages: [] });
-  expect(model).toHaveBeenCalledOnce();
-  expect(memory.records.get(ownerKey(owner, requestId))!.data.partials[0]).toEqual(previous);
   const ready = await advanceSourceJob(owner, requestId, deps);
-  expect(ready.stage, JSON.stringify(ready)).toBe("ready");
+  expect(ready).toMatchObject({ stage: "ready", identity: { tier: "not_tiered" } });
+  const previous = structuredClone(memory.records.get(ownerKey(owner, requestId))!.data.partials[0]);
+  expect(model).toHaveBeenCalledOnce();
   expect(ready.validationIssues).toBeUndefined();
   expect(ready.missingItems).toBeUndefined();
   await confirmSourceJob(owner, requestId, { identity: ready.identity!, mode: ready.mode }, deps);
   const complete = await advanceSourceJob(owner, requestId, deps);
   expect(complete.stage, JSON.stringify(complete)).toBe("complete");
-  expect(complete.proposal?.evidence?.facts).toMatchObject({ marks: 100, durationMinutes: 120, topics: ["Meeting customer needs", "Globalisation"], tier: "not_tiered" });
+  expect(complete.proposal?.evidence?.facts).toMatchObject({ marks: 100, durationMinutes: 120, tier: "not_tiered" });
+  const evidence = complete.proposal!.evidence!;
+  expect(evidence.facts.topics.length).toBeGreaterThan(2);
+  expect(evidence.facts.topics).toContain("1.1.2 Market research");
+  expect(evidence.facts.topics).toContain("4.1.1 Growing economies");
+  expect(evidence.facts.topics.every(topic => /^(?:1|4)\./.test(topic))).toBe(true);
+  expect(evidence.topicDetails?.flatMap(detail => detail.sources.map(source => source.page)))
+    .toEqual(expect.arrayContaining([18, 19, 40, 41]));
+  expect(memory.records.get(ownerKey(owner, requestId))!.data.partials[0]).toEqual(previous);
   expect(complete.proposal?.template.identity.tier).toBe("not_tiered");
   expect(complete.proposal?.template.mode).toBe(ready.mode);
   expect(parsePdf).toHaveBeenCalledOnce();
-  expect(model).toHaveBeenCalledTimes(3);
+  expect(model).toHaveBeenCalledTimes(2);
   expect(memory.reservations).toBe(1);
 });

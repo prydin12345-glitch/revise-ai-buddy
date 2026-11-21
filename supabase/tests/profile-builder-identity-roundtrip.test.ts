@@ -8,6 +8,9 @@ import { builderInitialIdentity } from "../../src/lib/profile-builder-resolution
 import { normaliseSourceIdentity } from "../functions/_shared/profile-builder-identity";
 import { discoverSourceAssessments } from "../functions/_shared/profile-assessment-discovery";
 import { checksum, identitySchema } from "../functions/_shared/profile-template";
+import { snapshotTemplate, templateSnapshotInstructions } from "../functions/_shared/profile-template-context";
+import { assertBiologyPractice } from "../functions/_shared/biology-practice";
+import { genericRows } from "./profile-builder-fixtures";
 
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { functions: { invoke } } }));
@@ -80,6 +83,75 @@ function runtime(responses: Parameters<typeof handlerRuntime>[0] = [extraction, 
   });
   return { ...r, memory };
 }
+
+it("real client → handler saves detailed paper topics and restores them as separate quiz targets", async () => {
+  const brief = text.replace("Topics: Marketing and People.", "Questions are drawn from Themes 1 and 4.");
+  const roots = ["Theme 1: Marketing and people", "Theme 4: Global business"];
+  const detailedText = [brief, roots[0], "1.1 Meeting customer needs",
+    "1.1.1 Market research", "a) Primary and secondary research", "b) Market segmentation",
+    "1.1.2 Market positioning", "a) Market mapping", "b) Competitive advantage",
+    "Theme 2: Managing business activities", "2.1 Finance", "2.1.1 Raising finance", "a) Loans",
+    roots[1], "4.1 Globalisation", "4.1.1 Growing economies", "a) Gross Domestic Product (GDP)",
+  ].join("\n");
+  const read = async (payload: any) => {
+    const result = await extraction(payload);
+    const evidence = result.evidence;
+    evidence.documents[0].locations = [
+      { id: "brief", page: 1, section: "Assessment", text: brief },
+      ...roots.map((root, index) => ({ id: `root-${index}`, page: 1, section: "Content", text: root })),
+    ];
+    evidence.facts.topics = roots;
+    evidence.claims = evidence.claims.filter(claim => claim.field !== "topics");
+    evidence.claims.push(...roots.map((quote, index) => ({
+      field: "topics", documentId: evidence.documents[0].id, locationId: `root-${index}`,
+      quote, rule: "mandatory" as const,
+    })));
+    return result;
+  };
+  const detailedDraft = (payload: any) => {
+    const template = draft(payload);
+    template.topics = payload.evidence.facts.topics;
+    expect(template.topics).toEqual(["1.1.1 Market research", "1.1.2 Market positioning", "4.1.1 Growing economies"]);
+    expect(payload.evidence.topicDetails).toBeUndefined();
+    template.sections[0].groups[0].parts.forEach((part, index) => { part.topic = template.topics[index]; });
+    return template;
+  };
+  const r = runtime([read, detailedDraft]);
+  const requestId = crypto.randomUUID();
+  await invokeProfileBuilder({ action: "prepare_source", requestId,
+    identity: { ...initial(), course: "", component: "Paper 1", specificationVersion: "", tier: null },
+    specificationVersionIntent: "source", mode: "full_mock",
+    uploads: [{ contentType: "text/plain", base64: Buffer.from(detailedText).toString("base64") }],
+  });
+  const ready = (await invokeProfileBuilder({ action: "advance_source", jobId: requestId })).job!;
+  expect(ready.stage, JSON.stringify(ready)).toBe("ready");
+  expect(r.memory.records.get(ownerKey(owner, requestId))!.data.evidence?.facts.topics)
+    .toEqual(["1.1.1 Market research", "1.1.2 Market positioning", "4.1.1 Growing economies"]);
+  await invokeProfileBuilder({ action: "confirm_source", jobId: requestId, identity: ready.identity, mode: ready.mode });
+  const complete = (await invokeProfileBuilder({ action: "advance_source", jobId: requestId })).job!;
+  expect(complete.stage, JSON.stringify(complete)).toBe("complete");
+  const proposal = complete.proposal!;
+  expect(proposal.evidence?.topicDetails).toHaveLength(3);
+  expect(JSON.stringify(proposal.evidence?.topicDetails)).toContain("Market segmentation");
+  expect(JSON.stringify(proposal.evidence?.topicDetails)).not.toContain("Raising finance");
+  const saved = await invokeProfileBuilder({ action: "save", proposalId: requestId,
+    profileName: "Synthetic detailed Business", template: proposal.template });
+  expect(saved.profile?.topics).toEqual(proposal.template.topics);
+  expect(saved.profile?.profile_template.evidence.topicDetails).toEqual(proposal.evidence?.topicDetails);
+  const restored = (await invokeProfileBuilder({ action: "source_status", jobId: requestId })).job!;
+  expect(restored.proposal?.evidence?.topicDetails).toEqual(proposal.evidence?.topicDetails);
+  const frozen = snapshotTemplate(saved.profile!);
+  expect(JSON.stringify(frozen)).not.toContain("Market segmentation");
+  expect(JSON.stringify(frozen)).not.toContain("upload-1");
+  const context = { profile_template: frozen };
+  const selected = proposal.template.topics[2]; // Not sampled by either saved plan part.
+  expect(templateSnapshotInstructions(context)).toContain(selected);
+  const rows = genericRows().map(row => ({ ...row, subtopic: selected, topic_tag: selected }));
+  expect(() => assertBiologyPractice(rows, context, [selected])).not.toThrow();
+  expect(() => assertBiologyPractice([{ ...rows[0], subtopic: proposal.template.topics[0] }], context, [selected]))
+    .toThrow("outside the selected quiz topics");
+  expect(r.provider).toHaveLength(2);
+});
 
 it.each(["", "A-level Business", "9BS0"])("real client → handler prepares course %j, confirms, saves and restores with separate catalogue tier provenance", async course => {
   const r = runtime();

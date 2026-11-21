@@ -1,0 +1,1827 @@
+{
+  "status": "PASS",
+  "startedAt": "2026-11-21T14:30:47.556Z",
+  "boundary": "Actual ExamProfileBuilder, ProfileTopicList and prepareProfileSave. Synthetic owner-supplied saved contexts and injected save API; localStorage persistence belongs only to this synthetic fixture. No extraction, provider, login, database or physical iOS test.",
+  "runtime": {
+    "node": "v24.19.0",
+    "playwright": "1.57.0",
+    "playwrightPath": "/opt/codex/runtimes/cua/lib/node_modules/playwright-core",
+    "chromiumExecutable": "/usr/bin/chromium",
+    "chromiumVersion": "151.0.7922.173"
+  },
+  "cases": [
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "scenario": "detailed",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "collapsed",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 384,
+            "right": 1056,
+            "top": 50,
+            "bottom": 950,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "expanded-source-outcomes",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 384,
+            "right": 1056,
+            "top": 50,
+            "bottom": 950,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44,
+            44,
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "search:ETHNOGRAPHIC",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 384,
+            "right": 1056,
+            "top": 50,
+            "bottom": 950,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "search:2.1.1 Sources of finance",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 384,
+            "right": 1056,
+            "top": 50,
+            "bottom": 950,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "edited",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 384,
+            "right": 1056,
+            "top": 58.375,
+            "bottom": 941.625,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "touchTargets": [
+            44
+          ]
+        },
+        {
+          "stage": "reopened",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 384,
+            "right": 1056,
+            "top": 58.375,
+            "bottom": 941.625,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "touchTargets": [
+            44
+          ]
+        },
+        {
+          "stage": "reloaded",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 384,
+            "right": 1056,
+            "top": 58.375,
+            "bottom": 941.625,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "touchTargets": [
+            44
+          ]
+        }
+      ],
+      "screenshots": [
+        "desktop-light-detailed-collapsed.png",
+        "desktop-light-detailed-outcomes.png",
+        "desktop-light-detailed-search.png",
+        "desktop-light-detailed-edited.png",
+        "desktop-light-detailed-persisted.png"
+      ],
+      "checks": {
+        "actualSavedContextValidated": true,
+        "nestedGroupsAndKeyboardExpansion": true,
+        "exactLiteralOutcomesAndPhysicalPages": true,
+        "searchByLeafGroupOutcomeAndDocument": true,
+        "noMatchesAndClear": true,
+        "readOnlyInteractionsMakeNoCalls": true,
+        "editPreservesLeafIdentitiesAndPartIds": true,
+        "sourceAdditionAndRemovalSwitchToCustom": true,
+        "additionsHaveNoBorrowedProvenance": true,
+        "saveUsesOriginalReceiptAndEvidence": true,
+        "saveReopenAndReloadPersist": true,
+        "noHorizontalOverflow": true
+      },
+      "savedContext": {
+        "name": "Synthetic desktop light custom",
+        "topics": [
+          "1.1.1 Market research",
+          "1.1.2 Market positioning",
+          "Independent pricing experiment"
+        ],
+        "addedTopics": [
+          "Independent pricing experiment"
+        ],
+        "evidenceVersion": "7ee31e50752613e04017aea997fd497f5ba7f446d2a0d8a211e0102cf38d4f2a",
+        "mode": "custom",
+        "durationMinutes": 35
+      }
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "scenario": "legacy",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "legacy-flat-profile",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 384,
+            "right": 1056,
+            "top": 50,
+            "bottom": 950,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "touchTargets": []
+        },
+        {
+          "stage": "legacy-reread-source-choices",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 384,
+            "right": 1056,
+            "top": 68.875,
+            "bottom": 931.125,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "touchTargets": []
+        }
+      ],
+      "screenshots": [
+        "desktop-light-legacy-flat.png",
+        "desktop-light-legacy-reread-confirmation.png",
+        "desktop-light-legacy-reread-source-choices.png"
+      ],
+      "checks": {
+        "legacySourceContextValidated": true,
+        "flatNamesAndMissingDetailsHint": true,
+        "searchWorksWithoutDetails": true,
+        "noInventedSourceOutcomes": true,
+        "rereadConfirmationEscapeAndSourceChoices": true,
+        "rereadMakesNoApiCallAndPreservesSavedProfile": true,
+        "noAutomaticRebuildOrSave": true,
+        "noHorizontalOverflow": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "scenario": "detailed",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "collapsed",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 384,
+            "right": 1056,
+            "top": 50,
+            "bottom": 950,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "expanded-source-outcomes",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 384,
+            "right": 1056,
+            "top": 50,
+            "bottom": 950,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44,
+            44,
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "search:ETHNOGRAPHIC",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 384,
+            "right": 1056,
+            "top": 50,
+            "bottom": 950,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "search:2.1.1 Sources of finance",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 384,
+            "right": 1056,
+            "top": 50,
+            "bottom": 950,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "edited",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 384,
+            "right": 1056,
+            "top": 58.375,
+            "bottom": 941.625,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "touchTargets": [
+            44
+          ]
+        },
+        {
+          "stage": "reopened",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 384,
+            "right": 1056,
+            "top": 58.375,
+            "bottom": 941.625,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "touchTargets": [
+            44
+          ]
+        },
+        {
+          "stage": "reloaded",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 384,
+            "right": 1056,
+            "top": 58.375,
+            "bottom": 941.625,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "touchTargets": [
+            44
+          ]
+        }
+      ],
+      "screenshots": [
+        "desktop-dark-detailed-collapsed.png",
+        "desktop-dark-detailed-outcomes.png",
+        "desktop-dark-detailed-search.png",
+        "desktop-dark-detailed-edited.png",
+        "desktop-dark-detailed-persisted.png"
+      ],
+      "checks": {
+        "actualSavedContextValidated": true,
+        "nestedGroupsAndKeyboardExpansion": true,
+        "exactLiteralOutcomesAndPhysicalPages": true,
+        "searchByLeafGroupOutcomeAndDocument": true,
+        "noMatchesAndClear": true,
+        "readOnlyInteractionsMakeNoCalls": true,
+        "editPreservesLeafIdentitiesAndPartIds": true,
+        "sourceAdditionAndRemovalSwitchToCustom": true,
+        "additionsHaveNoBorrowedProvenance": true,
+        "saveUsesOriginalReceiptAndEvidence": true,
+        "saveReopenAndReloadPersist": true,
+        "noHorizontalOverflow": true
+      },
+      "savedContext": {
+        "name": "Synthetic desktop dark custom",
+        "topics": [
+          "1.1.1 Market research",
+          "1.1.2 Market positioning",
+          "Independent pricing experiment"
+        ],
+        "addedTopics": [
+          "Independent pricing experiment"
+        ],
+        "evidenceVersion": "7ee31e50752613e04017aea997fd497f5ba7f446d2a0d8a211e0102cf38d4f2a",
+        "mode": "custom",
+        "durationMinutes": 35
+      }
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "scenario": "legacy",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "legacy-flat-profile",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 384,
+            "right": 1056,
+            "top": 50,
+            "bottom": 950,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "touchTargets": []
+        },
+        {
+          "stage": "legacy-reread-source-choices",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 384,
+            "right": 1056,
+            "top": 68.875,
+            "bottom": 931.125,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "touchTargets": []
+        }
+      ],
+      "screenshots": [
+        "desktop-dark-legacy-flat.png",
+        "desktop-dark-legacy-reread-confirmation.png",
+        "desktop-dark-legacy-reread-source-choices.png"
+      ],
+      "checks": {
+        "legacySourceContextValidated": true,
+        "flatNamesAndMissingDetailsHint": true,
+        "searchWorksWithoutDetails": true,
+        "noInventedSourceOutcomes": true,
+        "rereadConfirmationEscapeAndSourceChoices": true,
+        "rereadMakesNoApiCallAndPreservesSavedProfile": true,
+        "noAutomaticRebuildOrSave": true,
+        "noHorizontalOverflow": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "light",
+      "scenario": "detailed",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "collapsed",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 81,
+            "right": 753,
+            "top": 142.375,
+            "bottom": 1051.625,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "expanded-source-outcomes",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 81,
+            "right": 753,
+            "top": 59.703125,
+            "bottom": 1134.296875,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44,
+            44,
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "search:ETHNOGRAPHIC",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 81,
+            "right": 753,
+            "top": 59.703125,
+            "bottom": 1134.296875,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "search:2.1.1 Sources of finance",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 81,
+            "right": 753,
+            "top": 59.703125,
+            "bottom": 1134.296875,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "edited",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 81,
+            "right": 753,
+            "top": 155.375,
+            "bottom": 1038.625,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "touchTargets": [
+            44
+          ]
+        },
+        {
+          "stage": "reopened",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 81,
+            "right": 753,
+            "top": 155.375,
+            "bottom": 1038.625,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "touchTargets": [
+            44
+          ]
+        },
+        {
+          "stage": "reloaded",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 81,
+            "right": 753,
+            "top": 155.375,
+            "bottom": 1038.625,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "touchTargets": [
+            44
+          ]
+        }
+      ],
+      "screenshots": [
+        "ipad-light-detailed-collapsed.png",
+        "ipad-light-detailed-outcomes.png",
+        "ipad-light-detailed-search.png",
+        "ipad-light-detailed-edited.png",
+        "ipad-light-detailed-persisted.png"
+      ],
+      "checks": {
+        "actualSavedContextValidated": true,
+        "nestedGroupsAndKeyboardExpansion": true,
+        "exactLiteralOutcomesAndPhysicalPages": true,
+        "searchByLeafGroupOutcomeAndDocument": true,
+        "noMatchesAndClear": true,
+        "readOnlyInteractionsMakeNoCalls": true,
+        "editPreservesLeafIdentitiesAndPartIds": true,
+        "sourceAdditionAndRemovalSwitchToCustom": true,
+        "additionsHaveNoBorrowedProvenance": true,
+        "saveUsesOriginalReceiptAndEvidence": true,
+        "saveReopenAndReloadPersist": true,
+        "noHorizontalOverflow": true
+      },
+      "savedContext": {
+        "name": "Synthetic ipad light custom",
+        "topics": [
+          "1.1.1 Market research",
+          "1.1.2 Market positioning",
+          "Independent pricing experiment"
+        ],
+        "addedTopics": [
+          "Independent pricing experiment"
+        ],
+        "evidenceVersion": "7ee31e50752613e04017aea997fd497f5ba7f446d2a0d8a211e0102cf38d4f2a",
+        "mode": "custom",
+        "durationMinutes": 35
+      }
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "light",
+      "scenario": "legacy",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "legacy-flat-profile",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 81,
+            "right": 753,
+            "top": 128.375,
+            "bottom": 1065.625,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "touchTargets": []
+        },
+        {
+          "stage": "legacy-reread-source-choices",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 81,
+            "right": 753,
+            "top": 165.875,
+            "bottom": 1028.125,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "touchTargets": []
+        }
+      ],
+      "screenshots": [
+        "ipad-light-legacy-flat.png",
+        "ipad-light-legacy-reread-confirmation.png",
+        "ipad-light-legacy-reread-source-choices.png"
+      ],
+      "checks": {
+        "legacySourceContextValidated": true,
+        "flatNamesAndMissingDetailsHint": true,
+        "searchWorksWithoutDetails": true,
+        "noInventedSourceOutcomes": true,
+        "rereadConfirmationEscapeAndSourceChoices": true,
+        "rereadMakesNoApiCallAndPreservesSavedProfile": true,
+        "noAutomaticRebuildOrSave": true,
+        "noHorizontalOverflow": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "dark",
+      "scenario": "detailed",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "collapsed",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 81,
+            "right": 753,
+            "top": 142.375,
+            "bottom": 1051.625,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "expanded-source-outcomes",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 81,
+            "right": 753,
+            "top": 59.703125,
+            "bottom": 1134.296875,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44,
+            44,
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "search:ETHNOGRAPHIC",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 81,
+            "right": 753,
+            "top": 59.703125,
+            "bottom": 1134.296875,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "search:2.1.1 Sources of finance",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 81,
+            "right": 753,
+            "top": 59.703125,
+            "bottom": 1134.296875,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "edited",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 81,
+            "right": 753,
+            "top": 155.375,
+            "bottom": 1038.625,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "touchTargets": [
+            44
+          ]
+        },
+        {
+          "stage": "reopened",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 81,
+            "right": 753,
+            "top": 155.375,
+            "bottom": 1038.625,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "touchTargets": [
+            44
+          ]
+        },
+        {
+          "stage": "reloaded",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 81,
+            "right": 753,
+            "top": 155.375,
+            "bottom": 1038.625,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "touchTargets": [
+            44
+          ]
+        }
+      ],
+      "screenshots": [
+        "ipad-dark-detailed-collapsed.png",
+        "ipad-dark-detailed-outcomes.png",
+        "ipad-dark-detailed-search.png",
+        "ipad-dark-detailed-edited.png",
+        "ipad-dark-detailed-persisted.png"
+      ],
+      "checks": {
+        "actualSavedContextValidated": true,
+        "nestedGroupsAndKeyboardExpansion": true,
+        "exactLiteralOutcomesAndPhysicalPages": true,
+        "searchByLeafGroupOutcomeAndDocument": true,
+        "noMatchesAndClear": true,
+        "readOnlyInteractionsMakeNoCalls": true,
+        "editPreservesLeafIdentitiesAndPartIds": true,
+        "sourceAdditionAndRemovalSwitchToCustom": true,
+        "additionsHaveNoBorrowedProvenance": true,
+        "saveUsesOriginalReceiptAndEvidence": true,
+        "saveReopenAndReloadPersist": true,
+        "noHorizontalOverflow": true
+      },
+      "savedContext": {
+        "name": "Synthetic ipad dark custom",
+        "topics": [
+          "1.1.1 Market research",
+          "1.1.2 Market positioning",
+          "Independent pricing experiment"
+        ],
+        "addedTopics": [
+          "Independent pricing experiment"
+        ],
+        "evidenceVersion": "7ee31e50752613e04017aea997fd497f5ba7f446d2a0d8a211e0102cf38d4f2a",
+        "mode": "custom",
+        "durationMinutes": 35
+      }
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "dark",
+      "scenario": "legacy",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "legacy-flat-profile",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 81,
+            "right": 753,
+            "top": 128.375,
+            "bottom": 1065.625,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "touchTargets": []
+        },
+        {
+          "stage": "legacy-reread-source-choices",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 81,
+            "right": 753,
+            "top": 165.875,
+            "bottom": 1028.125,
+            "scroll": 670,
+            "client": 670
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "touchTargets": []
+        }
+      ],
+      "screenshots": [
+        "ipad-dark-legacy-flat.png",
+        "ipad-dark-legacy-reread-confirmation.png",
+        "ipad-dark-legacy-reread-source-choices.png"
+      ],
+      "checks": {
+        "legacySourceContextValidated": true,
+        "flatNamesAndMissingDetailsHint": true,
+        "searchWorksWithoutDetails": true,
+        "noInventedSourceOutcomes": true,
+        "rereadConfirmationEscapeAndSourceChoices": true,
+        "rereadMakesNoApiCallAndPreservesSavedProfile": true,
+        "noAutomaticRebuildOrSave": true,
+        "noHorizontalOverflow": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "scenario": "detailed",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "collapsed",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 12,
+            "right": 378,
+            "top": 42.203125,
+            "bottom": 801.796875,
+            "scroll": 364,
+            "client": 364
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "expanded-source-outcomes",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 12,
+            "right": 378,
+            "top": 42.203125,
+            "bottom": 801.796875,
+            "scroll": 364,
+            "client": 364
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44,
+            44,
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "search:ETHNOGRAPHIC",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 12,
+            "right": 378,
+            "top": 42.203125,
+            "bottom": 801.796875,
+            "scroll": 364,
+            "client": 364
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "search:2.1.1 Sources of finance",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 12,
+            "right": 378,
+            "top": 42.203125,
+            "bottom": 801.796875,
+            "scroll": 364,
+            "client": 364
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "edited",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 12,
+            "right": 378,
+            "top": 42.203125,
+            "bottom": 801.796875,
+            "scroll": 364,
+            "client": 364
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "touchTargets": [
+            44
+          ]
+        },
+        {
+          "stage": "reopened",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 12,
+            "right": 378,
+            "top": 42.203125,
+            "bottom": 801.796875,
+            "scroll": 364,
+            "client": 364
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "touchTargets": [
+            44
+          ]
+        },
+        {
+          "stage": "reloaded",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 12,
+            "right": 378,
+            "top": 42.203125,
+            "bottom": 801.796875,
+            "scroll": 364,
+            "client": 364
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "touchTargets": [
+            44
+          ]
+        }
+      ],
+      "screenshots": [
+        "phone-light-detailed-collapsed.png",
+        "phone-light-detailed-outcomes.png",
+        "phone-light-detailed-search.png",
+        "phone-light-detailed-edited.png",
+        "phone-light-detailed-persisted.png"
+      ],
+      "checks": {
+        "actualSavedContextValidated": true,
+        "nestedGroupsAndKeyboardExpansion": true,
+        "exactLiteralOutcomesAndPhysicalPages": true,
+        "searchByLeafGroupOutcomeAndDocument": true,
+        "noMatchesAndClear": true,
+        "readOnlyInteractionsMakeNoCalls": true,
+        "editPreservesLeafIdentitiesAndPartIds": true,
+        "sourceAdditionAndRemovalSwitchToCustom": true,
+        "additionsHaveNoBorrowedProvenance": true,
+        "saveUsesOriginalReceiptAndEvidence": true,
+        "saveReopenAndReloadPersist": true,
+        "noHorizontalOverflow": true
+      },
+      "savedContext": {
+        "name": "Synthetic phone light custom",
+        "topics": [
+          "1.1.1 Market research",
+          "1.1.2 Market positioning",
+          "Independent pricing experiment"
+        ],
+        "addedTopics": [
+          "Independent pricing experiment"
+        ],
+        "evidenceVersion": "7ee31e50752613e04017aea997fd497f5ba7f446d2a0d8a211e0102cf38d4f2a",
+        "mode": "custom",
+        "durationMinutes": 35
+      }
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "scenario": "legacy",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "legacy-flat-profile",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 12,
+            "right": 378,
+            "top": 42.203125,
+            "bottom": 801.796875,
+            "scroll": 364,
+            "client": 364
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "touchTargets": []
+        },
+        {
+          "stage": "legacy-reread-source-choices",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 12,
+            "right": 378,
+            "top": 42.203125,
+            "bottom": 801.796875,
+            "scroll": 364,
+            "client": 364
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "touchTargets": []
+        }
+      ],
+      "screenshots": [
+        "phone-light-legacy-flat.png",
+        "phone-light-legacy-reread-confirmation.png",
+        "phone-light-legacy-reread-source-choices.png"
+      ],
+      "checks": {
+        "legacySourceContextValidated": true,
+        "flatNamesAndMissingDetailsHint": true,
+        "searchWorksWithoutDetails": true,
+        "noInventedSourceOutcomes": true,
+        "rereadConfirmationEscapeAndSourceChoices": true,
+        "rereadMakesNoApiCallAndPreservesSavedProfile": true,
+        "noAutomaticRebuildOrSave": true,
+        "noHorizontalOverflow": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "scenario": "detailed",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "collapsed",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 12,
+            "right": 378,
+            "top": 42.203125,
+            "bottom": 801.796875,
+            "scroll": 364,
+            "client": 364
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "expanded-source-outcomes",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 12,
+            "right": 378,
+            "top": 42.203125,
+            "bottom": 801.796875,
+            "scroll": 364,
+            "client": 364
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44,
+            44,
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "search:ETHNOGRAPHIC",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 12,
+            "right": 378,
+            "top": 42.203125,
+            "bottom": 801.796875,
+            "scroll": 364,
+            "client": 364
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "search:2.1.1 Sources of finance",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 12,
+            "right": 378,
+            "top": 42.203125,
+            "bottom": 801.796875,
+            "scroll": 364,
+            "client": 364
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "touchTargets": [
+            44,
+            44,
+            44
+          ]
+        },
+        {
+          "stage": "edited",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 12,
+            "right": 378,
+            "top": 42.203125,
+            "bottom": 801.796875,
+            "scroll": 364,
+            "client": 364
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "touchTargets": [
+            44
+          ]
+        },
+        {
+          "stage": "reopened",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 12,
+            "right": 378,
+            "top": 42.203125,
+            "bottom": 801.796875,
+            "scroll": 364,
+            "client": 364
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "touchTargets": [
+            44
+          ]
+        },
+        {
+          "stage": "reloaded",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 12,
+            "right": 378,
+            "top": 42.203125,
+            "bottom": 801.796875,
+            "scroll": 364,
+            "client": 364
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "touchTargets": [
+            44
+          ]
+        }
+      ],
+      "screenshots": [
+        "phone-dark-detailed-collapsed.png",
+        "phone-dark-detailed-outcomes.png",
+        "phone-dark-detailed-search.png",
+        "phone-dark-detailed-edited.png",
+        "phone-dark-detailed-persisted.png"
+      ],
+      "checks": {
+        "actualSavedContextValidated": true,
+        "nestedGroupsAndKeyboardExpansion": true,
+        "exactLiteralOutcomesAndPhysicalPages": true,
+        "searchByLeafGroupOutcomeAndDocument": true,
+        "noMatchesAndClear": true,
+        "readOnlyInteractionsMakeNoCalls": true,
+        "editPreservesLeafIdentitiesAndPartIds": true,
+        "sourceAdditionAndRemovalSwitchToCustom": true,
+        "additionsHaveNoBorrowedProvenance": true,
+        "saveUsesOriginalReceiptAndEvidence": true,
+        "saveReopenAndReloadPersist": true,
+        "noHorizontalOverflow": true
+      },
+      "savedContext": {
+        "name": "Synthetic phone dark custom",
+        "topics": [
+          "1.1.1 Market research",
+          "1.1.2 Market positioning",
+          "Independent pricing experiment"
+        ],
+        "addedTopics": [
+          "Independent pricing experiment"
+        ],
+        "evidenceVersion": "7ee31e50752613e04017aea997fd497f5ba7f446d2a0d8a211e0102cf38d4f2a",
+        "mode": "custom",
+        "durationMinutes": 35
+      }
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "scenario": "legacy",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "legacy-flat-profile",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 12,
+            "right": 378,
+            "top": 42.203125,
+            "bottom": 801.796875,
+            "scroll": 364,
+            "client": 364
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "touchTargets": []
+        },
+        {
+          "stage": "legacy-reread-source-choices",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 12,
+            "right": 378,
+            "top": 42.203125,
+            "bottom": 801.796875,
+            "scroll": 364,
+            "client": 364
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "touchTargets": []
+        }
+      ],
+      "screenshots": [
+        "phone-dark-legacy-flat.png",
+        "phone-dark-legacy-reread-confirmation.png",
+        "phone-dark-legacy-reread-source-choices.png"
+      ],
+      "checks": {
+        "legacySourceContextValidated": true,
+        "flatNamesAndMissingDetailsHint": true,
+        "searchWorksWithoutDetails": true,
+        "noInventedSourceOutcomes": true,
+        "rereadConfirmationEscapeAndSourceChoices": true,
+        "rereadMakesNoApiCallAndPreservesSavedProfile": true,
+        "noAutomaticRebuildOrSave": true,
+        "noHorizontalOverflow": true
+      }
+    }
+  ],
+  "errors": [],
+  "blockedRequests": [],
+  "screenshots": [
+    {
+      "file": "desktop-light-detailed-collapsed.png",
+      "sha256": "bf0bf83a7ce7bf73b223775b7279a8447c557ff4bde53954b7658773c465adde"
+    },
+    {
+      "file": "desktop-light-detailed-outcomes.png",
+      "sha256": "f6d67c11bcfabf444b50c8de571fd66b5636ce165d5949927fff18cf9f8170ed"
+    },
+    {
+      "file": "desktop-light-detailed-search.png",
+      "sha256": "4eb5d7980046ef6d80541ac4cf7622e06f0712a5fe0ec0a3827e66c6480e75de"
+    },
+    {
+      "file": "desktop-light-detailed-edited.png",
+      "sha256": "d7c385592d43b4cd23d30ecb430b067a7ada326a2fea791846e5934de68dec88"
+    },
+    {
+      "file": "desktop-light-detailed-persisted.png",
+      "sha256": "d7c385592d43b4cd23d30ecb430b067a7ada326a2fea791846e5934de68dec88"
+    },
+    {
+      "file": "desktop-light-legacy-flat.png",
+      "sha256": "646bfb2807c5f24dc82771f3c885cfff20dcb8cbdde65e81936ba85f3bd98e71"
+    },
+    {
+      "file": "desktop-light-legacy-reread-confirmation.png",
+      "sha256": "4c7ac90e68653b8199497831d1decb0340350123a83c3f27d6e6106c7169f958"
+    },
+    {
+      "file": "desktop-light-legacy-reread-source-choices.png",
+      "sha256": "9edbb843120c83ab72fa2c180869600feb20aa3472543acfbf5f1d0a9654bd66"
+    },
+    {
+      "file": "desktop-dark-detailed-collapsed.png",
+      "sha256": "f7ffce8bd63586916cc8e73e3f6d32350fbc7f46dcf399679aa17a7f5d2a71f4"
+    },
+    {
+      "file": "desktop-dark-detailed-outcomes.png",
+      "sha256": "be0a27ccc98f2a838d9d781c78185a2e9a67b1cda628f77a163409fdc63a2bd3"
+    },
+    {
+      "file": "desktop-dark-detailed-search.png",
+      "sha256": "d8758de1d0333b797a9a9d0482546ce168dfc909ec8f024e6671de52b2cff44a"
+    },
+    {
+      "file": "desktop-dark-detailed-edited.png",
+      "sha256": "7df2032f07a53dad8dd3b6363098022dd56fb6ea9e7190b3dd4b93e79729fa0b"
+    },
+    {
+      "file": "desktop-dark-detailed-persisted.png",
+      "sha256": "7df2032f07a53dad8dd3b6363098022dd56fb6ea9e7190b3dd4b93e79729fa0b"
+    },
+    {
+      "file": "desktop-dark-legacy-flat.png",
+      "sha256": "5110432b06d6d1c3735f77f88b63d652247f0c1a2915a1a5e9138cfba207522d"
+    },
+    {
+      "file": "desktop-dark-legacy-reread-confirmation.png",
+      "sha256": "04f04edcd90d8c2e07e237a09053dd42cb3eac1397d35fd26ec3f75ae7b8e0cb"
+    },
+    {
+      "file": "desktop-dark-legacy-reread-source-choices.png",
+      "sha256": "f688afcb2cf2f6e8eb6ea11e4fb61d6dc7c4cb5d53a9f10c0c14da1c0a931e11"
+    },
+    {
+      "file": "ipad-light-detailed-collapsed.png",
+      "sha256": "7f319aa511a80d64779320aa2f38a0c8b5f3ce8b3322f8047e8568b5a8c2d0bd"
+    },
+    {
+      "file": "ipad-light-detailed-outcomes.png",
+      "sha256": "445c149c28b3028c9e91802abd16130390962dfe70016866e2525435a0f7f706"
+    },
+    {
+      "file": "ipad-light-detailed-search.png",
+      "sha256": "9eab3a475972fe95eafb71db82fc05a8db855ad8fa4309ef7ac32d7f4122993d"
+    },
+    {
+      "file": "ipad-light-detailed-edited.png",
+      "sha256": "0cc498f76b75e59655717b5fee325fe30975c750f709c91a2d7fcf8281c2772c"
+    },
+    {
+      "file": "ipad-light-detailed-persisted.png",
+      "sha256": "0cc498f76b75e59655717b5fee325fe30975c750f709c91a2d7fcf8281c2772c"
+    },
+    {
+      "file": "ipad-light-legacy-flat.png",
+      "sha256": "168dedbad2753c43bee19c6aca3600e7bfc52516fcf8cb04d18e16430d41c002"
+    },
+    {
+      "file": "ipad-light-legacy-reread-confirmation.png",
+      "sha256": "24f43635e87ec195aaed3b2110d20e865f957018db10ac504454da4361313c67"
+    },
+    {
+      "file": "ipad-light-legacy-reread-source-choices.png",
+      "sha256": "c9940ef8c78fbbe5af762fc38da6e6fa776c6f01725c3549fddd4bd335516f87"
+    },
+    {
+      "file": "ipad-dark-detailed-collapsed.png",
+      "sha256": "5a5637bf76ead20ee81b8cbf3158dcd4a1774cd0bce85356ade5b476d18a68f7"
+    },
+    {
+      "file": "ipad-dark-detailed-outcomes.png",
+      "sha256": "b5988be1e59de01d883d3889367f457caaa265c6f22cbf8377a299efd13ce0ea"
+    },
+    {
+      "file": "ipad-dark-detailed-search.png",
+      "sha256": "d37c6a57a5f0a699f9ba5b46e023e8dfd471c14f40668683637c6d30e0cd5e9e"
+    },
+    {
+      "file": "ipad-dark-detailed-edited.png",
+      "sha256": "40320b82c6d35b8c20343de49e348106c7af272e1f39821d42c3cd01942355a3"
+    },
+    {
+      "file": "ipad-dark-detailed-persisted.png",
+      "sha256": "40320b82c6d35b8c20343de49e348106c7af272e1f39821d42c3cd01942355a3"
+    },
+    {
+      "file": "ipad-dark-legacy-flat.png",
+      "sha256": "475afd3e95d6e3ca30f900e1ae9e9aec0b7df3a6f03681f4bb175721f776ee90"
+    },
+    {
+      "file": "ipad-dark-legacy-reread-confirmation.png",
+      "sha256": "3ffa05ceef9530e93d62b2606f880575886816e219a1e470a7c54a8862dcefe0"
+    },
+    {
+      "file": "ipad-dark-legacy-reread-source-choices.png",
+      "sha256": "5b17c47f40b3ddd59930b09874eddeacbef9e874559529f0171116368cb2762f"
+    },
+    {
+      "file": "phone-light-detailed-collapsed.png",
+      "sha256": "3bb0ac1307c74e72b901e1c36366ec4b5bf5b4ef1834f2ffeeb8bd253ab06181"
+    },
+    {
+      "file": "phone-light-detailed-outcomes.png",
+      "sha256": "0718d370bc624978f10ad9d4711fee008560202bea50a83febc57fde964e93e9"
+    },
+    {
+      "file": "phone-light-detailed-search.png",
+      "sha256": "9543a253233c16f1048f1d478e74d732c5880f4911846f863cab6288ed2f4f39"
+    },
+    {
+      "file": "phone-light-detailed-edited.png",
+      "sha256": "a0e304fe3003da6ebc603f3f5756f1b51914a6c802e1f852e9aac4d11f582fac"
+    },
+    {
+      "file": "phone-light-detailed-persisted.png",
+      "sha256": "4a60d350deecd1a7988d5844a2a4c59858669b4b11f6ea0914c89bc65011472f"
+    },
+    {
+      "file": "phone-light-legacy-flat.png",
+      "sha256": "717ec944eba489a2db877c3a1952c290953b5521c798704a9d551db1c8bf543c"
+    },
+    {
+      "file": "phone-light-legacy-reread-confirmation.png",
+      "sha256": "919648a5ef905aa4ce4dff673b29fdd521a76e9285fd1400945efd53744a29ef"
+    },
+    {
+      "file": "phone-light-legacy-reread-source-choices.png",
+      "sha256": "66884e8e7f14b4c1875a22ad851347917563753d89af4ede318c636119dff2b3"
+    },
+    {
+      "file": "phone-dark-detailed-collapsed.png",
+      "sha256": "5c940510d44899582557aef6e57df2db07976665997d88198efee3aea36a1534"
+    },
+    {
+      "file": "phone-dark-detailed-outcomes.png",
+      "sha256": "cab76b08847fe2dfdf780e45650fd6e1ba76603d0b01638724f58380214d5474"
+    },
+    {
+      "file": "phone-dark-detailed-search.png",
+      "sha256": "ed51b5b28c50e7aee4fc615fdb9fe2ddf43cbfc87dde5a6715114b7d03140ff9"
+    },
+    {
+      "file": "phone-dark-detailed-edited.png",
+      "sha256": "abde7197bf4b8ca77bf493d291684b5e07871d8b88991238864e45970fce6ead"
+    },
+    {
+      "file": "phone-dark-detailed-persisted.png",
+      "sha256": "8329b0d762a015f06f79a582b9038bf49c6aff9a73fefd6bff1477d49b094e31"
+    },
+    {
+      "file": "phone-dark-legacy-flat.png",
+      "sha256": "c15068b52d6cc3a94a6c2b7dbdddd5377ca52b2146437657aa712a716a0b1394"
+    },
+    {
+      "file": "phone-dark-legacy-reread-confirmation.png",
+      "sha256": "a9328de112f9e9e85dbfe2b0881cd9f5b23c29df9ffc418b710cbfd75cb217fd"
+    },
+    {
+      "file": "phone-dark-legacy-reread-source-choices.png",
+      "sha256": "471cada3e2fb2a4168c952dc85caf2976e7eee2026131055bd9858369e42a2af"
+    }
+  ],
+  "hashesBefore": {
+    "status": "PASS",
+    "applicationFiles": 840,
+    "serverFiles": 195,
+    "dependencyInputs": 1743,
+    "applicationDifferences": [],
+    "serverDifferences": [],
+    "dependencyDifferencesWithinRun": [],
+    "fixtureDifferences": [],
+    "fontDifferences": [],
+    "outputDifferences": [],
+    "runtime": {
+      "node": "v24.19.0",
+      "platform": "linux",
+      "architecture": "x64",
+      "osRelease": "6.18.57",
+      "packages": {
+        "esbuild": "0.28.2",
+        "postcss": "8.5.6",
+        "postcss-import": "15.1.0",
+        "tailwindcss": "3.4.17",
+        "autoprefixer": "10.4.21",
+        "react": "18.3.1",
+        "react-dom": "18.3.1",
+        "react-router-dom": "6.26.2",
+        "unpdf": "1.8.1",
+        "zod": "4.6.2"
+      }
+    },
+    "policy": "Every recorded application/server/config/lockfile/fixture/font/dependency input and generated bundle/style output must match the frozen build. Server pinning does not imply that backend endpoints ran in the browser."
+  },
+  "hashesAfter": {
+    "status": "PASS",
+    "applicationFiles": 840,
+    "serverFiles": 195,
+    "dependencyInputs": 1743,
+    "applicationDifferences": [],
+    "serverDifferences": [],
+    "dependencyDifferencesWithinRun": [],
+    "fixtureDifferences": [],
+    "fontDifferences": [],
+    "outputDifferences": [],
+    "runtime": {
+      "node": "v24.19.0",
+      "platform": "linux",
+      "architecture": "x64",
+      "osRelease": "6.18.57",
+      "packages": {
+        "esbuild": "0.28.2",
+        "postcss": "8.5.6",
+        "postcss-import": "15.1.0",
+        "tailwindcss": "3.4.17",
+        "autoprefixer": "10.4.21",
+        "react": "18.3.1",
+        "react-dom": "18.3.1",
+        "react-router-dom": "6.26.2",
+        "unpdf": "1.8.1",
+        "zod": "4.6.2"
+      }
+    },
+    "policy": "Every recorded application/server/config/lockfile/fixture/font/dependency input and generated bundle/style output must match the frozen build. Server pinning does not imply that backend endpoints ran in the browser."
+  },
+  "finishedAt": "2026-11-21T14:31:29.621Z"
+}

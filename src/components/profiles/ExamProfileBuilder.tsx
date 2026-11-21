@@ -3,6 +3,7 @@ import { useBuilderAttachments } from "@/hooks/useBuilderAttachments";
 import { BuilderAttachments } from "./BuilderAttachments";
 import { BuilderEvidenceDetails } from "./BuilderEvidenceDetails";
 import { BuilderFollowupQuestions } from "./BuilderFollowupQuestions";
+import { ProfileTopicList } from "./ProfileTopicList";
 import {
   ASSESSMENT_DISCOVERY_VERSION,
   type AssessmentDiscoveryResult,
@@ -2493,35 +2494,25 @@ export function ExamProfileBuilder({
                     <BookOpen aria-hidden="true" className="h-3.5 w-3.5" />
                     {template.topics.length} topics
                   </p>
-                  <div
-                    className="flex flex-wrap gap-1.5"
-                    aria-label="Included topics"
-                  >
-                    {template.topics.slice(0, 6).map((topic) => (
-                      <span
-                        key={topic}
-                        className="max-w-full rounded-md bg-muted px-2 py-1 text-xs"
-                      >
-                        {topic}
-                        {template.addedTopics?.includes(topic) && (
-                          <span className="ml-1 text-primary">
-                            · Added by you
-                          </span>
-                        )}
-                      </span>
-                    ))}
-                    {template.topics.some(isSectionReferenceTopic) && (
-                      <p className="w-full text-xs text-destructive">
-                        Some topics are only section numbers. Edit the topics
-                        and type the real topic names so exams can target them.
-                      </p>
-                    )}
-                    {template.topics.length > 6 && (
-                      <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
-                        +{template.topics.length - 6} more
-                      </span>
-                    )}
-                  </div>
+                  <ProfileTopicList
+                    topics={template.topics}
+                    addedTopics={template.addedTopics}
+                    details={proposal.evidence?.topicDetails}
+                    documents={proposal.evidence?.documents}
+                    showSourceHint={proposal.origin === "source_backed_ai"}
+                  />
+                  {template.topics.some(isSectionReferenceTopic) && (
+                    <p className="w-full text-xs text-destructive">
+                      Some topics are only section numbers. Edit the topics
+                      and type the real topic names so exams can target them.
+                    </p>
+                  )}
+                  {proposal.origin === "source_backed_ai" && !proposal.evidence?.topicDetails?.length && (
+                    <Button type="button" size="sm" variant="outline" className="mt-3"
+                      disabled={busy} onClick={() => setRestartOpen(true)}>
+                      Read syllabus again for topic detail
+                    </Button>
+                  )}
                 </div>
                 {editing && (
                   <div className="space-y-4 rounded-xl border border-border p-4">

@@ -1,0 +1,110 @@
+{
+  "status": "PASS",
+  "baseline": "029e9c16eb55249cc1f5bd43d9f456b7bc7ee8c5",
+  "runtime": {
+    "node": "v24.19.0",
+    "npm": "11.9.0",
+    "deno": "2.5.6"
+  },
+  "repositoryCheck": {
+    "command": "npm run check",
+    "exitCode": 0,
+    "typecheck": "PASS",
+    "physicsTypecheck": "PASS",
+    "criticalLint": "PASS",
+    "testFiles": 221,
+    "testsPassed": 3718,
+    "testsFailed": 0,
+    "edgeFunctionsBundled": 39,
+    "productionBuild": "PASS",
+    "log": "/tmp/detailed-topics-final-check.log"
+  },
+  "backendTypecheck": {
+    "command": "deno check --config supabase/functions/profile-builder/deno.json <all ten affected entry points>",
+    "environment": {
+      "DENO_DIR": "/tmp/examly-business-deno-cache",
+      "DENO_TLS_CA_STORE": "system"
+    },
+    "exitCode": 0,
+    "functions": [
+      "extract-exam-questions",
+      "generate-practice-questions",
+      "get-practice-questions",
+      "grade-practice-question",
+      "profile-builder",
+      "publish-exam",
+      "save-exam-format",
+      "save-exam-timer",
+      "submit-exam",
+      "upload-exam"
+    ],
+    "log": "/tmp/detailed-topics-final-deno.log"
+  },
+  "publicReference": {
+    "command": "node docs/profile-builder/detailed-topics/verify-public-pdf.mjs /tmp/edexcel-alevel-business-official.pdf /tmp/detailed-topics-public-results.json",
+    "exitCode": 0,
+    "physicalPages": 68,
+    "sha256": "8d66018d0a9d826cdb9729c78012d73f5e7ab32bd8946f9eb9fd501827c9829f",
+    "topicsByPaper": {
+      "9BS0/01": 40,
+      "9BS0/02": 40,
+      "9BS0/03": 80
+    },
+    "checks": [
+      "Every numbered syllabus unit independently matched against original extracted pages",
+      "Literal source outcomes and paper ownership",
+      "Actual discovery, indexing, resumable source job, draft, save and shareable snapshot logic",
+      "Controlled model replies: two per paper; no live provider"
+    ]
+  },
+  "browser": {
+    "status": "PASS",
+    "cases": 12,
+    "screenshots": 48,
+    "viewports": [
+      "desktop 1440x1000",
+      "iPad 834x1194",
+      "phone 390x844"
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "scenarios": [
+      "detailed source-backed profile",
+      "legacy flat source-backed profile"
+    ],
+    "browserErrors": [],
+    "externalRequests": [],
+    "beforeAfterHashesMatch": true,
+    "artifacts": "/tmp/profile-builder-detailed-topics",
+    "boundary": "Actual ExamProfileBuilder, ProfileTopicList and prepareProfileSave. Synthetic owner-supplied saved contexts and injected save API; localStorage persistence belongs only to this synthetic fixture. No extraction, provider, login, database or physical iOS test."
+  },
+  "preserved": [
+    "No application dependency or package-lock/bun.lock changes",
+    "Existing ignored environment configuration",
+    "Earlier offline artifact directories and working branches",
+    "No existing saved profiles or student data accessed"
+  ],
+  "warnings": [
+    "Existing Browserslist database is 17 months old; no dependency updates were made",
+    "Production bundle reports chunks above 500 kB",
+    "Public PDF extraction emits standardFontDataUrl warnings; all source and flow assertions pass"
+  ],
+  "limitations": [
+    "No live or paid AI call: controlled results verify plumbing and validation, not provider reliability",
+    "Viewport/touch emulation in Chromium; no physical iOS or iPadOS device run",
+    "Old theme-only profiles need an explicit source re-read; no automatic migration or fabricated detail",
+    "Generic numbered-heading and quoted-root recovery; ambiguous or unstructured sources keep their existing topic scope",
+    "Source learning-point bullets are displayed under named syllabus units, not all separately graded topics",
+    "Existing university re-read level alias College (4-year) can show Choose your level; user must reselect the level, and saved context stays intact"
+  ],
+  "release": {
+    "draftPrRequired": true,
+    "migrationRequired": false,
+    "deployed": false,
+    "websitePublished": false,
+    "paidAiCalls": 0,
+    "handoff": "lovable-prompt.md"
+  }
+}
