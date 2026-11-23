@@ -1,0 +1,5219 @@
+{
+  "status": "PASS",
+  "mode": "matrix",
+  "startedAt": "2026-11-22T22:00:32.233Z",
+  "boundary": "Actual ExamProfileBuilder, AIProfileReview and prepareProfileSave. Synthetic owner-supplied saved contexts and injected fixture proposal/save API; localStorage persistence belongs only to this synthetic fixture. No extraction, provider, login, database or physical iOS test.",
+  "runtime": {
+    "node": "v24.19.0",
+    "playwright": "1.57.0",
+    "playwrightPath": "/opt/codex/runtimes/cua/lib/node_modules/playwright-core",
+    "chromiumExecutable": "/usr/bin/chromium",
+    "chromiumVersion": "151.0.7922.173"
+  },
+  "cases": [
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "scenario": "detailed",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "overview",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Show source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 93.03125,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 93.03125,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 93.03125,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "expanded-outcomes",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 93.03125,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 93.03125,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 93.03125,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "Exam settings",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": []
+        },
+        {
+          "stage": "Syllabus & source",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": []
+        },
+        {
+          "stage": "edited-restored",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Show source outcomes and notes for Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Customer research — my revision label",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Customer research — my revision label",
+              "width": 93.03125,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 93.03125,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 93.03125,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "reopened",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Customer research — my revision label",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Customer research — my revision label",
+              "width": 93.03125,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "reloaded",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Customer research — my revision label",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Customer research — my revision label",
+              "width": 93.03125,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "added-topic-notes-reloaded",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Independent pricing experiment",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Independent pricing experiment",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Independent pricing experiment",
+              "width": 93.03125,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "new-generated-proposal",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Show source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 93.03125,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 93.03125,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 93.03125,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "new-generated-reloaded",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 93.03125,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "screenshots": [
+        "desktop-light-detailed-overview.png",
+        "desktop-light-detailed-expanded.png",
+        "desktop-light-detailed-settings.png",
+        "desktop-light-detailed-source.png",
+        "desktop-light-detailed-edited-restored.png",
+        "desktop-light-detailed-save-failure.png",
+        "desktop-light-detailed-persisted.png",
+        "desktop-light-detailed-added-topic-notes-reloaded.png",
+        "desktop-light-detailed-new-generated-review.png",
+        "desktop-light-detailed-new-generated-reloaded.png"
+      ],
+      "checks": {
+        "defaultSubtopicsTab": true,
+        "exactSourceOutcomesAndPhysicalPages": true,
+        "searchByLeafGroupOutcomeDocumentAndNotes": true,
+        "filtersAndTabsMakeZeroAPICalls": true,
+        "profileRenameAndTopicDisplayAliasAndPersonalNotes": true,
+        "canonicalTopicsAndPartTagsPreserved": true,
+        "childEditorEscapeBackdropCancelAndFocusReturn": true,
+        "bulkRemoveKeepOneGuardUndoAndRestoreExactLayoutIdsMarks": true,
+        "noRegenerationOnEdits": true,
+        "failedSaveRetainsExactDraftAndRetry": true,
+        "saveReopenAndReload": true,
+        "completeOwnedContextRetained": true,
+        "noHorizontalOverflow": true,
+        "discardResetAndCloseConfirmationKeepAndDiscard": true
+      },
+      "addedTopic": {
+        "notesPersistThroughSaveAndReload": true,
+        "stableCanonicalIdentityAndScoredParts": true,
+        "noBorrowedSourceProvenance": true,
+        "sharedSnapshotRedactsAllPersonalNotes": true
+      },
+      "generated": {
+        "exactProposalToSaveAndReload": true,
+        "oneProposeOneSave": true,
+        "entireIdentityDemandResourcesCalculatorWarningsDesignSectionsPreserved": true,
+        "evidencePhysicalPagesChecksumFingerprintAndReceiptPreserved": true,
+        "savedContext": {
+          "version": 1,
+          "template": {
+            "schemaVersion": 1,
+            "identity": {
+              "country": "US",
+              "educationSystem": "US",
+              "stage": "University",
+              "qualification": "College (4-year)",
+              "subject": "Business",
+              "organisation": "Example University",
+              "course": "BUS101",
+              "component": "Final",
+              "specificationVersion": "2026",
+              "tier": "not_tiered",
+              "institution": "Example University",
+              "module": "Markets and finance"
+            },
+            "mode": "full_mock",
+            "marks": 6,
+            "durationMinutes": 30,
+            "topics": [
+              "1.1.1 Market research",
+              "1.1.2 Market positioning",
+              "2.1.1 Sources of finance"
+            ],
+            "calculator": "not_allowed",
+            "sections": [
+              {
+                "id": "section",
+                "title": "Synthetic Business assessment",
+                "groups": [
+                  {
+                    "id": "group",
+                    "parts": [
+                      {
+                        "id": "cells",
+                        "topic": "1.1.1 Market research",
+                        "marks": 3,
+                        "response": "short_answer",
+                        "demand": "AO1",
+                        "resource": "none"
+                      },
+                      {
+                        "id": "enzymes",
+                        "topic": "2.1.1 Sources of finance",
+                        "marks": 3,
+                        "response": "short_answer",
+                        "demand": "AO2",
+                        "resource": "data_table"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "warnings": [
+              "Synthetic review warning: this fixture does not establish an official question count."
+            ],
+            "designDecisions": [
+              "Two short-answer parts are a synthetic fixture layout choice."
+            ]
+          },
+          "origin": "source_backed_ai",
+          "evidence": {
+            "version": 1,
+            "identity": {
+              "country": "US",
+              "educationSystem": "US",
+              "stage": "University",
+              "qualification": "College (4-year)",
+              "subject": "Business",
+              "organisation": "Example University",
+              "course": "BUS101",
+              "component": "Final",
+              "specificationVersion": "2026",
+              "tier": "not_tiered",
+              "institution": "Example University",
+              "module": "Markets and finance"
+            },
+            "documents": [
+              {
+                "id": "owner-doc",
+                "checksum": "49d56b13a234aae75030c98656b7837c894407e54865b87b69e551ba1bfe8dca",
+                "title": "Synthetic Business syllabus",
+                "url": null,
+                "version": "2026",
+                "kind": "institution_brief",
+                "authority": "owner_supplied",
+                "retrievedOn": "2026-10-11",
+                "state": "active",
+                "applicableCohort": "2026 course",
+                "locations": [
+                  {
+                    "id": "brief",
+                    "page": 1,
+                    "section": "Assessment brief",
+                    "text": "BUS101 Final. This assessment is untiered. 6 marks; 30 minutes. 1.1.1 Market research; 1.1.2 Market positioning; 2.1.1 Sources of finance. Short structured answers. Answer all questions. No calculator allowed."
+                  },
+                  {
+                    "id": "topic-14-0",
+                    "page": 14,
+                    "section": "1.1.1 Market research",
+                    "text": "1.1.1 Market research\na) Primary research: ethnographic observation and customer interviews.\nb) Secondary research: published market reports; evaluate reliability and sampling bias."
+                  },
+                  {
+                    "id": "topic-15-1",
+                    "page": 15,
+                    "section": "1.1.1 Market research",
+                    "text": "1.1.1 Market research\nc) Compare qualitative and quantitative methods and explain how sample size affects confidence in the findings."
+                  },
+                  {
+                    "id": "topic-16-0",
+                    "page": 16,
+                    "section": "1.1.2 Market positioning",
+                    "text": "1.1.2 Market positioning\na) Use a market map to compare price and quality.\nb) Evaluate product differentiation and the usefulness of a unique selling proposition."
+                  },
+                  {
+                    "id": "topic-27-0",
+                    "page": 27,
+                    "section": "2.1.1 Sources of finance",
+                    "text": "2.1.1 Sources of finance\na) Compare retained profit, bank loans, share capital and crowdfunding.\nb) Explain how the choice depends on business size, risk, cost and repayment terms."
+                  }
+                ]
+              }
+            ],
+            "facts": {
+              "marks": 6,
+              "durationMinutes": 30,
+              "topics": [
+                "1.1.1 Market research",
+                "1.1.2 Market positioning",
+                "2.1.1 Sources of finance"
+              ],
+              "tier": "not_tiered",
+              "calculator": "not_allowed",
+              "formats": [
+                "short_answer"
+              ],
+              "selection": "all_compulsory",
+              "mathsRequirement": null,
+              "practicalRequirement": null
+            },
+            "claims": [
+              {
+                "field": "marks",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "6 marks",
+                "rule": "mandatory"
+              },
+              {
+                "field": "durationMinutes",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "30 minutes",
+                "rule": "mandatory"
+              },
+              {
+                "field": "topics",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "1.1.1 Market research; 1.1.2 Market positioning; 2.1.1 Sources of finance",
+                "rule": "mandatory"
+              },
+              {
+                "field": "tier",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "untiered",
+                "rule": "mandatory"
+              },
+              {
+                "field": "calculator",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "No calculator allowed",
+                "rule": "mandatory"
+              },
+              {
+                "field": "formats",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "Short structured answers",
+                "rule": "mandatory"
+              },
+              {
+                "field": "selection",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "Answer all questions",
+                "rule": "mandatory"
+              }
+            ],
+            "unresolved": [],
+            "conflicts": [],
+            "topicDetails": [
+              {
+                "topic": "1.1.1 Market research",
+                "path": [
+                  "Theme 1: Marketing and people",
+                  "1.1 Meeting customer needs"
+                ],
+                "sources": [
+                  {
+                    "documentId": "owner-doc",
+                    "page": 14,
+                    "text": "1.1.1 Market research\na) Primary research: ethnographic observation and customer interviews.\nb) Secondary research: published market reports; evaluate reliability and sampling bias."
+                  },
+                  {
+                    "documentId": "owner-doc",
+                    "page": 15,
+                    "text": "1.1.1 Market research\nc) Compare qualitative and quantitative methods and explain how sample size affects confidence in the findings."
+                  }
+                ]
+              },
+              {
+                "topic": "1.1.2 Market positioning",
+                "path": [
+                  "Theme 1: Marketing and people",
+                  "1.1 Meeting customer needs"
+                ],
+                "sources": [
+                  {
+                    "documentId": "owner-doc",
+                    "page": 16,
+                    "text": "1.1.2 Market positioning\na) Use a market map to compare price and quality.\nb) Evaluate product differentiation and the usefulness of a unique selling proposition."
+                  }
+                ]
+              },
+              {
+                "topic": "2.1.1 Sources of finance",
+                "path": [
+                  "Theme 2: Business activities",
+                  "2.1 Raising finance"
+                ],
+                "sources": [
+                  {
+                    "documentId": "owner-doc",
+                    "page": 27,
+                    "text": "2.1.1 Sources of finance\na) Compare retained profit, bank loans, share capital and crowdfunding.\nb) Explain how the choice depends on business size, risk, cost and repayment terms."
+                  }
+                ]
+              }
+            ]
+          },
+          "evidenceVersion": "d7267057f588c93525181debf5adb01299c90f6f69ae48dbe054c53d5f7bd94c",
+          "presetId": null,
+          "proposalVersion": 1,
+          "promptVersion": 1,
+          "resolved_by": "server",
+          "profileSettingsCanonical": "{\"assessment_tier\":\"not_tiered\",\"board\":\"Example University\",\"calculator_policy\":\"not_allowed\",\"contractBinding\":null,\"difficulty_progression\":\"ascending\",\"extended_marks\":0,\"include_extended\":false,\"include_graphs\":false,\"include_tables\":true,\"mark_distribution\":{},\"max_parts_per_question\":2,\"mcq_count\":0,\"mcq_options_count\":4,\"mcq_position\":\"mixed\",\"paper_blueprint\":{},\"parent_question_count\":1,\"qualification\":\"College (4-year)\",\"question_count\":2,\"question_structure\":\"mixed\",\"studied_texts\":[],\"time_limit_minutes\":30,\"topics\":[\"1.1.1 Market research\",\"1.1.2 Market positioning\",\"2.1.1 Sources of finance\"],\"written_question_count\":2}",
+          "proposalId": "a1000000-0000-4000-8000-000000000001"
+        }
+      }
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "scenario": "legacy",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "legacy-flat",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Edit Marketing and people",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Marketing and people",
+              "width": 93.03125,
+              "height": 44
+            },
+            {
+              "label": "Edit Business strategy",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Business strategy",
+              "width": 93.03125,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "screenshots": [
+        "desktop-light-legacy-flat.png",
+        "desktop-light-legacy-reread-source-choices.png"
+      ],
+      "checks": {
+        "flatLegacyLabelsAndNoInventedGroupsOrOutcomes": true,
+        "searchWithoutFabrication": true,
+        "rereadConfirmationEscapeAndSourceChoices": true,
+        "noAPIOrSavedDataChange": true,
+        "freshReloadRemainsLegacy": true,
+        "noHorizontalOverflow": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "scenario": "detailed",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "overview",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Show source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 93.03125,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 93.03125,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 93.03125,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "expanded-outcomes",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 93.03125,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 93.03125,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 93.03125,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "Exam settings",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": []
+        },
+        {
+          "stage": "Syllabus & source",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": []
+        },
+        {
+          "stage": "edited-restored",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Show source outcomes and notes for Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Customer research — my revision label",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Customer research — my revision label",
+              "width": 93.03125,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 93.03125,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 93.03125,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "reopened",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Customer research — my revision label",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Customer research — my revision label",
+              "width": 93.03125,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "reloaded",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Customer research — my revision label",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Customer research — my revision label",
+              "width": 93.03125,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "added-topic-notes-reloaded",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Independent pricing experiment",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Independent pricing experiment",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Independent pricing experiment",
+              "width": 93.03125,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "new-generated-proposal",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Show source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 93.03125,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 93.03125,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 93.03125,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "new-generated-reloaded",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 93.03125,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "screenshots": [
+        "desktop-dark-detailed-overview.png",
+        "desktop-dark-detailed-expanded.png",
+        "desktop-dark-detailed-settings.png",
+        "desktop-dark-detailed-source.png",
+        "desktop-dark-detailed-edited-restored.png",
+        "desktop-dark-detailed-save-failure.png",
+        "desktop-dark-detailed-persisted.png",
+        "desktop-dark-detailed-added-topic-notes-reloaded.png",
+        "desktop-dark-detailed-new-generated-review.png",
+        "desktop-dark-detailed-new-generated-reloaded.png"
+      ],
+      "checks": {
+        "defaultSubtopicsTab": true,
+        "exactSourceOutcomesAndPhysicalPages": true,
+        "searchByLeafGroupOutcomeDocumentAndNotes": true,
+        "filtersAndTabsMakeZeroAPICalls": true,
+        "profileRenameAndTopicDisplayAliasAndPersonalNotes": true,
+        "canonicalTopicsAndPartTagsPreserved": true,
+        "childEditorEscapeBackdropCancelAndFocusReturn": true,
+        "bulkRemoveKeepOneGuardUndoAndRestoreExactLayoutIdsMarks": true,
+        "noRegenerationOnEdits": true,
+        "failedSaveRetainsExactDraftAndRetry": true,
+        "saveReopenAndReload": true,
+        "completeOwnedContextRetained": true,
+        "noHorizontalOverflow": true,
+        "discardResetAndCloseConfirmationKeepAndDiscard": true
+      },
+      "addedTopic": {
+        "notesPersistThroughSaveAndReload": true,
+        "stableCanonicalIdentityAndScoredParts": true,
+        "noBorrowedSourceProvenance": true,
+        "sharedSnapshotRedactsAllPersonalNotes": true
+      },
+      "generated": {
+        "exactProposalToSaveAndReload": true,
+        "oneProposeOneSave": true,
+        "entireIdentityDemandResourcesCalculatorWarningsDesignSectionsPreserved": true,
+        "evidencePhysicalPagesChecksumFingerprintAndReceiptPreserved": true,
+        "savedContext": {
+          "version": 1,
+          "template": {
+            "schemaVersion": 1,
+            "identity": {
+              "country": "US",
+              "educationSystem": "US",
+              "stage": "University",
+              "qualification": "College (4-year)",
+              "subject": "Business",
+              "organisation": "Example University",
+              "course": "BUS101",
+              "component": "Final",
+              "specificationVersion": "2026",
+              "tier": "not_tiered",
+              "institution": "Example University",
+              "module": "Markets and finance"
+            },
+            "mode": "full_mock",
+            "marks": 6,
+            "durationMinutes": 30,
+            "topics": [
+              "1.1.1 Market research",
+              "1.1.2 Market positioning",
+              "2.1.1 Sources of finance"
+            ],
+            "calculator": "not_allowed",
+            "sections": [
+              {
+                "id": "section",
+                "title": "Synthetic Business assessment",
+                "groups": [
+                  {
+                    "id": "group",
+                    "parts": [
+                      {
+                        "id": "cells",
+                        "topic": "1.1.1 Market research",
+                        "marks": 3,
+                        "response": "short_answer",
+                        "demand": "AO1",
+                        "resource": "none"
+                      },
+                      {
+                        "id": "enzymes",
+                        "topic": "2.1.1 Sources of finance",
+                        "marks": 3,
+                        "response": "short_answer",
+                        "demand": "AO2",
+                        "resource": "data_table"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "warnings": [
+              "Synthetic review warning: this fixture does not establish an official question count."
+            ],
+            "designDecisions": [
+              "Two short-answer parts are a synthetic fixture layout choice."
+            ]
+          },
+          "origin": "source_backed_ai",
+          "evidence": {
+            "version": 1,
+            "identity": {
+              "country": "US",
+              "educationSystem": "US",
+              "stage": "University",
+              "qualification": "College (4-year)",
+              "subject": "Business",
+              "organisation": "Example University",
+              "course": "BUS101",
+              "component": "Final",
+              "specificationVersion": "2026",
+              "tier": "not_tiered",
+              "institution": "Example University",
+              "module": "Markets and finance"
+            },
+            "documents": [
+              {
+                "id": "owner-doc",
+                "checksum": "49d56b13a234aae75030c98656b7837c894407e54865b87b69e551ba1bfe8dca",
+                "title": "Synthetic Business syllabus",
+                "url": null,
+                "version": "2026",
+                "kind": "institution_brief",
+                "authority": "owner_supplied",
+                "retrievedOn": "2026-10-11",
+                "state": "active",
+                "applicableCohort": "2026 course",
+                "locations": [
+                  {
+                    "id": "brief",
+                    "page": 1,
+                    "section": "Assessment brief",
+                    "text": "BUS101 Final. This assessment is untiered. 6 marks; 30 minutes. 1.1.1 Market research; 1.1.2 Market positioning; 2.1.1 Sources of finance. Short structured answers. Answer all questions. No calculator allowed."
+                  },
+                  {
+                    "id": "topic-14-0",
+                    "page": 14,
+                    "section": "1.1.1 Market research",
+                    "text": "1.1.1 Market research\na) Primary research: ethnographic observation and customer interviews.\nb) Secondary research: published market reports; evaluate reliability and sampling bias."
+                  },
+                  {
+                    "id": "topic-15-1",
+                    "page": 15,
+                    "section": "1.1.1 Market research",
+                    "text": "1.1.1 Market research\nc) Compare qualitative and quantitative methods and explain how sample size affects confidence in the findings."
+                  },
+                  {
+                    "id": "topic-16-0",
+                    "page": 16,
+                    "section": "1.1.2 Market positioning",
+                    "text": "1.1.2 Market positioning\na) Use a market map to compare price and quality.\nb) Evaluate product differentiation and the usefulness of a unique selling proposition."
+                  },
+                  {
+                    "id": "topic-27-0",
+                    "page": 27,
+                    "section": "2.1.1 Sources of finance",
+                    "text": "2.1.1 Sources of finance\na) Compare retained profit, bank loans, share capital and crowdfunding.\nb) Explain how the choice depends on business size, risk, cost and repayment terms."
+                  }
+                ]
+              }
+            ],
+            "facts": {
+              "marks": 6,
+              "durationMinutes": 30,
+              "topics": [
+                "1.1.1 Market research",
+                "1.1.2 Market positioning",
+                "2.1.1 Sources of finance"
+              ],
+              "tier": "not_tiered",
+              "calculator": "not_allowed",
+              "formats": [
+                "short_answer"
+              ],
+              "selection": "all_compulsory",
+              "mathsRequirement": null,
+              "practicalRequirement": null
+            },
+            "claims": [
+              {
+                "field": "marks",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "6 marks",
+                "rule": "mandatory"
+              },
+              {
+                "field": "durationMinutes",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "30 minutes",
+                "rule": "mandatory"
+              },
+              {
+                "field": "topics",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "1.1.1 Market research; 1.1.2 Market positioning; 2.1.1 Sources of finance",
+                "rule": "mandatory"
+              },
+              {
+                "field": "tier",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "untiered",
+                "rule": "mandatory"
+              },
+              {
+                "field": "calculator",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "No calculator allowed",
+                "rule": "mandatory"
+              },
+              {
+                "field": "formats",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "Short structured answers",
+                "rule": "mandatory"
+              },
+              {
+                "field": "selection",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "Answer all questions",
+                "rule": "mandatory"
+              }
+            ],
+            "unresolved": [],
+            "conflicts": [],
+            "topicDetails": [
+              {
+                "topic": "1.1.1 Market research",
+                "path": [
+                  "Theme 1: Marketing and people",
+                  "1.1 Meeting customer needs"
+                ],
+                "sources": [
+                  {
+                    "documentId": "owner-doc",
+                    "page": 14,
+                    "text": "1.1.1 Market research\na) Primary research: ethnographic observation and customer interviews.\nb) Secondary research: published market reports; evaluate reliability and sampling bias."
+                  },
+                  {
+                    "documentId": "owner-doc",
+                    "page": 15,
+                    "text": "1.1.1 Market research\nc) Compare qualitative and quantitative methods and explain how sample size affects confidence in the findings."
+                  }
+                ]
+              },
+              {
+                "topic": "1.1.2 Market positioning",
+                "path": [
+                  "Theme 1: Marketing and people",
+                  "1.1 Meeting customer needs"
+                ],
+                "sources": [
+                  {
+                    "documentId": "owner-doc",
+                    "page": 16,
+                    "text": "1.1.2 Market positioning\na) Use a market map to compare price and quality.\nb) Evaluate product differentiation and the usefulness of a unique selling proposition."
+                  }
+                ]
+              },
+              {
+                "topic": "2.1.1 Sources of finance",
+                "path": [
+                  "Theme 2: Business activities",
+                  "2.1 Raising finance"
+                ],
+                "sources": [
+                  {
+                    "documentId": "owner-doc",
+                    "page": 27,
+                    "text": "2.1.1 Sources of finance\na) Compare retained profit, bank loans, share capital and crowdfunding.\nb) Explain how the choice depends on business size, risk, cost and repayment terms."
+                  }
+                ]
+              }
+            ]
+          },
+          "evidenceVersion": "d7267057f588c93525181debf5adb01299c90f6f69ae48dbe054c53d5f7bd94c",
+          "presetId": null,
+          "proposalVersion": 1,
+          "promptVersion": 1,
+          "resolved_by": "server",
+          "profileSettingsCanonical": "{\"assessment_tier\":\"not_tiered\",\"board\":\"Example University\",\"calculator_policy\":\"not_allowed\",\"contractBinding\":null,\"difficulty_progression\":\"ascending\",\"extended_marks\":0,\"include_extended\":false,\"include_graphs\":false,\"include_tables\":true,\"mark_distribution\":{},\"max_parts_per_question\":2,\"mcq_count\":0,\"mcq_options_count\":4,\"mcq_position\":\"mixed\",\"paper_blueprint\":{},\"parent_question_count\":1,\"qualification\":\"College (4-year)\",\"question_count\":2,\"question_structure\":\"mixed\",\"studied_texts\":[],\"time_limit_minutes\":30,\"topics\":[\"1.1.1 Market research\",\"1.1.2 Market positioning\",\"2.1.1 Sources of finance\"],\"written_question_count\":2}",
+          "proposalId": "a1000000-0000-4000-8000-000000000001"
+        }
+      }
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "scenario": "legacy",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "legacy-flat",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Edit Marketing and people",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Marketing and people",
+              "width": 93.03125,
+              "height": 44
+            },
+            {
+              "label": "Edit Business strategy",
+              "width": 62.75,
+              "height": 44
+            },
+            {
+              "label": "Remove Business strategy",
+              "width": 93.03125,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "screenshots": [
+        "desktop-dark-legacy-flat.png",
+        "desktop-dark-legacy-reread-source-choices.png"
+      ],
+      "checks": {
+        "flatLegacyLabelsAndNoInventedGroupsOrOutcomes": true,
+        "searchWithoutFabrication": true,
+        "rereadConfirmationEscapeAndSourceChoices": true,
+        "noAPIOrSavedDataChange": true,
+        "freshReloadRemainsLegacy": true,
+        "noHorizontalOverflow": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "light",
+      "scenario": "detailed",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "overview",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Show source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "expanded-outcomes",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "Exam settings",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": []
+        },
+        {
+          "stage": "Syllabus & source",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": []
+        },
+        {
+          "stage": "edited-restored",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Show source outcomes and notes for Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "reopened",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "reloaded",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "added-topic-notes-reloaded",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Independent pricing experiment",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Independent pricing experiment",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Independent pricing experiment",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "new-generated-proposal",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Show source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "new-generated-reloaded",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "screenshots": [
+        "ipad-light-detailed-overview.png",
+        "ipad-light-detailed-expanded.png",
+        "ipad-light-detailed-settings.png",
+        "ipad-light-detailed-source.png",
+        "ipad-light-detailed-edited-restored.png",
+        "ipad-light-detailed-save-failure.png",
+        "ipad-light-detailed-persisted.png",
+        "ipad-light-detailed-added-topic-notes-reloaded.png",
+        "ipad-light-detailed-new-generated-review.png",
+        "ipad-light-detailed-new-generated-reloaded.png"
+      ],
+      "checks": {
+        "defaultSubtopicsTab": true,
+        "exactSourceOutcomesAndPhysicalPages": true,
+        "searchByLeafGroupOutcomeDocumentAndNotes": true,
+        "filtersAndTabsMakeZeroAPICalls": true,
+        "profileRenameAndTopicDisplayAliasAndPersonalNotes": true,
+        "canonicalTopicsAndPartTagsPreserved": true,
+        "childEditorEscapeBackdropCancelAndFocusReturn": true,
+        "bulkRemoveKeepOneGuardUndoAndRestoreExactLayoutIdsMarks": true,
+        "noRegenerationOnEdits": true,
+        "failedSaveRetainsExactDraftAndRetry": true,
+        "saveReopenAndReload": true,
+        "completeOwnedContextRetained": true,
+        "noHorizontalOverflow": true,
+        "discardResetAndCloseConfirmationKeepAndDiscard": true
+      },
+      "addedTopic": {
+        "notesPersistThroughSaveAndReload": true,
+        "stableCanonicalIdentityAndScoredParts": true,
+        "noBorrowedSourceProvenance": true,
+        "sharedSnapshotRedactsAllPersonalNotes": true
+      },
+      "generated": {
+        "exactProposalToSaveAndReload": true,
+        "oneProposeOneSave": true,
+        "entireIdentityDemandResourcesCalculatorWarningsDesignSectionsPreserved": true,
+        "evidencePhysicalPagesChecksumFingerprintAndReceiptPreserved": true,
+        "savedContext": {
+          "version": 1,
+          "template": {
+            "schemaVersion": 1,
+            "identity": {
+              "country": "US",
+              "educationSystem": "US",
+              "stage": "University",
+              "qualification": "College (4-year)",
+              "subject": "Business",
+              "organisation": "Example University",
+              "course": "BUS101",
+              "component": "Final",
+              "specificationVersion": "2026",
+              "tier": "not_tiered",
+              "institution": "Example University",
+              "module": "Markets and finance"
+            },
+            "mode": "full_mock",
+            "marks": 6,
+            "durationMinutes": 30,
+            "topics": [
+              "1.1.1 Market research",
+              "1.1.2 Market positioning",
+              "2.1.1 Sources of finance"
+            ],
+            "calculator": "not_allowed",
+            "sections": [
+              {
+                "id": "section",
+                "title": "Synthetic Business assessment",
+                "groups": [
+                  {
+                    "id": "group",
+                    "parts": [
+                      {
+                        "id": "cells",
+                        "topic": "1.1.1 Market research",
+                        "marks": 3,
+                        "response": "short_answer",
+                        "demand": "AO1",
+                        "resource": "none"
+                      },
+                      {
+                        "id": "enzymes",
+                        "topic": "2.1.1 Sources of finance",
+                        "marks": 3,
+                        "response": "short_answer",
+                        "demand": "AO2",
+                        "resource": "data_table"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "warnings": [
+              "Synthetic review warning: this fixture does not establish an official question count."
+            ],
+            "designDecisions": [
+              "Two short-answer parts are a synthetic fixture layout choice."
+            ]
+          },
+          "origin": "source_backed_ai",
+          "evidence": {
+            "version": 1,
+            "identity": {
+              "country": "US",
+              "educationSystem": "US",
+              "stage": "University",
+              "qualification": "College (4-year)",
+              "subject": "Business",
+              "organisation": "Example University",
+              "course": "BUS101",
+              "component": "Final",
+              "specificationVersion": "2026",
+              "tier": "not_tiered",
+              "institution": "Example University",
+              "module": "Markets and finance"
+            },
+            "documents": [
+              {
+                "id": "owner-doc",
+                "checksum": "49d56b13a234aae75030c98656b7837c894407e54865b87b69e551ba1bfe8dca",
+                "title": "Synthetic Business syllabus",
+                "url": null,
+                "version": "2026",
+                "kind": "institution_brief",
+                "authority": "owner_supplied",
+                "retrievedOn": "2026-10-11",
+                "state": "active",
+                "applicableCohort": "2026 course",
+                "locations": [
+                  {
+                    "id": "brief",
+                    "page": 1,
+                    "section": "Assessment brief",
+                    "text": "BUS101 Final. This assessment is untiered. 6 marks; 30 minutes. 1.1.1 Market research; 1.1.2 Market positioning; 2.1.1 Sources of finance. Short structured answers. Answer all questions. No calculator allowed."
+                  },
+                  {
+                    "id": "topic-14-0",
+                    "page": 14,
+                    "section": "1.1.1 Market research",
+                    "text": "1.1.1 Market research\na) Primary research: ethnographic observation and customer interviews.\nb) Secondary research: published market reports; evaluate reliability and sampling bias."
+                  },
+                  {
+                    "id": "topic-15-1",
+                    "page": 15,
+                    "section": "1.1.1 Market research",
+                    "text": "1.1.1 Market research\nc) Compare qualitative and quantitative methods and explain how sample size affects confidence in the findings."
+                  },
+                  {
+                    "id": "topic-16-0",
+                    "page": 16,
+                    "section": "1.1.2 Market positioning",
+                    "text": "1.1.2 Market positioning\na) Use a market map to compare price and quality.\nb) Evaluate product differentiation and the usefulness of a unique selling proposition."
+                  },
+                  {
+                    "id": "topic-27-0",
+                    "page": 27,
+                    "section": "2.1.1 Sources of finance",
+                    "text": "2.1.1 Sources of finance\na) Compare retained profit, bank loans, share capital and crowdfunding.\nb) Explain how the choice depends on business size, risk, cost and repayment terms."
+                  }
+                ]
+              }
+            ],
+            "facts": {
+              "marks": 6,
+              "durationMinutes": 30,
+              "topics": [
+                "1.1.1 Market research",
+                "1.1.2 Market positioning",
+                "2.1.1 Sources of finance"
+              ],
+              "tier": "not_tiered",
+              "calculator": "not_allowed",
+              "formats": [
+                "short_answer"
+              ],
+              "selection": "all_compulsory",
+              "mathsRequirement": null,
+              "practicalRequirement": null
+            },
+            "claims": [
+              {
+                "field": "marks",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "6 marks",
+                "rule": "mandatory"
+              },
+              {
+                "field": "durationMinutes",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "30 minutes",
+                "rule": "mandatory"
+              },
+              {
+                "field": "topics",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "1.1.1 Market research; 1.1.2 Market positioning; 2.1.1 Sources of finance",
+                "rule": "mandatory"
+              },
+              {
+                "field": "tier",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "untiered",
+                "rule": "mandatory"
+              },
+              {
+                "field": "calculator",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "No calculator allowed",
+                "rule": "mandatory"
+              },
+              {
+                "field": "formats",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "Short structured answers",
+                "rule": "mandatory"
+              },
+              {
+                "field": "selection",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "Answer all questions",
+                "rule": "mandatory"
+              }
+            ],
+            "unresolved": [],
+            "conflicts": [],
+            "topicDetails": [
+              {
+                "topic": "1.1.1 Market research",
+                "path": [
+                  "Theme 1: Marketing and people",
+                  "1.1 Meeting customer needs"
+                ],
+                "sources": [
+                  {
+                    "documentId": "owner-doc",
+                    "page": 14,
+                    "text": "1.1.1 Market research\na) Primary research: ethnographic observation and customer interviews.\nb) Secondary research: published market reports; evaluate reliability and sampling bias."
+                  },
+                  {
+                    "documentId": "owner-doc",
+                    "page": 15,
+                    "text": "1.1.1 Market research\nc) Compare qualitative and quantitative methods and explain how sample size affects confidence in the findings."
+                  }
+                ]
+              },
+              {
+                "topic": "1.1.2 Market positioning",
+                "path": [
+                  "Theme 1: Marketing and people",
+                  "1.1 Meeting customer needs"
+                ],
+                "sources": [
+                  {
+                    "documentId": "owner-doc",
+                    "page": 16,
+                    "text": "1.1.2 Market positioning\na) Use a market map to compare price and quality.\nb) Evaluate product differentiation and the usefulness of a unique selling proposition."
+                  }
+                ]
+              },
+              {
+                "topic": "2.1.1 Sources of finance",
+                "path": [
+                  "Theme 2: Business activities",
+                  "2.1 Raising finance"
+                ],
+                "sources": [
+                  {
+                    "documentId": "owner-doc",
+                    "page": 27,
+                    "text": "2.1.1 Sources of finance\na) Compare retained profit, bank loans, share capital and crowdfunding.\nb) Explain how the choice depends on business size, risk, cost and repayment terms."
+                  }
+                ]
+              }
+            ]
+          },
+          "evidenceVersion": "d7267057f588c93525181debf5adb01299c90f6f69ae48dbe054c53d5f7bd94c",
+          "presetId": null,
+          "proposalVersion": 1,
+          "promptVersion": 1,
+          "resolved_by": "server",
+          "profileSettingsCanonical": "{\"assessment_tier\":\"not_tiered\",\"board\":\"Example University\",\"calculator_policy\":\"not_allowed\",\"contractBinding\":null,\"difficulty_progression\":\"ascending\",\"extended_marks\":0,\"include_extended\":false,\"include_graphs\":false,\"include_tables\":true,\"mark_distribution\":{},\"max_parts_per_question\":2,\"mcq_count\":0,\"mcq_options_count\":4,\"mcq_position\":\"mixed\",\"paper_blueprint\":{},\"parent_question_count\":1,\"qualification\":\"College (4-year)\",\"question_count\":2,\"question_structure\":\"mixed\",\"studied_texts\":[],\"time_limit_minutes\":30,\"topics\":[\"1.1.1 Market research\",\"1.1.2 Market positioning\",\"2.1.1 Sources of finance\"],\"written_question_count\":2}",
+          "proposalId": "a1000000-0000-4000-8000-000000000001"
+        }
+      }
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "light",
+      "scenario": "legacy",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "legacy-flat",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Edit Marketing and people",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Marketing and people",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Business strategy",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Business strategy",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "screenshots": [
+        "ipad-light-legacy-flat.png",
+        "ipad-light-legacy-reread-source-choices.png"
+      ],
+      "checks": {
+        "flatLegacyLabelsAndNoInventedGroupsOrOutcomes": true,
+        "searchWithoutFabrication": true,
+        "rereadConfirmationEscapeAndSourceChoices": true,
+        "noAPIOrSavedDataChange": true,
+        "freshReloadRemainsLegacy": true,
+        "noHorizontalOverflow": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "dark",
+      "scenario": "detailed",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "overview",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Show source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "expanded-outcomes",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "Exam settings",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": []
+        },
+        {
+          "stage": "Syllabus & source",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": []
+        },
+        {
+          "stage": "edited-restored",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Show source outcomes and notes for Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "reopened",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "reloaded",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "added-topic-notes-reloaded",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Independent pricing experiment",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Independent pricing experiment",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Independent pricing experiment",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "new-generated-proposal",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Show source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "new-generated-reloaded",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "screenshots": [
+        "ipad-dark-detailed-overview.png",
+        "ipad-dark-detailed-expanded.png",
+        "ipad-dark-detailed-settings.png",
+        "ipad-dark-detailed-source.png",
+        "ipad-dark-detailed-edited-restored.png",
+        "ipad-dark-detailed-save-failure.png",
+        "ipad-dark-detailed-persisted.png",
+        "ipad-dark-detailed-added-topic-notes-reloaded.png",
+        "ipad-dark-detailed-new-generated-review.png",
+        "ipad-dark-detailed-new-generated-reloaded.png"
+      ],
+      "checks": {
+        "defaultSubtopicsTab": true,
+        "exactSourceOutcomesAndPhysicalPages": true,
+        "searchByLeafGroupOutcomeDocumentAndNotes": true,
+        "filtersAndTabsMakeZeroAPICalls": true,
+        "profileRenameAndTopicDisplayAliasAndPersonalNotes": true,
+        "canonicalTopicsAndPartTagsPreserved": true,
+        "childEditorEscapeBackdropCancelAndFocusReturn": true,
+        "bulkRemoveKeepOneGuardUndoAndRestoreExactLayoutIdsMarks": true,
+        "noRegenerationOnEdits": true,
+        "failedSaveRetainsExactDraftAndRetry": true,
+        "saveReopenAndReload": true,
+        "completeOwnedContextRetained": true,
+        "noHorizontalOverflow": true,
+        "discardResetAndCloseConfirmationKeepAndDiscard": true
+      },
+      "addedTopic": {
+        "notesPersistThroughSaveAndReload": true,
+        "stableCanonicalIdentityAndScoredParts": true,
+        "noBorrowedSourceProvenance": true,
+        "sharedSnapshotRedactsAllPersonalNotes": true
+      },
+      "generated": {
+        "exactProposalToSaveAndReload": true,
+        "oneProposeOneSave": true,
+        "entireIdentityDemandResourcesCalculatorWarningsDesignSectionsPreserved": true,
+        "evidencePhysicalPagesChecksumFingerprintAndReceiptPreserved": true,
+        "savedContext": {
+          "version": 1,
+          "template": {
+            "schemaVersion": 1,
+            "identity": {
+              "country": "US",
+              "educationSystem": "US",
+              "stage": "University",
+              "qualification": "College (4-year)",
+              "subject": "Business",
+              "organisation": "Example University",
+              "course": "BUS101",
+              "component": "Final",
+              "specificationVersion": "2026",
+              "tier": "not_tiered",
+              "institution": "Example University",
+              "module": "Markets and finance"
+            },
+            "mode": "full_mock",
+            "marks": 6,
+            "durationMinutes": 30,
+            "topics": [
+              "1.1.1 Market research",
+              "1.1.2 Market positioning",
+              "2.1.1 Sources of finance"
+            ],
+            "calculator": "not_allowed",
+            "sections": [
+              {
+                "id": "section",
+                "title": "Synthetic Business assessment",
+                "groups": [
+                  {
+                    "id": "group",
+                    "parts": [
+                      {
+                        "id": "cells",
+                        "topic": "1.1.1 Market research",
+                        "marks": 3,
+                        "response": "short_answer",
+                        "demand": "AO1",
+                        "resource": "none"
+                      },
+                      {
+                        "id": "enzymes",
+                        "topic": "2.1.1 Sources of finance",
+                        "marks": 3,
+                        "response": "short_answer",
+                        "demand": "AO2",
+                        "resource": "data_table"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "warnings": [
+              "Synthetic review warning: this fixture does not establish an official question count."
+            ],
+            "designDecisions": [
+              "Two short-answer parts are a synthetic fixture layout choice."
+            ]
+          },
+          "origin": "source_backed_ai",
+          "evidence": {
+            "version": 1,
+            "identity": {
+              "country": "US",
+              "educationSystem": "US",
+              "stage": "University",
+              "qualification": "College (4-year)",
+              "subject": "Business",
+              "organisation": "Example University",
+              "course": "BUS101",
+              "component": "Final",
+              "specificationVersion": "2026",
+              "tier": "not_tiered",
+              "institution": "Example University",
+              "module": "Markets and finance"
+            },
+            "documents": [
+              {
+                "id": "owner-doc",
+                "checksum": "49d56b13a234aae75030c98656b7837c894407e54865b87b69e551ba1bfe8dca",
+                "title": "Synthetic Business syllabus",
+                "url": null,
+                "version": "2026",
+                "kind": "institution_brief",
+                "authority": "owner_supplied",
+                "retrievedOn": "2026-10-11",
+                "state": "active",
+                "applicableCohort": "2026 course",
+                "locations": [
+                  {
+                    "id": "brief",
+                    "page": 1,
+                    "section": "Assessment brief",
+                    "text": "BUS101 Final. This assessment is untiered. 6 marks; 30 minutes. 1.1.1 Market research; 1.1.2 Market positioning; 2.1.1 Sources of finance. Short structured answers. Answer all questions. No calculator allowed."
+                  },
+                  {
+                    "id": "topic-14-0",
+                    "page": 14,
+                    "section": "1.1.1 Market research",
+                    "text": "1.1.1 Market research\na) Primary research: ethnographic observation and customer interviews.\nb) Secondary research: published market reports; evaluate reliability and sampling bias."
+                  },
+                  {
+                    "id": "topic-15-1",
+                    "page": 15,
+                    "section": "1.1.1 Market research",
+                    "text": "1.1.1 Market research\nc) Compare qualitative and quantitative methods and explain how sample size affects confidence in the findings."
+                  },
+                  {
+                    "id": "topic-16-0",
+                    "page": 16,
+                    "section": "1.1.2 Market positioning",
+                    "text": "1.1.2 Market positioning\na) Use a market map to compare price and quality.\nb) Evaluate product differentiation and the usefulness of a unique selling proposition."
+                  },
+                  {
+                    "id": "topic-27-0",
+                    "page": 27,
+                    "section": "2.1.1 Sources of finance",
+                    "text": "2.1.1 Sources of finance\na) Compare retained profit, bank loans, share capital and crowdfunding.\nb) Explain how the choice depends on business size, risk, cost and repayment terms."
+                  }
+                ]
+              }
+            ],
+            "facts": {
+              "marks": 6,
+              "durationMinutes": 30,
+              "topics": [
+                "1.1.1 Market research",
+                "1.1.2 Market positioning",
+                "2.1.1 Sources of finance"
+              ],
+              "tier": "not_tiered",
+              "calculator": "not_allowed",
+              "formats": [
+                "short_answer"
+              ],
+              "selection": "all_compulsory",
+              "mathsRequirement": null,
+              "practicalRequirement": null
+            },
+            "claims": [
+              {
+                "field": "marks",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "6 marks",
+                "rule": "mandatory"
+              },
+              {
+                "field": "durationMinutes",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "30 minutes",
+                "rule": "mandatory"
+              },
+              {
+                "field": "topics",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "1.1.1 Market research; 1.1.2 Market positioning; 2.1.1 Sources of finance",
+                "rule": "mandatory"
+              },
+              {
+                "field": "tier",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "untiered",
+                "rule": "mandatory"
+              },
+              {
+                "field": "calculator",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "No calculator allowed",
+                "rule": "mandatory"
+              },
+              {
+                "field": "formats",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "Short structured answers",
+                "rule": "mandatory"
+              },
+              {
+                "field": "selection",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "Answer all questions",
+                "rule": "mandatory"
+              }
+            ],
+            "unresolved": [],
+            "conflicts": [],
+            "topicDetails": [
+              {
+                "topic": "1.1.1 Market research",
+                "path": [
+                  "Theme 1: Marketing and people",
+                  "1.1 Meeting customer needs"
+                ],
+                "sources": [
+                  {
+                    "documentId": "owner-doc",
+                    "page": 14,
+                    "text": "1.1.1 Market research\na) Primary research: ethnographic observation and customer interviews.\nb) Secondary research: published market reports; evaluate reliability and sampling bias."
+                  },
+                  {
+                    "documentId": "owner-doc",
+                    "page": 15,
+                    "text": "1.1.1 Market research\nc) Compare qualitative and quantitative methods and explain how sample size affects confidence in the findings."
+                  }
+                ]
+              },
+              {
+                "topic": "1.1.2 Market positioning",
+                "path": [
+                  "Theme 1: Marketing and people",
+                  "1.1 Meeting customer needs"
+                ],
+                "sources": [
+                  {
+                    "documentId": "owner-doc",
+                    "page": 16,
+                    "text": "1.1.2 Market positioning\na) Use a market map to compare price and quality.\nb) Evaluate product differentiation and the usefulness of a unique selling proposition."
+                  }
+                ]
+              },
+              {
+                "topic": "2.1.1 Sources of finance",
+                "path": [
+                  "Theme 2: Business activities",
+                  "2.1 Raising finance"
+                ],
+                "sources": [
+                  {
+                    "documentId": "owner-doc",
+                    "page": 27,
+                    "text": "2.1.1 Sources of finance\na) Compare retained profit, bank loans, share capital and crowdfunding.\nb) Explain how the choice depends on business size, risk, cost and repayment terms."
+                  }
+                ]
+              }
+            ]
+          },
+          "evidenceVersion": "d7267057f588c93525181debf5adb01299c90f6f69ae48dbe054c53d5f7bd94c",
+          "presetId": null,
+          "proposalVersion": 1,
+          "promptVersion": 1,
+          "resolved_by": "server",
+          "profileSettingsCanonical": "{\"assessment_tier\":\"not_tiered\",\"board\":\"Example University\",\"calculator_policy\":\"not_allowed\",\"contractBinding\":null,\"difficulty_progression\":\"ascending\",\"extended_marks\":0,\"include_extended\":false,\"include_graphs\":false,\"include_tables\":true,\"mark_distribution\":{},\"max_parts_per_question\":2,\"mcq_count\":0,\"mcq_options_count\":4,\"mcq_position\":\"mixed\",\"paper_blueprint\":{},\"parent_question_count\":1,\"qualification\":\"College (4-year)\",\"question_count\":2,\"question_structure\":\"mixed\",\"studied_texts\":[],\"time_limit_minutes\":30,\"topics\":[\"1.1.1 Market research\",\"1.1.2 Market positioning\",\"2.1.1 Sources of finance\"],\"written_question_count\":2}",
+          "proposalId": "a1000000-0000-4000-8000-000000000001"
+        }
+      }
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "dark",
+      "scenario": "legacy",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "legacy-flat",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Edit Marketing and people",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Marketing and people",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Business strategy",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Business strategy",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "screenshots": [
+        "ipad-dark-legacy-flat.png",
+        "ipad-dark-legacy-reread-source-choices.png"
+      ],
+      "checks": {
+        "flatLegacyLabelsAndNoInventedGroupsOrOutcomes": true,
+        "searchWithoutFabrication": true,
+        "rereadConfirmationEscapeAndSourceChoices": true,
+        "noAPIOrSavedDataChange": true,
+        "freshReloadRemainsLegacy": true,
+        "noHorizontalOverflow": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "scenario": "detailed",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "overview",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Show source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "expanded-outcomes",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "Exam settings",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": []
+        },
+        {
+          "stage": "Syllabus & source",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": []
+        },
+        {
+          "stage": "edited-restored",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Show source outcomes and notes for Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "reopened",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "reloaded",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "added-topic-notes-reloaded",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Independent pricing experiment",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Independent pricing experiment",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Independent pricing experiment",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "new-generated-proposal",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Show source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "new-generated-reloaded",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "screenshots": [
+        "phone-light-detailed-overview.png",
+        "phone-light-detailed-expanded.png",
+        "phone-light-detailed-settings.png",
+        "phone-light-detailed-source.png",
+        "phone-light-detailed-edited-restored.png",
+        "phone-light-detailed-save-failure.png",
+        "phone-light-detailed-persisted.png",
+        "phone-light-detailed-added-topic-notes-reloaded.png",
+        "phone-light-detailed-new-generated-review.png",
+        "phone-light-detailed-new-generated-reloaded.png"
+      ],
+      "checks": {
+        "defaultSubtopicsTab": true,
+        "exactSourceOutcomesAndPhysicalPages": true,
+        "searchByLeafGroupOutcomeDocumentAndNotes": true,
+        "filtersAndTabsMakeZeroAPICalls": true,
+        "profileRenameAndTopicDisplayAliasAndPersonalNotes": true,
+        "canonicalTopicsAndPartTagsPreserved": true,
+        "childEditorEscapeBackdropCancelAndFocusReturn": true,
+        "bulkRemoveKeepOneGuardUndoAndRestoreExactLayoutIdsMarks": true,
+        "noRegenerationOnEdits": true,
+        "failedSaveRetainsExactDraftAndRetry": true,
+        "saveReopenAndReload": true,
+        "completeOwnedContextRetained": true,
+        "noHorizontalOverflow": true,
+        "discardResetAndCloseConfirmationKeepAndDiscard": true
+      },
+      "addedTopic": {
+        "notesPersistThroughSaveAndReload": true,
+        "stableCanonicalIdentityAndScoredParts": true,
+        "noBorrowedSourceProvenance": true,
+        "sharedSnapshotRedactsAllPersonalNotes": true
+      },
+      "generated": {
+        "exactProposalToSaveAndReload": true,
+        "oneProposeOneSave": true,
+        "entireIdentityDemandResourcesCalculatorWarningsDesignSectionsPreserved": true,
+        "evidencePhysicalPagesChecksumFingerprintAndReceiptPreserved": true,
+        "savedContext": {
+          "version": 1,
+          "template": {
+            "schemaVersion": 1,
+            "identity": {
+              "country": "US",
+              "educationSystem": "US",
+              "stage": "University",
+              "qualification": "College (4-year)",
+              "subject": "Business",
+              "organisation": "Example University",
+              "course": "BUS101",
+              "component": "Final",
+              "specificationVersion": "2026",
+              "tier": "not_tiered",
+              "institution": "Example University",
+              "module": "Markets and finance"
+            },
+            "mode": "full_mock",
+            "marks": 6,
+            "durationMinutes": 30,
+            "topics": [
+              "1.1.1 Market research",
+              "1.1.2 Market positioning",
+              "2.1.1 Sources of finance"
+            ],
+            "calculator": "not_allowed",
+            "sections": [
+              {
+                "id": "section",
+                "title": "Synthetic Business assessment",
+                "groups": [
+                  {
+                    "id": "group",
+                    "parts": [
+                      {
+                        "id": "cells",
+                        "topic": "1.1.1 Market research",
+                        "marks": 3,
+                        "response": "short_answer",
+                        "demand": "AO1",
+                        "resource": "none"
+                      },
+                      {
+                        "id": "enzymes",
+                        "topic": "2.1.1 Sources of finance",
+                        "marks": 3,
+                        "response": "short_answer",
+                        "demand": "AO2",
+                        "resource": "data_table"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "warnings": [
+              "Synthetic review warning: this fixture does not establish an official question count."
+            ],
+            "designDecisions": [
+              "Two short-answer parts are a synthetic fixture layout choice."
+            ]
+          },
+          "origin": "source_backed_ai",
+          "evidence": {
+            "version": 1,
+            "identity": {
+              "country": "US",
+              "educationSystem": "US",
+              "stage": "University",
+              "qualification": "College (4-year)",
+              "subject": "Business",
+              "organisation": "Example University",
+              "course": "BUS101",
+              "component": "Final",
+              "specificationVersion": "2026",
+              "tier": "not_tiered",
+              "institution": "Example University",
+              "module": "Markets and finance"
+            },
+            "documents": [
+              {
+                "id": "owner-doc",
+                "checksum": "49d56b13a234aae75030c98656b7837c894407e54865b87b69e551ba1bfe8dca",
+                "title": "Synthetic Business syllabus",
+                "url": null,
+                "version": "2026",
+                "kind": "institution_brief",
+                "authority": "owner_supplied",
+                "retrievedOn": "2026-10-11",
+                "state": "active",
+                "applicableCohort": "2026 course",
+                "locations": [
+                  {
+                    "id": "brief",
+                    "page": 1,
+                    "section": "Assessment brief",
+                    "text": "BUS101 Final. This assessment is untiered. 6 marks; 30 minutes. 1.1.1 Market research; 1.1.2 Market positioning; 2.1.1 Sources of finance. Short structured answers. Answer all questions. No calculator allowed."
+                  },
+                  {
+                    "id": "topic-14-0",
+                    "page": 14,
+                    "section": "1.1.1 Market research",
+                    "text": "1.1.1 Market research\na) Primary research: ethnographic observation and customer interviews.\nb) Secondary research: published market reports; evaluate reliability and sampling bias."
+                  },
+                  {
+                    "id": "topic-15-1",
+                    "page": 15,
+                    "section": "1.1.1 Market research",
+                    "text": "1.1.1 Market research\nc) Compare qualitative and quantitative methods and explain how sample size affects confidence in the findings."
+                  },
+                  {
+                    "id": "topic-16-0",
+                    "page": 16,
+                    "section": "1.1.2 Market positioning",
+                    "text": "1.1.2 Market positioning\na) Use a market map to compare price and quality.\nb) Evaluate product differentiation and the usefulness of a unique selling proposition."
+                  },
+                  {
+                    "id": "topic-27-0",
+                    "page": 27,
+                    "section": "2.1.1 Sources of finance",
+                    "text": "2.1.1 Sources of finance\na) Compare retained profit, bank loans, share capital and crowdfunding.\nb) Explain how the choice depends on business size, risk, cost and repayment terms."
+                  }
+                ]
+              }
+            ],
+            "facts": {
+              "marks": 6,
+              "durationMinutes": 30,
+              "topics": [
+                "1.1.1 Market research",
+                "1.1.2 Market positioning",
+                "2.1.1 Sources of finance"
+              ],
+              "tier": "not_tiered",
+              "calculator": "not_allowed",
+              "formats": [
+                "short_answer"
+              ],
+              "selection": "all_compulsory",
+              "mathsRequirement": null,
+              "practicalRequirement": null
+            },
+            "claims": [
+              {
+                "field": "marks",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "6 marks",
+                "rule": "mandatory"
+              },
+              {
+                "field": "durationMinutes",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "30 minutes",
+                "rule": "mandatory"
+              },
+              {
+                "field": "topics",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "1.1.1 Market research; 1.1.2 Market positioning; 2.1.1 Sources of finance",
+                "rule": "mandatory"
+              },
+              {
+                "field": "tier",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "untiered",
+                "rule": "mandatory"
+              },
+              {
+                "field": "calculator",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "No calculator allowed",
+                "rule": "mandatory"
+              },
+              {
+                "field": "formats",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "Short structured answers",
+                "rule": "mandatory"
+              },
+              {
+                "field": "selection",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "Answer all questions",
+                "rule": "mandatory"
+              }
+            ],
+            "unresolved": [],
+            "conflicts": [],
+            "topicDetails": [
+              {
+                "topic": "1.1.1 Market research",
+                "path": [
+                  "Theme 1: Marketing and people",
+                  "1.1 Meeting customer needs"
+                ],
+                "sources": [
+                  {
+                    "documentId": "owner-doc",
+                    "page": 14,
+                    "text": "1.1.1 Market research\na) Primary research: ethnographic observation and customer interviews.\nb) Secondary research: published market reports; evaluate reliability and sampling bias."
+                  },
+                  {
+                    "documentId": "owner-doc",
+                    "page": 15,
+                    "text": "1.1.1 Market research\nc) Compare qualitative and quantitative methods and explain how sample size affects confidence in the findings."
+                  }
+                ]
+              },
+              {
+                "topic": "1.1.2 Market positioning",
+                "path": [
+                  "Theme 1: Marketing and people",
+                  "1.1 Meeting customer needs"
+                ],
+                "sources": [
+                  {
+                    "documentId": "owner-doc",
+                    "page": 16,
+                    "text": "1.1.2 Market positioning\na) Use a market map to compare price and quality.\nb) Evaluate product differentiation and the usefulness of a unique selling proposition."
+                  }
+                ]
+              },
+              {
+                "topic": "2.1.1 Sources of finance",
+                "path": [
+                  "Theme 2: Business activities",
+                  "2.1 Raising finance"
+                ],
+                "sources": [
+                  {
+                    "documentId": "owner-doc",
+                    "page": 27,
+                    "text": "2.1.1 Sources of finance\na) Compare retained profit, bank loans, share capital and crowdfunding.\nb) Explain how the choice depends on business size, risk, cost and repayment terms."
+                  }
+                ]
+              }
+            ]
+          },
+          "evidenceVersion": "d7267057f588c93525181debf5adb01299c90f6f69ae48dbe054c53d5f7bd94c",
+          "presetId": null,
+          "proposalVersion": 1,
+          "promptVersion": 1,
+          "resolved_by": "server",
+          "profileSettingsCanonical": "{\"assessment_tier\":\"not_tiered\",\"board\":\"Example University\",\"calculator_policy\":\"not_allowed\",\"contractBinding\":null,\"difficulty_progression\":\"ascending\",\"extended_marks\":0,\"include_extended\":false,\"include_graphs\":false,\"include_tables\":true,\"mark_distribution\":{},\"max_parts_per_question\":2,\"mcq_count\":0,\"mcq_options_count\":4,\"mcq_position\":\"mixed\",\"paper_blueprint\":{},\"parent_question_count\":1,\"qualification\":\"College (4-year)\",\"question_count\":2,\"question_structure\":\"mixed\",\"studied_texts\":[],\"time_limit_minutes\":30,\"topics\":[\"1.1.1 Market research\",\"1.1.2 Market positioning\",\"2.1.1 Sources of finance\"],\"written_question_count\":2}",
+          "proposalId": "a1000000-0000-4000-8000-000000000001"
+        }
+      }
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "scenario": "legacy",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "legacy-flat",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Edit Marketing and people",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Marketing and people",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Business strategy",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Business strategy",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "screenshots": [
+        "phone-light-legacy-flat.png",
+        "phone-light-legacy-reread-source-choices.png"
+      ],
+      "checks": {
+        "flatLegacyLabelsAndNoInventedGroupsOrOutcomes": true,
+        "searchWithoutFabrication": true,
+        "rereadConfirmationEscapeAndSourceChoices": true,
+        "noAPIOrSavedDataChange": true,
+        "freshReloadRemainsLegacy": true,
+        "noHorizontalOverflow": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "scenario": "detailed",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "overview",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Show source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "expanded-outcomes",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "Exam settings",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": []
+        },
+        {
+          "stage": "Syllabus & source",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": []
+        },
+        {
+          "stage": "edited-restored",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Show source outcomes and notes for Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "reopened",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "reloaded",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Customer research — my revision label",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "added-topic-notes-reloaded",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Independent pricing experiment",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Independent pricing experiment",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Independent pricing experiment",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "new-generated-proposal",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Show source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market positioning",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Show source outcomes and notes for Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Sources of finance",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Sources of finance",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "stage": "new-generated-reloaded",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Hide source outcomes and notes for Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Market research",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Market research",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "screenshots": [
+        "phone-dark-detailed-overview.png",
+        "phone-dark-detailed-expanded.png",
+        "phone-dark-detailed-settings.png",
+        "phone-dark-detailed-source.png",
+        "phone-dark-detailed-edited-restored.png",
+        "phone-dark-detailed-save-failure.png",
+        "phone-dark-detailed-persisted.png",
+        "phone-dark-detailed-added-topic-notes-reloaded.png",
+        "phone-dark-detailed-new-generated-review.png",
+        "phone-dark-detailed-new-generated-reloaded.png"
+      ],
+      "checks": {
+        "defaultSubtopicsTab": true,
+        "exactSourceOutcomesAndPhysicalPages": true,
+        "searchByLeafGroupOutcomeDocumentAndNotes": true,
+        "filtersAndTabsMakeZeroAPICalls": true,
+        "profileRenameAndTopicDisplayAliasAndPersonalNotes": true,
+        "canonicalTopicsAndPartTagsPreserved": true,
+        "childEditorEscapeBackdropCancelAndFocusReturn": true,
+        "bulkRemoveKeepOneGuardUndoAndRestoreExactLayoutIdsMarks": true,
+        "noRegenerationOnEdits": true,
+        "failedSaveRetainsExactDraftAndRetry": true,
+        "saveReopenAndReload": true,
+        "completeOwnedContextRetained": true,
+        "noHorizontalOverflow": true,
+        "discardResetAndCloseConfirmationKeepAndDiscard": true
+      },
+      "addedTopic": {
+        "notesPersistThroughSaveAndReload": true,
+        "stableCanonicalIdentityAndScoredParts": true,
+        "noBorrowedSourceProvenance": true,
+        "sharedSnapshotRedactsAllPersonalNotes": true
+      },
+      "generated": {
+        "exactProposalToSaveAndReload": true,
+        "oneProposeOneSave": true,
+        "entireIdentityDemandResourcesCalculatorWarningsDesignSectionsPreserved": true,
+        "evidencePhysicalPagesChecksumFingerprintAndReceiptPreserved": true,
+        "savedContext": {
+          "version": 1,
+          "template": {
+            "schemaVersion": 1,
+            "identity": {
+              "country": "US",
+              "educationSystem": "US",
+              "stage": "University",
+              "qualification": "College (4-year)",
+              "subject": "Business",
+              "organisation": "Example University",
+              "course": "BUS101",
+              "component": "Final",
+              "specificationVersion": "2026",
+              "tier": "not_tiered",
+              "institution": "Example University",
+              "module": "Markets and finance"
+            },
+            "mode": "full_mock",
+            "marks": 6,
+            "durationMinutes": 30,
+            "topics": [
+              "1.1.1 Market research",
+              "1.1.2 Market positioning",
+              "2.1.1 Sources of finance"
+            ],
+            "calculator": "not_allowed",
+            "sections": [
+              {
+                "id": "section",
+                "title": "Synthetic Business assessment",
+                "groups": [
+                  {
+                    "id": "group",
+                    "parts": [
+                      {
+                        "id": "cells",
+                        "topic": "1.1.1 Market research",
+                        "marks": 3,
+                        "response": "short_answer",
+                        "demand": "AO1",
+                        "resource": "none"
+                      },
+                      {
+                        "id": "enzymes",
+                        "topic": "2.1.1 Sources of finance",
+                        "marks": 3,
+                        "response": "short_answer",
+                        "demand": "AO2",
+                        "resource": "data_table"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "warnings": [
+              "Synthetic review warning: this fixture does not establish an official question count."
+            ],
+            "designDecisions": [
+              "Two short-answer parts are a synthetic fixture layout choice."
+            ]
+          },
+          "origin": "source_backed_ai",
+          "evidence": {
+            "version": 1,
+            "identity": {
+              "country": "US",
+              "educationSystem": "US",
+              "stage": "University",
+              "qualification": "College (4-year)",
+              "subject": "Business",
+              "organisation": "Example University",
+              "course": "BUS101",
+              "component": "Final",
+              "specificationVersion": "2026",
+              "tier": "not_tiered",
+              "institution": "Example University",
+              "module": "Markets and finance"
+            },
+            "documents": [
+              {
+                "id": "owner-doc",
+                "checksum": "49d56b13a234aae75030c98656b7837c894407e54865b87b69e551ba1bfe8dca",
+                "title": "Synthetic Business syllabus",
+                "url": null,
+                "version": "2026",
+                "kind": "institution_brief",
+                "authority": "owner_supplied",
+                "retrievedOn": "2026-10-11",
+                "state": "active",
+                "applicableCohort": "2026 course",
+                "locations": [
+                  {
+                    "id": "brief",
+                    "page": 1,
+                    "section": "Assessment brief",
+                    "text": "BUS101 Final. This assessment is untiered. 6 marks; 30 minutes. 1.1.1 Market research; 1.1.2 Market positioning; 2.1.1 Sources of finance. Short structured answers. Answer all questions. No calculator allowed."
+                  },
+                  {
+                    "id": "topic-14-0",
+                    "page": 14,
+                    "section": "1.1.1 Market research",
+                    "text": "1.1.1 Market research\na) Primary research: ethnographic observation and customer interviews.\nb) Secondary research: published market reports; evaluate reliability and sampling bias."
+                  },
+                  {
+                    "id": "topic-15-1",
+                    "page": 15,
+                    "section": "1.1.1 Market research",
+                    "text": "1.1.1 Market research\nc) Compare qualitative and quantitative methods and explain how sample size affects confidence in the findings."
+                  },
+                  {
+                    "id": "topic-16-0",
+                    "page": 16,
+                    "section": "1.1.2 Market positioning",
+                    "text": "1.1.2 Market positioning\na) Use a market map to compare price and quality.\nb) Evaluate product differentiation and the usefulness of a unique selling proposition."
+                  },
+                  {
+                    "id": "topic-27-0",
+                    "page": 27,
+                    "section": "2.1.1 Sources of finance",
+                    "text": "2.1.1 Sources of finance\na) Compare retained profit, bank loans, share capital and crowdfunding.\nb) Explain how the choice depends on business size, risk, cost and repayment terms."
+                  }
+                ]
+              }
+            ],
+            "facts": {
+              "marks": 6,
+              "durationMinutes": 30,
+              "topics": [
+                "1.1.1 Market research",
+                "1.1.2 Market positioning",
+                "2.1.1 Sources of finance"
+              ],
+              "tier": "not_tiered",
+              "calculator": "not_allowed",
+              "formats": [
+                "short_answer"
+              ],
+              "selection": "all_compulsory",
+              "mathsRequirement": null,
+              "practicalRequirement": null
+            },
+            "claims": [
+              {
+                "field": "marks",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "6 marks",
+                "rule": "mandatory"
+              },
+              {
+                "field": "durationMinutes",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "30 minutes",
+                "rule": "mandatory"
+              },
+              {
+                "field": "topics",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "1.1.1 Market research; 1.1.2 Market positioning; 2.1.1 Sources of finance",
+                "rule": "mandatory"
+              },
+              {
+                "field": "tier",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "untiered",
+                "rule": "mandatory"
+              },
+              {
+                "field": "calculator",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "No calculator allowed",
+                "rule": "mandatory"
+              },
+              {
+                "field": "formats",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "Short structured answers",
+                "rule": "mandatory"
+              },
+              {
+                "field": "selection",
+                "documentId": "owner-doc",
+                "locationId": "brief",
+                "quote": "Answer all questions",
+                "rule": "mandatory"
+              }
+            ],
+            "unresolved": [],
+            "conflicts": [],
+            "topicDetails": [
+              {
+                "topic": "1.1.1 Market research",
+                "path": [
+                  "Theme 1: Marketing and people",
+                  "1.1 Meeting customer needs"
+                ],
+                "sources": [
+                  {
+                    "documentId": "owner-doc",
+                    "page": 14,
+                    "text": "1.1.1 Market research\na) Primary research: ethnographic observation and customer interviews.\nb) Secondary research: published market reports; evaluate reliability and sampling bias."
+                  },
+                  {
+                    "documentId": "owner-doc",
+                    "page": 15,
+                    "text": "1.1.1 Market research\nc) Compare qualitative and quantitative methods and explain how sample size affects confidence in the findings."
+                  }
+                ]
+              },
+              {
+                "topic": "1.1.2 Market positioning",
+                "path": [
+                  "Theme 1: Marketing and people",
+                  "1.1 Meeting customer needs"
+                ],
+                "sources": [
+                  {
+                    "documentId": "owner-doc",
+                    "page": 16,
+                    "text": "1.1.2 Market positioning\na) Use a market map to compare price and quality.\nb) Evaluate product differentiation and the usefulness of a unique selling proposition."
+                  }
+                ]
+              },
+              {
+                "topic": "2.1.1 Sources of finance",
+                "path": [
+                  "Theme 2: Business activities",
+                  "2.1 Raising finance"
+                ],
+                "sources": [
+                  {
+                    "documentId": "owner-doc",
+                    "page": 27,
+                    "text": "2.1.1 Sources of finance\na) Compare retained profit, bank loans, share capital and crowdfunding.\nb) Explain how the choice depends on business size, risk, cost and repayment terms."
+                  }
+                ]
+              }
+            ]
+          },
+          "evidenceVersion": "d7267057f588c93525181debf5adb01299c90f6f69ae48dbe054c53d5f7bd94c",
+          "presetId": null,
+          "proposalVersion": 1,
+          "promptVersion": 1,
+          "resolved_by": "server",
+          "profileSettingsCanonical": "{\"assessment_tier\":\"not_tiered\",\"board\":\"Example University\",\"calculator_policy\":\"not_allowed\",\"contractBinding\":null,\"difficulty_progression\":\"ascending\",\"extended_marks\":0,\"include_extended\":false,\"include_graphs\":false,\"include_tables\":true,\"mark_distribution\":{},\"max_parts_per_question\":2,\"mcq_count\":0,\"mcq_options_count\":4,\"mcq_position\":\"mixed\",\"paper_blueprint\":{},\"parent_question_count\":1,\"qualification\":\"College (4-year)\",\"question_count\":2,\"question_structure\":\"mixed\",\"studied_texts\":[],\"time_limit_minutes\":30,\"topics\":[\"1.1.1 Market research\",\"1.1.2 Market positioning\",\"2.1.1 Sources of finance\"],\"written_question_count\":2}",
+          "proposalId": "a1000000-0000-4000-8000-000000000001"
+        }
+      }
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "scenario": "legacy",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "legacy-flat",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControls": [
+            {
+              "label": "Edit Marketing and people",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Marketing and people",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Edit Business strategy",
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Remove Business strategy",
+              "width": 44,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "screenshots": [
+        "phone-dark-legacy-flat.png",
+        "phone-dark-legacy-reread-source-choices.png"
+      ],
+      "checks": {
+        "flatLegacyLabelsAndNoInventedGroupsOrOutcomes": true,
+        "searchWithoutFabrication": true,
+        "rereadConfirmationEscapeAndSourceChoices": true,
+        "noAPIOrSavedDataChange": true,
+        "freshReloadRemainsLegacy": true,
+        "noHorizontalOverflow": true
+      }
+    }
+  ],
+  "errors": [],
+  "blockedRequests": [],
+  "screenshots": [
+    {
+      "file": "desktop-light-detailed-overview.png",
+      "sha256": "90428f2bb603c8b22c52a728ad2ddf91ac7a3b77ff4c1dd7e6f1dd24ca937fb4"
+    },
+    {
+      "file": "desktop-light-detailed-expanded.png",
+      "sha256": "b879c228d15cd22e8f0cecdc463374742dc9135c0c3612fbba38b54e33d5e52d"
+    },
+    {
+      "file": "desktop-light-detailed-settings.png",
+      "sha256": "8cb214b991cff3cef9e80086cf2580032228b11748d1b3d03672543f40cc2683"
+    },
+    {
+      "file": "desktop-light-detailed-source.png",
+      "sha256": "5884745e5fbe9a29485d8a7b1813a4cff9d3a90a093f9dc8245a42f003d2be2c"
+    },
+    {
+      "file": "desktop-light-detailed-edited-restored.png",
+      "sha256": "4bbf14ec22475dd75808e4cd4ea1533db142ee08aee4da653fc545117f945853"
+    },
+    {
+      "file": "desktop-light-detailed-save-failure.png",
+      "sha256": "42f6a428a3d71ef988e744cd05b1f3ee8aab54719664f8822fe5241f30dfe456"
+    },
+    {
+      "file": "desktop-light-detailed-persisted.png",
+      "sha256": "7066b05ec17593dc7f28eae203d602d56823b381883b501359abf5fcc44f1233"
+    },
+    {
+      "file": "desktop-light-detailed-added-topic-notes-reloaded.png",
+      "sha256": "a50dfccd13afb1a5e96dfec0cbb50b47597a5033708910131411b77de7ec6f23"
+    },
+    {
+      "file": "desktop-light-detailed-new-generated-review.png",
+      "sha256": "ad0247b29bf192df9603274d91f01507d7299d58d52fc803e89dd3c8ccd73ec4"
+    },
+    {
+      "file": "desktop-light-detailed-new-generated-reloaded.png",
+      "sha256": "357244d504f05380531d300ba2efbe525c942eb637591a2849cba1e7b76206a2"
+    },
+    {
+      "file": "desktop-light-legacy-flat.png",
+      "sha256": "c48b051d277b2f34fae2e7cd190480cc78960409450172c9eda3baa2a3661219"
+    },
+    {
+      "file": "desktop-light-legacy-reread-source-choices.png",
+      "sha256": "c721f38eb2828bcc526977debd545435dc78b643dc1569f25af1d65e72c157b3"
+    },
+    {
+      "file": "desktop-dark-detailed-overview.png",
+      "sha256": "9e59bc689124a3b174e03fdbbfedb9bda9f6a83da2a4c7f09c4e03cab58f4f7d"
+    },
+    {
+      "file": "desktop-dark-detailed-expanded.png",
+      "sha256": "6f9b3e4554a58a1798e3019010083f95b2329589f9b5816d8d047a158758682f"
+    },
+    {
+      "file": "desktop-dark-detailed-settings.png",
+      "sha256": "cbab18de4afb9e2b28fd2926574259e2d348e21bdc4a59597c3931598f6a887f"
+    },
+    {
+      "file": "desktop-dark-detailed-source.png",
+      "sha256": "dc303d9a30e26997e82b9bee61e0b3e9a3c869fa6bbe6f842a50e13221a16573"
+    },
+    {
+      "file": "desktop-dark-detailed-edited-restored.png",
+      "sha256": "2903dc5c79e12e0d5ea0949893f94f3122024ec1f5523de82c2b4744ac911d8b"
+    },
+    {
+      "file": "desktop-dark-detailed-save-failure.png",
+      "sha256": "a8553e09748dbd212391bf36ae0d059126da24f47406d858b6e067231bd23d7d"
+    },
+    {
+      "file": "desktop-dark-detailed-persisted.png",
+      "sha256": "4a71f6dc164b8c6dfbc660151d7bae9e64bfe80773dc5642eddc1993bbb9b11b"
+    },
+    {
+      "file": "desktop-dark-detailed-added-topic-notes-reloaded.png",
+      "sha256": "9ff3577bee1a234b5f174fff5c371ac20a6e98afa27df3681b87e22e426f85a3"
+    },
+    {
+      "file": "desktop-dark-detailed-new-generated-review.png",
+      "sha256": "75e8b216510ea2a73ed0b21622f1a17198b1dc15105274969f73b602943031aa"
+    },
+    {
+      "file": "desktop-dark-detailed-new-generated-reloaded.png",
+      "sha256": "3cb47dd6161e4f8b0b7173f81bfe69b392e053542cd0c2d46b0a034b2c33d11f"
+    },
+    {
+      "file": "desktop-dark-legacy-flat.png",
+      "sha256": "ecb714f903f323d9c561b8a97e38ce167a50f8d171f0972f792b76ffbbe4bbae"
+    },
+    {
+      "file": "desktop-dark-legacy-reread-source-choices.png",
+      "sha256": "70c04993e74803744755e57455751d7a8821f8f5838ec94dd4743bb3da642b54"
+    },
+    {
+      "file": "ipad-light-detailed-overview.png",
+      "sha256": "6e6b1a7a075cf389cbd92f4e3f13a29af8b5e8070967e94b5516c4069b1cdce7"
+    },
+    {
+      "file": "ipad-light-detailed-expanded.png",
+      "sha256": "1d9844ec622510b6b14793cf8cb94081f239b63d663c2cec89503e2dcb3059a5"
+    },
+    {
+      "file": "ipad-light-detailed-settings.png",
+      "sha256": "800790589e91f88532691f774be972855cd9a6994eda62fd70e1b126f2089515"
+    },
+    {
+      "file": "ipad-light-detailed-source.png",
+      "sha256": "61d15910df5fd1c9248ad02b697b1d9418878bea99f8bbfcf5d5a8e3145430be"
+    },
+    {
+      "file": "ipad-light-detailed-edited-restored.png",
+      "sha256": "ed04dbb03f7227c92a70ad413d93bcd2d913201f6925d37725f5d71b46b23f0b"
+    },
+    {
+      "file": "ipad-light-detailed-save-failure.png",
+      "sha256": "c7820cef010f6e08cf2d81a9582c2cfd136ff81225b2eaf7ce3a47c84c91e222"
+    },
+    {
+      "file": "ipad-light-detailed-persisted.png",
+      "sha256": "e1d09e1fd8a51798a8c3b374ec12f672df756ae5883d651e8f3536213bde5e5b"
+    },
+    {
+      "file": "ipad-light-detailed-added-topic-notes-reloaded.png",
+      "sha256": "ea7b9ca8c5045e2e29538d4c0f1dde71d0591264d10588d8ac959a628996cf1c"
+    },
+    {
+      "file": "ipad-light-detailed-new-generated-review.png",
+      "sha256": "64d1c79f649164fae037ce01f22c3c2ccbdea9cd24246fb221cc28155cb90325"
+    },
+    {
+      "file": "ipad-light-detailed-new-generated-reloaded.png",
+      "sha256": "79def4ad1ac44d19a9e84b5995faceae81f1e10a85b2de9233979fddca2c979a"
+    },
+    {
+      "file": "ipad-light-legacy-flat.png",
+      "sha256": "5612b651b65e1129d42b5ff02f666457204659178ebb05b61cbdb76d47ccc771"
+    },
+    {
+      "file": "ipad-light-legacy-reread-source-choices.png",
+      "sha256": "af18150d66719ba3f003c123ddaed53904ebed3a942de08bbaf59352f7d569bd"
+    },
+    {
+      "file": "ipad-dark-detailed-overview.png",
+      "sha256": "94c52d4d6f2e5e7e8542f561db65aa6b8aa7ba9ccd47d6b47eb206b3b3f25ff2"
+    },
+    {
+      "file": "ipad-dark-detailed-expanded.png",
+      "sha256": "4c51e5c79762b10928489bb7d8e07fbdc75ce4aaf519cca1887760355597af73"
+    },
+    {
+      "file": "ipad-dark-detailed-settings.png",
+      "sha256": "526e23f45ff6155383b775a2132670f64a84ac16a13d8f9319d093d052138571"
+    },
+    {
+      "file": "ipad-dark-detailed-source.png",
+      "sha256": "b8cf1b7ef4279d031550b82c3bd1de9ce8ab81cbe44fc878fe96acc03d368f32"
+    },
+    {
+      "file": "ipad-dark-detailed-edited-restored.png",
+      "sha256": "134c84af697d1f7a24785e5758f084d28935cf519ca3fe61fc0d214c915d3a9b"
+    },
+    {
+      "file": "ipad-dark-detailed-save-failure.png",
+      "sha256": "306e6679819ef84802df68aa640208b73636567bd54122b6d04b4431f7180ff6"
+    },
+    {
+      "file": "ipad-dark-detailed-persisted.png",
+      "sha256": "36278b1f4c262aacd46e06a9c37edb3d13820274aba935febb3e939daa9d8e9a"
+    },
+    {
+      "file": "ipad-dark-detailed-added-topic-notes-reloaded.png",
+      "sha256": "ac695da37a2b5e05ce1e31acb48a4496e3930c50268a59b37ee582a9a150b451"
+    },
+    {
+      "file": "ipad-dark-detailed-new-generated-review.png",
+      "sha256": "b34c06549c6a9b0e48a1182407842e4d379e64976267c55af2d0f48a3223eb5b"
+    },
+    {
+      "file": "ipad-dark-detailed-new-generated-reloaded.png",
+      "sha256": "4c43c76ddda68da39fe6761bdd6af28efeb3081ddd30a692bf4fe81098d90cbf"
+    },
+    {
+      "file": "ipad-dark-legacy-flat.png",
+      "sha256": "3643e174e91625357d2ab9e4ff9638ecd7035531978d33cc74f871f001878196"
+    },
+    {
+      "file": "ipad-dark-legacy-reread-source-choices.png",
+      "sha256": "629866b3d6ea0998ac15e15b53fed902c602205e30f6ee9ea87764ad65005895"
+    },
+    {
+      "file": "phone-light-detailed-overview.png",
+      "sha256": "407b392299b0d74c8fc57dfdb1e218a675f8a2ea9d655def5c9f9f7b70e13a19"
+    },
+    {
+      "file": "phone-light-detailed-expanded.png",
+      "sha256": "10ed3d00538617973f9d53aaf3dfa13275b93d9badfd79bc8efd4a5055b41e70"
+    },
+    {
+      "file": "phone-light-detailed-settings.png",
+      "sha256": "c77183f1e3e237de23ead540616f9d7fe17a5725bcb0cc729a98358f686eac58"
+    },
+    {
+      "file": "phone-light-detailed-source.png",
+      "sha256": "d62f4c027eaed4b89062b758bb284ba5f19f811ac15e756f54ae884ed1412ae8"
+    },
+    {
+      "file": "phone-light-detailed-edited-restored.png",
+      "sha256": "e7bd20d84bc6c5dfceaf8887dd928d9f2ade126876407101874f7b42982d8fb1"
+    },
+    {
+      "file": "phone-light-detailed-save-failure.png",
+      "sha256": "f3f4107906fb121cc58001dafa44eca7df50cf7ee8b6711cda37084fe86374aa"
+    },
+    {
+      "file": "phone-light-detailed-persisted.png",
+      "sha256": "fd67daa1daf94dbdadbc80edb05be4e702b9df8ad8a12ae2a5c8560ee664b2db"
+    },
+    {
+      "file": "phone-light-detailed-added-topic-notes-reloaded.png",
+      "sha256": "91adcf6155a430ba4cc465a567bf3619133c232e7150ac388a812b4331957cdc"
+    },
+    {
+      "file": "phone-light-detailed-new-generated-review.png",
+      "sha256": "b74c49eda16a0916c2e9e4e671fb640e24c27d144fb6c12e4370160f94f0e2cf"
+    },
+    {
+      "file": "phone-light-detailed-new-generated-reloaded.png",
+      "sha256": "6150c64061190a94a4c0f75d1089ce634e7302536a93a4c10f05fb7862772f2c"
+    },
+    {
+      "file": "phone-light-legacy-flat.png",
+      "sha256": "074ffb6cabb2867e61cd9f6475696187bbce88d3d2c3edc27bb390f2bf3eec6c"
+    },
+    {
+      "file": "phone-light-legacy-reread-source-choices.png",
+      "sha256": "242a4f6d74b77f5169dc2c7f5922b4aa7c5ce18b31e4e739dd9fafafca016b69"
+    },
+    {
+      "file": "phone-dark-detailed-overview.png",
+      "sha256": "6d918e1a5ee9771dfa02eea4a47d2439c3b765e43559dd993f1cb5be27ec72cb"
+    },
+    {
+      "file": "phone-dark-detailed-expanded.png",
+      "sha256": "fbfd34a12f428d526ae54a7c0b3ee055bafc161ae6f04712e37d3fa05c7a2002"
+    },
+    {
+      "file": "phone-dark-detailed-settings.png",
+      "sha256": "f3e9f62af446c2afb982e7c9e3dd27e2b777c484f6feab7654d16d39270ad09f"
+    },
+    {
+      "file": "phone-dark-detailed-source.png",
+      "sha256": "6bf063fa07172e9d410499e27b7aee3867f83dd4ca61412ca6149d27ffe715c0"
+    },
+    {
+      "file": "phone-dark-detailed-edited-restored.png",
+      "sha256": "3ca65f68e19b7e83dfdd1fbc5162422fcc0bf9a283e004df620dd9d7163b7a15"
+    },
+    {
+      "file": "phone-dark-detailed-save-failure.png",
+      "sha256": "ff3d6d64c103784330983eea0f5f7c35b46c8194f35022cedec7b4d0417fb547"
+    },
+    {
+      "file": "phone-dark-detailed-persisted.png",
+      "sha256": "0c76c32b62996020c471fe3220163af453c4c926f64f079a2a4c1472e28ef6f6"
+    },
+    {
+      "file": "phone-dark-detailed-added-topic-notes-reloaded.png",
+      "sha256": "01e044fb59671d69f4f5c1b1f6350f77ee252f79f4c63a74b714fc22e9d99eb4"
+    },
+    {
+      "file": "phone-dark-detailed-new-generated-review.png",
+      "sha256": "7eb20c62b5f7e9f3ae1a0d459eaeec062926be3a78dacd3130850e7fb0d823e1"
+    },
+    {
+      "file": "phone-dark-detailed-new-generated-reloaded.png",
+      "sha256": "ea24c6798e1178456358dafd0ae0794a682ac10b86262759d7ba7f39991ff6fe"
+    },
+    {
+      "file": "phone-dark-legacy-flat.png",
+      "sha256": "2dff30da238720418834ff02747cabdc7efa32883b694f7b044774aebca3044a"
+    },
+    {
+      "file": "phone-dark-legacy-reread-source-choices.png",
+      "sha256": "8ba713c86b90ac8df23ba61fc5ac25cd8d1a9ee5236e6d2e5944d528f9265abe"
+    }
+  ],
+  "hashesBefore": {
+    "status": "PASS",
+    "applicationFiles": 852,
+    "serverFiles": 195,
+    "dependencyInputs": 1756,
+    "applicationDifferences": [],
+    "serverDifferences": [],
+    "dependencyDifferencesWithinRun": [],
+    "fixtureDifferences": [],
+    "fontDifferences": [],
+    "outputDifferences": [],
+    "runtime": {
+      "node": "v24.19.0",
+      "platform": "linux",
+      "architecture": "x64",
+      "osRelease": "6.18.57",
+      "packages": {
+        "esbuild": "0.28.2",
+        "postcss": "8.5.6",
+        "postcss-import": "15.1.0",
+        "tailwindcss": "3.4.17",
+        "autoprefixer": "10.4.21",
+        "react": "18.3.1",
+        "react-dom": "18.3.1",
+        "react-router-dom": "6.26.2",
+        "unpdf": "1.8.1",
+        "zod": "4.6.2"
+      }
+    },
+    "policy": "Every recorded application/server/config/lockfile/fixture/font/dependency input and generated bundle/style output must match the frozen build. Server pinning does not imply that backend endpoints ran in the browser."
+  },
+  "hashesAfter": {
+    "status": "PASS",
+    "applicationFiles": 852,
+    "serverFiles": 195,
+    "dependencyInputs": 1756,
+    "applicationDifferences": [],
+    "serverDifferences": [],
+    "dependencyDifferencesWithinRun": [],
+    "fixtureDifferences": [],
+    "fontDifferences": [],
+    "outputDifferences": [],
+    "runtime": {
+      "node": "v24.19.0",
+      "platform": "linux",
+      "architecture": "x64",
+      "osRelease": "6.18.57",
+      "packages": {
+        "esbuild": "0.28.2",
+        "postcss": "8.5.6",
+        "postcss-import": "15.1.0",
+        "tailwindcss": "3.4.17",
+        "autoprefixer": "10.4.21",
+        "react": "18.3.1",
+        "react-dom": "18.3.1",
+        "react-router-dom": "6.26.2",
+        "unpdf": "1.8.1",
+        "zod": "4.6.2"
+      }
+    },
+    "policy": "Every recorded application/server/config/lockfile/fixture/font/dependency input and generated bundle/style output must match the frozen build. Server pinning does not imply that backend endpoints ran in the browser."
+  },
+  "finishedAt": "2026-11-22T22:02:36.195Z",
+  "expectedCases": 12
+}

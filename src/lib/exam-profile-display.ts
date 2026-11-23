@@ -22,6 +22,15 @@ export interface ProfileDisplaySource {
   profile_template?: unknown;
 }
 
+/** The saved template is the authority for AI profiles, including unknown rules. */
+export function examProfileCalculatorPolicy(profile: Pick<ProfileDisplaySource, "profile_template"> & { calculator_policy?: string | null }): "allowed" | "not_allowed" | "mixed" | "unknown" {
+  const context = profile.profile_template as { template?: { calculator?: unknown } } | null | undefined;
+  const saved = context?.template?.calculator;
+  if (saved === "allowed" || saved === "not_allowed" || saved === "unknown") return saved;
+  const policy = profile.calculator_policy;
+  return policy === "allowed" || policy === "not_allowed" || policy === "mixed" ? policy : "unknown";
+}
+
 /** Display derived from the saved identity/version; it does not award approval. */
 export function examProfileDisplay(profile: ProfileDisplaySource) {
   const saved=profile.profile_template as {template?:{mode:string;identity:{organisation:string;qualification:string;component:string};marks:number;durationMinutes:number;sections:{groups:{parts:unknown[]}[]}[]}}|undefined;

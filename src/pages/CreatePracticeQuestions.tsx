@@ -42,6 +42,7 @@ import { useExamNameValidator } from "@/hooks/useExamNameValidator";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { resolveProfileContext } from "@/lib/profile-context";
 import { getBoardDisplayName } from "@/lib/board-scrubber";
+import { profileTopicLabel } from "@/lib/profile-topic-presentation";
 
 type QuestionFormat = 'written_only' | 'mcq_only' | 'mixed';
 
@@ -148,6 +149,10 @@ const CreatePracticeQuestions = () => {
       ? customEducationalTier
       : educationalTier || preferences?.preferred_educational_level || "";
   const effectiveLevelOptions = getLevelsForBoard(effectiveExamBoard || null);
+  const selectedProfile = selectedProfileId && selectedProfileId !== 'all_topics'
+    ? getProfilesForSubject(subjectId).find(profile => profile.id === selectedProfileId)
+    : null;
+  const getTopicLabel = (topic: string) => profileTopicLabel(selectedProfile?.profile_template, topic);
 
   // Pre-fill from weak topics navigation
   // Deep-link contract from subject pages: ?subject= &subtopic= (legacy &topic=
@@ -657,7 +662,7 @@ const CreatePracticeQuestions = () => {
                   <span className="text-muted-foreground mx-1.5">›</span>
                 </>
               )}
-              <strong className="text-foreground">{prefillSubtopic}</strong>
+              <strong className="text-foreground">{getTopicLabel(prefillSubtopic)}</strong>
             </div>
             <button
               onClick={() => {
@@ -753,6 +758,7 @@ const CreatePracticeQuestions = () => {
                   <CurriculumTopicBadge
                     profileName={profile?.profile_name || 'All Saved Topics'}
                     topics={profileTopics}
+                    getTopicLabel={getTopicLabel}
                     questionCount={questionCount}
                     questionLimit={profileMaxQuestions}
                     subjectColor={subjectColor}
@@ -786,6 +792,8 @@ const CreatePracticeQuestions = () => {
                 <SubtopicSelector
                   subject={subjectId}
                   selectedSubtopics={selectedSubtopics}
+                  getTopicLabel={getTopicLabel}
+                  additionalSubtopics={profileTopics.filter(topic => getTopicLabel(topic) !== topic)}
                   onSubtopicsChange={setSelectedSubtopics}
                   educationalTier={effectiveEducationalTier}
                   examBoard={effectiveExamBoard}
@@ -1286,7 +1294,7 @@ const CreatePracticeQuestions = () => {
         onOpenChange={setShowGenerationComplete}
         setId={generatedSetId}
         totalQuestions={totalQuestionsGenerated}
-        subtopics={selectedSubtopics}
+        subtopics={selectedSubtopics.map(getTopicLabel)}
         difficulty={difficultyMode}
         subjectColor={subjectColor}
         onPreview={handlePreview}

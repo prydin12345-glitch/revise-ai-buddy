@@ -3,6 +3,12 @@ import type { PaperPlan, PlannedPart } from "./paper-contract-types.ts";
 
 export const TEMPLATE_VERSION = 1;
 const label = z.string().trim().min(1).max(180);
+export const MAX_TOPIC_EDIT_CHARACTERS = 100_000;
+const topicEditSchema = z.object({
+  topic: z.string().min(1).max(180),
+  label: label.optional(),
+  notes: z.string().max(1000).optional(),
+}).strict();
 export const identitySchema = z
   .object({
     country: label,
@@ -39,6 +45,8 @@ export const templateSchema = z
     topics: z.array(label).min(1).max(400),
     /** Topics the student added that the source did not list. Absent on older templates. */
     addedTopics: z.array(label).max(40).optional(),
+    /** User-owned presentation only; never changes canonical topic/part identities. */
+    topicEdits: z.array(topicEditSchema).max(400).optional(),
     calculator: z.enum(["allowed", "not_allowed", "unknown"]),
     sections: z
       .array(
@@ -66,8 +74,34 @@ export const templateSchema = z
     warnings: z.array(z.string().max(500)).max(20),
     designDecisions: z.array(z.string().max(500)).max(20),
   })
-  .strict();
+  .strict()
+  .superRefine((template, context) => {
+    const seen = new Set<string>();
+    let characters = 0;
+    for (const [index, edit] of (template.topicEdits ?? []).entries()) {
+      if (seen.has(edit.topic))
+        context.addIssue({ code: "custom", path: ["topicEdits", index, "topic"],
+          message: "Duplicate topic edit identity." });
+      seen.add(edit.topic);
+      if (template.topics.filter(topic => topic === edit.topic).length !== 1)
+        context.addIssue({ code: "custom", path: ["topicEdits", index, "topic"],
+          message: "Topic edits must belong to one saved canonical topic." });
+      characters += edit.topic.length + (edit.label?.length ?? 0) + (edit.notes?.length ?? 0);
+    }
+    if (characters > MAX_TOPIC_EDIT_CHARACTERS)
+      context.addIssue({ code: "custom", path: ["topicEdits"],
+        message: "Topic edits exceed the saved text capacity." });
+  });
 export type ProfileTemplate = z.infer<typeof templateSchema>;
+/** Model drafts (including repairs) cannot impersonate a user's topic edits. */
+export function parseModelTemplate(raw: unknown): ProfileTemplate {
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const { addedTopics: _addedTopics, topicEdits: _topicEdits, ...draft } =
+      raw as Record<string, unknown>;
+    return templateSchema.parse(draft);
+  }
+  return templateSchema.parse(raw);
+}
 export type TemplateIdentity = z.infer<typeof identitySchema>;
 export type TemplateOrigin =
   | "catalogue"

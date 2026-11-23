@@ -310,6 +310,10 @@ function detectBoardFingerprint(text: string): BoardDetectionResult {
 interface SubtopicSelectorProps {
   subject: string;
   selectedSubtopics: string[];
+  /** Presentation only; selections and callbacks retain canonical topics. */
+  getTopicLabel?: (topic: string) => string;
+  /** Canonical topics with aliases may be absent from the subject dictionary. */
+  additionalSubtopics?: readonly string[];
   onSubtopicsChange: (subtopics: string[]) => void;
   educationalTier?: string;
   examBoard?: string;
@@ -327,6 +331,8 @@ interface SubtopicSelectorProps {
 export function SubtopicSelector({
   subject,
   selectedSubtopics,
+  getTopicLabel = (topic) => topic,
+  additionalSubtopics,
   onSubtopicsChange,
   educationalTier,
   examBoard,
@@ -422,20 +428,29 @@ export function SubtopicSelector({
     setKeptAutoTopics(prev => { const n = new Set(prev); n.delete(subtopic); return n; });
   };
 
+  const selectableSubtopics = additionalSubtopics?.length
+    ? [...new Set([...additionalSubtopics, ...availableSubtopics])]
+    : availableSubtopics;
+
   const handleAddCustom = () => {
-    if (searchValue.trim() && !selectedSubtopics.includes(searchValue.trim())) {
-      onSubtopicsChange([...selectedSubtopics, searchValue.trim()]);
+    const value = searchValue.trim();
+    // Typing an exact alias must select its topic, never create an alias tag.
+    const canonicalTopic = selectableSubtopics.includes(value) ? value : selectableSubtopics.find(topic =>
+      getTopicLabel(topic) !== topic && getTopicLabel(topic).toLowerCase() === value.toLowerCase()
+    ) ?? value;
+    if (canonicalTopic && !selectedSubtopics.includes(canonicalTopic)) {
+      onSubtopicsChange([...selectedSubtopics, canonicalTopic]);
       setSearchValue("");
       setOpen(false);
     }
   };
 
   const filteredSubtopics = searchValue.trim()
-    ? availableSubtopics.filter((subtopic) => fuzzyMatch(searchValue, subtopic))
-    : availableSubtopics;
+    ? selectableSubtopics.filter((subtopic) => fuzzyMatch(searchValue, subtopic) || fuzzyMatch(searchValue, getTopicLabel(subtopic)))
+    : selectableSubtopics;
 
   const isCustomSubtopic = (subtopic: string) =>
-    !availableSubtopics.includes(subtopic) && !keptAutoTopics.has(subtopic);
+    !selectableSubtopics.includes(subtopic) && !keptAutoTopics.has(subtopic);
 
   const isAutoTopic = (subtopic: string) => keptAutoTopics.has(subtopic);
 
@@ -535,7 +550,7 @@ export function SubtopicSelector({
                   )}
                 >
                   {isKept ? <Check className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}
-                  {topic}
+                  {getTopicLabel(topic)}
                 </button>
               );
             })}
@@ -595,6 +610,8 @@ export function SubtopicSelector({
               {filteredSubtopics.map((subtopic) => (
                 <CommandItem
                   key={subtopic}
+                  value={subtopic}
+                  keywords={[getTopicLabel(subtopic)]}
                   onSelect={() => handleSelect(subtopic)}
                 >
                   <Check
@@ -603,7 +620,7 @@ export function SubtopicSelector({
                       selectedSubtopics.includes(subtopic) ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  {subtopic}
+                  {getTopicLabel(subtopic)}
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -626,7 +643,7 @@ export function SubtopicSelector({
               {isAutoTopic(subtopic) && (
                 <Scan className="h-3 w-3" />
               )}
-              {subtopic}
+              {getTopicLabel(subtopic)}
               <button
                 onClick={() => handleRemove(subtopic)}
                 className="ml-1 rounded-full hover:bg-background/20"

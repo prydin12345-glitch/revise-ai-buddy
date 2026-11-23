@@ -1,3 +1,5 @@
+import { profileTopicLabel } from "@/lib/profile-topic-presentation";
+import { examProfileCalculatorPolicy } from "@/lib/exam-profile-display";
 import {ProfileApprovalBadge} from "@/components/profiles/ExamlyApprovalBadge";
 import { useSetupDraft } from "@/hooks/use-setup-draft";
 import { SetupDraftNotice } from "@/components/shared/SetupDraftNotice";
@@ -360,7 +362,7 @@ export default function CreateExam() {
       setProfileParentQuestionCount(profile.parent_question_count ?? null);
       setProfileMaxPartsPerQuestion(profile.max_parts_per_question ?? null);
       setProfileDifficultyProgression(profile.difficulty_progression ?? null);
-      setProfileCalculatorPolicy(profile.calculator_policy ?? null);
+      setProfileCalculatorPolicy(examProfileCalculatorPolicy(profile));
       setProfileMarkDistribution(profile.mark_distribution ?? null);
       setProfileIncludeExtended(profile.include_extended ?? null);
       setProfileExtendedMarks(profile.extended_marks ?? null);
@@ -925,6 +927,7 @@ export default function CreateExam() {
                         <div className="space-y-2">{profile&&<ProfileApprovalBadge profile={profile}/>}<CurriculumTopicBadge
                           profileName={profile?.profile_name || 'All Saved Topics'}
                           topics={profileTopics}
+                          getTopicLabel={topic => profileTopicLabel(profile?.profile_template, topic)}
                           questionCount={totalQuestions}
                           questionLimit={profileMaxQuestions}
                           subjectColor={subjectColor}
@@ -1261,9 +1264,11 @@ export default function CreateExam() {
                                           },
                                           {
                                             label: 'Calculator',
-                                            value: profile.calculator_policy === 'not_allowed'
+                                            value: examProfileCalculatorPolicy(profile) === 'unknown'
+                                              ? 'Not established'
+                                              : examProfileCalculatorPolicy(profile) === 'not_allowed'
                                               ? 'Not permitted'
-                                              : profile.calculator_policy === 'mixed'
+                                              : examProfileCalculatorPolicy(profile) === 'mixed'
                                               ? 'Mixed paper'
                                               : 'Permitted',
                                           },

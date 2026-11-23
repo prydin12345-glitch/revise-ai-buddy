@@ -497,7 +497,9 @@ it("an uploaded university syllabus discovers identity before confirmation and s
     screen.queryByRole("navigation", { name: "Builder steps" }),
   ).not.toBeInTheDocument();
   build();
-  await screen.findByText("Source-backed AI draft");
+  await screen.findByRole("region", { name: "AI exam profile editor" });
+  fireEvent.click(screen.getByRole("tab", { name: "Syllabus & source" }));
+  expect(screen.getByText("Source-backed AI draft")).toBeVisible();
   expect(
     screen.queryByRole("img", { name: "Examly-approved preset" }),
   ).not.toBeInTheDocument();
@@ -508,15 +510,15 @@ it("an uploaded university syllabus discovers identity before confirmation and s
   expect(
     screen.queryByLabelText("Time limit (minutes)"),
   ).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Exam settings" }));
   fireEvent.change(screen.getByLabelText("Profile name"), {
     target: { value: "My university revision" },
   });
   fireEvent.change(screen.getByLabelText("Time limit (minutes)"), {
     target: { value: "31" },
   });
-  expect(screen.getByRole("button", { name: "Save profile" })).toBeDisabled();
-  expect(screen.getByRole("alert")).toHaveTextContent(/duration/i);
+  expect(screen.getByRole("button", { name: "Save profile" })).toBeEnabled();
+  expect(screen.getByText("Custom assessment", { selector: "span" })).toBeVisible();
   fireEvent.change(screen.getByLabelText("Time limit (minutes)"), {
     target: { value: "30" },
   });
@@ -844,7 +846,8 @@ it("a registered AI draft can close and resume its completed receipt without ano
   view.rerender(<ExamProfileBuilder {...props} initialMode="short_practice" />);
   await screen.findByRole("button", { name: "Resume request" });
   fireEvent.click(screen.getByRole("button", { name: "Resume request" }));
-  await screen.findByRole("button", { name: "Edit profile" });
+  await screen.findByRole("region", { name: "AI exam profile editor" });
+  fireEvent.click(screen.getByRole("tab", { name: "Syllabus & source" }));
   expect(calls.map((call) => call.action)).toEqual([
     "propose",
     "source_status",
