@@ -1,0 +1,95 @@
+{
+  "baseline": "9af5d81afab385ebbf6727d2d4395b81d0387e27",
+  "method": "esbuild transitive input graph for all real Edge entry points; handlers are not executed",
+  "entryPointsChecked": 39,
+  "changedServerModules": [
+    "supabase/functions/_shared/profile-builder-jobs.ts",
+    "supabase/functions/_shared/profile-builder-service.ts",
+    "supabase/functions/_shared/profile-template-context.ts",
+    "supabase/functions/_shared/profile-template.ts"
+  ],
+  "affected": [
+    {
+      "function": "extract-exam-questions",
+      "entryPoint": "supabase/functions/extract-exam-questions/index.ts",
+      "changedInputs": [
+        "supabase/functions/_shared/profile-template-context.ts",
+        "supabase/functions/_shared/profile-template.ts"
+      ]
+    },
+    {
+      "function": "generate-practice-questions",
+      "entryPoint": "supabase/functions/generate-practice-questions/index.ts",
+      "changedInputs": [
+        "supabase/functions/_shared/profile-template-context.ts",
+        "supabase/functions/_shared/profile-template.ts"
+      ]
+    },
+    {
+      "function": "get-practice-questions",
+      "entryPoint": "supabase/functions/get-practice-questions/index.ts",
+      "changedInputs": [
+        "supabase/functions/_shared/profile-template-context.ts",
+        "supabase/functions/_shared/profile-template.ts"
+      ]
+    },
+    {
+      "function": "grade-practice-question",
+      "entryPoint": "supabase/functions/grade-practice-question/index.ts",
+      "changedInputs": [
+        "supabase/functions/_shared/profile-template-context.ts",
+        "supabase/functions/_shared/profile-template.ts"
+      ]
+    },
+    {
+      "function": "profile-builder",
+      "entryPoint": "supabase/functions/profile-builder/index.ts",
+      "changedInputs": [
+        "supabase/functions/_shared/profile-builder-jobs.ts",
+        "supabase/functions/_shared/profile-builder-service.ts",
+        "supabase/functions/_shared/profile-template-context.ts",
+        "supabase/functions/_shared/profile-template.ts"
+      ]
+    },
+    {
+      "function": "publish-exam",
+      "entryPoint": "supabase/functions/publish-exam/index.ts",
+      "changedInputs": [
+        "supabase/functions/_shared/profile-template-context.ts",
+        "supabase/functions/_shared/profile-template.ts"
+      ]
+    },
+    {
+      "function": "save-exam-format",
+      "entryPoint": "supabase/functions/save-exam-format/index.ts",
+      "changedInputs": [
+        "supabase/functions/_shared/profile-template-context.ts",
+        "supabase/functions/_shared/profile-template.ts"
+      ]
+    },
+    {
+      "function": "save-exam-timer",
+      "entryPoint": "supabase/functions/save-exam-timer/index.ts",
+      "changedInputs": [
+        "supabase/functions/_shared/profile-template-context.ts",
+        "supabase/functions/_shared/profile-template.ts"
+      ]
+    },
+    {
+      "function": "submit-exam",
+      "entryPoint": "supabase/functions/submit-exam/index.ts",
+      "changedInputs": [
+        "supabase/functions/_shared/profile-template-context.ts",
+        "supabase/functions/_shared/profile-template.ts"
+      ]
+    },
+    {
+      "function": "upload-exam",
+      "entryPoint": "supabase/functions/upload-exam/index.ts",
+      "changedInputs": [
+        "supabase/functions/_shared/profile-template-context.ts",
+        "supabase/functions/_shared/profile-template.ts"
+      ]
+    }
+  ]
+}

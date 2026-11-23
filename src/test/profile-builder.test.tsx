@@ -199,10 +199,10 @@ it.each(["short_practice", "custom"] as const)("modal editing and saving retain 
       profile_template: { ...saved.context, proposalId: receipt } }} />);
   expect(screen.getByText(mode === "short_practice" ? "Short practice" : "Custom assessment", { selector: "span" })).toBeVisible();
   expect(r.calls).toHaveLength(0);
-  fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Exam settings" }));
   fireEvent.change(screen.getByLabelText("Profile name"), { target: { value: "Renamed legacy profile" } });
   expect(screen.queryByLabelText("Assessment mode")).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
   await waitFor(() => expect(r.profiles.size).toBe(1));
   expect(r.calls).toEqual([expect.objectContaining({ action: "save", profileId: id,
     proposalId: receipt, profileName: "Renamed legacy profile", template: expect.objectContaining({ mode }) })]);
@@ -288,25 +288,25 @@ it("invalid edited mark totals block confirmation rather than becoming generatio
   expect(screen.getByRole("button", { name: "Save profile" })).toBeDisabled();
   expect(screen.getByRole("alert")).toHaveTextContent(/Achievable marks/);
 });
-it("a source-backed unsupported course produces an editable draft with no star", async () => {
+it("a source-backed unsupported course opens the subtopic editor with no approval star", async () => {
   const r = memoryApi();
   render(<ExamProfileBuilder {...props} api={r.api} />);
-  fireEvent.change(screen.getByLabelText("Registered source"), {
-    target: { value: "pearson-9bi0-01-issue4" },
-  });
+  fireEvent.change(screen.getByLabelText("Registered source"), { target: { value: "pearson-9bi0-01-issue4" } });
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   fireEvent.click(screen.getByRole("button", { name: "Yes, build it" }));
-  await screen.findByRole("button", { name: "Edit profile" });
+  await screen.findByRole("region", { name: "AI exam profile editor" });
+  expect(screen.queryByRole("img", { name: "Examly-approved preset" })).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Topics — one per line")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Add subtopic" })).toBeEnabled();
+  const row = screen.getAllByRole("article")[0];
+  fireEvent.click(within(row).getByRole("button", { name: /^Edit / }));
+  expect(screen.getByRole("textbox", { name: "Subtopic name" })).toBeEnabled();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Syllabus & source" }));
   expect(screen.getByText("Source-backed AI draft")).toBeInTheDocument();
-  expect(
-    screen.queryByRole("img", { name: "Examly-approved preset" }),
-  ).not.toBeInTheDocument();
-  expect(
-    screen.queryByLabelText("Topics — one per line"),
-  ).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
-  expect(screen.getByLabelText("Topics — one per line")).toBeEnabled();
+  expect(r.calls).toHaveLength(1);
 });
+
 it("missing source requires explicit choice and never starts a model-backed proposal", () => {
   const r = memoryApi();
   render(
@@ -356,7 +356,7 @@ it.each(["short_practice", "custom"] as const)("keeps explicit legacy %s general
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   expect(r.calls).toHaveLength(0);
   fireEvent.click(screen.getByRole("button", { name: "Yes, build it" }));
-  await screen.findByRole("button", { name: "Edit profile" });
+  await screen.findByRole("region", { name: "AI exam profile editor" });
   expect(r.calls).toHaveLength(1);
   expect(r.calls[0]).toMatchObject({ action: "propose", mode, unverified: true });
 });

@@ -10,11 +10,13 @@ import { ProfileScoreTrend } from "@/components/subjects/ProfileScoreTrend";
 import { ProfileTopicGrid } from "@/components/subjects/ProfileTopicGrid";
 import { ProfileExamList } from "@/components/subjects/ProfileExamList";
 import { getBoardDisplayName } from "@/lib/board-scrubber";
+import { profileTopicLabel } from "@/lib/profile-topic-presentation";
 
 interface Profile {
   id: string;
   profile_name: string;
   topics: string[];
+  profile_template?: unknown;
   question_count: number;
   educational_tier: string | null;
   exam_board: string | null;
@@ -302,6 +304,7 @@ export default function ProfileDetail() {
             profileId={profileId!}
             profileTopics={profile.topics || []}
             subjectName={decodedSubject}
+            getTopicLabel={(topic) => profileTopicLabel(profile.profile_template, topic)}
           />
         </section>
 

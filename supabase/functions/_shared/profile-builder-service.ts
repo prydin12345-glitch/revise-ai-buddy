@@ -13,6 +13,7 @@ import {
   compileTemplate,
   identitySchema,
   templateSchema,
+  parseModelTemplate,
   type ProfileTemplate,
   type SavedTemplateContext,
   type TemplateIdentity,
@@ -394,8 +395,7 @@ export async function proposeProfile(
     let raw = await model(PROPOSAL_SYSTEM, payload),
       template: ProfileTemplate;
     const validate = (v: unknown) => {
-      const t = templateSchema.parse(v);
-      delete t.addedTopics;
+      const t = parseModelTemplate(v);
       if (
         canonical(t.identity) !== canonical(input.identity) ||
         t.mode !== input.mode
@@ -459,7 +459,7 @@ export function settingsForTemplate(t: ProfileTemplate) {
     include_extended: false,
     extended_marks: 0,
     difficulty_progression: "ascending",
-    calculator_policy: t.calculator === "unknown" ? "allowed" : t.calculator,
+    calculator_policy: t.calculator,
     include_graphs: plan.parts.some((p) => p.resource === "graph"),
     include_tables: plan.parts.some((p) => p.resource === "data_table"),
     paper_blueprint: null,

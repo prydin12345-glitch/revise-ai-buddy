@@ -11,6 +11,8 @@ import { toast } from "sonner";
 interface CurriculumTopicBadgeProps {
   profileName: string;
   topics: string[];
+  /** Presentation only; topic toggles always return the original strings. */
+  getTopicLabel?: (topic: string) => string;
   questionCount: number;
   questionLimit: number | null;
   subjectColor: string;
@@ -32,6 +34,7 @@ interface CurriculumTopicBadgeProps {
 export const CurriculumTopicBadge = ({
   profileName,
   topics,
+  getTopicLabel,
   questionCount,
   questionLimit,
   subjectColor,
@@ -234,7 +237,7 @@ export const CurriculumTopicBadge = ({
                 }`}
                 style={isActive ? { backgroundColor: subjectColor } : undefined}
               >
-                {topic}
+                {getTopicLabel?.(topic) ?? topic}
                 {isActive && <X className="h-3 w-3 opacity-50" />}
               </button>
             );

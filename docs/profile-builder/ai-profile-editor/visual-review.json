@@ -1,0 +1,22 @@
+{
+  "reviewedOn": "2026-11-23",
+  "boundary": "Actual production components with synthetic offline fixtures. No real profile or private upload.",
+  "screenshots": [
+    {
+      "file": "desktop-light-detailed-overview.png",
+      "observations": "Wide editor matches the approved structure: compact identity, three tabs, syllabus sidebar, grouped subtopic rows and persistent save controls."
+    },
+    {
+      "file": "phone-light-detailed-expanded.png",
+      "observations": "Phone view fits the viewport; the group dropdown, row actions and source expansion remain reachable. Long source excerpts scroll inside the editor, above the save footer."
+    },
+    {
+      "file": "ipad-dark-detailed-edited-restored.png",
+      "observations": "Dark iPad view retains readable grouping and labels. Personal wording is marked Edited by you, the original source name remains visible, and save/discard controls stay accessible."
+    }
+  ],
+  "limits": [
+    "No physical iOS/iPadOS device test.",
+    "Screenshots show three synthetic topic units; the actual public source regression separately checks all 40/40/80 Business units."
+  ]
+}

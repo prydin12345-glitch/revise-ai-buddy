@@ -5,6 +5,7 @@ import {
   checksum,
   identitySchema,
   templateSchema,
+  parseModelTemplate,
   compileTemplate,
   type TemplateIdentity,
   type ProfileTemplate,
@@ -2499,7 +2500,7 @@ export async function advanceSourceJob(
     );
     let template: ProfileTemplate;
     try {
-      template = templateSchema.parse(result.value);
+      template = parseModelTemplate(result.value);
       template.identity = canonicaliseOwnedSourceIdentity(template.identity, data.identity, data.sourceAssessment);
       // A draft has no authority to discover a tier. Unknown source evidence
       // remains unknown; omission of an already confirmed tier is not a change.
@@ -2515,8 +2516,6 @@ export async function advanceSourceJob(
       if (data.specificationVersionIntent === "source")
         template.identity.specificationVersion =
           data.identity.specificationVersion;
-      // Only a student can add topics beyond the source; a draft cannot.
-      delete template.addedTopics;
       const changed = (Object.keys({ ...data.identity, ...template.identity }) as Array<keyof TemplateIdentity>)
         .find(key => template.identity[key] !== data.identity[key]);
       if (changed) throw new SourceIdentityValidationError(changed);

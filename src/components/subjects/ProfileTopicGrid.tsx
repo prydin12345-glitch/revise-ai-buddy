@@ -13,9 +13,11 @@ interface ProfileTopicGridProps {
   profileId: string;
   profileTopics: string[];
   subjectName: string;
+  /** Presentation only; scores and quiz links keep the canonical topic. */
+  getTopicLabel?: (topic: string) => string;
 }
 
-export const ProfileTopicGrid = ({ profileId, profileTopics, subjectName }: ProfileTopicGridProps) => {
+export const ProfileTopicGrid = ({ profileId, profileTopics, subjectName, getTopicLabel }: ProfileTopicGridProps) => {
   const navigate = useNavigate();
   const [topicScores, setTopicScores] = useState<TopicScore[]>([]);
   const [loading, setLoading] = useState(true);
@@ -148,7 +150,7 @@ export const ProfileTopicGrid = ({ profileId, profileTopics, subjectName }: Prof
               aria-hidden="true"
               className={`w-2 h-2 rounded-full shrink-0 ${unstarted ? "bg-border-strong" : displayScore >= 70 ? "bg-success" : displayScore >= 50 ? "bg-warning" : "bg-danger"}`}
             />
-            <span className="min-w-0 flex-1 text-13 font-medium text-foreground truncate">{topic}</span>
+            <span className="min-w-0 flex-1 text-13 font-medium text-foreground truncate">{getTopicLabel?.(topic) ?? topic}</span>
             {!unstarted && (
               <span className={`hidden sm:inline text-xs tabular-nums font-semibold ${textColor}`}>{displayScore}%</span>
             )}

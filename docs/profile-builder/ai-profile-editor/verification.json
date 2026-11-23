@@ -1,0 +1,123 @@
+{
+  "status": "PASS",
+  "baseline": "9af5d81afab385ebbf6727d2d4395b81d0387e27",
+  "runtime": {
+    "node": "v24.19.0",
+    "npm": "11.9.0",
+    "deno": "2.5.6"
+  },
+  "repositoryCheck": {
+    "command": "npm run check",
+    "status": "PASS",
+    "testFiles": 230,
+    "testsPassed": 3817,
+    "testsFailed": 0,
+    "frontendTypecheck": "PASS",
+    "physicsTypecheck": "PASS",
+    "criticalLint": "PASS",
+    "edgeFunctionsBundled": 39,
+    "productionBuild": "PASS",
+    "log": "/tmp/ai-profile-editor-check.log"
+  },
+  "backendCheck": {
+    "command": "deno check --no-lock --config supabase/functions/profile-builder/deno.json <all ten affected entry points>",
+    "status": "PASS",
+    "environment": {
+      "DENO_DIR": "/tmp/examly-business-deno-cache",
+      "DENO_TLS_CA_STORE": "system"
+    },
+    "functions": [
+      "extract-exam-questions",
+      "generate-practice-questions",
+      "get-practice-questions",
+      "grade-practice-question",
+      "profile-builder",
+      "publish-exam",
+      "save-exam-format",
+      "save-exam-timer",
+      "submit-exam",
+      "upload-exam"
+    ],
+    "log": "/tmp/ai-profile-editor-deno.log"
+  },
+  "transfer": {
+    "test": "src/test/ai-profile-editor-transfer.test.tsx",
+    "boundary": "Production UI \u2192 production client \u2192 bundled backend handler \u2192 owned in-memory RPC store \u2192 reopen; exactly two fake model replies per case, no HTTP or paid provider.",
+    "checks": [
+      "Unedited generated template and evidence survive all fields, including unknown calculator metadata",
+      "Labels and notes preserve canonical identities; removal and Undo preserve all other fields",
+      "Failed saves preserve edits and succeed on retry"
+    ]
+  },
+  "browser": {
+    "status": "PASS",
+    "startedAt": "2026-11-22T22:00:32.233Z",
+    "finishedAt": "2026-11-22T22:02:36.195Z",
+    "cases": 12,
+    "screenshots": 72,
+    "viewports": [
+      "desktop 1440x1000",
+      "iPad 834x1194",
+      "phone 390x844"
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "scenarios": [
+      "detailed source-backed AI profile",
+      "flat legacy AI profile"
+    ],
+    "errors": [],
+    "externalRequests": [],
+    "beforeAfterSourceHashesMatch": true,
+    "freshHashVerification": "2026-11-23: PASS; no application, server, fixture, dependency, font or output differences",
+    "artifacts": "/tmp/profile-builder-ai-profile-editor",
+    "boundary": "Actual ExamProfileBuilder, AIProfileReview and prepareProfileSave. Synthetic owner-supplied saved contexts and injected fixture proposal/save API; localStorage persistence belongs only to this synthetic fixture. No extraction, provider, login, database or physical iOS test."
+  },
+  "publicSource": {
+    "command": "node docs/profile-builder/detailed-topics/verify-public-pdf.mjs /tmp/edexcel-alevel-business-official.pdf /tmp/ai-profile-editor-public-results.json",
+    "status": "PASS",
+    "sha256": "8d66018d0a9d826cdb9729c78012d73f5e7ab32bd8946f9eb9fd501827c9829f",
+    "physicalPages": 68,
+    "topicsByPaper": {
+      "9BS0/01": 40,
+      "9BS0/02": 40,
+      "9BS0/03": 80
+    },
+    "boundary": "Actual public PDF and local reader/job/save flow; controlled model and in-memory store, no live AI or user data."
+  },
+  "fixedDuringVerification": [
+    "Unknown calculator rule was previously promoted to allowed in new generic saved settings",
+    "Closing the discard-confirmation and editor together could leave body pointer events disabled; modal dismissal is now sequenced",
+    "Adding a personal topic now transfers its notes through save and reload"
+  ],
+  "preserved": [
+    "No dependency/package-lock/bun.lock changes",
+    "Existing environment configuration",
+    "Earlier offline artifact directories",
+    "Canonical scoring and navigation identities",
+    "Source checksums, fingerprint bindings, paper/qualification/tier/edition identity and validated draft fields"
+  ],
+  "limitations": [
+    "No real provider, live database or student data: provider quality is not claimed",
+    "Chromium viewport/touch emulation is not a physical iOS/iPadOS run",
+    "Existing flat profiles cannot gain missing detail without an explicit source re-read",
+    "Existing university College (4-year) source re-read alias may require level reselection",
+    "Source learning-point bullets remain under their syllabus unit; personal notes do not become new assessed facts"
+  ],
+  "nonblockingWarnings": [
+    "Browserslist data is 17 months old; dependency updates intentionally omitted",
+    "Production build reports chunks above 500 kB",
+    "Public PDF extraction emits standardFontDataUrl warnings; all assertions pass"
+  ],
+  "release": {
+    "migrationRequired": false,
+    "deployed": false,
+    "websitePublished": false,
+    "studentDataAccessed": false,
+    "existingProfilesModified": false,
+    "paidAiCalls": 0,
+    "handoff": "lovable-prompt.md"
+  }
+}

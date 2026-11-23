@@ -4,6 +4,10 @@ import { BuilderAttachments } from "./BuilderAttachments";
 import { BuilderEvidenceDetails } from "./BuilderEvidenceDetails";
 import { BuilderFollowupQuestions } from "./BuilderFollowupQuestions";
 import { ProfileTopicList } from "./ProfileTopicList";
+import { AIProfileReview } from "./AIProfileReview";
+import { AIProfileSource } from "./AIProfileSource";
+import { profileTopicLabel } from "@/lib/profile-topic-presentation";
+import { profileReviewError } from "@/lib/profile-review-validation";
 import {
   ASSESSMENT_DISCOVERY_VERSION,
   type AssessmentDiscoveryResult,
@@ -72,7 +76,8 @@ import {
   resolveRegisteredSource,
 } from "../../../supabase/functions/_shared/profile-source-registry";
 import { ExamlyApprovalBadge } from "./ExamlyApprovalBadge";
-import { applyTopicEdit } from "@/lib/profile-topic-edits";
+import { applyTopicEdit, addProfileTopic, editProfileTopic, removeProfileTopics,
+  restoreProfileSourceTopics, restoreProfileTopicState } from "@/lib/profile-topic-edits";
 import { isSectionReferenceTopic } from "../../../supabase/functions/_shared/profile-topic-sections";
 import {
   builderInitialIdentity,
@@ -234,6 +239,15 @@ export function ExamProfileBuilder({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [reviewBaseline, setReviewBaseline] = useState<{ template: ProfileTemplate; name: string } | null>(null);
+  const [topicUndo, setTopicUndo] = useState<ProfileTemplate[]>([]);
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const closeAfterDiscard = useRef(false);
+  const isAIReview = step === "review" && !!proposal &&
+    ["source_backed_ai", "model_knowledge_ai"].includes(proposal.origin);
+  const reviewDirty = !!(isAIReview && template && reviewBaseline &&
+    (name !== reviewBaseline.name || canonical(template) !== canonical(reviewBaseline.template)));
+
   useEffect(() => {
     const panel = clarificationPanel.current,
       body = builderBody.current;
@@ -278,6 +292,10 @@ export function ExamProfileBuilder({
     setBusy(false);
     setError("");
     setNotice("");
+    setReviewBaseline(null);
+    setTopicUndo([]);
+    setDiscardOpen(false);
+    closeAfterDiscard.current = false;
     setEditing(false);
     setSourceJob(null);
     setChangingClarification(false);
@@ -333,6 +351,7 @@ export function ExamProfileBuilder({
       setMode(ctx.template.mode);
       setPresetId(ctx.presetId ?? "");
       setName(initialProfile!.profile_name);
+      setReviewBaseline({ template: clone(ctx.template), name: initialProfile!.profile_name });
       setStep("review");
     } else {
       setIdentity(
@@ -492,9 +511,13 @@ export function ExamProfileBuilder({
     setConfirmedManualCode(sourceJob.manualComponentCode?.value ?? "");
     setManualAssessment(false);
   }, [discovery, sourceJob]);
-  const close = () => {
+  const closeImmediately = () => {
     run.current++;
     onOpenChange(false);
+  };
+  const close = () => {
+    if (reviewDirty && !busy) { setDiscardOpen(true); return; }
+    closeImmediately();
   };
   const invalidatePreview = () => {
     run.current++;
@@ -709,9 +732,10 @@ export function ExamProfileBuilder({
       setIdentity(next.identity);
       setStep("review");
       setEditing(false);
-      setName((previous) =>
-        previous.trim() ? previous : builderAssessmentLabel(next.identity),
-      );
+      const incomingName = name.trim() ? name : builderAssessmentLabel(next.identity);
+      setName(incomingName);
+      setReviewBaseline({ template: clone(next), name: incomingName });
+      setTopicUndo([]);
     }
     if (job.stage === "needs_details") {
       setChangingClarification(false);
@@ -969,9 +993,10 @@ export function ExamProfileBuilder({
       setTemplate(clone(t));
       setStep("review");
       setEditing(false);
-      setName((previous) =>
-        previous.trim() ? previous : builderAssessmentLabel(t.identity),
-      );
+      const incomingName = name.trim() ? name : builderAssessmentLabel(t.identity);
+      setName(incomingName);
+      setReviewBaseline({ template: clone(t), name: incomingName });
+      setTopicUndo([]);
     } catch (e) {
       if (generation === run.current)
         setError(
@@ -985,6 +1010,10 @@ export function ExamProfileBuilder({
     if (!template) return;
     const value = clone(template);
     fn(value);
+    if (isAIReview && reviewBaseline?.template.mode === "full_mock" && proposal) {
+      value.mode = "full_mock";
+      try { prepareProfileSave(proposal, value); } catch { value.mode = "custom"; }
+    }
     setTemplate(value);
     setError("");
   };
@@ -996,7 +1025,7 @@ export function ExamProfileBuilder({
     try {
       approval = prepareProfileSave(proposal, template).approval;
     } catch (e) {
-      validation = e instanceof Error ? e.message : "Invalid template.";
+      validation = isAIReview ? profileReviewError(e) : e instanceof Error ? e.message : "Invalid template.";
     }
   }
   const restore = () => {
@@ -1036,7 +1065,7 @@ export function ExamProfileBuilder({
       const savedReceipt = sourceJob?.jobId ?? pendingJobId ?? proposalId;
       if (savedReceipt)
         void clearPendingBuilderJob(subjectName, savedReceipt).catch(() => {});
-      close();
+      closeImmediately();
     } catch (e) {
       if (generation === run.current) setError((e as Error).message);
     } finally {
@@ -1408,6 +1437,309 @@ export function ExamProfileBuilder({
     (sourceJob?.stage === "failed" ||
       sourceJob?.stage === "needs_details" ||
       (!!error && !!(sourceJob || pendingJobId)));
+  const topicSource = proposal?.evidence?.facts.topics ?? null;
+  const safeTopicMode = (next: ProfileTemplate) => {
+    if (next.mode === "full_mock" && proposal) {
+      try { prepareProfileSave(proposal, next); } catch { next.mode = "custom"; }
+    }
+    return next;
+  };
+  const changeTopics = (change: (current: ProfileTemplate) => ProfileTemplate) => {
+    if (!template || busy) return;
+    try {
+      const next = safeTopicMode(change(template));
+      if (canonical(next) === canonical(template)) return;
+      setTopicUndo(previous => [...previous.slice(-9), clone(template)]);
+      setTemplate(next);
+      setError("");
+    } catch (error) { setError(error instanceof Error ? error.message : "Could not update this subtopic."); }
+  };
+  const undoTopics = () => {
+    const previous = topicUndo.at(-1);
+    if (!template || !previous || busy) return;
+    setTemplate(safeTopicMode(restoreProfileTopicState(template, previous)));
+    setTopicUndo(history => history.slice(0, -1));
+    setError("");
+  };
+  const restoreSourceTopics = () => changeTopics(current => {
+    if (!topicSource || !reviewBaseline) return current;
+    const restored = restoreProfileSourceTopics(current, topicSource, reviewBaseline.template);
+    if (reviewBaseline.template.mode === "full_mock") restored.mode = "full_mock";
+    return restored;
+  });
+  const discardReview = () => {
+    if (!reviewBaseline || busy) return;
+    setTemplate(clone(reviewBaseline.template));
+    setName(reviewBaseline.name);
+    setTopicUndo([]);
+    setError("");
+  };
+  const questionNumber = (sectionIndex: number, groupIndex: number) =>
+    (template?.sections.slice(0, sectionIndex).reduce((sum, section) => sum + section.groups.length, 0) ?? 0) + groupIndex + 1;
+  const paperStructure = template ? (
+                    <fieldset disabled={busy || (!isAIReview && !editing)} className="space-y-5">
+                      <Field label="Calculator">
+                        {select(
+                          template.calculator,
+                          (v) =>
+                            edit((t) => {
+                              t.calculator = v as ProfileTemplate["calculator"];
+                            }),
+                          [
+                            ["allowed", "Allowed"],
+                            ["not_allowed", "Not allowed"],
+                            ["unknown", "Unknown"],
+                          ],
+                          "Calculator",
+                        )}
+                      </Field>
+                      <section className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h2 className="font-serif text-lg">
+                            Paper structure
+                          </h2>
+                          <span className="text-xs text-muted-foreground">
+                            Examly layout choices
+                          </span>
+                        </div>
+                        {template.sections.map((section, si) => (
+                          <div key={section.id} className="space-y-2">
+                            <h3 className="text-sm font-semibold">
+                              {section.title}
+                            </h3>
+                            {section.groups.map((group, gi) => (
+                              <details
+                                key={group.id}
+                                className="rounded-lg border border-border bg-card"
+                              >
+                                <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm">
+                                  Question {questionNumber(si, gi)} · {group.parts.length}{" "}
+                                  {group.parts.length === 1 ? "part" : "parts"}{" "}
+                                  ·{" "}
+                                  {group.parts.reduce((n, p) => n + p.marks, 0)}{" "}
+                                  marks
+                                </summary>
+                                <div className="space-y-3 border-t border-border p-3">
+                                  {group.parts.map((part, pi) => (
+                                    <div
+                                      key={part.id}
+                                      className="space-y-2 rounded-md bg-muted/30 p-3"
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-xs font-semibold">
+                                          Part {String.fromCharCode(97 + pi)}
+                                        </span>
+                                        {group.parts.length > 1 && (
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            aria-label={`Remove part ${questionNumber(si, gi)}${String.fromCharCode(97 + pi)}`}
+                                            onClick={() =>
+                                              edit((t) => {
+                                                t.sections[si].groups[
+                                                  gi
+                                                ].parts.splice(pi, 1);
+                                              })
+                                            }
+                                          >
+                                            Remove
+                                          </Button>
+                                        )}
+                                      </div>
+                                      <div className="grid gap-2 sm:grid-cols-2">
+                                        <Field label="Topic">
+                                          {select(
+                                            part.topic,
+                                            (v) =>
+                                              edit((t) => {
+                                                t.sections[si].groups[gi].parts[
+                                                  pi
+                                                ].topic = v;
+                                              }),
+                                            template.topics.map((t) => [t, profileTopicLabel(template, t)]),
+                                            `Topic ${questionNumber(si, gi)}${String.fromCharCode(97 + pi)}`,
+                                          )}
+                                        </Field>
+                                        <Field label="Marks">
+                                          <Input
+                                            aria-label={`Marks ${questionNumber(si, gi)}${String.fromCharCode(97 + pi)}`}
+                                            type="number"
+                                            min={1}
+                                            max={30}
+                                            value={part.marks}
+                                            onChange={(e) =>
+                                              edit((t) => {
+                                                t.sections[si].groups[gi].parts[
+                                                  pi
+                                                ].marks = Number(
+                                                  e.target.value,
+                                                );
+                                              })
+                                            }
+                                          />
+                                        </Field>
+                                        <Field label="Response">
+                                          {select(
+                                            part.response,
+                                            (v) =>
+                                              edit((t) => {
+                                                t.sections[si].groups[gi].parts[
+                                                  pi
+                                                ].response =
+                                                  v as typeof part.response;
+                                              }),
+                                            [
+                                              ["mcq_single", "Tick one box"],
+                                              ["short_answer", "Short answer"],
+                                              [
+                                                "long_form",
+                                                "Extended response",
+                                              ],
+                                            ],
+                                            `Response ${questionNumber(si, gi)}${String.fromCharCode(97 + pi)}`,
+                                          )}
+                                        </Field>
+                                        <Field label="Resource">
+                                          {select(
+                                            part.resource,
+                                            (v) =>
+                                              edit((t) => {
+                                                t.sections[si].groups[gi].parts[
+                                                  pi
+                                                ].resource =
+                                                  v as typeof part.resource;
+                                              }),
+                                            [
+                                              ["none", "No resource"],
+                                              ["data_table", "Data table"],
+                                              ["graph", "Graph"],
+                                              [
+                                                "diagram",
+                                                "Reviewed diagram (adapter required)",
+                                              ],
+                                              [
+                                                "passage",
+                                                "Reviewed passage (adapter required)",
+                                              ],
+                                            ],
+                                            `Resource ${questionNumber(si, gi)}${String.fromCharCode(97 + pi)}`,
+                                          )}
+                                        </Field>
+                                      </div>
+                                    </div>
+                                  ))}
+                                  <div className="flex flex-wrap gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={group.parts.length >= 10}
+                                      onClick={() =>
+                                        edit((t) => {
+                                          t.sections[si].groups[gi].parts.push({
+                                            id: uuid(),
+                                            topic: t.topics[0],
+                                            marks: 1,
+                                            response: "short_answer",
+                                            demand: "AO1",
+                                            resource: "none",
+                                          });
+                                        })
+                                      }
+                                    >
+                                      Add part
+                                    </Button>
+                                    {section.groups.length > 1 && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() =>
+                                          edit((t) => {
+                                            t.sections[si].groups.splice(gi, 1);
+                                          })
+                                        }
+                                      >
+                                        Remove question
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              </details>
+                            ))}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                edit((t) => {
+                                  t.sections[si].groups.push({
+                                    id: uuid(),
+                                    parts: [
+                                      {
+                                        id: uuid(),
+                                        topic: t.topics[0],
+                                        marks: 1,
+                                        response: "short_answer",
+                                        demand: "AO1",
+                                        resource: "none",
+                                      },
+                                    ],
+                                  });
+                                })
+                              }
+                            >
+                              Add question
+                            </Button>
+                          </div>
+                        ))}
+                      </section>
+                    </fieldset>
+  ) : null;
+  const aiSettings = template ? <div className="space-y-5">
+    <div className="grid gap-4 sm:grid-cols-2">
+      <Field label="Profile name"><Input aria-label="Profile name" value={name} maxLength={120}
+        disabled={busy} onChange={event => { setName(event.target.value); setError(""); }} /></Field>
+      <Field label="Time limit (minutes)"><Input aria-label="Time limit (minutes)" type="number" min={1} max={360}
+        disabled={busy} value={template.durationMinutes} onChange={event => edit(next => { next.durationMinutes = Number(event.target.value); })} /></Field>
+      <Field label="Total marks"><Input aria-label="Total marks" type="number" min={1} max={300}
+        disabled={busy} value={template.marks} onChange={event => edit(next => { next.marks = Number(event.target.value); })} /></Field>
+      <div className="rounded-lg bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground">
+        Question parts currently total {template.sections.flatMap(section => section.groups.flatMap(group => group.parts)).reduce((sum, part) => sum + part.marks, 0)} marks.
+        Change their marks in the layout below to match a new total.
+      </div>
+    </div>
+    {template.mode === "custom" && <p className="text-xs leading-relaxed text-muted-foreground">This is a customised profile. Its settings and topic coverage may differ from the full paper.</p>}
+    <details className="rounded-xl border border-border p-4"><summary className="min-h-11 cursor-pointer content-center text-sm font-medium">Question layout & advanced settings</summary>
+      <div className="mt-3 space-y-5">{paperStructure}
+        {!!template.designDecisions.length && <div className="space-y-2 text-xs leading-relaxed text-muted-foreground"><h4 className="font-medium text-foreground">Layout choices</h4><ul className="list-disc space-y-1 pl-4">{template.designDecisions.map((decision, index) => <li key={index}>{decision}</li>)}</ul></div>}
+      </div>
+    </details>
+  </div> : null;
+  const aiSource = template && proposal ? <AIProfileSource template={template} evidence={proposal.evidence}
+    status={<ExamlyApprovalBadge approval={approval!} origin={proposal.origin} />}
+    actions={<>
+      {updateSource && <div className="rounded-lg bg-warning-light p-3 text-xs leading-relaxed">
+        <p>A newer registered source is available. Your saved profile is unchanged.</p>
+        <Button type="button" size="sm" variant="outline" className="mt-2" disabled={busy || reviewDirty} onClick={() => {
+          const current = resolveRegisteredSource(updateSource!);
+          setIdentity(current.identity); setSourceId(updateSource!); setSourceChoice("source");
+          setPresetId(""); setStep("details");
+          setNotice("Review the new source details, then build a separate proposal.");
+        }}>Compare / use current source</Button>
+      </div>}
+      <BuilderAttachments files={attachments.files} busy={attachments.busy} error={attachments.readError}
+        active={sourceChoice === "upload"} showPicker={false} disabled={busy}
+        onSelect={readUpload} onRemove={removeAttachment} onClear={clearAttachments} />
+      <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => setRestartOpen(true)}>Read syllabus again for topic detail</Button>
+      <p className="text-xs leading-relaxed text-muted-foreground">Reading again lets you choose the source before starting a new build. Your saved profiles stay unchanged until you save.</p>
+      <details className="pt-2"><summary className="min-h-11 cursor-pointer content-center text-xs font-medium">More profile actions</summary>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button type="button" size="sm" variant="outline" disabled={busy || reviewDirty} onClick={() => void build(true)}>Regenerate draft</Button>
+          <Button type="button" size="sm" variant="outline" disabled={busy || reviewDirty} onClick={() => { invalidatePreview(); setChangeKnown(true); setStep("details"); }}>Change assessment</Button>
+          {initialProfile?.id && <Button type="button" size="sm" variant="outline" disabled={busy || reviewDirty} onClick={() => void duplicate()}>Duplicate saved profile</Button>}
+          {initialProfile?.id && onDelete && <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => setConfirmDelete(true)}>Delete profile</Button>}
+        </div>
+        {reviewDirty && <p className="mt-2 text-xs text-muted-foreground">Save or discard your edits before changing or regenerating this assessment.</p>}
+      </details>
+    </>} /> : null;
   const changeSourceDetails = () => {
     // Opening the form keeps the receipt and completed work. An actual edit
     // invalidates the preview; merely looking must never start another request.
@@ -1421,16 +1753,16 @@ export function ExamProfileBuilder({
       <Dialog
         open={open}
         onOpenChange={(v) => {
-          if (!v && !restartOpen && !manualCodeDialogOpen) close();
+          if (!v && !restartOpen && !manualCodeDialogOpen && !discardOpen) close();
         }}
       >
         <DialogContent
           hideCloseButton
           onInteractOutside={(event) => {
-            if (restartOpen || manualCodeDialogOpen) event.preventDefault();
+            if (restartOpen || manualCodeDialogOpen || discardOpen) event.preventDefault();
           }}
           onPointerDownOutside={(event) => {
-            if (restartOpen || manualCodeDialogOpen) event.preventDefault();
+            if (restartOpen || manualCodeDialogOpen || discardOpen) event.preventDefault();
           }}
           onEscapeKeyDown={(event) => {
             if (manualCodeDialogOpen) {
@@ -1438,14 +1770,19 @@ export function ExamProfileBuilder({
               setComponentCode(confirmedManualCode);
               setCodeEdited(!!confirmedManualCode);
               setManualCodeDialogOpen(false);
+            } else if (discardOpen) {
+              event.preventDefault();
+              setDiscardOpen(false);
             } else if (restartOpen) {
               event.preventDefault();
               setRestartOpen(false);
             }
           }}
-          className="profile-builder flex max-h-[90dvh] w-[calc(100%_-_1.5rem)] flex-col gap-0 overflow-hidden rounded-2xl border-border bg-card p-0 text-foreground sm:max-w-2xl"
+          className={isAIReview
+            ? "profile-builder left-0 top-0 flex h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-border bg-card p-0 text-foreground sm:left-1/2 sm:top-1/2 sm:h-[90dvh] sm:max-h-[850px] sm:w-[calc(100%_-_2rem)] sm:max-w-[1040px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl"
+            : "profile-builder flex max-h-[90dvh] w-[calc(100%_-_1.5rem)] flex-col gap-0 overflow-hidden rounded-2xl border-border bg-card p-0 text-foreground sm:max-w-2xl"}
         >
-          <DialogHeader className="shrink-0 border-b border-border px-5 py-5 text-left sm:px-6">
+          <DialogHeader className={isAIReview ? "sr-only" : "shrink-0 border-b border-border px-5 py-5 text-left sm:px-6"}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <DialogDescription className="mb-1 text-xs">
@@ -1455,29 +1792,30 @@ export function ExamProfileBuilder({
                   Build your exam profile
                 </DialogTitle>
               </div>
-              <Button
+              {!isAIReview && <Button
                 variant="ghost"
                 size="icon"
                 aria-label="Close profile builder"
                 onClick={close}
               >
                 <X className="h-4 w-4" />
-              </Button>
+              </Button>}
             </div>
           </DialogHeader>
           <div
             ref={builderBody}
-            className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6"
+            className={isAIReview ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6"}
             aria-busy={busy}
           >
             {error && (
               <p
                 role="alert"
-                className="rounded-md border border-danger-border bg-danger-muted p-3 text-sm"
+                className="shrink-0 rounded-md border border-danger-border bg-danger-muted p-3 text-sm"
               >
                 {error}
               </p>
             )}
+            {isAIReview && validation && <p role="alert" className="shrink-0 border-b border-danger-border bg-danger-muted px-4 py-2.5 text-xs leading-relaxed">{validation}</p>}
             {error && step === "review" && !proposalId && (
               <Button
                 variant="outline"
@@ -1745,7 +2083,7 @@ export function ExamProfileBuilder({
                   )}
               </div>
             )}
-            {!focusedSource && (
+            {!focusedSource && !isAIReview && (
               <BuilderAttachments
                 files={attachments.files}
                 busy={attachments.busy}
@@ -2392,6 +2730,17 @@ export function ExamProfileBuilder({
                   </p>
                 )}
               </div>
+            ) : isAIReview && template && proposal ? (
+              <AIProfileReview template={template} evidence={proposal.evidence} name={name}
+                onNameChange={value => { setName(value); setError(""); }} onClose={close}
+                disabled={busy || !proposalId} settings={aiSettings} source={aiSource}
+                onRenameTopic={(topic, label, notes) => changeTopics(current => editProfileTopic(current, topic, label, notes))}
+                onRemoveTopics={topics => changeTopics(current => removeProfileTopics(current, topics, topicSource))}
+                onAddTopic={(label, notes) => changeTopics(current => {
+                  const added = addProfileTopic(current, label, topicSource);
+                  return notes ? editProfileTopic(added, label.trim(), label.trim(), notes) : added;
+                })}
+                onRestoreTopics={restoreSourceTopics} onUndo={undoTopics} canUndo={topicUndo.length > 0} />
             ) : template && proposal ? (
               <fieldset disabled={busy || !proposalId} className="space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2596,221 +2945,7 @@ export function ExamProfileBuilder({
                         Choose Edit profile to adjust these settings.
                       </p>
                     )}
-                    <fieldset disabled={!editing} className="space-y-5">
-                      <Field label="Calculator">
-                        {select(
-                          template.calculator,
-                          (v) =>
-                            edit((t) => {
-                              t.calculator = v as ProfileTemplate["calculator"];
-                            }),
-                          [
-                            ["allowed", "Allowed"],
-                            ["not_allowed", "Not allowed"],
-                            ["unknown", "Unknown"],
-                          ],
-                          "Calculator",
-                        )}
-                      </Field>
-                      <section className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h2 className="font-serif text-lg">
-                            Paper structure
-                          </h2>
-                          <span className="text-xs text-muted-foreground">
-                            Examly layout choices
-                          </span>
-                        </div>
-                        {template.sections.map((section, si) => (
-                          <div key={section.id} className="space-y-2">
-                            <h3 className="text-sm font-semibold">
-                              {section.title}
-                            </h3>
-                            {section.groups.map((group, gi) => (
-                              <details
-                                key={group.id}
-                                className="rounded-lg border border-border bg-card"
-                              >
-                                <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm">
-                                  Question {gi + 1} · {group.parts.length}{" "}
-                                  {group.parts.length === 1 ? "part" : "parts"}{" "}
-                                  ·{" "}
-                                  {group.parts.reduce((n, p) => n + p.marks, 0)}{" "}
-                                  marks
-                                </summary>
-                                <div className="space-y-3 border-t border-border p-3">
-                                  {group.parts.map((part, pi) => (
-                                    <div
-                                      key={part.id}
-                                      className="space-y-2 rounded-md bg-muted/30 p-3"
-                                    >
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-xs font-semibold">
-                                          Part {String.fromCharCode(97 + pi)}
-                                        </span>
-                                        {group.parts.length > 1 && (
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            aria-label={`Remove part ${gi + 1}${String.fromCharCode(97 + pi)}`}
-                                            onClick={() =>
-                                              edit((t) => {
-                                                t.sections[si].groups[
-                                                  gi
-                                                ].parts.splice(pi, 1);
-                                              })
-                                            }
-                                          >
-                                            Remove
-                                          </Button>
-                                        )}
-                                      </div>
-                                      <div className="grid gap-2 sm:grid-cols-2">
-                                        <Field label="Topic">
-                                          {select(
-                                            part.topic,
-                                            (v) =>
-                                              edit((t) => {
-                                                t.sections[si].groups[gi].parts[
-                                                  pi
-                                                ].topic = v;
-                                              }),
-                                            template.topics.map((t) => [t, t]),
-                                            `Topic ${gi + 1}${String.fromCharCode(97 + pi)}`,
-                                          )}
-                                        </Field>
-                                        <Field label="Marks">
-                                          <Input
-                                            aria-label={`Marks ${gi + 1}${String.fromCharCode(97 + pi)}`}
-                                            type="number"
-                                            min={1}
-                                            max={30}
-                                            value={part.marks}
-                                            onChange={(e) =>
-                                              edit((t) => {
-                                                t.sections[si].groups[gi].parts[
-                                                  pi
-                                                ].marks = Number(
-                                                  e.target.value,
-                                                );
-                                              })
-                                            }
-                                          />
-                                        </Field>
-                                        <Field label="Response">
-                                          {select(
-                                            part.response,
-                                            (v) =>
-                                              edit((t) => {
-                                                t.sections[si].groups[gi].parts[
-                                                  pi
-                                                ].response =
-                                                  v as typeof part.response;
-                                              }),
-                                            [
-                                              ["mcq_single", "Tick one box"],
-                                              ["short_answer", "Short answer"],
-                                              [
-                                                "long_form",
-                                                "Extended response",
-                                              ],
-                                            ],
-                                            `Response ${gi + 1}${String.fromCharCode(97 + pi)}`,
-                                          )}
-                                        </Field>
-                                        <Field label="Resource">
-                                          {select(
-                                            part.resource,
-                                            (v) =>
-                                              edit((t) => {
-                                                t.sections[si].groups[gi].parts[
-                                                  pi
-                                                ].resource =
-                                                  v as typeof part.resource;
-                                              }),
-                                            [
-                                              ["none", "No resource"],
-                                              ["data_table", "Data table"],
-                                              ["graph", "Graph"],
-                                              [
-                                                "diagram",
-                                                "Reviewed diagram (adapter required)",
-                                              ],
-                                              [
-                                                "passage",
-                                                "Reviewed passage (adapter required)",
-                                              ],
-                                            ],
-                                            `Resource ${gi + 1}${String.fromCharCode(97 + pi)}`,
-                                          )}
-                                        </Field>
-                                      </div>
-                                    </div>
-                                  ))}
-                                  <div className="flex flex-wrap gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      disabled={group.parts.length >= 10}
-                                      onClick={() =>
-                                        edit((t) => {
-                                          t.sections[si].groups[gi].parts.push({
-                                            id: uuid(),
-                                            topic: t.topics[0],
-                                            marks: 1,
-                                            response: "short_answer",
-                                            demand: "AO1",
-                                            resource: "none",
-                                          });
-                                        })
-                                      }
-                                    >
-                                      Add part
-                                    </Button>
-                                    {section.groups.length > 1 && (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() =>
-                                          edit((t) => {
-                                            t.sections[si].groups.splice(gi, 1);
-                                          })
-                                        }
-                                      >
-                                        Remove question
-                                      </Button>
-                                    )}
-                                  </div>
-                                </div>
-                              </details>
-                            ))}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                edit((t) => {
-                                  t.sections[si].groups.push({
-                                    id: uuid(),
-                                    parts: [
-                                      {
-                                        id: uuid(),
-                                        topic: t.topics[0],
-                                        marks: 1,
-                                        response: "short_answer",
-                                        demand: "AO1",
-                                        resource: "none",
-                                      },
-                                    ],
-                                  });
-                                })
-                              }
-                            >
-                              Add question
-                            </Button>
-                          </div>
-                        ))}
-                      </section>
-                    </fieldset>
+                    {paperStructure}
                     <Button
                       type="button"
                       variant="outline"
@@ -2893,7 +3028,7 @@ export function ExamProfileBuilder({
                 {validation && (
                   <p
                     role="alert"
-                    className="rounded-md border border-danger-border bg-danger-muted p-3 text-sm"
+                    className="shrink-0 rounded-md border border-danger-border bg-danger-muted p-3 text-sm"
                   >
                     {validation}
                   </p>
@@ -2962,37 +3097,17 @@ export function ExamProfileBuilder({
                     Delete profile
                   </Button>
                 )}
-                <AlertDialog open={confirmDelete} onOpenChange={(o) => !deleting && setConfirmDelete(o)}>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete "{initialProfile?.profile_name}"?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This removes the exam profile. Exams and practice you already made from it are kept.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        disabled={deleting}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        onClick={async (ev) => {
-                          ev.preventDefault();
-                          if (!initialProfile?.id || !onDelete) return;
-                          setDeleting(true);
-                          const ok = await onDelete(initialProfile.id);
-                          setDeleting(false);
-                          setConfirmDelete(false);
-                          if (ok) onOpenChange(false);
-                        }}
-                      >
-                        {deleting ? "Deleting..." : "Delete profile"}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+
               </fieldset>
             ) : null}
           </div>
+          {isAIReview ? <DialogFooter className="shrink-0 flex-row items-center justify-between gap-2 border-t border-border bg-card px-4 py-3 sm:px-7 sm:py-4 sm:space-x-0">
+            <p role="status" className="min-w-0 text-[10px] text-muted-foreground sm:text-xs">{busy ? "Saving…" : reviewDirty ? "Unsaved changes" : initialProfile?.id ? "All changes saved" : "Ready to save"}</p>
+            <div className="flex shrink-0 gap-2">
+              <Button type="button" variant="outline" className="min-h-11 px-3 text-xs" disabled={busy || !reviewDirty} onClick={discardReview}>Discard changes</Button>
+              <Button type="button" className="min-h-11 px-3 text-xs" disabled={busy || !!validation || !name.trim() || !proposalId || (!!initialProfile?.id && !reviewDirty)} onClick={() => void save()}>{busy ? "Saving…" : initialProfile?.id ? "Save changes" : "Save profile"}</Button>
+            </div>
+          </DialogFooter> : (
           <DialogFooter className="flex-row items-center justify-between gap-2 border-t border-border px-5 py-4 [&>button]:min-w-0 [&>button]:flex-1 [&>button]:px-2 sm:space-x-0 sm:px-6 sm:[&>button]:flex-none sm:[&>button]:px-4">
             <Button
               variant="ghost"
@@ -3080,8 +3195,51 @@ export function ExamProfileBuilder({
               </Button>
             )}
           </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
+                <AlertDialog open={confirmDelete} onOpenChange={(o) => !deleting && setConfirmDelete(o)}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete "{initialProfile?.profile_name}"?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This removes the exam profile. Exams and practice you already made from it are kept.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        disabled={deleting}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={async (ev) => {
+                          ev.preventDefault();
+                          if (!initialProfile?.id || !onDelete) return;
+                          setDeleting(true);
+                          const ok = await onDelete(initialProfile.id);
+                          setDeleting(false);
+                          setConfirmDelete(false);
+                          if (ok) onOpenChange(false);
+                        }}
+                      >
+                        {deleting ? "Deleting..." : "Delete profile"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+      <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <AlertDialogContent onCloseAutoFocus={event => {
+          if (!closeAfterDiscard.current) return;
+          // Let the nested modal release its focus/pointer lock before closing
+          // its parent. Closing both layers together can leave the page locked.
+          event.preventDefault();
+          closeAfterDiscard.current = false;
+          closeImmediately();
+        }}><AlertDialogHeader><AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+          <AlertDialogDescription>Your saved profile will stay unchanged. Your edits in this window will be discarded.</AlertDialogDescription>
+        </AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Keep editing</AlertDialogCancel>
+          <AlertDialogAction onClick={() => { closeAfterDiscard.current = true; setDiscardOpen(false); }}>Discard and close</AlertDialogAction>
+        </AlertDialogFooter></AlertDialogContent>
+      </AlertDialog>
       <AlertDialog open={manualCodeDialogOpen} onOpenChange={(value) => {
         if (!value && !manualCodeAccepted.current) {
           setComponentCode(confirmedManualCode);
@@ -3115,6 +3273,7 @@ export function ExamProfileBuilder({
           <AlertDialogHeader>
             <AlertDialogTitle>Start a new build?</AlertDialogTitle>
             <AlertDialogDescription>
+              {reviewDirty && "Your unsaved profile edits will be discarded. "}
               Your saved profiles, attached files and assessment choices will
               stay. Only the current build request will be cleared. A fresh
               build may use AI. Starting again makes no AI call; choose Read

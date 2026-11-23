@@ -94,7 +94,16 @@ export function snapshotTemplate(profile: Record<string, any>) {
   return r
     ? {
         version: 1,
-        context: { ...r.context, evidence },
+        context: {
+          ...r.context,
+          template: r.context.template.topicEdits
+            ? {
+                ...r.context.template,
+                topicEdits: r.context.template.topicEdits.map(({ notes: _notes, ...edit }) => edit),
+              }
+            : r.context.template,
+          evidence,
+        },
         evidenceRedacted: true,
         evidenceBindingChecksum: evidence
           ? fingerprint(canonical(evidence))
