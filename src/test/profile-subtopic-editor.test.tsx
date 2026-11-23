@@ -78,23 +78,42 @@ function chooseGroup(label: string) {
 }
 
 describe("ProfileSubtopicEditor", () => {
-  it("shows names and simple path groups immediately, citations before expansion, and every literal source outcome on demand", () => {
+  it("shows subtopics without PDF page captions and retains every literal outcome and stored source reference", () => {
     const p = props();
+    const originalEvidence = structuredClone(p.evidence);
     render(<ProfileSubtopicEditor {...p} />);
     expect(row("The market")).toBeVisible();
     expect(row("Market research")).toBeVisible();
     expect(row("Growing economies")).toBeVisible();
     expect(screen.getByRole("heading", { name: "1.1 Meeting customer needs" })).toBeVisible();
     expect(within(row("The market")).getByRole("heading")).toHaveTextContent("1.1.1");
-    expect(within(row("The market")).getByText(/Business specification · PDF page 18/)).toBeVisible();
+    expect(screen.queryByText(/PDF page/)).not.toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Source outcomes for The market" })).not.toBeInTheDocument();
     fireEvent.click(within(row("The market")).getByRole("button", { name: /Show source outcomes/ }));
     const outcomes = within(row("The market")).getByRole("list", { name: "Source outcomes for The market" });
     expect(outcomes.querySelector("blockquote")?.textContent).toBe(literal);
-    expect(within(outcomes).getByText("Business specification · physical PDF page 18")).toBeVisible();
-    expect(within(outcomes).getByText("Source document · physical PDF page 19")).toBeVisible();
+    expect(screen.queryByText(/PDF page/)).not.toBeInTheDocument();
     expect(within(outcomes).getByText(/A second exact source passage/)).toBeVisible();
+    expect(p.evidence).toEqual(originalEvidence);
     expectNoMutation(p);
+  });
+
+  it("gives icon-only topic actions accessible names and tooltips", () => {
+    render(<ProfileSubtopicEditor {...props()} />);
+    const market = within(row("The market"));
+    for (const button of [
+      screen.getByRole("button", { name: "Add subtopic" }),
+      market.getByRole("button", { name: "Edit The market" }),
+      market.getByRole("button", { name: "Remove The market" }),
+    ]) {
+      expect(button.textContent).toBe("");
+      expect(button).toHaveAttribute("title", button.getAttribute("aria-label"));
+      expect(button.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Select topics" }));
+    const removeSelected = screen.getByRole("button", { name: "Remove selected" });
+    expect(removeSelected.textContent).toBe("");
+    expect(removeSelected).toHaveAttribute("title", "Remove selected subtopics");
   });
 
   it("supports legacy flat labels and unrelated subjects without making up paths or outcomes", () => {
@@ -252,11 +271,9 @@ describe("ProfileSubtopicEditor", () => {
     expect(p.onRenameTopic).not.toHaveBeenCalled();
   });
 
-  it("removes an aliased row by canonical ID and gives row actions 44px targets", () => {
+  it("removes an aliased row by canonical ID", () => {
     const p = props({ template: template({ topicEdits: [{ topic: MARKET, label: "My market label" }] }) });
     render(<ProfileSubtopicEditor {...p} />);
-    for (const name of ["Edit My market label", "Remove My market label"])
-      expect(screen.getByRole("button", { name })).toHaveClass("h-11", "min-w-11");
     fireEvent.click(screen.getByRole("button", { name: "Remove My market label" }));
     expect(p.onRemoveTopics).toHaveBeenCalledExactlyOnceWith([MARKET]);
     expect(p.template.topics).toEqual(topics);

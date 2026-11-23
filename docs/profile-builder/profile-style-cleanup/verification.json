@@ -1,0 +1,112 @@
+{
+  "status": "PASS",
+  "baseline": "0d5cc1a76be61a648c8958bd2870db8d51bbaa36",
+  "branch": "codex/profile-style-cleanup",
+  "runtime": {
+    "node": "v24.19.0",
+    "npm": "11.9.0"
+  },
+  "dependencies": {
+    "command": "npm ls --depth=0 --cache /tmp/examly-business-npm-cache",
+    "status": "PASS",
+    "log": "/tmp/ai-profile-cleanup-npm-ls.log",
+    "installation": "Existing locked installation validated; no dependency changes."
+  },
+  "repositoryCheck": {
+    "command": "npm run check",
+    "exitCode": 0,
+    "status": "PASS",
+    "testFiles": 230,
+    "testsPassed": 3818,
+    "testsFailed": 0,
+    "frontendTypecheck": "PASS",
+    "physicsTypecheck": "PASS",
+    "criticalLint": "PASS",
+    "edgeFunctionsBundled": 39,
+    "productionBuild": "PASS",
+    "log": "/tmp/profile-style-cleanup-check.log"
+  },
+  "backend": {
+    "changedModules": [],
+    "affectedFunctions": [],
+    "dependencyGraphCommand": "node docs/profile-builder/profile-style-cleanup/dependency-graph.mjs",
+    "entryPointsChecked": 39,
+    "denoTypecheck": "Not rerun: presentation-only frontend change; no backend module changed."
+  },
+  "transfer": {
+    "test": "src/test/ai-profile-editor-transfer.test.tsx",
+    "cases": 3,
+    "status": "PASS as part of npm run check",
+    "boundary": "Production UI → production client → bundled backend handler → owned in-memory RPC store → reopen. Controlled model replies; no HTTP, paid provider or live data.",
+    "checks": [
+      "Entire generated template, evidence and owned proposal receipt survive save/reopen",
+      "Display labels and personal notes retain canonical identities; removal/Undo preserve other fields",
+      "Failed save retains the draft and permits an identical retry"
+    ]
+  },
+  "browser": {
+    "status": "PASS",
+    "startedAt": "2026-11-23T19:52:50.574Z",
+    "finishedAt": "2026-11-23T19:54:12.376Z",
+    "cases": 12,
+    "screenshots": 84,
+    "viewports": [
+      "desktop 1440x1000",
+      "iPad 834x1194",
+      "phone 390x844"
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "scenarios": [
+      "detailed source-backed AI profile",
+      "flat legacy AI profile"
+    ],
+    "errors": [],
+    "blockedRequests": [],
+    "sourceHashesBefore": "PASS",
+    "sourceHashesAfter": "PASS",
+    "freshHashVerification": "PASS: application, server, configuration, fixture, dependency, font and output hashes match.",
+    "artifacts": "/tmp/profile-builder-style-cleanup",
+    "boundary": "Actual ExamProfileBuilder, AIProfileReview and prepareProfileSave. Synthetic owner-supplied saved contexts and injected fixture proposal/save API; localStorage persistence belongs only to this synthetic fixture. No extraction, provider, login, database or physical iOS test.",
+    "fullReportSha256": "1e7648d2824572db8cc545afa898f8b815988acf2bb7cc3f5bf6d391e1f9468d"
+  },
+  "publicPdf": "Not downloaded or separately reread for this presentation-only change. Existing offline regressions run within the repository suite; no access to a private upload is claimed.",
+  "preserved": [
+    "No package.json/package-lock.json/bun.lock changes",
+    "Existing environment configuration",
+    "Earlier harnesses and offline artifacts",
+    "All canonical identities, template fields, literal outcomes, original evidence, source pages and checksums",
+    "Manual and catalogue editor layouts"
+  ],
+  "limitations": [
+    "Chromium viewport/touch emulation; no physical iOS/iPadOS or Safari run",
+    "No live provider, live database, student data or full assistive-technology test",
+    "Existing flat profiles do not gain missing curriculum detail without an explicit source reread",
+    "PR #64 backend release prerequisites are separate; this cleanup does not establish their live deployment status"
+  ],
+  "nonblockingWarnings": [
+    "Browserslist data is 17 months old",
+    "Existing React DOM-nesting warnings in unrelated test flows",
+    "PDF extraction standardFontDataUrl warnings in existing regressions",
+    "Rollup annotation warnings from zod dependency",
+    "Production chunks above 500 kB"
+  ],
+  "release": {
+    "frontendOnly": true,
+    "migrationRequired": false,
+    "deployed": false,
+    "websitePublished": false,
+    "studentDataAccessed": false,
+    "liveProfilesModified": false,
+    "paidAiCalls": 0,
+    "handoff": "lovable-prompt.md"
+  },
+  "preservationCheck": {
+    "status": "PASS",
+    "previousHarnessFilesUnchanged": 7,
+    "previousArtifactsUnchanged": 448,
+    "proof": "preservation-verification.json"
+  }
+}

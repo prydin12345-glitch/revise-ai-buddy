@@ -1,0 +1,17 @@
+{
+  "prior-harness-hashes.json": {
+    "files": 7,
+    "differences": []
+  },
+  "prior-artifact-hashes.json": {
+    "files": 448,
+    "differences": []
+  },
+  "backendChanges": [],
+  "baselineCommit": "0d5cc1a76be61a648c8958bd2870db8d51bbaa36",
+  "previousProfileBuilderDirectoryChanges": [],
+  "baselineManifestSha256": {
+    "prior-harness-hashes.json": "d324ffa6553509f24bbcd5a43d61d821c1175b61aac4ee09bc809459997437c5",
+    "prior-artifact-hashes.json": "2973a48a7d20bb6c3bc19a832ea7c7d8537220fa583d8130d0a9181707ba5e7f"
+  }
+}
