@@ -1701,13 +1701,13 @@ export function ExamProfileBuilder({
         disabled={busy} value={template.durationMinutes} onChange={event => edit(next => { next.durationMinutes = Number(event.target.value); })} /></Field>
       <Field label="Total marks"><Input aria-label="Total marks" type="number" min={1} max={300}
         disabled={busy} value={template.marks} onChange={event => edit(next => { next.marks = Number(event.target.value); })} /></Field>
-      <div className="rounded-lg bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground">
+      <div className="py-1 text-xs leading-relaxed text-muted-foreground">
         Question parts currently total {template.sections.flatMap(section => section.groups.flatMap(group => group.parts)).reduce((sum, part) => sum + part.marks, 0)} marks.
         Change their marks in the layout below to match a new total.
       </div>
     </div>
     {template.mode === "custom" && <p className="text-xs leading-relaxed text-muted-foreground">This is a customised profile. Its settings and topic coverage may differ from the full paper.</p>}
-    <details className="rounded-xl border border-border p-4"><summary className="min-h-11 cursor-pointer content-center text-sm font-medium">Question layout & advanced settings</summary>
+    <details className="rounded-md border border-border p-4"><summary className="min-h-11 cursor-pointer content-center text-sm font-medium">Question layout & advanced settings</summary>
       <div className="mt-3 space-y-5">{paperStructure}
         {!!template.designDecisions.length && <div className="space-y-2 text-xs leading-relaxed text-muted-foreground"><h4 className="font-medium text-foreground">Layout choices</h4><ul className="list-disc space-y-1 pl-4">{template.designDecisions.map((decision, index) => <li key={index}>{decision}</li>)}</ul></div>}
       </div>
@@ -1779,7 +1779,7 @@ export function ExamProfileBuilder({
             }
           }}
           className={isAIReview
-            ? "profile-builder left-0 top-0 flex h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-border bg-card p-0 text-foreground sm:left-1/2 sm:top-1/2 sm:h-[90dvh] sm:max-h-[850px] sm:w-[calc(100%_-_2rem)] sm:max-w-[1040px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl"
+            ? "profile-builder left-0 top-0 flex h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-border bg-card p-0 text-foreground sm:left-1/2 sm:top-1/2 sm:h-[90dvh] sm:max-h-[850px] sm:w-[calc(100%_-_2rem)] sm:max-w-[1040px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg"
             : "profile-builder flex max-h-[90dvh] w-[calc(100%_-_1.5rem)] flex-col gap-0 overflow-hidden rounded-2xl border-border bg-card p-0 text-foreground sm:max-w-2xl"}
         >
           <DialogHeader className={isAIReview ? "sr-only" : "shrink-0 border-b border-border px-5 py-5 text-left sm:px-6"}>
@@ -3101,11 +3101,11 @@ export function ExamProfileBuilder({
               </fieldset>
             ) : null}
           </div>
-          {isAIReview ? <DialogFooter className="shrink-0 flex-row items-center justify-between gap-2 border-t border-border bg-card px-4 py-3 sm:px-7 sm:py-4 sm:space-x-0">
+          {isAIReview ? <DialogFooter className="shrink-0 flex-row items-center justify-between gap-2 border-t border-border bg-card px-5 py-3 sm:px-7 sm:py-4 sm:space-x-0">
             <p role="status" className="min-w-0 text-[10px] text-muted-foreground sm:text-xs">{busy ? "Saving…" : reviewDirty ? "Unsaved changes" : initialProfile?.id ? "All changes saved" : "Ready to save"}</p>
             <div className="flex shrink-0 gap-2">
-              <Button type="button" variant="outline" className="min-h-11 px-3 text-xs" disabled={busy || !reviewDirty} onClick={discardReview}>Discard changes</Button>
-              <Button type="button" className="min-h-11 px-3 text-xs" disabled={busy || !!validation || !name.trim() || !proposalId || (!!initialProfile?.id && !reviewDirty)} onClick={() => void save()}>{busy ? "Saving…" : initialProfile?.id ? "Save changes" : "Save profile"}</Button>
+              <Button type="button" variant="ghost" className="min-h-11 rounded-md px-3 text-xs font-normal" disabled={busy || !reviewDirty} onClick={discardReview}>Discard changes</Button>
+              <Button type="button" className="min-h-11 rounded-md px-3 text-xs" disabled={busy || !!validation || !name.trim() || !proposalId || (!!initialProfile?.id && !reviewDirty)} onClick={() => void save()}>{busy ? "Saving…" : initialProfile?.id ? "Save changes" : "Save profile"}</Button>
             </div>
           </DialogFooter> : (
           <DialogFooter className="flex-row items-center justify-between gap-2 border-t border-border px-5 py-4 [&>button]:min-w-0 [&>button]:flex-1 [&>button]:px-2 sm:space-x-0 sm:px-6 sm:[&>button]:flex-none sm:[&>button]:px-4">

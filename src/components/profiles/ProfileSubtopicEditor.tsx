@@ -180,35 +180,32 @@ export function ProfileSubtopicEditor({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden font-sans text-foreground">
-      <aside aria-label="Browse your syllabus" className="hidden w-48 shrink-0 overflow-y-auto border-r border-border bg-muted/15 px-3 py-6 md:block lg:w-52">
-        <p className="mb-3 px-3 text-10 font-semibold uppercase tracking-wider text-muted-foreground">Browse your syllabus</p>
+      <aside aria-label="Browse your syllabus" className="hidden w-48 shrink-0 overflow-y-auto border-r border-border px-3 py-6 md:block lg:w-52">
+        <p className="mb-4 px-3 text-xs font-medium text-muted-foreground">Syllabus</p>
         <nav aria-label="Filter subtopics" className="space-y-1">
           {options.map(option => (
             <button key={option.value} type="button" aria-pressed={activeFilter === option.value}
               onClick={() => setFilter(option.value)}
-              className={cn("flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-3 py-3 text-left text-xs leading-relaxed", focusRing,
-                activeFilter === option.value ? "bg-primary/10 font-semibold text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground")}>
+              className={cn("flex min-h-11 w-full items-center justify-between gap-3 border-l-2 px-3 py-3 text-left text-xs leading-relaxed", focusRing,
+                activeFilter === option.value ? "border-primary font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
               <span className="min-w-0 break-words [overflow-wrap:anywhere]">{option.label}</span>
-              <span className="shrink-0 text-11 tabular-nums">{option.count}</span>
+              <span className="shrink-0 text-11 font-normal tabular-nums text-muted-foreground">{option.count}</span>
             </button>
           ))}
         </nav>
-        <p className="mx-3 mt-6 border-t border-border pt-5 text-11 leading-relaxed text-muted-foreground">
-          Choose a group to focus the list. Your whole profile stays included.
-        </p>
       </aside>
 
       <section aria-label="Profile subtopics" className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="shrink-0 px-4 pb-3 pt-5 sm:px-6 sm:pt-6">
-          <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="shrink-0 px-5 pb-3 pt-5 sm:px-6 sm:pt-6">
+          <div className="mb-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="font-serif text-22 font-semibold tracking-tight">Your subtopics</h2>
-              <p className="mt-1.5 text-11 leading-relaxed text-muted-foreground">Find a topic, see what it covers, or make a change.</p>
+              <h2 className="text-lg font-semibold tracking-tight">Subtopics</h2>
             </div>
-            <Button type="button" variant="outline" disabled={disabled || addLimitReached}
+            <Button type="button" variant="ghost" size="icon" disabled={disabled || addLimitReached}
+              aria-label="Add subtopic" title="Add subtopic"
               onClick={event => openEditor({ kind: "add" }, event.currentTarget)}
-              className="shrink-0 gap-1.5 rounded-lg px-2.5 text-11 font-medium sm:px-3">
-              <Plus aria-hidden="true" />Add subtopic
+              className="h-11 w-11 shrink-0 text-muted-foreground hover:text-foreground">
+              <Plus aria-hidden="true" className="h-4 w-4" />
             </Button>
           </div>
           <div className="flex items-center gap-2.5">
@@ -216,17 +213,17 @@ export function ProfileSubtopicEditor({
               <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
               <Input id={`${id}-search`} type="search" aria-label="Search subtopics and source outcomes"
                 value={search} onChange={event => setSearch(event.target.value)}
-                placeholder="Search subtopics or source outcomes…" className="rounded-lg bg-muted/10 pl-9 text-xs" />
+                placeholder="Search subtopics or source outcomes…" className="rounded-md bg-transparent pl-9 text-xs" />
             </div>
             <Button type="button" variant="outline" disabled={disabled} aria-pressed={selecting}
               onClick={() => { setSelecting(!selecting); setSelected(new Set()); }}
-              className="hidden rounded-lg px-3 text-11 font-medium md:inline-flex">
+              className="hidden rounded-md px-3 text-11 font-normal md:inline-flex">
               {selecting ? "Done selecting" : "Select topics"}
             </Button>
           </div>
           <select aria-label="Filter by syllabus group" value={activeFilter}
             onChange={event => setFilter(event.target.value)}
-            className={cn("mt-2.5 min-h-11 w-full min-w-0 rounded-lg border border-input bg-card px-3 py-2 text-xs text-muted-foreground md:hidden", focusRing)}>
+            className={cn("mt-2.5 min-h-11 w-full min-w-0 rounded-md border border-input bg-card px-3 py-2 text-xs text-muted-foreground md:hidden", focusRing)}>
             {options.map(option => <option key={option.value} value={option.value}>{option.label} ({option.count})</option>)}
           </select>
           <div className="mt-1 flex min-h-11 flex-wrap items-center justify-between gap-x-3 text-10 text-muted-foreground">
@@ -256,7 +253,7 @@ export function ProfileSubtopicEditor({
             </div>
           </div>
           {selecting && (
-            <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 text-11 text-primary">
+            <div className="border-b border-border text-11 text-muted-foreground">
               <div className="flex flex-wrap items-center justify-between gap-x-3">
                 <span className="py-2 font-semibold">{selectedTopics.length} selected{hiddenSelected > 0 && ` (${hiddenSelected} outside this view)`}</span>
                 <div className="flex flex-wrap items-center gap-x-3">
@@ -269,10 +266,10 @@ export function ProfileSubtopicEditor({
                     className={cn("min-h-11 disabled:opacity-50", focusRing)}>
                     {allShownSelected ? "Deselect shown" : "Select shown"}
                   </button>
-                  <button type="button" disabled={disabled || !selectedTopics.length || wouldRemoveAll}
+                  <button type="button" aria-label="Remove selected" title="Remove selected subtopics" disabled={disabled || !selectedTopics.length || wouldRemoveAll}
                     onClick={() => remove(selectedTopics)} aria-describedby={wouldRemoveAll ? `${id}-keep-one` : undefined}
-                    className={cn("min-h-11 font-semibold text-destructive disabled:opacity-50", focusRing)}>
-                    Remove selected
+                    className={cn("inline-flex h-11 w-11 items-center justify-center text-muted-foreground hover:text-destructive disabled:opacity-50", focusRing)}>
+                    <Trash2 aria-hidden="true" className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -281,7 +278,7 @@ export function ProfileSubtopicEditor({
           )}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6 sm:px-6" aria-label="Subtopic list">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-6 sm:px-6" aria-label="Subtopic list">
           {!rows.length ? (
             <p className="py-10 text-center text-sm text-muted-foreground">No subtopics yet. Add a subtopic to get started.</p>
           ) : !filtered.length ? (
@@ -292,24 +289,23 @@ export function ProfileSubtopicEditor({
             </div>
           ) : [...groups.entries()].map(([key, group], groupIndex) => (
             <section key={key} aria-labelledby={`${id}-group-${groupIndex}`} className="mb-5 min-w-0">
-              <div className="flex items-start justify-between gap-3 pb-3 pt-3">
+              <div className="flex items-start justify-between gap-3 border-b border-border pb-3 pt-3">
                 <div className="min-w-0">
                   <h3 id={`${id}-group-${groupIndex}`} className="break-words text-xs font-semibold text-foreground/80 [overflow-wrap:anywhere]">
                     {group.path[group.path.length - 1] ?? (groups.size === 1 ? "Subtopics" : "Ungrouped subtopics")}
                   </h3>
-                  {group.path.length > 1 && <p className="mt-1 break-words text-9 uppercase tracking-wide text-muted-foreground [overflow-wrap:anywhere]">{group.path.slice(0, -1).join(" / ")}</p>}
+                  {group.path.length > 1 && <p className="mt-1 break-words text-10 font-normal text-muted-foreground [overflow-wrap:anywhere]">{group.path.slice(0, -1).join(" / ")}</p>}
                 </div>
                 <span className="shrink-0 pt-0.5 text-10 text-muted-foreground">{group.rows.length} {group.rows.length === 1 ? "subtopic" : "subtopics"}</span>
               </div>
-              <ul className="space-y-2">
+              <ul className="divide-y divide-border/60">
                 {group.rows.map((row, rowIndex) => {
                   const open = !!query || opened.has(row.topic);
                   const hasMore = !!(row.sources.length || row.notes);
                   const contentId = `${id}-source-${groupIndex}-${rowIndex}`;
-                  const firstSource = row.sources[0];
                   return (
                     <li key={row.topic}>
-                      <article aria-label={row.label} className="min-w-0 rounded-xl border border-border bg-card">
+                      <article aria-label={row.label} className="min-w-0">
                         <div className="flex min-h-20 min-w-0 items-center gap-0 py-2 pl-0.5 pr-1 sm:pr-2">
                           {selecting && (
                             <label className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center">
@@ -326,32 +322,31 @@ export function ProfileSubtopicEditor({
                             </button>
                           ) : <span aria-hidden="true" className="w-4 shrink-0 sm:w-11" />}
                           <div className="min-w-0 flex-1 py-1">
-                            <h4 className="break-words text-sm font-semibold leading-relaxed [overflow-wrap:anywhere]">
+                            <h4 className="break-words text-sm font-medium leading-relaxed [overflow-wrap:anywhere]">
                               {row.code && <span className="mb-0.5 block text-10 font-normal text-muted-foreground sm:mb-0 sm:mr-2 sm:inline">{row.code}</span>}
                               {row.label}
                             </h4>
                             {(row.added || row.renamed || row.notes) && (
-                              <span className="mt-1 inline-block rounded bg-warning-light px-1.5 py-0.5 text-9 font-medium text-warning">
+                              <span className="mt-1 inline-block text-10 text-muted-foreground">
                                 {row.added ? "Added by you" : "Edited by you"}
                               </span>
                             )}
                             {row.renamed && <p className="mt-1 break-words text-10 leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">{!row.added && (row.sources.length || sourceTopics.includes(row.topic)) ? "Original source name" : "Original name"}: {row.topic}</p>}
-                            <p className="mt-1 break-words text-10 leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
-                              {firstSource ? <>{documents.get(firstSource.documentId) || "Source document"} · PDF page {firstSource.page}{row.sources.length > 1 && ` · +${row.sources.length - 1} source ${row.sources.length === 2 ? "passage" : "passages"}`}</>
-                                : row.added ? "Your own subtopic" : "No source detail saved"}
-                            </p>
+                            {!row.sources.length && <p className="mt-1 break-words text-10 leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+                              {row.added ? "Your own subtopic" : "No source detail saved"}
+                            </p>}
                           </div>
                           <div className="ml-1 flex shrink-0 items-center sm:ml-2">
-                            <button type="button" disabled={disabled} aria-label={`Edit ${row.label}`}
+                            <button type="button" disabled={disabled} aria-label={`Edit ${row.label}`} title={`Edit ${row.label}`}
                               onClick={event => openEditor({ kind: "rename", topic: row.topic }, event.currentTarget)}
-                              className={cn("inline-flex h-11 min-w-11 items-center justify-center gap-1 rounded-md px-2 text-10 text-muted-foreground hover:bg-primary/5 hover:text-primary disabled:opacity-50", focusRing)}>
-                              <Pencil aria-hidden="true" className="h-3.5 w-3.5" /><span className="hidden lg:inline">Edit</span>
+                              className={cn("inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground disabled:opacity-50", focusRing)}>
+                              <Pencil aria-hidden="true" className="h-4 w-4" />
                             </button>
                             <button type="button" disabled={disabled || rows.length <= 1} aria-label={`Remove ${row.label}`}
                               title={rows.length <= 1 ? "Keep at least one subtopic in your profile." : `Remove ${row.label}`}
                               onClick={() => remove([row.topic])}
-                              className={cn("inline-flex h-11 min-w-11 items-center justify-center gap-1 rounded-md px-2 text-10 text-muted-foreground hover:bg-destructive/5 hover:text-destructive disabled:opacity-50", focusRing)}>
-                              <Trash2 aria-hidden="true" className="h-3.5 w-3.5" /><span className="hidden lg:inline">Remove</span>
+                              className={cn("inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:text-destructive disabled:opacity-50", focusRing)}>
+                              <Trash2 aria-hidden="true" className="h-4 w-4" />
                             </button>
                           </div>
                         </div>
@@ -359,18 +354,17 @@ export function ProfileSubtopicEditor({
                           <div id={contentId} className="min-w-0 space-y-4 pb-4 pl-5 pr-4 sm:pl-11">
                             {row.sources.length > 0 && (
                               <div>
-                                <p className="mb-2 text-10 font-semibold uppercase tracking-wide text-muted-foreground">Source outcomes</p>
+                                <p className="mb-2 text-11 font-medium text-muted-foreground">Learning points</p>
                                 <ul aria-label={`Source outcomes for ${row.label}`} className="space-y-4">
                                   {row.sources.map((source, index) => (
                                     <li key={`${source.documentId}:${source.page}:${index}`} className="min-w-0">
-                                      <p className="mb-1 break-words text-10 text-muted-foreground [overflow-wrap:anywhere]">{documents.get(source.documentId) || "Source document"} · physical PDF page {source.page}</p>
                                       <blockquote className="whitespace-pre-wrap break-words text-xs leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">{source.text}</blockquote>
                                     </li>
                                   ))}
                                 </ul>
                               </div>
                             )}
-                            {row.notes && <div className="rounded-lg bg-muted/30 p-3">
+                            {row.notes && <div className="border-l border-border pl-3">
                               <p className="mb-1 text-10 font-semibold text-muted-foreground">Your notes · written by you</p>
                               <p className="whitespace-pre-wrap break-words text-xs leading-relaxed [overflow-wrap:anywhere]">{row.notes}</p>
                             </div>}
@@ -390,7 +384,7 @@ export function ProfileSubtopicEditor({
         <DialogContent className="max-h-[90dvh] overflow-y-auto rounded-xl sm:max-w-md"
           onCloseAutoFocus={event => { event.preventDefault(); editorTrigger.current?.focus(); }}>
           <DialogHeader>
-            <DialogTitle className="font-serif text-2xl">{editor?.kind === "add" ? "Add subtopic" : "Edit subtopic"}</DialogTitle>
+            <DialogTitle className="text-lg font-semibold">{editor?.kind === "add" ? "Add subtopic" : "Edit subtopic"}</DialogTitle>
             <DialogDescription>
               {editor?.kind === "add" ? "Add a subtopic of your own. It will be marked as added by you."
                 : "Your name and notes stay separate from the original syllabus wording."}

@@ -1,0 +1,7 @@
+{
+  "baseline": "0d5cc1a76be61a648c8958bd2870db8d51bbaa36",
+  "method": "esbuild transitive input graph for all real Edge entry points; handlers are not executed",
+  "entryPointsChecked": 39,
+  "changedServerModules": [],
+  "affected": []
+}

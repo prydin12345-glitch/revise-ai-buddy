@@ -1,0 +1,3124 @@
+{
+  "status": "PASS",
+  "mode": "matrix",
+  "startedAt": "2026-11-23T19:52:50.574Z",
+  "boundary": "Actual ExamProfileBuilder, AIProfileReview and prepareProfileSave. Synthetic owner-supplied saved contexts and injected fixture proposal/save API; localStorage persistence belongs only to this synthetic fixture. No extraction, provider, login, database or physical iOS test.",
+  "runtime": {
+    "node": "v24.19.0",
+    "playwright": "1.57.0",
+    "playwrightPath": "/opt/codex/runtimes/cua/lib/node_modules/playwright-core",
+    "chromiumExecutable": "/usr/bin/chromium",
+    "chromiumVersion": "151.0.7922.173"
+  },
+  "cases": [
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "scenario": "detailed",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "overview",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "expanded-outcomes",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "Exam settings",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 0,
+          "minimumRowControlWidth": null,
+          "minimumRowControlHeight": null
+        },
+        {
+          "stage": "Syllabus & source",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 0,
+          "minimumRowControlWidth": null,
+          "minimumRowControlHeight": null
+        },
+        {
+          "stage": "edited-restored",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "reopened",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "reloaded",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "added-topic-notes-reloaded",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "new-generated-proposal",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "new-generated-reloaded",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        }
+      ],
+      "screenshots": [
+        "desktop-light-detailed-overview.png",
+        "desktop-light-detailed-expanded.png",
+        "desktop-light-detailed-settings.png",
+        "desktop-light-detailed-source-references.png",
+        "desktop-light-detailed-source.png",
+        "desktop-light-detailed-edited-restored.png",
+        "desktop-light-detailed-save-failure.png",
+        "desktop-light-detailed-persisted.png",
+        "desktop-light-detailed-added-topic-notes-reloaded.png",
+        "desktop-light-detailed-new-generated-review.png",
+        "desktop-light-detailed-new-generated-reloaded.png"
+      ],
+      "sourceReferences": [
+        {
+          "documentId": "owner-doc",
+          "field": "marks",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "durationMinutes",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "topics",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "tier",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "calculator",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "formats",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "selection",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        }
+      ],
+      "bulkRemoveIcon": {
+        "name": "Remove selected",
+        "title": "Remove selected subtopics",
+        "visibleText": "",
+        "width": 44,
+        "height": 44,
+        "icon": "lucide lucide-trash2 h-4 w-4",
+        "hiddenFromAT": "true",
+        "shapes": 5,
+        "iconWidth": 16,
+        "iconHeight": 16
+      },
+      "checks": {
+        "defaultSubtopicsTab": true,
+        "literalSourceExcerptsIntact": true,
+        "noTopicPageCaptionsCollapsedExpandedFilteredEditedAndReloaded": true,
+        "originalEvidencePagesAndChecksumRetained": true,
+        "iconOnlyActionsWithAccessibleNamesTitlesAnd44pxTargets": true,
+        "plainCountsNoDecorativeSparklesAndFlatRowDividers": true,
+        "searchByLeafGroupOutcomeDocumentAndNotes": true,
+        "filtersAndTabsMakeZeroAPICalls": true,
+        "profileRenameAndTopicDisplayAliasAndPersonalNotes": true,
+        "canonicalTopicsAndPartTagsPreserved": true,
+        "childEditorEscapeBackdropCancelAndFocusReturn": true,
+        "bulkRemoveKeepOneGuardUndoAndRestoreExactLayoutIdsMarks": true,
+        "noRegenerationOnEdits": true,
+        "failedSaveRetainsExactDraftAndRetry": true,
+        "saveReopenAndReload": true,
+        "completeOwnedContextRetained": true,
+        "noHorizontalOverflow": true,
+        "discardResetAndCloseConfirmationKeepAndDiscard": true
+      },
+      "addedTopic": {
+        "notesPersistThroughSaveAndReload": true,
+        "stableCanonicalIdentityAndScoredParts": true,
+        "noBorrowedSourceProvenance": true,
+        "sharedSnapshotRedactsAllPersonalNotes": true
+      },
+      "generated": {
+        "exactProposalToSaveAndReload": true,
+        "oneProposeOneSave": true,
+        "entireIdentityDemandResourcesCalculatorWarningsDesignSectionsPreserved": true,
+        "evidencePhysicalPagesChecksumFingerprintAndReceiptPreserved": true,
+        "savedContextSha256": "ca152ea7bfb486f04aa01d8aa74f461db1a86d252e934e465a7ba55be36093ed"
+      },
+      "presentationSummary": {
+        "stagesChecked": [
+          "collapsed-overview",
+          "expanded-source-outcomes",
+          "edited-source-outcomes",
+          "keep-one-after-bulk-remove",
+          "persisted-reopened",
+          "persisted-reloaded",
+          "added-topic-with-notes",
+          "added-topic-reloaded",
+          "new-generated-proposal"
+        ],
+        "actionsMeasured": 39,
+        "minimumActionWidth": 44,
+        "minimumActionHeight": 44,
+        "allActionsHaveNoVisibleText": true,
+        "allActionsHaveAccessibleNamesAndTitles": true,
+        "headerSparklesObserved": 0,
+        "noTopicPageCaptions": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "scenario": "legacy",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "legacy-flat",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 4,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        }
+      ],
+      "screenshots": [
+        "desktop-light-legacy-flat.png",
+        "desktop-light-legacy-source-references.png",
+        "desktop-light-legacy-reread-source-choices.png"
+      ],
+      "sourceReferences": [
+        {
+          "documentId": "owner-doc",
+          "field": "marks",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "durationMinutes",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "topics",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "tier",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "calculator",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "formats",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "selection",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        }
+      ],
+      "checks": {
+        "flatLegacyLabelsAndNoInventedGroupsOrOutcomes": true,
+        "searchWithoutFabrication": true,
+        "rereadConfirmationEscapeAndSourceChoices": true,
+        "noAPIOrSavedDataChange": true,
+        "freshReloadRemainsLegacy": true,
+        "noHorizontalOverflow": true,
+        "noTopicPageCaptions": true,
+        "iconOnlyActionsWithAccessibleNamesTitlesAnd44pxTargets": true,
+        "plainCountsNoDecorativeSparklesAndFlatRowDividers": true
+      },
+      "presentationSummary": {
+        "stagesChecked": [
+          "legacy-flat-overview",
+          "legacy-flat-reloaded"
+        ],
+        "actionsMeasured": 10,
+        "minimumActionWidth": 44,
+        "minimumActionHeight": 44,
+        "allActionsHaveNoVisibleText": true,
+        "allActionsHaveAccessibleNamesAndTitles": true,
+        "headerSparklesObserved": 0,
+        "noTopicPageCaptions": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "scenario": "detailed",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "overview",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "expanded-outcomes",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "Exam settings",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 0,
+          "minimumRowControlWidth": null,
+          "minimumRowControlHeight": null
+        },
+        {
+          "stage": "Syllabus & source",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 0,
+          "minimumRowControlWidth": null,
+          "minimumRowControlHeight": null
+        },
+        {
+          "stage": "edited-restored",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "reopened",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "reloaded",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "added-topic-notes-reloaded",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "new-generated-proposal",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "new-generated-reloaded",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        }
+      ],
+      "screenshots": [
+        "desktop-dark-detailed-overview.png",
+        "desktop-dark-detailed-expanded.png",
+        "desktop-dark-detailed-settings.png",
+        "desktop-dark-detailed-source-references.png",
+        "desktop-dark-detailed-source.png",
+        "desktop-dark-detailed-edited-restored.png",
+        "desktop-dark-detailed-save-failure.png",
+        "desktop-dark-detailed-persisted.png",
+        "desktop-dark-detailed-added-topic-notes-reloaded.png",
+        "desktop-dark-detailed-new-generated-review.png",
+        "desktop-dark-detailed-new-generated-reloaded.png"
+      ],
+      "sourceReferences": [
+        {
+          "documentId": "owner-doc",
+          "field": "marks",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "durationMinutes",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "topics",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "tier",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "calculator",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "formats",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "selection",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        }
+      ],
+      "bulkRemoveIcon": {
+        "name": "Remove selected",
+        "title": "Remove selected subtopics",
+        "visibleText": "",
+        "width": 44,
+        "height": 44,
+        "icon": "lucide lucide-trash2 h-4 w-4",
+        "hiddenFromAT": "true",
+        "shapes": 5,
+        "iconWidth": 16,
+        "iconHeight": 16
+      },
+      "checks": {
+        "defaultSubtopicsTab": true,
+        "literalSourceExcerptsIntact": true,
+        "noTopicPageCaptionsCollapsedExpandedFilteredEditedAndReloaded": true,
+        "originalEvidencePagesAndChecksumRetained": true,
+        "iconOnlyActionsWithAccessibleNamesTitlesAnd44pxTargets": true,
+        "plainCountsNoDecorativeSparklesAndFlatRowDividers": true,
+        "searchByLeafGroupOutcomeDocumentAndNotes": true,
+        "filtersAndTabsMakeZeroAPICalls": true,
+        "profileRenameAndTopicDisplayAliasAndPersonalNotes": true,
+        "canonicalTopicsAndPartTagsPreserved": true,
+        "childEditorEscapeBackdropCancelAndFocusReturn": true,
+        "bulkRemoveKeepOneGuardUndoAndRestoreExactLayoutIdsMarks": true,
+        "noRegenerationOnEdits": true,
+        "failedSaveRetainsExactDraftAndRetry": true,
+        "saveReopenAndReload": true,
+        "completeOwnedContextRetained": true,
+        "noHorizontalOverflow": true,
+        "discardResetAndCloseConfirmationKeepAndDiscard": true
+      },
+      "addedTopic": {
+        "notesPersistThroughSaveAndReload": true,
+        "stableCanonicalIdentityAndScoredParts": true,
+        "noBorrowedSourceProvenance": true,
+        "sharedSnapshotRedactsAllPersonalNotes": true
+      },
+      "generated": {
+        "exactProposalToSaveAndReload": true,
+        "oneProposeOneSave": true,
+        "entireIdentityDemandResourcesCalculatorWarningsDesignSectionsPreserved": true,
+        "evidencePhysicalPagesChecksumFingerprintAndReceiptPreserved": true,
+        "savedContextSha256": "ca152ea7bfb486f04aa01d8aa74f461db1a86d252e934e465a7ba55be36093ed"
+      },
+      "presentationSummary": {
+        "stagesChecked": [
+          "collapsed-overview",
+          "expanded-source-outcomes",
+          "edited-source-outcomes",
+          "keep-one-after-bulk-remove",
+          "persisted-reopened",
+          "persisted-reloaded",
+          "added-topic-with-notes",
+          "added-topic-reloaded",
+          "new-generated-proposal"
+        ],
+        "actionsMeasured": 39,
+        "minimumActionWidth": 44,
+        "minimumActionHeight": 44,
+        "allActionsHaveNoVisibleText": true,
+        "allActionsHaveAccessibleNamesAndTitles": true,
+        "headerSparklesObserved": 0,
+        "noTopicPageCaptions": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "scenario": "legacy",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "legacy-flat",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "dialog": {
+            "left": 200,
+            "right": 1240,
+            "top": 75,
+            "bottom": 925,
+            "width": 1040,
+            "scroll": 1038,
+            "client": 1038
+          },
+          "documentWidth": 1440,
+          "overflows": [],
+          "rowControlCount": 4,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        }
+      ],
+      "screenshots": [
+        "desktop-dark-legacy-flat.png",
+        "desktop-dark-legacy-source-references.png",
+        "desktop-dark-legacy-reread-source-choices.png"
+      ],
+      "sourceReferences": [
+        {
+          "documentId": "owner-doc",
+          "field": "marks",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "durationMinutes",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "topics",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "tier",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "calculator",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "formats",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "selection",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        }
+      ],
+      "checks": {
+        "flatLegacyLabelsAndNoInventedGroupsOrOutcomes": true,
+        "searchWithoutFabrication": true,
+        "rereadConfirmationEscapeAndSourceChoices": true,
+        "noAPIOrSavedDataChange": true,
+        "freshReloadRemainsLegacy": true,
+        "noHorizontalOverflow": true,
+        "noTopicPageCaptions": true,
+        "iconOnlyActionsWithAccessibleNamesTitlesAnd44pxTargets": true,
+        "plainCountsNoDecorativeSparklesAndFlatRowDividers": true
+      },
+      "presentationSummary": {
+        "stagesChecked": [
+          "legacy-flat-overview",
+          "legacy-flat-reloaded"
+        ],
+        "actionsMeasured": 10,
+        "minimumActionWidth": 44,
+        "minimumActionHeight": 44,
+        "allActionsHaveNoVisibleText": true,
+        "allActionsHaveAccessibleNamesAndTitles": true,
+        "headerSparklesObserved": 0,
+        "noTopicPageCaptions": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "light",
+      "scenario": "detailed",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "overview",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "expanded-outcomes",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "Exam settings",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 0,
+          "minimumRowControlWidth": null,
+          "minimumRowControlHeight": null
+        },
+        {
+          "stage": "Syllabus & source",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 0,
+          "minimumRowControlWidth": null,
+          "minimumRowControlHeight": null
+        },
+        {
+          "stage": "edited-restored",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "reopened",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "reloaded",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "added-topic-notes-reloaded",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "new-generated-proposal",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "new-generated-reloaded",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        }
+      ],
+      "screenshots": [
+        "ipad-light-detailed-overview.png",
+        "ipad-light-detailed-expanded.png",
+        "ipad-light-detailed-settings.png",
+        "ipad-light-detailed-source-references.png",
+        "ipad-light-detailed-source.png",
+        "ipad-light-detailed-edited-restored.png",
+        "ipad-light-detailed-save-failure.png",
+        "ipad-light-detailed-persisted.png",
+        "ipad-light-detailed-added-topic-notes-reloaded.png",
+        "ipad-light-detailed-new-generated-review.png",
+        "ipad-light-detailed-new-generated-reloaded.png"
+      ],
+      "sourceReferences": [
+        {
+          "documentId": "owner-doc",
+          "field": "marks",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "durationMinutes",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "topics",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "tier",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "calculator",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "formats",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "selection",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        }
+      ],
+      "bulkRemoveIcon": {
+        "name": "Remove selected",
+        "title": "Remove selected subtopics",
+        "visibleText": "",
+        "width": 44,
+        "height": 44,
+        "icon": "lucide lucide-trash2 h-4 w-4",
+        "hiddenFromAT": "true",
+        "shapes": 5,
+        "iconWidth": 16,
+        "iconHeight": 16
+      },
+      "checks": {
+        "defaultSubtopicsTab": true,
+        "literalSourceExcerptsIntact": true,
+        "noTopicPageCaptionsCollapsedExpandedFilteredEditedAndReloaded": true,
+        "originalEvidencePagesAndChecksumRetained": true,
+        "iconOnlyActionsWithAccessibleNamesTitlesAnd44pxTargets": true,
+        "plainCountsNoDecorativeSparklesAndFlatRowDividers": true,
+        "searchByLeafGroupOutcomeDocumentAndNotes": true,
+        "filtersAndTabsMakeZeroAPICalls": true,
+        "profileRenameAndTopicDisplayAliasAndPersonalNotes": true,
+        "canonicalTopicsAndPartTagsPreserved": true,
+        "childEditorEscapeBackdropCancelAndFocusReturn": true,
+        "bulkRemoveKeepOneGuardUndoAndRestoreExactLayoutIdsMarks": true,
+        "noRegenerationOnEdits": true,
+        "failedSaveRetainsExactDraftAndRetry": true,
+        "saveReopenAndReload": true,
+        "completeOwnedContextRetained": true,
+        "noHorizontalOverflow": true,
+        "discardResetAndCloseConfirmationKeepAndDiscard": true
+      },
+      "addedTopic": {
+        "notesPersistThroughSaveAndReload": true,
+        "stableCanonicalIdentityAndScoredParts": true,
+        "noBorrowedSourceProvenance": true,
+        "sharedSnapshotRedactsAllPersonalNotes": true
+      },
+      "generated": {
+        "exactProposalToSaveAndReload": true,
+        "oneProposeOneSave": true,
+        "entireIdentityDemandResourcesCalculatorWarningsDesignSectionsPreserved": true,
+        "evidencePhysicalPagesChecksumFingerprintAndReceiptPreserved": true,
+        "savedContextSha256": "ca152ea7bfb486f04aa01d8aa74f461db1a86d252e934e465a7ba55be36093ed"
+      },
+      "presentationSummary": {
+        "stagesChecked": [
+          "collapsed-overview",
+          "expanded-source-outcomes",
+          "edited-source-outcomes",
+          "keep-one-after-bulk-remove",
+          "persisted-reopened",
+          "persisted-reloaded",
+          "added-topic-with-notes",
+          "added-topic-reloaded",
+          "new-generated-proposal"
+        ],
+        "actionsMeasured": 39,
+        "minimumActionWidth": 44,
+        "minimumActionHeight": 44,
+        "allActionsHaveNoVisibleText": true,
+        "allActionsHaveAccessibleNamesAndTitles": true,
+        "headerSparklesObserved": 0,
+        "noTopicPageCaptions": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "light",
+      "scenario": "legacy",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "legacy-flat",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 4,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        }
+      ],
+      "screenshots": [
+        "ipad-light-legacy-flat.png",
+        "ipad-light-legacy-source-references.png",
+        "ipad-light-legacy-reread-source-choices.png"
+      ],
+      "sourceReferences": [
+        {
+          "documentId": "owner-doc",
+          "field": "marks",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "durationMinutes",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "topics",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "tier",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "calculator",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "formats",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "selection",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        }
+      ],
+      "checks": {
+        "flatLegacyLabelsAndNoInventedGroupsOrOutcomes": true,
+        "searchWithoutFabrication": true,
+        "rereadConfirmationEscapeAndSourceChoices": true,
+        "noAPIOrSavedDataChange": true,
+        "freshReloadRemainsLegacy": true,
+        "noHorizontalOverflow": true,
+        "noTopicPageCaptions": true,
+        "iconOnlyActionsWithAccessibleNamesTitlesAnd44pxTargets": true,
+        "plainCountsNoDecorativeSparklesAndFlatRowDividers": true
+      },
+      "presentationSummary": {
+        "stagesChecked": [
+          "legacy-flat-overview",
+          "legacy-flat-reloaded"
+        ],
+        "actionsMeasured": 10,
+        "minimumActionWidth": 44,
+        "minimumActionHeight": 44,
+        "allActionsHaveNoVisibleText": true,
+        "allActionsHaveAccessibleNamesAndTitles": true,
+        "headerSparklesObserved": 0,
+        "noTopicPageCaptions": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "dark",
+      "scenario": "detailed",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "overview",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "expanded-outcomes",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "Exam settings",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 0,
+          "minimumRowControlWidth": null,
+          "minimumRowControlHeight": null
+        },
+        {
+          "stage": "Syllabus & source",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 0,
+          "minimumRowControlWidth": null,
+          "minimumRowControlHeight": null
+        },
+        {
+          "stage": "edited-restored",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "reopened",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "reloaded",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "added-topic-notes-reloaded",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "new-generated-proposal",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "new-generated-reloaded",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        }
+      ],
+      "screenshots": [
+        "ipad-dark-detailed-overview.png",
+        "ipad-dark-detailed-expanded.png",
+        "ipad-dark-detailed-settings.png",
+        "ipad-dark-detailed-source-references.png",
+        "ipad-dark-detailed-source.png",
+        "ipad-dark-detailed-edited-restored.png",
+        "ipad-dark-detailed-save-failure.png",
+        "ipad-dark-detailed-persisted.png",
+        "ipad-dark-detailed-added-topic-notes-reloaded.png",
+        "ipad-dark-detailed-new-generated-review.png",
+        "ipad-dark-detailed-new-generated-reloaded.png"
+      ],
+      "sourceReferences": [
+        {
+          "documentId": "owner-doc",
+          "field": "marks",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "durationMinutes",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "topics",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "tier",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "calculator",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "formats",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "selection",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        }
+      ],
+      "bulkRemoveIcon": {
+        "name": "Remove selected",
+        "title": "Remove selected subtopics",
+        "visibleText": "",
+        "width": 44,
+        "height": 44,
+        "icon": "lucide lucide-trash2 h-4 w-4",
+        "hiddenFromAT": "true",
+        "shapes": 5,
+        "iconWidth": 16,
+        "iconHeight": 16
+      },
+      "checks": {
+        "defaultSubtopicsTab": true,
+        "literalSourceExcerptsIntact": true,
+        "noTopicPageCaptionsCollapsedExpandedFilteredEditedAndReloaded": true,
+        "originalEvidencePagesAndChecksumRetained": true,
+        "iconOnlyActionsWithAccessibleNamesTitlesAnd44pxTargets": true,
+        "plainCountsNoDecorativeSparklesAndFlatRowDividers": true,
+        "searchByLeafGroupOutcomeDocumentAndNotes": true,
+        "filtersAndTabsMakeZeroAPICalls": true,
+        "profileRenameAndTopicDisplayAliasAndPersonalNotes": true,
+        "canonicalTopicsAndPartTagsPreserved": true,
+        "childEditorEscapeBackdropCancelAndFocusReturn": true,
+        "bulkRemoveKeepOneGuardUndoAndRestoreExactLayoutIdsMarks": true,
+        "noRegenerationOnEdits": true,
+        "failedSaveRetainsExactDraftAndRetry": true,
+        "saveReopenAndReload": true,
+        "completeOwnedContextRetained": true,
+        "noHorizontalOverflow": true,
+        "discardResetAndCloseConfirmationKeepAndDiscard": true
+      },
+      "addedTopic": {
+        "notesPersistThroughSaveAndReload": true,
+        "stableCanonicalIdentityAndScoredParts": true,
+        "noBorrowedSourceProvenance": true,
+        "sharedSnapshotRedactsAllPersonalNotes": true
+      },
+      "generated": {
+        "exactProposalToSaveAndReload": true,
+        "oneProposeOneSave": true,
+        "entireIdentityDemandResourcesCalculatorWarningsDesignSectionsPreserved": true,
+        "evidencePhysicalPagesChecksumFingerprintAndReceiptPreserved": true,
+        "savedContextSha256": "ca152ea7bfb486f04aa01d8aa74f461db1a86d252e934e465a7ba55be36093ed"
+      },
+      "presentationSummary": {
+        "stagesChecked": [
+          "collapsed-overview",
+          "expanded-source-outcomes",
+          "edited-source-outcomes",
+          "keep-one-after-bulk-remove",
+          "persisted-reopened",
+          "persisted-reloaded",
+          "added-topic-with-notes",
+          "added-topic-reloaded",
+          "new-generated-proposal"
+        ],
+        "actionsMeasured": 39,
+        "minimumActionWidth": 44,
+        "minimumActionHeight": 44,
+        "allActionsHaveNoVisibleText": true,
+        "allActionsHaveAccessibleNamesAndTitles": true,
+        "headerSparklesObserved": 0,
+        "noTopicPageCaptions": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "dark",
+      "scenario": "legacy",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "legacy-flat",
+          "viewport": {
+            "width": 834,
+            "height": 1194
+          },
+          "dialog": {
+            "left": 16,
+            "right": 818,
+            "top": 172,
+            "bottom": 1022,
+            "width": 802,
+            "scroll": 800,
+            "client": 800
+          },
+          "documentWidth": 834,
+          "overflows": [],
+          "rowControlCount": 4,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        }
+      ],
+      "screenshots": [
+        "ipad-dark-legacy-flat.png",
+        "ipad-dark-legacy-source-references.png",
+        "ipad-dark-legacy-reread-source-choices.png"
+      ],
+      "sourceReferences": [
+        {
+          "documentId": "owner-doc",
+          "field": "marks",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "durationMinutes",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "topics",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "tier",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "calculator",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "formats",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "selection",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        }
+      ],
+      "checks": {
+        "flatLegacyLabelsAndNoInventedGroupsOrOutcomes": true,
+        "searchWithoutFabrication": true,
+        "rereadConfirmationEscapeAndSourceChoices": true,
+        "noAPIOrSavedDataChange": true,
+        "freshReloadRemainsLegacy": true,
+        "noHorizontalOverflow": true,
+        "noTopicPageCaptions": true,
+        "iconOnlyActionsWithAccessibleNamesTitlesAnd44pxTargets": true,
+        "plainCountsNoDecorativeSparklesAndFlatRowDividers": true
+      },
+      "presentationSummary": {
+        "stagesChecked": [
+          "legacy-flat-overview",
+          "legacy-flat-reloaded"
+        ],
+        "actionsMeasured": 10,
+        "minimumActionWidth": 44,
+        "minimumActionHeight": 44,
+        "allActionsHaveNoVisibleText": true,
+        "allActionsHaveAccessibleNamesAndTitles": true,
+        "headerSparklesObserved": 0,
+        "noTopicPageCaptions": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "scenario": "detailed",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "overview",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "expanded-outcomes",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "Exam settings",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 0,
+          "minimumRowControlWidth": null,
+          "minimumRowControlHeight": null
+        },
+        {
+          "stage": "Syllabus & source",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 0,
+          "minimumRowControlWidth": null,
+          "minimumRowControlHeight": null
+        },
+        {
+          "stage": "edited-restored",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "reopened",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "reloaded",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "added-topic-notes-reloaded",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "new-generated-proposal",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "new-generated-reloaded",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        }
+      ],
+      "screenshots": [
+        "phone-light-detailed-overview.png",
+        "phone-light-detailed-expanded.png",
+        "phone-light-detailed-settings.png",
+        "phone-light-detailed-source-references.png",
+        "phone-light-detailed-source.png",
+        "phone-light-detailed-edited-restored.png",
+        "phone-light-detailed-save-failure.png",
+        "phone-light-detailed-persisted.png",
+        "phone-light-detailed-added-topic-notes-reloaded.png",
+        "phone-light-detailed-new-generated-review.png",
+        "phone-light-detailed-new-generated-reloaded.png"
+      ],
+      "sourceReferences": [
+        {
+          "documentId": "owner-doc",
+          "field": "marks",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "durationMinutes",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "topics",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "tier",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "calculator",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "formats",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "selection",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        }
+      ],
+      "bulkRemoveIcon": {
+        "name": "Remove selected",
+        "title": "Remove selected subtopics",
+        "visibleText": "",
+        "width": 44,
+        "height": 44,
+        "icon": "lucide lucide-trash2 h-4 w-4",
+        "hiddenFromAT": "true",
+        "shapes": 5,
+        "iconWidth": 16,
+        "iconHeight": 16
+      },
+      "checks": {
+        "defaultSubtopicsTab": true,
+        "literalSourceExcerptsIntact": true,
+        "noTopicPageCaptionsCollapsedExpandedFilteredEditedAndReloaded": true,
+        "originalEvidencePagesAndChecksumRetained": true,
+        "iconOnlyActionsWithAccessibleNamesTitlesAnd44pxTargets": true,
+        "plainCountsNoDecorativeSparklesAndFlatRowDividers": true,
+        "searchByLeafGroupOutcomeDocumentAndNotes": true,
+        "filtersAndTabsMakeZeroAPICalls": true,
+        "profileRenameAndTopicDisplayAliasAndPersonalNotes": true,
+        "canonicalTopicsAndPartTagsPreserved": true,
+        "childEditorEscapeBackdropCancelAndFocusReturn": true,
+        "bulkRemoveKeepOneGuardUndoAndRestoreExactLayoutIdsMarks": true,
+        "noRegenerationOnEdits": true,
+        "failedSaveRetainsExactDraftAndRetry": true,
+        "saveReopenAndReload": true,
+        "completeOwnedContextRetained": true,
+        "noHorizontalOverflow": true,
+        "discardResetAndCloseConfirmationKeepAndDiscard": true
+      },
+      "addedTopic": {
+        "notesPersistThroughSaveAndReload": true,
+        "stableCanonicalIdentityAndScoredParts": true,
+        "noBorrowedSourceProvenance": true,
+        "sharedSnapshotRedactsAllPersonalNotes": true
+      },
+      "generated": {
+        "exactProposalToSaveAndReload": true,
+        "oneProposeOneSave": true,
+        "entireIdentityDemandResourcesCalculatorWarningsDesignSectionsPreserved": true,
+        "evidencePhysicalPagesChecksumFingerprintAndReceiptPreserved": true,
+        "savedContextSha256": "ca152ea7bfb486f04aa01d8aa74f461db1a86d252e934e465a7ba55be36093ed"
+      },
+      "presentationSummary": {
+        "stagesChecked": [
+          "collapsed-overview",
+          "expanded-source-outcomes",
+          "edited-source-outcomes",
+          "keep-one-after-bulk-remove",
+          "persisted-reopened",
+          "persisted-reloaded",
+          "added-topic-with-notes",
+          "added-topic-reloaded",
+          "new-generated-proposal"
+        ],
+        "actionsMeasured": 39,
+        "minimumActionWidth": 44,
+        "minimumActionHeight": 44,
+        "allActionsHaveNoVisibleText": true,
+        "allActionsHaveAccessibleNamesAndTitles": true,
+        "headerSparklesObserved": 0,
+        "noTopicPageCaptions": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "scenario": "legacy",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "legacy-flat",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 4,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        }
+      ],
+      "screenshots": [
+        "phone-light-legacy-flat.png",
+        "phone-light-legacy-source-references.png",
+        "phone-light-legacy-reread-source-choices.png"
+      ],
+      "sourceReferences": [
+        {
+          "documentId": "owner-doc",
+          "field": "marks",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "durationMinutes",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "topics",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "tier",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "calculator",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "formats",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "selection",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        }
+      ],
+      "checks": {
+        "flatLegacyLabelsAndNoInventedGroupsOrOutcomes": true,
+        "searchWithoutFabrication": true,
+        "rereadConfirmationEscapeAndSourceChoices": true,
+        "noAPIOrSavedDataChange": true,
+        "freshReloadRemainsLegacy": true,
+        "noHorizontalOverflow": true,
+        "noTopicPageCaptions": true,
+        "iconOnlyActionsWithAccessibleNamesTitlesAnd44pxTargets": true,
+        "plainCountsNoDecorativeSparklesAndFlatRowDividers": true
+      },
+      "presentationSummary": {
+        "stagesChecked": [
+          "legacy-flat-overview",
+          "legacy-flat-reloaded"
+        ],
+        "actionsMeasured": 10,
+        "minimumActionWidth": 44,
+        "minimumActionHeight": 44,
+        "allActionsHaveNoVisibleText": true,
+        "allActionsHaveAccessibleNamesAndTitles": true,
+        "headerSparklesObserved": 0,
+        "noTopicPageCaptions": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "scenario": "detailed",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "overview",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "expanded-outcomes",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "Exam settings",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 0,
+          "minimumRowControlWidth": null,
+          "minimumRowControlHeight": null
+        },
+        {
+          "stage": "Syllabus & source",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 0,
+          "minimumRowControlWidth": null,
+          "minimumRowControlHeight": null
+        },
+        {
+          "stage": "edited-restored",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "reopened",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "reloaded",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "added-topic-notes-reloaded",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "new-generated-proposal",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 9,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        },
+        {
+          "stage": "new-generated-reloaded",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 3,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        }
+      ],
+      "screenshots": [
+        "phone-dark-detailed-overview.png",
+        "phone-dark-detailed-expanded.png",
+        "phone-dark-detailed-settings.png",
+        "phone-dark-detailed-source-references.png",
+        "phone-dark-detailed-source.png",
+        "phone-dark-detailed-edited-restored.png",
+        "phone-dark-detailed-save-failure.png",
+        "phone-dark-detailed-persisted.png",
+        "phone-dark-detailed-added-topic-notes-reloaded.png",
+        "phone-dark-detailed-new-generated-review.png",
+        "phone-dark-detailed-new-generated-reloaded.png"
+      ],
+      "sourceReferences": [
+        {
+          "documentId": "owner-doc",
+          "field": "marks",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "durationMinutes",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "topics",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "tier",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "calculator",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "formats",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "selection",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        }
+      ],
+      "bulkRemoveIcon": {
+        "name": "Remove selected",
+        "title": "Remove selected subtopics",
+        "visibleText": "",
+        "width": 44,
+        "height": 44,
+        "icon": "lucide lucide-trash2 h-4 w-4",
+        "hiddenFromAT": "true",
+        "shapes": 5,
+        "iconWidth": 16,
+        "iconHeight": 16
+      },
+      "checks": {
+        "defaultSubtopicsTab": true,
+        "literalSourceExcerptsIntact": true,
+        "noTopicPageCaptionsCollapsedExpandedFilteredEditedAndReloaded": true,
+        "originalEvidencePagesAndChecksumRetained": true,
+        "iconOnlyActionsWithAccessibleNamesTitlesAnd44pxTargets": true,
+        "plainCountsNoDecorativeSparklesAndFlatRowDividers": true,
+        "searchByLeafGroupOutcomeDocumentAndNotes": true,
+        "filtersAndTabsMakeZeroAPICalls": true,
+        "profileRenameAndTopicDisplayAliasAndPersonalNotes": true,
+        "canonicalTopicsAndPartTagsPreserved": true,
+        "childEditorEscapeBackdropCancelAndFocusReturn": true,
+        "bulkRemoveKeepOneGuardUndoAndRestoreExactLayoutIdsMarks": true,
+        "noRegenerationOnEdits": true,
+        "failedSaveRetainsExactDraftAndRetry": true,
+        "saveReopenAndReload": true,
+        "completeOwnedContextRetained": true,
+        "noHorizontalOverflow": true,
+        "discardResetAndCloseConfirmationKeepAndDiscard": true
+      },
+      "addedTopic": {
+        "notesPersistThroughSaveAndReload": true,
+        "stableCanonicalIdentityAndScoredParts": true,
+        "noBorrowedSourceProvenance": true,
+        "sharedSnapshotRedactsAllPersonalNotes": true
+      },
+      "generated": {
+        "exactProposalToSaveAndReload": true,
+        "oneProposeOneSave": true,
+        "entireIdentityDemandResourcesCalculatorWarningsDesignSectionsPreserved": true,
+        "evidencePhysicalPagesChecksumFingerprintAndReceiptPreserved": true,
+        "savedContextSha256": "ca152ea7bfb486f04aa01d8aa74f461db1a86d252e934e465a7ba55be36093ed"
+      },
+      "presentationSummary": {
+        "stagesChecked": [
+          "collapsed-overview",
+          "expanded-source-outcomes",
+          "edited-source-outcomes",
+          "keep-one-after-bulk-remove",
+          "persisted-reopened",
+          "persisted-reloaded",
+          "added-topic-with-notes",
+          "added-topic-reloaded",
+          "new-generated-proposal"
+        ],
+        "actionsMeasured": 39,
+        "minimumActionWidth": 44,
+        "minimumActionHeight": 44,
+        "allActionsHaveNoVisibleText": true,
+        "allActionsHaveAccessibleNamesAndTitles": true,
+        "headerSparklesObserved": 0,
+        "noTopicPageCaptions": true
+      }
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "scenario": "legacy",
+      "status": "PASS",
+      "layouts": [
+        {
+          "stage": "legacy-flat",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dialog": {
+            "left": 0,
+            "right": 390,
+            "top": 0,
+            "bottom": 844,
+            "width": 390,
+            "scroll": 388,
+            "client": 388
+          },
+          "documentWidth": 390,
+          "overflows": [],
+          "rowControlCount": 4,
+          "minimumRowControlWidth": 44,
+          "minimumRowControlHeight": 44
+        }
+      ],
+      "screenshots": [
+        "phone-dark-legacy-flat.png",
+        "phone-dark-legacy-source-references.png",
+        "phone-dark-legacy-reread-source-choices.png"
+      ],
+      "sourceReferences": [
+        {
+          "documentId": "owner-doc",
+          "field": "marks",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "durationMinutes",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "topics",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "tier",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "calculator",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "formats",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        },
+        {
+          "documentId": "owner-doc",
+          "field": "selection",
+          "page": 1,
+          "exactClaimQuoteRetained": true
+        }
+      ],
+      "checks": {
+        "flatLegacyLabelsAndNoInventedGroupsOrOutcomes": true,
+        "searchWithoutFabrication": true,
+        "rereadConfirmationEscapeAndSourceChoices": true,
+        "noAPIOrSavedDataChange": true,
+        "freshReloadRemainsLegacy": true,
+        "noHorizontalOverflow": true,
+        "noTopicPageCaptions": true,
+        "iconOnlyActionsWithAccessibleNamesTitlesAnd44pxTargets": true,
+        "plainCountsNoDecorativeSparklesAndFlatRowDividers": true
+      },
+      "presentationSummary": {
+        "stagesChecked": [
+          "legacy-flat-overview",
+          "legacy-flat-reloaded"
+        ],
+        "actionsMeasured": 10,
+        "minimumActionWidth": 44,
+        "minimumActionHeight": 44,
+        "allActionsHaveNoVisibleText": true,
+        "allActionsHaveAccessibleNamesAndTitles": true,
+        "headerSparklesObserved": 0,
+        "noTopicPageCaptions": true
+      }
+    }
+  ],
+  "errors": [],
+  "blockedRequests": [],
+  "screenshots": [
+    {
+      "file": "desktop-light-detailed-overview.png",
+      "sha256": "e5d812b2d5163e403317f2213f0258d02731fb67639c8adaf5a92c70f4df894d"
+    },
+    {
+      "file": "desktop-light-detailed-expanded.png",
+      "sha256": "38f3cded06276948521a3378fd8c71a3887e3c529e946c757713f509065ba076"
+    },
+    {
+      "file": "desktop-light-detailed-settings.png",
+      "sha256": "bea31caa97a1223a37c76c35f054c212241d90b0b7c69dd12671da01fb4ed7e5"
+    },
+    {
+      "file": "desktop-light-detailed-source-references.png",
+      "sha256": "475a32145984cd7f9135b9ba4de54e07ca87a59eb8300b7a941deaf82f4e8b18"
+    },
+    {
+      "file": "desktop-light-detailed-source.png",
+      "sha256": "61667371f73bd83a4d7bd3d8b3a552725ba9d7a4c2122bdb4084f0de399e437e"
+    },
+    {
+      "file": "desktop-light-detailed-edited-restored.png",
+      "sha256": "96544d9ef7ba8018867e68ec4f91c16ffaf425c65aa15724da6820c80377413f"
+    },
+    {
+      "file": "desktop-light-detailed-save-failure.png",
+      "sha256": "492cb4d667e75fbee42fd5320d4c0fb2066762635caf06acd767b9b8790c4fc0"
+    },
+    {
+      "file": "desktop-light-detailed-persisted.png",
+      "sha256": "6bb94f0e60104a04c219ea0cef9478d74411c900fa78e342bef0b5ce3895f94a"
+    },
+    {
+      "file": "desktop-light-detailed-added-topic-notes-reloaded.png",
+      "sha256": "4da9d15dad46cbcaa02ccbb79a7f7ae119a3f8d5ebf5084ff6901bc5dcb940c6"
+    },
+    {
+      "file": "desktop-light-detailed-new-generated-review.png",
+      "sha256": "2e493a6272a0822368f997948d54660ad52e0417fabe419bea966b7a6d3fb47a"
+    },
+    {
+      "file": "desktop-light-detailed-new-generated-reloaded.png",
+      "sha256": "11cbe1acb481c3c3d39d4acea122baf80bdfb690dde2d9b33b9ff5bde9ce70c0"
+    },
+    {
+      "file": "desktop-light-legacy-flat.png",
+      "sha256": "2f93dc3dced4accb7c5f8fa6d152ef990672367f72b8b34416d2c65a397b94f5"
+    },
+    {
+      "file": "desktop-light-legacy-source-references.png",
+      "sha256": "38d34ca2d09349e77f150396f6419148b48e12cbaadb2942e859ea7ad71d3643"
+    },
+    {
+      "file": "desktop-light-legacy-reread-source-choices.png",
+      "sha256": "c721f38eb2828bcc526977debd545435dc78b643dc1569f25af1d65e72c157b3"
+    },
+    {
+      "file": "desktop-dark-detailed-overview.png",
+      "sha256": "87be7a69716c59a0ae0fcd1ed590836cdecb13b0dfb0ebec2eb42bf1927aafda"
+    },
+    {
+      "file": "desktop-dark-detailed-expanded.png",
+      "sha256": "1d63463b4ff43385c26f5ea4fe34e29d1852b029d534c5b7194a1ec77883e257"
+    },
+    {
+      "file": "desktop-dark-detailed-settings.png",
+      "sha256": "f542adf97a6a28155c16ef61445e453aeccc571cb771c6afb3fb6011cf5d8a97"
+    },
+    {
+      "file": "desktop-dark-detailed-source-references.png",
+      "sha256": "f7032dba936eb92329d236486fd493e385405101874291d051c3f638d0a088cb"
+    },
+    {
+      "file": "desktop-dark-detailed-source.png",
+      "sha256": "955730a1076c85af5728d86ce743278f234c61ad5d354c404380a61514a0af1e"
+    },
+    {
+      "file": "desktop-dark-detailed-edited-restored.png",
+      "sha256": "898573acbc1d63cc18f2ba37bb54ea3682b0430b9de8a971f2eee7fd9fa8a368"
+    },
+    {
+      "file": "desktop-dark-detailed-save-failure.png",
+      "sha256": "5bf4be6f47464e25c79b96c2f731d8e4bf871e3f27b7e0fee96cf4154394cd09"
+    },
+    {
+      "file": "desktop-dark-detailed-persisted.png",
+      "sha256": "5ccb32c5751c25f92e8e552aba5ba9b67681f0475ba52619e8bf7c9dacb35a02"
+    },
+    {
+      "file": "desktop-dark-detailed-added-topic-notes-reloaded.png",
+      "sha256": "2f84bc1e417c1a65971692689ea72960182cfd4f35013b7910b8cd83a28a8449"
+    },
+    {
+      "file": "desktop-dark-detailed-new-generated-review.png",
+      "sha256": "62a19222dfe41dc7a71faf2a07bfb0d2c2a8d9bc8fe9cf785ba71e87ad1cffc6"
+    },
+    {
+      "file": "desktop-dark-detailed-new-generated-reloaded.png",
+      "sha256": "fec1c1f8f3e4560eed840b6d5bdeb2dcf92fad62d240320ab0ecdc06db4ff80d"
+    },
+    {
+      "file": "desktop-dark-legacy-flat.png",
+      "sha256": "bb28adeeafaaeda4d61730fab774a243aee71e3f94a9146d5f49384e62f9980d"
+    },
+    {
+      "file": "desktop-dark-legacy-source-references.png",
+      "sha256": "80ddfceadbdbaf13a1a21edc7b68be0af22696da1e07ccd9c331ffbebc0be4b8"
+    },
+    {
+      "file": "desktop-dark-legacy-reread-source-choices.png",
+      "sha256": "70c04993e74803744755e57455751d7a8821f8f5838ec94dd4743bb3da642b54"
+    },
+    {
+      "file": "ipad-light-detailed-overview.png",
+      "sha256": "c732de40beac894441ecd515f4df2747b5875dd94f3d645576adf2ba24f713e5"
+    },
+    {
+      "file": "ipad-light-detailed-expanded.png",
+      "sha256": "0ee2080e164b2ad562fdc8bd115f8b8c7203c68e12ddd1d8a1793b85ded418ca"
+    },
+    {
+      "file": "ipad-light-detailed-settings.png",
+      "sha256": "1299f815a73f70641a02fe27624f7a493f1098995ec2e3fa01e693b92d9fe552"
+    },
+    {
+      "file": "ipad-light-detailed-source-references.png",
+      "sha256": "e76acb614434afb8682b21b48157036c18ec1e89a430d3c2e6720628ece4ecb7"
+    },
+    {
+      "file": "ipad-light-detailed-source.png",
+      "sha256": "fd20dc54e4b1001b861b732b23b9169805afbc9f8a6444b3e3d77173af57474c"
+    },
+    {
+      "file": "ipad-light-detailed-edited-restored.png",
+      "sha256": "00f5a226c6d1935a2a56d85d877aca7bb492d3c4f9baa5bc343df1dcd4c42bd0"
+    },
+    {
+      "file": "ipad-light-detailed-save-failure.png",
+      "sha256": "5dc74f3737c976031264c46dcc6ada9fdc30de17e5848e68062360fa2e9f6d5a"
+    },
+    {
+      "file": "ipad-light-detailed-persisted.png",
+      "sha256": "42b4c741ba110525382977ee347a6d21d0aecbeb868fc1f27cca8850423e5a74"
+    },
+    {
+      "file": "ipad-light-detailed-added-topic-notes-reloaded.png",
+      "sha256": "57eb3ef4fa03e1bac463ab2587d647402abbedb04015c8ccaf0ff430a9be50ac"
+    },
+    {
+      "file": "ipad-light-detailed-new-generated-review.png",
+      "sha256": "724c37c2a73175f8bf521d170e44f151bc0eb142ac57ca3ec247c96e4af3b018"
+    },
+    {
+      "file": "ipad-light-detailed-new-generated-reloaded.png",
+      "sha256": "d7944d142156d0494c21599a8f417b4a4b62c00cb8b0afd4cc74efa07b479fdc"
+    },
+    {
+      "file": "ipad-light-legacy-flat.png",
+      "sha256": "a9f1acf39b6919a977941a52198a700fdbc23d9e378fd83fc8bf4f0610784ec0"
+    },
+    {
+      "file": "ipad-light-legacy-source-references.png",
+      "sha256": "7b283e980ed36529f4a03a06f370e1fe6b4d681010619835ca8a30c2461ac2e7"
+    },
+    {
+      "file": "ipad-light-legacy-reread-source-choices.png",
+      "sha256": "af18150d66719ba3f003c123ddaed53904ebed3a942de08bbaf59352f7d569bd"
+    },
+    {
+      "file": "ipad-dark-detailed-overview.png",
+      "sha256": "68f72ab360f54651b734da618fe4c49bd0bc4cfde64b7e1cd27610139102fce9"
+    },
+    {
+      "file": "ipad-dark-detailed-expanded.png",
+      "sha256": "ad217614006291fe862131fec61d8e2b7d0ba8d474c1bd425ae6f322a2c05c55"
+    },
+    {
+      "file": "ipad-dark-detailed-settings.png",
+      "sha256": "9937196d177e8af4f1c7590e49d969c9723eecb1d35fab88b6e6083337e7ba83"
+    },
+    {
+      "file": "ipad-dark-detailed-source-references.png",
+      "sha256": "c4ee6cab70feba99ce52f191918ec72b5deb64db516c5260adb086c1b7f0f562"
+    },
+    {
+      "file": "ipad-dark-detailed-source.png",
+      "sha256": "72ce7b03c2d2714796ad76489622fc44cb20c81626fcf52f0843980a2a9c89cc"
+    },
+    {
+      "file": "ipad-dark-detailed-edited-restored.png",
+      "sha256": "36e5364d7cd0ebaa2ca3a609ea9ecb3bea3cfb100f450df25cbfa696dbe10399"
+    },
+    {
+      "file": "ipad-dark-detailed-save-failure.png",
+      "sha256": "56aa5d6d60658ddfaeaff8545eaf156fc29f4f48d01e1bf13118f9a00be276ef"
+    },
+    {
+      "file": "ipad-dark-detailed-persisted.png",
+      "sha256": "add918d09c54fe92f1106208c30af42fdaa1d5f555e9ba0ca9088bb30b7e63b6"
+    },
+    {
+      "file": "ipad-dark-detailed-added-topic-notes-reloaded.png",
+      "sha256": "3222359f2019eaa79c9ea67f8eb655ea05775a830042db713f88d456872875bb"
+    },
+    {
+      "file": "ipad-dark-detailed-new-generated-review.png",
+      "sha256": "b9e678f386debfb2ba9c9ebf6ac681f6e29cf864a1588c2d737b58a88311322e"
+    },
+    {
+      "file": "ipad-dark-detailed-new-generated-reloaded.png",
+      "sha256": "df6ba34933098af5997852537707591bae9c04df8502e9d07a7dd3f9c2ed9855"
+    },
+    {
+      "file": "ipad-dark-legacy-flat.png",
+      "sha256": "93f77d260b55e070cfc9ab295f3cf1fb047d5f2a69f134880530a55325d033b8"
+    },
+    {
+      "file": "ipad-dark-legacy-source-references.png",
+      "sha256": "67ca1e60d561187385ccf50f6c8268247b7f4c7e7618213b4443b01a9a22961e"
+    },
+    {
+      "file": "ipad-dark-legacy-reread-source-choices.png",
+      "sha256": "629866b3d6ea0998ac15e15b53fed902c602205e30f6ee9ea87764ad65005895"
+    },
+    {
+      "file": "phone-light-detailed-overview.png",
+      "sha256": "5ca6a317906bb7b2b80a072cc879b33365e067de3f9675547e53f354ca15820f"
+    },
+    {
+      "file": "phone-light-detailed-expanded.png",
+      "sha256": "7fc1cae5d740b688c70813c39833dce574602f341d16abd30f5fba1f3033b74c"
+    },
+    {
+      "file": "phone-light-detailed-settings.png",
+      "sha256": "f3c0a7009146948cda653456b1805b04aebafeff0f47218187aaf61f44fb4b20"
+    },
+    {
+      "file": "phone-light-detailed-source-references.png",
+      "sha256": "7fc98c0da1b5ce3d0cc0c5c4d7eb1a5d30b40e9394c7fc0c73abc9892410d938"
+    },
+    {
+      "file": "phone-light-detailed-source.png",
+      "sha256": "3ade5e268ade492770bb0672778071aed1948dc091ca5b8f7a151e21ee03d097"
+    },
+    {
+      "file": "phone-light-detailed-edited-restored.png",
+      "sha256": "ebd4792f0b110f0283b0573d66ec81c7e2c41344871fde02a38e863901b59a38"
+    },
+    {
+      "file": "phone-light-detailed-save-failure.png",
+      "sha256": "f8b28bef4989c8d540b6c4698f9ee900500414b7266a65d65616abbe2f8b600e"
+    },
+    {
+      "file": "phone-light-detailed-persisted.png",
+      "sha256": "0479e4837eabe560cb4ac840ae5a50fe3c0b71e75e6e8b010cc90e42e8aad44c"
+    },
+    {
+      "file": "phone-light-detailed-added-topic-notes-reloaded.png",
+      "sha256": "25c59083d73aadbcd910b12cf83e3dcefc84b7259dd0a368848853ece3a9adbd"
+    },
+    {
+      "file": "phone-light-detailed-new-generated-review.png",
+      "sha256": "80e5e6feab64f6aa30d4a889e2769730f7aac8759006664d9c861ed6fd885523"
+    },
+    {
+      "file": "phone-light-detailed-new-generated-reloaded.png",
+      "sha256": "25291e8b81c310c761dff9409317f92b1de0e37a84889ae85c07e1f48f53eaf2"
+    },
+    {
+      "file": "phone-light-legacy-flat.png",
+      "sha256": "f2c8b78abb7b9dc91d7937b72b4a6fe76ccf6ef1f42977146f59550d439568a4"
+    },
+    {
+      "file": "phone-light-legacy-source-references.png",
+      "sha256": "46d86ad34c01ef601de865cded70a3983497dd723c50c483f9b76b12249885ef"
+    },
+    {
+      "file": "phone-light-legacy-reread-source-choices.png",
+      "sha256": "242a4f6d74b77f5169dc2c7f5922b4aa7c5ce18b31e4e739dd9fafafca016b69"
+    },
+    {
+      "file": "phone-dark-detailed-overview.png",
+      "sha256": "c1c069a2b4314db1787a63fc3eef4a1e1fdf35e405e3d8deece07b01a799e951"
+    },
+    {
+      "file": "phone-dark-detailed-expanded.png",
+      "sha256": "9313dae0223b2f135f13e959a4e6747477d19b4b77237aec7a163c94e841292f"
+    },
+    {
+      "file": "phone-dark-detailed-settings.png",
+      "sha256": "019c180e6839681675e439607348205b7c5176b1dd4a738c2e8de84fa9dd2d95"
+    },
+    {
+      "file": "phone-dark-detailed-source-references.png",
+      "sha256": "7026505cd9d30ef77c76a8ed3b19e4d5e3c7403a14d65cc8798ac94b4a4e639b"
+    },
+    {
+      "file": "phone-dark-detailed-source.png",
+      "sha256": "bf6b06aa95fa0d48ae23e6cef1ad0fd982ad2771ea756679dcb223791653e5b7"
+    },
+    {
+      "file": "phone-dark-detailed-edited-restored.png",
+      "sha256": "ee842141a18d6486579db3576fd2e2f96b2d0f482f5a7c87398842af03486a5c"
+    },
+    {
+      "file": "phone-dark-detailed-save-failure.png",
+      "sha256": "f757113a222c20feb3f44fd0648c7a9fe750cd7829133c8dbe7bedf528e859b0"
+    },
+    {
+      "file": "phone-dark-detailed-persisted.png",
+      "sha256": "6402d416ced3a6101d17dfcfa42c8f0beaa708a73db27fb0ffb1496091955de4"
+    },
+    {
+      "file": "phone-dark-detailed-added-topic-notes-reloaded.png",
+      "sha256": "e950f81d253b6de93543551f3d672ee1f3ebf225b571794a2ba1a1e56c3c5cf5"
+    },
+    {
+      "file": "phone-dark-detailed-new-generated-review.png",
+      "sha256": "2be0b10ce246b4d3d73ee9d4ad2ae9cf5704acfda6758bb81c62e844cf4fc6bd"
+    },
+    {
+      "file": "phone-dark-detailed-new-generated-reloaded.png",
+      "sha256": "74398160c5e891f6635998b1dd6281c00ae10494dcb7bfbcf60a4227b5111bfb"
+    },
+    {
+      "file": "phone-dark-legacy-flat.png",
+      "sha256": "9ac9433c5f0cd5257b4140f7f5f51d94394edf0d27a4152d2a9b36f38c758d11"
+    },
+    {
+      "file": "phone-dark-legacy-source-references.png",
+      "sha256": "635918ac3bace2f1eb5ad6c74eaeb687b2a4f022dc0f1cf4aaaac53b4f6fdd38"
+    },
+    {
+      "file": "phone-dark-legacy-reread-source-choices.png",
+      "sha256": "8ba713c86b90ac8df23ba61fc5ac25cd8d1a9ee5236e6d2e5944d528f9265abe"
+    }
+  ],
+  "hashesBefore": {
+    "status": "PASS",
+    "applicationFiles": 852,
+    "serverFiles": 195,
+    "dependencyInputs": 1756,
+    "applicationDifferences": [],
+    "serverDifferences": [],
+    "dependencyDifferencesWithinRun": [],
+    "fixtureDifferences": [],
+    "fontDifferences": [],
+    "outputDifferences": [],
+    "runtime": {
+      "node": "v24.19.0",
+      "platform": "linux",
+      "architecture": "x64",
+      "osRelease": "6.18.57",
+      "packages": {
+        "esbuild": "0.28.2",
+        "postcss": "8.5.6",
+        "postcss-import": "15.1.0",
+        "tailwindcss": "3.4.17",
+        "autoprefixer": "10.4.21",
+        "react": "18.3.1",
+        "react-dom": "18.3.1",
+        "react-router-dom": "6.26.2",
+        "unpdf": "1.8.1",
+        "zod": "4.6.2"
+      }
+    },
+    "policy": "Every recorded application/server/config/lockfile/fixture/font/dependency input and generated bundle/style output must match the frozen build. Server pinning does not imply that backend endpoints ran in the browser."
+  },
+  "hashesAfter": {
+    "status": "PASS",
+    "applicationFiles": 852,
+    "serverFiles": 195,
+    "dependencyInputs": 1756,
+    "applicationDifferences": [],
+    "serverDifferences": [],
+    "dependencyDifferencesWithinRun": [],
+    "fixtureDifferences": [],
+    "fontDifferences": [],
+    "outputDifferences": [],
+    "runtime": {
+      "node": "v24.19.0",
+      "platform": "linux",
+      "architecture": "x64",
+      "osRelease": "6.18.57",
+      "packages": {
+        "esbuild": "0.28.2",
+        "postcss": "8.5.6",
+        "postcss-import": "15.1.0",
+        "tailwindcss": "3.4.17",
+        "autoprefixer": "10.4.21",
+        "react": "18.3.1",
+        "react-dom": "18.3.1",
+        "react-router-dom": "6.26.2",
+        "unpdf": "1.8.1",
+        "zod": "4.6.2"
+      }
+    },
+    "policy": "Every recorded application/server/config/lockfile/fixture/font/dependency input and generated bundle/style output must match the frozen build. Server pinning does not imply that backend endpoints ran in the browser."
+  },
+  "finishedAt": "2026-11-23T19:54:12.376Z",
+  "expectedCases": 12,
+  "reportFormat": "Condensed acceptance report; full raw geometry, computed styles and synthetic saved contexts remain in the external artifact.",
+  "fullReport": {
+    "path": "/tmp/profile-builder-style-cleanup/browser-results.json",
+    "sha256": "1e7648d2824572db8cc545afa898f8b815988acf2bb7cc3f5bf6d391e1f9468d"
+  }
+}
