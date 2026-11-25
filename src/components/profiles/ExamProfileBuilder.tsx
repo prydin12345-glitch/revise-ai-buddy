@@ -744,7 +744,8 @@ export function ExamProfileBuilder({
     }
     if (job.stage === "failed") {
       attachments.setStatus("error");
-      setError(job.message);
+      // The owned job panel already shows the failure and its details.
+      setError("");
       setChangingClarification(false);
       setStep("details");
     }
@@ -1748,6 +1749,19 @@ export function ExamProfileBuilder({
     setChangeKnown(true);
     setStep("details");
   };
+  const buildRecovery = blockingSource && (
+    <div className="flex flex-wrap gap-2" aria-label="Build recovery">
+      <Button type="button" size="sm" variant="outline" disabled={busy}
+        onClick={changeSourceDetails}>Change details or documents</Button>
+      <Button type="button" size="sm" variant="outline" disabled={busy}
+        onClick={() => setRestartOpen(true)}>Start new build</Button>
+      {(error || sourceJob?.stage === "failed") && sourceJob &&
+        !["reading", "identifying", "drafting"].includes(sourceJob.stage) && (
+          <Button type="button" size="sm" variant="outline" disabled={busy}
+            onClick={() => void resumeSource()}>Check progress</Button>
+        )}
+    </div>
+  );
   return (
     <>
       <Dialog
@@ -1932,6 +1946,7 @@ export function ExamProfileBuilder({
                     ))}
                   </ul>
                 ) : null}
+                {sourceJob.stage === "failed" && buildRecovery}
                 <BuilderEvidenceDetails job={sourceJob} />
                 {!busy &&
                   ["reading", "identifying", "drafting"].includes(
@@ -2049,40 +2064,7 @@ export function ExamProfileBuilder({
                 {sourceJob && <BuilderEvidenceDetails job={sourceJob} />}
               </div>
             )}
-            {blockingSource && (
-              <div className="flex flex-wrap gap-2" aria-label="Build recovery">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={busy}
-                  onClick={changeSourceDetails}
-                >
-                  Change details or documents
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => setRestartOpen(true)}
-                >
-                  Start new build
-                </Button>
-                {error && sourceJob &&
-                  !["reading", "identifying", "drafting"].includes(sourceJob.stage) && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() => void resumeSource()}
-                    >
-                      Check progress
-                    </Button>
-                  )}
-              </div>
-            )}
+            {(sourceJob?.stage !== "failed" || focusedFollowup) && buildRecovery}
             {!focusedSource && !isAIReview && (
               <BuilderAttachments
                 files={attachments.files}

@@ -11,8 +11,8 @@ describe("profile builder per-call time budget", () => {
   it("refuses to start a drafting call with under 30 s left", () => {
     expect(sourceCallBudgetMs("drafting", 95_000)).toBe(0);
   });
-  it("keeps reading calls at 45 s", () => {
-    expect(sourceCallBudgetMs("reading", 0)).toBe(45_000);
+  it("allows a 55 s read within the 60 s lease and remaining job budget", () => {
+    expect(sourceCallBudgetMs("reading", 0)).toBe(55_000);
     expect(sourceCallBudgetMs("identifying", 100_000)).toBe(20_000);
   });
 });

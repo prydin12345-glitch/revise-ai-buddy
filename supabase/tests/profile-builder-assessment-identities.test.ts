@@ -213,7 +213,7 @@ describe("owned assessment identity and manually confirmed component codes", () 
     expect((await advanceSourceJob(owner, input.requestId, fixture.deps)).stage).toBe("identifying");
     const failed = await advanceSourceJob(owner, input.requestId, fixture.deps);
     expect(failed.stage).toBe("failed");
-    expect(failed.needs?.join()).toMatch(/possibly charged/);
+    expect(failed.needs?.join()).toMatch(/may have been charged/);
     expect(failed.validationIssues).toMatchObject([
       { attempt: 1, code: "identity_conflict", field: "component" },
       { attempt: 2, code: "provider_outcome_unknown" },

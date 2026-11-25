@@ -17,6 +17,8 @@ import { canonical, checksum } from "../_shared/profile-template.ts";
 import { resolveSavedTemplate } from "../_shared/profile-template-context.ts";
 import { evaluateApproval } from "../_shared/preset-approval.ts";
 import { normaliseSourceRequest } from "../_shared/profile-builder-identity.ts";
+import { SourceCallUncertainError } from "../_shared/profile-builder-diagnostics.ts";
+import { readBuilderCompletion } from "./provider-response.ts";
 import {
   sourceJobRequestSchema,
   createProfileBuilderJobStore,
@@ -94,13 +96,13 @@ Deno.serve(async (req) => {
     if (!key)
       throw new SafeError("The backend AI provider is not configured.", 503);
   };
-  const model: SourceJobDeps["model"] = async (system, payload, budgetMs) => {
+  const model: SourceJobDeps["model"] = async (system, payload, budgetMs, sourceStage) => {
     const deadline = Date.now() + budgetMs;
-    const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
+    const signal = AbortSignal.timeout(budgetMs);
+    try {
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
-        signal: AbortSignal.timeout(budgetMs),
+        signal,
         headers: {
           Authorization: `Bearer ${key}`,
           "Content-Type": "application/json",
@@ -114,40 +116,32 @@ Deno.serve(async (req) => {
           max_tokens: 12000,
           temperature: 0.2,
           response_format: { type: "json_object" },
+          ...(sourceStage ? { stream: true, stream_options: { include_usage: true } } : {}),
         }),
-      },
-    );
-    if (!response.ok)
-      throw new SafeError(
-        "The provider could not finish. This request cannot repeat a paid call.",
-        502,
-      );
-    const data = JSON.parse(
-      new TextDecoder().decode(
-        await readLimitedBody(
-          response.body,
-          250_000,
-          Math.max(1, deadline - Date.now()),
-        ),
-      ),
-    );
-    let value: unknown;
-    try {
-      value = JSON.parse(data.choices?.[0]?.message?.content ?? "");
-    } catch {
-      value = { invalidOutput: true };
+      });
+      if (!response.ok) {
+        void response.body?.cancel().catch(() => {});
+        if (sourceStage) {
+          throw new SourceCallUncertainError(
+            response.status === 429 ? "busy"
+              : [408, 504].includes(response.status) ? "timeout"
+              : "unavailable",
+          );
+        }
+        throw new SafeError(
+          "The provider could not finish. This request cannot repeat a paid call.",
+          502,
+        );
+      }
+      return await readBuilderCompletion(response, deadline - Date.now());
+    } catch (error) {
+      if (!sourceStage) throw error;
+      const failure = error instanceof SourceCallUncertainError ? error
+        : new SourceCallUncertainError(signal.aborted || Date.now() >= deadline
+          ? "timeout" : "interrupted");
+      console.error("profile_builder_provider_failure", sourceStage, failure.reason);
+      throw failure;
     }
-    const tokens = (v: unknown) =>
-      Number.isSafeInteger(Number(v)) &&
-      Number(v) >= 0 &&
-      Number(v) <= 10_000_000
-        ? Number(v)
-        : 0;
-    return {
-      value,
-      promptTokens: tokens(data.usage?.prompt_tokens),
-      completionTokens: tokens(data.usage?.completion_tokens),
-    };
   };
   try {
     // Upload bundles are bounded again after decoding (3 MB/file, 6 MB total).
