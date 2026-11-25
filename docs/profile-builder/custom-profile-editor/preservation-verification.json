@@ -1,0 +1,14 @@
+{
+  "baseline": "9f4f0f95fc9c2f21dbdd638d2e070999bc4a154c",
+  "previousHarnessChanges": [],
+  "previousArtifactReports": [
+    {
+      "path": "/tmp/profile-builder-style-cleanup/browser-results.json",
+      "expectedSha256": "1e7648d2824572db8cc545afa898f8b815988acf2bb7cc3f5bf6d391e1f9468d",
+      "actualSha256": "1e7648d2824572db8cc545afa898f8b815988acf2bb7cc3f5bf6d391e1f9468d",
+      "unchanged": true
+    }
+  ],
+  "packageAndEnvironmentChanges": [],
+  "status": "PASS"
+}

@@ -152,7 +152,7 @@ const CreatePracticeQuestions = () => {
   const selectedProfile = selectedProfileId && selectedProfileId !== 'all_topics'
     ? getProfilesForSubject(subjectId).find(profile => profile.id === selectedProfileId)
     : null;
-  const getTopicLabel = (topic: string) => profileTopicLabel(selectedProfile?.profile_template, topic);
+  const getTopicLabel = (topic: string) => profileTopicLabel(selectedProfile, topic);
 
   // Pre-fill from weak topics navigation
   // Deep-link contract from subject pages: ?subject= &subtopic= (legacy &topic=

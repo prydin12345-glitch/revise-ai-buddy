@@ -1,0 +1,63 @@
+{
+  "status": "PASS",
+  "cases": [
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "status": "PASS",
+      "childEscapeReturnsFocus": true,
+      "dirtyCloseKeepEditingRetainsDraft": true,
+      "discardCloseReleasesPointerLock": true,
+      "reopenRestoresSavedProfile": true,
+      "zeroPersistenceCalls": true,
+      "errors": [],
+      "blocked": []
+    },
+    {
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "status": "PASS",
+      "childEscapeReturnsFocus": true,
+      "dirtyCloseKeepEditingRetainsDraft": true,
+      "discardCloseReleasesPointerLock": true,
+      "reopenRestoresSavedProfile": true,
+      "zeroPersistenceCalls": true,
+      "errors": [],
+      "blocked": []
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "status": "PASS",
+      "childEscapeReturnsFocus": true,
+      "dirtyCloseKeepEditingRetainsDraft": true,
+      "discardCloseReleasesPointerLock": true,
+      "reopenRestoresSavedProfile": true,
+      "zeroPersistenceCalls": true,
+      "errors": [],
+      "blocked": []
+    }
+  ],
+  "hashesBefore": {
+    "status": "PASS",
+    "inputs": 3534,
+    "differences": [],
+    "outputDifferences": []
+  },
+  "hashesAfter": {
+    "status": "PASS",
+    "inputs": 3534,
+    "differences": [],
+    "outputDifferences": []
+  },
+  "boundary": "Actual frozen production components with synthetic offline storage. No live account, data, provider or physical Apple hardware."
+}

@@ -927,7 +927,7 @@ export default function CreateExam() {
                         <div className="space-y-2">{profile&&<ProfileApprovalBadge profile={profile}/>}<CurriculumTopicBadge
                           profileName={profile?.profile_name || 'All Saved Topics'}
                           topics={profileTopics}
-                          getTopicLabel={topic => profileTopicLabel(profile?.profile_template, topic)}
+                          getTopicLabel={topic => profileTopicLabel(profile, topic)}
                           questionCount={totalQuestions}
                           questionLimit={profileMaxQuestions}
                           subjectColor={subjectColor}

@@ -1,7 +1,7 @@
 import {renderProfileBasics,openPaperDetails} from "./profile-test-render";
 import {afterEach,expect,it,vi} from 'vitest';
 import {createContext,useContext,cloneElement} from 'react';
-import {cleanup,fireEvent,render,screen} from '@testing-library/react';
+import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import {ExamProfileModal} from '@/components/stats/ExamProfileModal';
 import {resolveProfileContext} from '@/lib/profile-context';
 import {biologyPaperDisplay,gatewaySectionHeading,biologyResponseNotice} from '@/lib/biology-paper-display';
@@ -74,11 +74,12 @@ it('keeps OCR MCQ answer boxes above the footer after a data table',async()=>{
   expect(positions).toHaveLength(5);expect(positions.every(fromBottom=>fromBottom>=24)).toBe(true);
 });
 
-it('reopens and resaves a v1 Paper 2 profile unchanged, upgrading only after explicit reapplication',()=>{
+it('reopens and resaves a v1 Paper 2 profile unchanged, upgrading only after explicit reapplication',async()=>{
   const snapshot=ocrAlevelSnapshot(),bp={paperContract:snapshot.paper_contract,courseSelection:{courseId:OCR_ALEVEL_BIOLOGY_ID,paperId:'paper_2'}};
   const {save}=editor({...base,assessment_tier:'not_tiered',paper_blueprint:bp});
   fireEvent.click(screen.getByRole('button',{name:'Update Profile'}));
   expect(save.mock.calls[0][5].paperBlueprint.paperContract.contractVersion).toBe(1);
+  await waitFor(()=>expect(screen.getByRole('button',{name:'Update Profile'})).not.toBeDisabled());
   fireEvent.click(screen.getByRole('button',{name:/^Full mock/}));fireEvent.click(screen.getByRole('button',{name:'Use these settings'}));openPaperDetails();
   fireEvent.click(screen.getByRole('button',{name:'Update Profile'}));
   expect(save.mock.calls[1][5].paperBlueprint.paperContract.contractVersion).toBe(2);

@@ -102,7 +102,7 @@ export function ProfilePaperPreview({
       data-testid="profile-paper-preview"
     >
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-        <span className="font-serif text-base text-foreground">
+        <span className="text-sm font-medium text-foreground">
           {subjectName}
         </span>
         <span className="text-[11px] text-muted-foreground">
@@ -122,7 +122,7 @@ export function ProfilePaperPreview({
                   (index === 0 ||
                     groups[index - 1].parts[0]?.section !==
                       group.parts[0].section) && (
-                    <h4 className="border-b border-border pb-2 font-serif text-sm">
+                    <h4 className="border-b border-border pb-2 text-sm font-medium">
                       Section {group.parts[0].section}
                     </h4>
                   )}

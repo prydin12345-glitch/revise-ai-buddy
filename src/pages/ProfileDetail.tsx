@@ -304,7 +304,7 @@ export default function ProfileDetail() {
             profileId={profileId!}
             profileTopics={profile.topics || []}
             subjectName={decodedSubject}
-            getTopicLabel={(topic) => profileTopicLabel(profile.profile_template, topic)}
+            getTopicLabel={(topic) => profileTopicLabel(profile, topic)}
           />
         </section>
 

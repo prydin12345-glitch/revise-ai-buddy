@@ -1,4 +1,4 @@
-import {renderProfileBasics,openPaperDetails} from "./profile-test-render";
+import {renderProfileBasics,openPaperDetails,saveProfile} from "./profile-test-render";
 import {afterEach,expect,it,vi} from 'vitest';
 import {createContext,useContext,cloneElement} from 'react';
 import {cleanup,fireEvent,render,screen} from '@testing-library/react';
@@ -33,30 +33,30 @@ function apply(mode:'full_mock'|'short_practice'){
   fireEvent.click(screen.getByRole('button',{name:mode==='full_mock'?/^Full mock/:/^Short practice/}));
   fireEvent.click(screen.getByRole('button',{name:'Use these settings'}));openPaperDetails();
 }
-it.each(['full_mock','short_practice'] as const)('saves and reopens explicit untiered Paper 3 %s with correct totals',mode=>{
+it.each(['full_mock','short_practice'] as const)('saves and reopens explicit untiered Paper 3 %s with correct totals',async mode=>{
   const {save,unmount}=editor(),{plan,snapshot}=ocrPaper3Fixture(mode);apply(mode);
   for(const number of [1,2,3])expect(screen.getByRole('option',{name:new RegExp(`Paper ${number}`)})).not.toBeDisabled();
   expect(screen.queryByRole('button',{name:'Higher'})).toBeNull();expect(screen.queryByRole('button',{name:'Foundation'})).toBeNull();
   expect(screen.getByText(/Paper 3: Unified biology.*70 marks.*1 hour 30 minutes/)).toBeVisible();
   expect(screen.getByText(/Short practice:.*20 marks \/ 26 minutes.*Examly development template/)).toBeVisible();
-  fireEvent.click(screen.getByRole('button',{name:'Update Profile'}));const args=save.mock.calls[0];
+  await saveProfile();const args=save.mock.calls[0];
   expect(args[2]).toBe(plan.partCount);expect(args[4]).toBe(plan.durationMinutes);expect(args[5].assessmentTier).toBe('not_tiered');
   expect(args[5].mcqCount).toBe(0);expect(args[6]).toBe(plan.partCount);expect(args[7].parentQuestionCount).toBe(plan.parentCount);expect(args[1]).toHaveLength(6);
   expect(args[5].paperBlueprint.paperContract).toEqual(snapshot.paper_contract);expect(args[5].paperBlueprint.courseSelection.paperId).toBe('paper_3');
   unmount();const next=editor({...base,topics:args[1],question_count:args[2],written_question_count:args[6],mcq_count:0,time_limit_minutes:args[4],assessment_tier:'not_tiered',paper_blueprint:args[5].paperBlueprint,question_structure:args[7].questionStructure});
   expect(screen.getByLabelText('Biology paper')).toHaveValue('paper_3');expect(screen.queryByText('Use these settings')).toBeNull();
-  fireEvent.click(screen.getByRole('button',{name:'Update Profile'}));expect(next.save.mock.calls[0][5].paperBlueprint.paperContract).toEqual(snapshot.paper_contract);
+  await saveProfile();expect(next.save.mock.calls[0][5].paperBlueprint.paperContract).toEqual(snapshot.paper_contract);
   const ctx=resolveProfileContext({subjectName:'Biology',profile:{id:'p',exam_board:'OCR',educational_tier:'level3',assessment_tier:'not_tiered',paper_blueprint:args[5].paperBlueprint}});
   expect(ctx.configurationError).toBeNull();expect(ctx.componentCode).toBe('H420/03');expect(ctx.assessmentTierSupported).toBe(false);
 });
-it('preserves manual topics/count/time in Custom with explicit Paper 3 identity',()=>{
-  const {save}=editor({...base,paper_blueprint:{courseSelection:{courseId:OCR_ALEVEL_BIOLOGY_ID,paperId:'paper_3'}}});fireEvent.click(screen.getByRole('button',{name:'Update Profile'}));
+it('preserves manual topics/count/time in Custom with explicit Paper 3 identity',async()=>{
+  const {save}=editor({...base,paper_blueprint:{courseSelection:{courseId:OCR_ALEVEL_BIOLOGY_ID,paperId:'paper_3'}}});await saveProfile();
   const args=save.mock.calls[0];expect(args[1]).toEqual(base.topics);expect(args[2]).toBe(8);expect(args[4]).toBe(45);expect(args[5].paperBlueprint.courseSelection.paperId).toBe('paper_3');expect(args[5].paperBlueprint.paperContract).toBeUndefined();
 });
-it.each([ocrAlevelSnapshot(),ocrPaper2Snapshot(),ocrPaper2V2Snapshot()])('reopens and resaves the existing $component_code contract v$paper_contract.contractVersion unchanged',snapshot=>{
+it.each([ocrAlevelSnapshot(),ocrPaper2Snapshot(),ocrPaper2V2Snapshot()])('reopens and resaves the existing $component_code contract v$paper_contract.contractVersion unchanged',async snapshot=>{
   const {save}=editor({...base,assessment_tier:'not_tiered',paper_blueprint:{paperContract:snapshot.paper_contract,courseSelection:{courseId:OCR_ALEVEL_BIOLOGY_ID,paperId:snapshot.paper_id}}});
   expect(screen.getByLabelText('Biology paper')).toHaveValue(snapshot.paper_id);
-  fireEvent.click(screen.getByRole('button',{name:'Update Profile'}));expect(save.mock.calls[0][5].paperBlueprint.paperContract).toEqual(snapshot.paper_contract);
+  await saveProfile();expect(save.mock.calls[0][5].paperBlueprint.paperContract).toEqual(snapshot.paper_contract);
 });
 it('labels screen/review without Section A/B or tier and retains OCR extended notices',()=>{
   const c=ocrPaper3Snapshot();expect(biologyPaperDisplay(c)?.label).toContain('H420/03 · Unified biology');expect(biologyPaperDisplay(c)?.label).not.toMatch(/Higher|Foundation/);
@@ -80,10 +80,10 @@ it('builds only a blank public plotting response and retains existing save/resto
   expect(unifiedPlottingData(ocrPaper2Snapshot(),q)).toBeNull();expect(unifiedPlottingData(f.snapshot,f.rows[2])).toBeNull();expect(unifiedPlottingData(f.snapshot,{...q,diagram_config:null})).toBeNull();
   const points=[{x:10,y:2},{x:20,y:5}];expect(parseGraphResponse(serializeGraphPlottingResponse(points))).toMatchObject({_type:'graph_plotting',points});
 });
-it.each(['full_mock','short_practice'] as const)('preserves explicit visual policy on %s reopen and permits deliberate removal while reviews are pending',mode=>{
+it.each(['full_mock','short_practice'] as const)('preserves explicit visual policy on %s reopen and permits deliberate removal while reviews are pending',async mode=>{
  const snapshot=ocrPaper3Snapshot(mode);const bp={courseSelection:{courseId:OCR_ALEVEL_BIOLOGY_ID,paperId:'paper_3'},paperContract:snapshot.paper_contract,visualAssessment:'ocr_h420_03_visual_v1',responseFormats:'interactive_v1'};
- const {save}=editor({...base,assessment_tier:'not_tiered',paper_blueprint:bp});fireEvent.click(screen.getByRole("button",{name:"Your paper"}));const visual=screen.getByRole('checkbox',{name:/Reviewed Biology visual assessments/});expect(visual).toBeChecked();expect(visual).not.toBeDisabled();
- fireEvent.click(screen.getByRole('button',{name:'Update Profile'}));expect(save.mock.calls[0][5].paperBlueprint.visualAssessment).toBe(bp.visualAssessment);
- fireEvent.click(visual);expect(visual).not.toBeChecked();expect(visual).toBeDisabled();fireEvent.click(screen.getByRole('button',{name:'Update Profile'}));expect(save.mock.calls[1][5].paperBlueprint.visualAssessment).toBeUndefined();expect(save.mock.calls[1][5].paperBlueprint.paperContract).toEqual(snapshot.paper_contract);
+ const {save}=editor({...base,assessment_tier:'not_tiered',paper_blueprint:bp});fireEvent.click(screen.getByRole("button",{name:"Paper layout"}));const visual=screen.getByRole('checkbox',{name:/Reviewed Biology visual assessments/});expect(visual).toBeChecked();expect(visual).not.toBeDisabled();
+ await saveProfile();expect(save.mock.calls[0][5].paperBlueprint.visualAssessment).toBe(bp.visualAssessment);
+ fireEvent.click(visual);expect(visual).not.toBeChecked();expect(visual).toBeDisabled();await saveProfile();expect(save.mock.calls[1][5].paperBlueprint.visualAssessment).toBeUndefined();expect(save.mock.calls[1][5].paperBlueprint.paperContract).toEqual(snapshot.paper_contract);
 });
-it('cannot enable synthetic visual assets on a fresh Paper 3 profile',()=>{editor();apply('short_practice');fireEvent.click(screen.getByRole("button",{name:"Your paper"}));expect(screen.getByRole('checkbox',{name:/Reviewed Biology visual assessments/})).toBeDisabled();fireEvent.click(screen.getByRole("button",{name:"Your paper"}));expect(screen.getByRole('checkbox',{name:/Reviewed Biology visual assessments/})).not.toBeChecked();});
+it('cannot enable synthetic visual assets on a fresh Paper 3 profile',()=>{editor();apply('short_practice');fireEvent.click(screen.getByRole("button",{name:"Paper layout"}));expect(screen.getByRole('checkbox',{name:/Reviewed Biology visual assessments/})).toBeDisabled();fireEvent.click(screen.getByRole("button",{name:"Exam settings"}));fireEvent.click(screen.getByRole("button",{name:"Paper layout"}));expect(screen.getByRole('checkbox',{name:/Reviewed Biology visual assessments/})).not.toBeChecked();});

@@ -1,0 +1,150 @@
+{
+  "status": "PASS",
+  "baseline": "9f4f0f95fc9c2f21dbdd638d2e070999bc4a154c",
+  "branch": "codex/custom-profile-editor",
+  "runtime": {
+    "node": "v24.19.0",
+    "npm": "11.9.0"
+  },
+  "dependencies": {
+    "command": "npm ls --depth=0 --cache /tmp/examly-business-npm-cache",
+    "status": "PASS",
+    "log": "/tmp/custom-profile-npm-ls.log",
+    "changes": []
+  },
+  "repositoryCheck": {
+    "command": "npm run check",
+    "exitCode": 0,
+    "status": "PASS",
+    "testFiles": 233,
+    "testsPassed": 3906,
+    "testsFailed": 0,
+    "frontendTypecheck": "PASS",
+    "physicsTypecheck": "PASS",
+    "criticalLint": "PASS",
+    "edgeIdentifierCheck": "PASS",
+    "edgeFunctionsBundled": 39,
+    "productionBuild": "PASS",
+    "log": "/tmp/custom-profile-release-check.log"
+  },
+  "priorTimeout": {
+    "test": "src/test/practice-profile-topic-presentation.test.tsx: typing an exact alias and pressing Enter adds the canonical topic once",
+    "earlierResult": "Timed out at 30000ms in an earlier full run",
+    "isolatedRecheck": "9/9 passed, /tmp/custom-profile-practice-recheck.log",
+    "finalFullRun": "All tests passed with unchanged timeout configuration"
+  },
+  "transfer": {
+    "test": "src/test/custom-profile-editor-transfer.test.tsx",
+    "cases": 9,
+    "status": "PASS",
+    "boundary": "Production editor → shared parent payload mapper → actual hook → owned synthetic in-memory persistence → reopen. Browser fixture does not mount the full SubjectDetail page or a deployed database.",
+    "parentCallbackTest": "src/test/custom-profile-save.test.tsx also mounts the real SubjectDetail callback with controlled dependencies",
+    "checks": [
+      "Exact raw topic strings/order/duplicates including a topic absent from the library",
+      "Unchanged fields, nulls, zeroes, custom qualification, unknown tier, mixed calculator and nested JSON",
+      "Canonical topic identity and display metadata including unknown alias fields",
+      "Layout mark edits retain optional choices and unknown section/question metadata",
+      "Failed saves retain the draft and permit retry",
+      "Partial create returns the inserted ID and retry updates it without duplicate insert",
+      "Guided versioned identity and existing locks remain intact",
+      "Other synthetic owner row remains untouched"
+    ]
+  },
+  "browser": {
+    "status": "PASS",
+    "cases": 18,
+    "startedAt": "2026-11-24T20:17:24.197Z",
+    "finishedAt": "2026-11-24T20:19:26.349Z",
+    "screenshots": 78,
+    "viewports": [
+      "desktop 1440x1000",
+      "iPad 834x1194",
+      "phone 390x844"
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "scenarios": [
+      "rich custom profile",
+      "versioned guided profile",
+      "legacy MCQ-only profile"
+    ],
+    "errors": [],
+    "blockedRequests": [],
+    "hashesBefore": {
+      "status": "PASS",
+      "inputs": 3534,
+      "differences": [],
+      "outputDifferences": []
+    },
+    "hashesAfter": {
+      "status": "PASS",
+      "inputs": 3534,
+      "differences": [],
+      "outputDifferences": []
+    },
+    "rawReportSha256": "04ef1cc336dc3e5db8a4b7432cba2cd1d3d8e8fa088c54233f68ab8c8dc40301",
+    "artifacts": "/tmp/profile-builder-custom-profile-editor",
+    "scope": "Production custom modal → production parent payload mapper → owned synthetic memory persistence → actual save outcome → reopen. No live account, source fetch, AI, student data or database. Chromium mobile emulation, not physical iOS."
+  },
+  "closeGuard": {
+    "status": "PASS",
+    "cases": 3,
+    "checks": [
+      "Escape from child topic editor returns focus",
+      "Keep editing retains the draft",
+      "Confirmed discard/close releases page pointer lock",
+      "Reopen restores original saved profile with zero persistence calls"
+    ],
+    "report": "close-guard-results.json"
+  },
+  "backend": {
+    "changedModules": [],
+    "affectedFunctions": [],
+    "entryPointsInspected": 39,
+    "report": "edge-function-dependencies.json",
+    "denoTypecheck": "Not rerun: no backend module/type changed; all Edge bundles and identifier checks passed."
+  },
+  "fixedDuringVerification": [
+    "Unchanged raw fields and nested metadata were rebuilt by the old save mapping",
+    "Saves closed the modal before asynchronous persistence completed",
+    "Partial creates could be retried without retaining the created ID",
+    "Metadata on an existing topic label could be lost while editing its display name",
+    "Editing layout text/marks could derive and cap saved question counts",
+    "Pending studied-text input could survive into another editing session",
+    "Legacy custom references could block unrelated edits; supported-course requirements remain enforced",
+    "Approval display now uses the same preserved settings that are saved"
+  ],
+  "nonblockingWarnings": [
+    "Legacy synchronous test callbacks emit React act warnings around asynchronous save completion",
+    "Existing React DOM-nesting warnings in unrelated flows",
+    "Browserslist data is 17 months old",
+    "PDF extraction standardFontDataUrl warnings in existing regressions",
+    "Rollup annotation warnings in zod dependency",
+    "Production build reports chunks above 500 kB"
+  ],
+  "preserved": [
+    "Original topic identities, selection order and existing raw strings",
+    "All unchanged saved custom settings and applicable nested paper metadata",
+    "Existing AI template route and validation",
+    "Dependencies, lockfiles and environment configuration",
+    "Previous harness source and recorded style-cleanup report; see preservation-verification.json"
+  ],
+  "limitations": [
+    "Chromium viewport/touch emulation; physical iOS/iPadOS and Safari were not run",
+    "No live database/RLS, student data, account or real provider was accessed",
+    "Existing flat topic lists are retained without inventing missing syllabus detail",
+    "Save is not a transaction across the core row and tier: partial results are explicit and retry finishes the same row"
+  ],
+  "release": {
+    "frontendOnly": true,
+    "migrationRequired": false,
+    "deployed": false,
+    "websitePublished": false,
+    "liveProfilesModified": false,
+    "studentDataAccessed": false,
+    "paidAiCalls": 0,
+    "handoff": "lovable-prompt.md"
+  }
+}

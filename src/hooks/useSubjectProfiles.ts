@@ -4,6 +4,7 @@ import { profilesQuery } from "@/lib/workspace-summary-queries";
 import { useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { normaliseAssessmentTier } from "@/lib/assessment-tier";
+import { buildCustomProfilePayload, type ProfileSaveArgs, type ProfileSavePayload, type ProfileSaveResult } from "@/lib/custom-profile-save";
 import { toast } from "sonner";
 
 export interface MasterTopic {
@@ -40,6 +41,7 @@ export interface ExamProfile {
   assessment_tier: string | null;
   profile_template?: unknown;
   paper_blueprint?: import("@/integrations/supabase/types").Json;
+  studied_texts?: import("@/integrations/supabase/types").Json;
   created_at: string;
   updated_at: string;
 }
@@ -51,7 +53,8 @@ export const isMissingColumnError = (error: {
 } | null): boolean => {
   if (!error) return false;
   if (error.code === "42703" || error.code === "PGRST204") return true;
-  return /assessment_tier/i.test(error.message ?? "");
+  return /assessment_tier/i.test(error.message ?? "") &&
+    /does not exist|could not find|not found|schema cache/i.test(error.message ?? "");
 };
 
 export type TierPersistStatus = "unchanged" | "saved" | "unsupported" | "failed";
@@ -75,28 +78,33 @@ export const persistAssessmentTier = async (
   client: { from: typeof supabase.from } = supabase,
 ): Promise<TierPersistResult> => {
   const tier = normaliseAssessmentTier(rawTier);
-  if (tier === (current.assessment_tier ?? null)) {
+  const currentTier = current.assessment_tier ?? null;
+  if (rawTier === currentTier || tier === currentTier) {
     return { profile: current, status: "unchanged" };
   }
-  const { data, error } = await client
-    .from("subject_exam_profiles")
-    .update({ assessment_tier: tier })
-    .eq("id", profileId)
-    .select()
-    .maybeSingle();
+  try {
+    const { data, error } = await client
+      .from("subject_exam_profiles")
+      .update({ assessment_tier: tier })
+      .eq("id", profileId)
+      .select()
+      .maybeSingle();
 
-  if (error) {
-    if (isMissingColumnError(error)) {
-      console.warn("Assessment tier column not available yet:", error.message);
-      return { profile: current, status: "unsupported", message: error.message };
+    if (error) {
+      if (isMissingColumnError(error)) {
+        console.warn("Assessment tier column not available yet:", error.message);
+        return { profile: current, status: "unsupported", message: error.message };
+      }
+      console.error("Assessment tier save failed:", error.message);
+      return { profile: current, status: "failed", message: error.message };
     }
-    console.error("Assessment tier save failed:", error.message);
-    return { profile: current, status: "failed", message: error.message };
+    if (!data) {
+      return { profile: current, status: "failed", message: "Profile not found" };
+    }
+    return { profile: data as unknown as ExamProfile, status: "saved" };
+  } catch (error) {
+    return { profile: current, status: "failed", message: error instanceof Error ? error.message : "Tier save failed" };
   }
-  if (!data) {
-    return { profile: current, status: "failed", message: "Profile not found" };
-  }
-  return { profile: data as unknown as ExamProfile, status: "saved" };
 };
 
 export const useSubjectProfiles = () => {
@@ -177,100 +185,60 @@ export const useSubjectProfiles = () => {
     }
   };
 
-  const createProfile = async (
-    subject: string,
-    profileName: string,
-    topics: string[],
-    questionCount: number,
-    educationalTier?: string,
-    timeLimitMinutes?: number | null,
-    advanced?: {
-      assessmentTier?: string | null;
-      examBoard?: string | null;
-      structurePreset?: string;
-      mcqCount?: number;
-      mcqPosition?: string;
-      markDistribution?: Record<number, number>;
-      includeExtended?: boolean;
-      extendedMarks?: number;
-      difficultyProgression?: string;
-      calculatorPolicy?: string;
-    },
-    writtenQuestionCount?: number,
-    structureSettings?: {
-      questionStructure?: string;
-      parentQuestionCount?: number;
-      maxPartsPerQuestion?: number;
-      mcqOptionsCount?: number;
-      includeGraphs?: boolean;
-      includeTables?: boolean;
-    }
-  ) => {
+  const createProfile = async (subject: string, ...args: ProfileSaveArgs): Promise<ProfileSaveResult> => {
+    let profileId: string | undefined;
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      if (!user) {
+        const message = "Sign in to save an exam profile";
+        toast.error(message);
+        return { ok: false, message };
+      }
+
+      const { assessment_tier: requestedTier, ...corePayload } = buildCustomProfilePayload(...args);
 
       const { data, error } = await supabase
         .from("subject_exam_profiles")
         .insert({
           user_id: user.id,
           subject_name: subject,
-          profile_name: profileName,
-          topics,
-          question_count: questionCount,
-          educational_tier: educationalTier || null,
-          time_limit_minutes: timeLimitMinutes ?? null,
-          structure_preset: advanced?.structurePreset ?? "custom",
-          mcq_count: advanced?.mcqCount ?? 0,
-          mcq_position: advanced?.mcqPosition ?? "start",
-          mark_distribution: advanced?.markDistribution ?? {},
-          include_extended: advanced?.includeExtended ?? false,
-          extended_marks: advanced?.extendedMarks ?? 0,
-          difficulty_progression: advanced?.difficultyProgression ?? "ascending",
-          calculator_policy: advanced?.calculatorPolicy ?? "allowed",
-          written_question_count: writtenQuestionCount ?? (questionCount - (advanced?.mcqCount ?? 0)),
-          question_structure: structureSettings?.questionStructure ?? "standalone",
-          parent_question_count: structureSettings?.parentQuestionCount ?? 4,
-          max_parts_per_question: structureSettings?.maxPartsPerQuestion ?? 3,
-          mcq_options_count: structureSettings?.mcqOptionsCount ?? 4,
-          include_graphs: structureSettings?.includeGraphs ?? false,
-          include_tables: structureSettings?.includeTables ?? false,
-          studied_texts: (advanced as any)?.studiedTexts ?? null,
-          paper_blueprint: (advanced as any)?.paperBlueprint ?? null,
-          // The board was silently dropped before, so profiles lost their board.
-          exam_board: advanced?.examBoard ?? null,
+          ...corePayload,
         } as any)
         .select()
         .single();
 
       if (error) throw error;
+      if (!data?.id) throw new Error("The created profile was not returned");
+      profileId = data.id;
       const tierResult = await persistAssessmentTier(
-        (data as ExamProfile).id,
-        advanced?.assessmentTier ?? null,
+        profileId,
+        requestedTier,
         data as ExamProfile,
       );
-      await setExamProfiles((prev) => [...prev, tierResult.profile]);
-      if (tierResult.status === "failed") {
-        toast.error("Profile created, but the Foundation/Higher tier did not save");
-      } else {
-        toast.success("Exam profile created");
+      await setExamProfiles((prev) => [...prev.filter(p => p.id !== profileId), tierResult.profile]);
+      if (tierResult.status === "failed" || tierResult.status === "unsupported") {
+        const message = "Profile created, but the assessment tier did not save. Retry to update this profile.";
+        toast.error(message);
+        return { ok: false, profileId, message };
       }
+      toast.success("Exam profile created");
+      return { ok: true, profileId };
     } catch (err) {
       console.error("Error creating profile:", err);
-      toast.error("Failed to create profile");
+      const message = profileId
+        ? "Profile created, but saving did not finish. Retry to update this profile."
+        : "Failed to create profile";
+      toast.error(message);
+      return { ok: false, message, ...(profileId ? { profileId } : {}) };
     }
   };
 
   const updateProfile = async (
     profileId: string,
-    updates: Partial<Pick<ExamProfile,
-      "profile_name" | "topics" | "question_count" | "educational_tier" | "time_limit_minutes" |
-      "structure_preset" | "mcq_count" | "mcq_position" | "mark_distribution" |
-      "include_extended" | "extended_marks" | "difficulty_progression" | "calculator_policy" |
-      "written_question_count" | "question_structure" | "parent_question_count" | "max_parts_per_question" |
-      "mcq_options_count" | "include_graphs" | "include_tables" | "exam_board" | "assessment_tier"
-    >>
-  ) => {
+    updates: Partial<ProfileSavePayload>
+  ): Promise<ProfileSaveResult> => {
+    let coreSaved = false;
     try {
       // The tier is written separately so this statement still works while the
       // assessment-tier column is pending. Omitting the key leaves the stored
@@ -295,6 +263,8 @@ export const useSubjectProfiles = () => {
       const { data, error } = await query.single();
 
       if (error) throw error;
+      if (!data?.id) throw new Error("Profile not found");
+      coreSaved = true;
 
       const tierResult = tierRequested
         ? await persistAssessmentTier(
@@ -305,16 +275,24 @@ export const useSubjectProfiles = () => {
         : { profile: data as ExamProfile, status: "unchanged" as const };
 
       await setExamProfiles((prev) =>
-        prev.map((p) => (p.id === profileId ? tierResult.profile : p))
+        prev.some(p => p.id === profileId)
+          ? prev.map((p) => (p.id === profileId ? tierResult.profile : p))
+          : [...prev, tierResult.profile]
       );
-      if (tierResult.status === "failed") {
-        toast.error("Profile saved, but the Foundation/Higher tier did not save");
-      } else {
-        toast.success("Profile updated");
+      if (tierResult.status === "failed" || tierResult.status === "unsupported") {
+        const message = "Profile saved, but the assessment tier did not save. Retry to finish saving.";
+        toast.error(message);
+        return { ok: false, profileId, message };
       }
+      toast.success("Profile updated");
+      return { ok: true, profileId };
     } catch (err) {
       console.error("Error updating profile:", err);
-      toast.error("Failed to update profile");
+      const message = coreSaved
+        ? "Profile saved, but saving did not finish. Retry to finish saving."
+        : "Failed to update profile";
+      toast.error(message);
+      return { ok: false, profileId, message };
     }
   };
 

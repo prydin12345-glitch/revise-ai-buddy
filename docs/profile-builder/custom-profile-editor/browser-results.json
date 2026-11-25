@@ -1,0 +1,1614 @@
+{
+  "status": "PASS",
+  "mode": "acceptance",
+  "startedAt": "2026-11-24T20:17:24.197Z",
+  "cases": [
+    {
+      "name": "desktop-light-custom",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "scenario": "custom",
+      "status": "PASS",
+      "measurements": {
+        "topics": {
+          "x": 200,
+          "y": 75,
+          "width": 1040,
+          "height": 850,
+          "viewportWidth": 1440,
+          "viewportHeight": 1000,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 19,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "settings": {
+          "x": 200,
+          "y": 75,
+          "width": 1040,
+          "height": 850,
+          "viewportWidth": 1440,
+          "viewportHeight": 1000,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "layout": {
+          "x": 200,
+          "y": 75,
+          "width": 1040,
+          "height": 850,
+          "viewportWidth": 1440,
+          "viewportHeight": 1000,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 5,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        }
+      },
+      "presentationDoesNotWrite": true,
+      "keyboardFocus": {
+        "tag": "BUTTON",
+        "text": "Topic library73",
+        "inDialog": true
+      },
+      "preservesEverySavedField": true,
+      "expectInjectedConsoleFailure": false,
+      "injectedConsoleErrors": [
+        "Error updating profile: {code: SYNTHETIC_FAILURE, message: Synthetic core save failed; retry preserves your draft.}"
+      ],
+      "saveFailureRetainsDraft": true,
+      "retryAndReopen": true,
+      "discardRestoresOpeningState": true,
+      "topicLabelLibraryBulkUndoRoundTrip": true
+    },
+    {
+      "name": "desktop-light-guided",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "scenario": "guided",
+      "status": "PASS",
+      "measurements": {
+        "topics": {
+          "x": 200,
+          "y": 75,
+          "width": 1040,
+          "height": 850,
+          "viewportWidth": 1440,
+          "viewportHeight": 1000,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 9,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "settings": {
+          "x": 200,
+          "y": 75,
+          "width": 1040,
+          "height": 850,
+          "viewportWidth": 1440,
+          "viewportHeight": 1000,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "layout": {
+          "x": 200,
+          "y": 75,
+          "width": 1040,
+          "height": 850,
+          "viewportWidth": 1440,
+          "viewportHeight": 1000,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        }
+      },
+      "presentationDoesNotWrite": true,
+      "keyboardFocus": {
+        "tag": "BUTTON",
+        "text": "Topic library3",
+        "inDialog": true
+      },
+      "preservesEverySavedField": true,
+      "expectInjectedConsoleFailure": false,
+      "injectedConsoleErrors": [
+        "Error updating profile: {code: SYNTHETIC_FAILURE, message: Synthetic core save failed; retry preserves your draft.}"
+      ],
+      "saveFailureRetainsDraft": true,
+      "retryAndReopen": true,
+      "discardRestoresOpeningState": true,
+      "guidedLocksAndIdentity": true
+    },
+    {
+      "name": "desktop-light-legacy",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "scenario": "legacy",
+      "status": "PASS",
+      "measurements": {
+        "topics": {
+          "x": 200,
+          "y": 75,
+          "width": 1040,
+          "height": 850,
+          "viewportWidth": 1440,
+          "viewportHeight": 1000,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 7,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "settings": {
+          "x": 200,
+          "y": 75,
+          "width": 1040,
+          "height": 850,
+          "viewportWidth": 1440,
+          "viewportHeight": 1000,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "layout": {
+          "x": 200,
+          "y": 75,
+          "width": 1040,
+          "height": 850,
+          "viewportWidth": 1440,
+          "viewportHeight": 1000,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        }
+      },
+      "presentationDoesNotWrite": true,
+      "keyboardFocus": {
+        "tag": "BUTTON",
+        "text": "Topic library73",
+        "inDialog": true
+      },
+      "preservesEverySavedField": true,
+      "expectInjectedConsoleFailure": false,
+      "injectedConsoleErrors": [
+        "Error updating profile: {code: SYNTHETIC_FAILURE, message: Synthetic core save failed; retry preserves your draft.}"
+      ],
+      "saveFailureRetainsDraft": true,
+      "retryAndReopen": true,
+      "discardRestoresOpeningState": true,
+      "legacyZeroWrittenAndNulls": true
+    },
+    {
+      "name": "desktop-dark-custom",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "scenario": "custom",
+      "status": "PASS",
+      "measurements": {
+        "topics": {
+          "x": 200,
+          "y": 75,
+          "width": 1040,
+          "height": 850,
+          "viewportWidth": 1440,
+          "viewportHeight": 1000,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 19,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "settings": {
+          "x": 200,
+          "y": 75,
+          "width": 1040,
+          "height": 850,
+          "viewportWidth": 1440,
+          "viewportHeight": 1000,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "layout": {
+          "x": 200,
+          "y": 75,
+          "width": 1040,
+          "height": 850,
+          "viewportWidth": 1440,
+          "viewportHeight": 1000,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 5,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        }
+      },
+      "presentationDoesNotWrite": true,
+      "keyboardFocus": {
+        "tag": "BUTTON",
+        "text": "Topic library73",
+        "inDialog": true
+      },
+      "preservesEverySavedField": true,
+      "expectInjectedConsoleFailure": false,
+      "injectedConsoleErrors": [
+        "Error updating profile: {code: SYNTHETIC_FAILURE, message: Synthetic core save failed; retry preserves your draft.}"
+      ],
+      "saveFailureRetainsDraft": true,
+      "retryAndReopen": true,
+      "discardRestoresOpeningState": true,
+      "topicLabelLibraryBulkUndoRoundTrip": true
+    },
+    {
+      "name": "desktop-dark-guided",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "scenario": "guided",
+      "status": "PASS",
+      "measurements": {
+        "topics": {
+          "x": 200,
+          "y": 75,
+          "width": 1040,
+          "height": 850,
+          "viewportWidth": 1440,
+          "viewportHeight": 1000,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 9,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "settings": {
+          "x": 200,
+          "y": 75,
+          "width": 1040,
+          "height": 850,
+          "viewportWidth": 1440,
+          "viewportHeight": 1000,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "layout": {
+          "x": 200,
+          "y": 75,
+          "width": 1040,
+          "height": 850,
+          "viewportWidth": 1440,
+          "viewportHeight": 1000,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        }
+      },
+      "presentationDoesNotWrite": true,
+      "keyboardFocus": {
+        "tag": "BUTTON",
+        "text": "Topic library3",
+        "inDialog": true
+      },
+      "preservesEverySavedField": true,
+      "expectInjectedConsoleFailure": false,
+      "injectedConsoleErrors": [
+        "Error updating profile: {code: SYNTHETIC_FAILURE, message: Synthetic core save failed; retry preserves your draft.}"
+      ],
+      "saveFailureRetainsDraft": true,
+      "retryAndReopen": true,
+      "discardRestoresOpeningState": true,
+      "guidedLocksAndIdentity": true
+    },
+    {
+      "name": "desktop-dark-legacy",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "scenario": "legacy",
+      "status": "PASS",
+      "measurements": {
+        "topics": {
+          "x": 200,
+          "y": 75,
+          "width": 1040,
+          "height": 850,
+          "viewportWidth": 1440,
+          "viewportHeight": 1000,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 7,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "settings": {
+          "x": 200,
+          "y": 75,
+          "width": 1040,
+          "height": 850,
+          "viewportWidth": 1440,
+          "viewportHeight": 1000,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "layout": {
+          "x": 200,
+          "y": 75,
+          "width": 1040,
+          "height": 850,
+          "viewportWidth": 1440,
+          "viewportHeight": 1000,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        }
+      },
+      "presentationDoesNotWrite": true,
+      "keyboardFocus": {
+        "tag": "BUTTON",
+        "text": "Topic library73",
+        "inDialog": true
+      },
+      "preservesEverySavedField": true,
+      "expectInjectedConsoleFailure": false,
+      "injectedConsoleErrors": [
+        "Error updating profile: {code: SYNTHETIC_FAILURE, message: Synthetic core save failed; retry preserves your draft.}"
+      ],
+      "saveFailureRetainsDraft": true,
+      "retryAndReopen": true,
+      "discardRestoresOpeningState": true,
+      "legacyZeroWrittenAndNulls": true
+    },
+    {
+      "name": "ipad-light-custom",
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "light",
+      "scenario": "custom",
+      "status": "PASS",
+      "measurements": {
+        "topics": {
+          "x": 16,
+          "y": 172,
+          "width": 802,
+          "height": 850,
+          "viewportWidth": 834,
+          "viewportHeight": 1194,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 19,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "settings": {
+          "x": 16,
+          "y": 172,
+          "width": 802,
+          "height": 850,
+          "viewportWidth": 834,
+          "viewportHeight": 1194,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "layout": {
+          "x": 16,
+          "y": 172,
+          "width": 802,
+          "height": 850,
+          "viewportWidth": 834,
+          "viewportHeight": 1194,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 5,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        }
+      },
+      "presentationDoesNotWrite": true,
+      "keyboardFocus": {
+        "tag": "BUTTON",
+        "text": "Topic library73",
+        "inDialog": true
+      },
+      "preservesEverySavedField": true,
+      "expectInjectedConsoleFailure": false,
+      "injectedConsoleErrors": [
+        "Error updating profile: {code: SYNTHETIC_FAILURE, message: Synthetic core save failed; retry preserves your draft.}"
+      ],
+      "saveFailureRetainsDraft": true,
+      "retryAndReopen": true,
+      "discardRestoresOpeningState": true,
+      "topicLabelLibraryBulkUndoRoundTrip": true
+    },
+    {
+      "name": "ipad-light-guided",
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "light",
+      "scenario": "guided",
+      "status": "PASS",
+      "measurements": {
+        "topics": {
+          "x": 16,
+          "y": 172,
+          "width": 802,
+          "height": 850,
+          "viewportWidth": 834,
+          "viewportHeight": 1194,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 9,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "settings": {
+          "x": 16,
+          "y": 172,
+          "width": 802,
+          "height": 850,
+          "viewportWidth": 834,
+          "viewportHeight": 1194,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "layout": {
+          "x": 16,
+          "y": 172,
+          "width": 802,
+          "height": 850,
+          "viewportWidth": 834,
+          "viewportHeight": 1194,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        }
+      },
+      "presentationDoesNotWrite": true,
+      "keyboardFocus": {
+        "tag": "BUTTON",
+        "text": "Topic library3",
+        "inDialog": true
+      },
+      "preservesEverySavedField": true,
+      "expectInjectedConsoleFailure": false,
+      "injectedConsoleErrors": [
+        "Error updating profile: {code: SYNTHETIC_FAILURE, message: Synthetic core save failed; retry preserves your draft.}"
+      ],
+      "saveFailureRetainsDraft": true,
+      "retryAndReopen": true,
+      "discardRestoresOpeningState": true,
+      "guidedLocksAndIdentity": true
+    },
+    {
+      "name": "ipad-light-legacy",
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "light",
+      "scenario": "legacy",
+      "status": "PASS",
+      "measurements": {
+        "topics": {
+          "x": 16,
+          "y": 172,
+          "width": 802,
+          "height": 850,
+          "viewportWidth": 834,
+          "viewportHeight": 1194,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 7,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "settings": {
+          "x": 16,
+          "y": 172,
+          "width": 802,
+          "height": 850,
+          "viewportWidth": 834,
+          "viewportHeight": 1194,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "layout": {
+          "x": 16,
+          "y": 172,
+          "width": 802,
+          "height": 850,
+          "viewportWidth": 834,
+          "viewportHeight": 1194,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        }
+      },
+      "presentationDoesNotWrite": true,
+      "keyboardFocus": {
+        "tag": "BUTTON",
+        "text": "Topic library73",
+        "inDialog": true
+      },
+      "preservesEverySavedField": true,
+      "expectInjectedConsoleFailure": false,
+      "injectedConsoleErrors": [
+        "Error updating profile: {code: SYNTHETIC_FAILURE, message: Synthetic core save failed; retry preserves your draft.}"
+      ],
+      "saveFailureRetainsDraft": true,
+      "retryAndReopen": true,
+      "discardRestoresOpeningState": true,
+      "legacyZeroWrittenAndNulls": true
+    },
+    {
+      "name": "ipad-dark-custom",
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "dark",
+      "scenario": "custom",
+      "status": "PASS",
+      "measurements": {
+        "topics": {
+          "x": 16,
+          "y": 172,
+          "width": 802,
+          "height": 850,
+          "viewportWidth": 834,
+          "viewportHeight": 1194,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 19,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "settings": {
+          "x": 16,
+          "y": 172,
+          "width": 802,
+          "height": 850,
+          "viewportWidth": 834,
+          "viewportHeight": 1194,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "layout": {
+          "x": 16,
+          "y": 172,
+          "width": 802,
+          "height": 850,
+          "viewportWidth": 834,
+          "viewportHeight": 1194,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 5,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        }
+      },
+      "presentationDoesNotWrite": true,
+      "keyboardFocus": {
+        "tag": "BUTTON",
+        "text": "Topic library73",
+        "inDialog": true
+      },
+      "preservesEverySavedField": true,
+      "expectInjectedConsoleFailure": false,
+      "injectedConsoleErrors": [
+        "Error updating profile: {code: SYNTHETIC_FAILURE, message: Synthetic core save failed; retry preserves your draft.}"
+      ],
+      "saveFailureRetainsDraft": true,
+      "retryAndReopen": true,
+      "discardRestoresOpeningState": true,
+      "topicLabelLibraryBulkUndoRoundTrip": true
+    },
+    {
+      "name": "ipad-dark-guided",
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "dark",
+      "scenario": "guided",
+      "status": "PASS",
+      "measurements": {
+        "topics": {
+          "x": 16,
+          "y": 172,
+          "width": 802,
+          "height": 850,
+          "viewportWidth": 834,
+          "viewportHeight": 1194,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 9,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "settings": {
+          "x": 16,
+          "y": 172,
+          "width": 802,
+          "height": 850,
+          "viewportWidth": 834,
+          "viewportHeight": 1194,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "layout": {
+          "x": 16,
+          "y": 172,
+          "width": 802,
+          "height": 850,
+          "viewportWidth": 834,
+          "viewportHeight": 1194,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        }
+      },
+      "presentationDoesNotWrite": true,
+      "keyboardFocus": {
+        "tag": "BUTTON",
+        "text": "Topic library3",
+        "inDialog": true
+      },
+      "preservesEverySavedField": true,
+      "expectInjectedConsoleFailure": false,
+      "injectedConsoleErrors": [
+        "Error updating profile: {code: SYNTHETIC_FAILURE, message: Synthetic core save failed; retry preserves your draft.}"
+      ],
+      "saveFailureRetainsDraft": true,
+      "retryAndReopen": true,
+      "discardRestoresOpeningState": true,
+      "guidedLocksAndIdentity": true
+    },
+    {
+      "name": "ipad-dark-legacy",
+      "viewport": {
+        "name": "ipad",
+        "width": 834,
+        "height": 1194
+      },
+      "theme": "dark",
+      "scenario": "legacy",
+      "status": "PASS",
+      "measurements": {
+        "topics": {
+          "x": 16,
+          "y": 172,
+          "width": 802,
+          "height": 850,
+          "viewportWidth": 834,
+          "viewportHeight": 1194,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 7,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "settings": {
+          "x": 16,
+          "y": 172,
+          "width": 802,
+          "height": 850,
+          "viewportWidth": 834,
+          "viewportHeight": 1194,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "layout": {
+          "x": 16,
+          "y": 172,
+          "width": 802,
+          "height": 850,
+          "viewportWidth": 834,
+          "viewportHeight": 1194,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        }
+      },
+      "presentationDoesNotWrite": true,
+      "keyboardFocus": {
+        "tag": "BUTTON",
+        "text": "Topic library73",
+        "inDialog": true
+      },
+      "preservesEverySavedField": true,
+      "expectInjectedConsoleFailure": false,
+      "injectedConsoleErrors": [
+        "Error updating profile: {code: SYNTHETIC_FAILURE, message: Synthetic core save failed; retry preserves your draft.}"
+      ],
+      "saveFailureRetainsDraft": true,
+      "retryAndReopen": true,
+      "discardRestoresOpeningState": true,
+      "legacyZeroWrittenAndNulls": true
+    },
+    {
+      "name": "phone-light-custom",
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "scenario": "custom",
+      "status": "PASS",
+      "measurements": {
+        "topics": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 844,
+          "viewportWidth": 390,
+          "viewportHeight": 844,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 19,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "settings": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 844,
+          "viewportWidth": 390,
+          "viewportHeight": 844,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 844,
+          "viewportWidth": 390,
+          "viewportHeight": 844,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 5,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        }
+      },
+      "presentationDoesNotWrite": true,
+      "keyboardFocus": {
+        "tag": "BUTTON",
+        "text": "Select topics",
+        "inDialog": true
+      },
+      "preservesEverySavedField": true,
+      "expectInjectedConsoleFailure": false,
+      "injectedConsoleErrors": [
+        "Error updating profile: {code: SYNTHETIC_FAILURE, message: Synthetic core save failed; retry preserves your draft.}"
+      ],
+      "saveFailureRetainsDraft": true,
+      "retryAndReopen": true,
+      "discardRestoresOpeningState": true,
+      "topicLabelLibraryBulkUndoRoundTrip": true
+    },
+    {
+      "name": "phone-light-guided",
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "scenario": "guided",
+      "status": "PASS",
+      "measurements": {
+        "topics": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 844,
+          "viewportWidth": 390,
+          "viewportHeight": 844,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 9,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "settings": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 844,
+          "viewportWidth": 390,
+          "viewportHeight": 844,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 844,
+          "viewportWidth": 390,
+          "viewportHeight": 844,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        }
+      },
+      "presentationDoesNotWrite": true,
+      "keyboardFocus": {
+        "tag": "SELECT",
+        "text": "Topic view",
+        "inDialog": true
+      },
+      "preservesEverySavedField": true,
+      "expectInjectedConsoleFailure": false,
+      "injectedConsoleErrors": [
+        "Error updating profile: {code: SYNTHETIC_FAILURE, message: Synthetic core save failed; retry preserves your draft.}"
+      ],
+      "saveFailureRetainsDraft": true,
+      "retryAndReopen": true,
+      "discardRestoresOpeningState": true,
+      "guidedLocksAndIdentity": true
+    },
+    {
+      "name": "phone-light-legacy",
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "scenario": "legacy",
+      "status": "PASS",
+      "measurements": {
+        "topics": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 844,
+          "viewportWidth": 390,
+          "viewportHeight": 844,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 7,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "settings": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 844,
+          "viewportWidth": 390,
+          "viewportHeight": 844,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 844,
+          "viewportWidth": 390,
+          "viewportHeight": 844,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        }
+      },
+      "presentationDoesNotWrite": true,
+      "keyboardFocus": {
+        "tag": "BUTTON",
+        "text": "Select topics",
+        "inDialog": true
+      },
+      "preservesEverySavedField": true,
+      "expectInjectedConsoleFailure": false,
+      "injectedConsoleErrors": [
+        "Error updating profile: {code: SYNTHETIC_FAILURE, message: Synthetic core save failed; retry preserves your draft.}"
+      ],
+      "saveFailureRetainsDraft": true,
+      "retryAndReopen": true,
+      "discardRestoresOpeningState": true,
+      "legacyZeroWrittenAndNulls": true
+    },
+    {
+      "name": "phone-dark-custom",
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "scenario": "custom",
+      "status": "PASS",
+      "measurements": {
+        "topics": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 844,
+          "viewportWidth": 390,
+          "viewportHeight": 844,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 19,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "settings": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 844,
+          "viewportWidth": 390,
+          "viewportHeight": 844,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 844,
+          "viewportWidth": 390,
+          "viewportHeight": 844,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 5,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        }
+      },
+      "presentationDoesNotWrite": true,
+      "keyboardFocus": {
+        "tag": "BUTTON",
+        "text": "Select topics",
+        "inDialog": true
+      },
+      "preservesEverySavedField": true,
+      "expectInjectedConsoleFailure": false,
+      "injectedConsoleErrors": [
+        "Error updating profile: {code: SYNTHETIC_FAILURE, message: Synthetic core save failed; retry preserves your draft.}"
+      ],
+      "saveFailureRetainsDraft": true,
+      "retryAndReopen": true,
+      "discardRestoresOpeningState": true,
+      "topicLabelLibraryBulkUndoRoundTrip": true
+    },
+    {
+      "name": "phone-dark-guided",
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "scenario": "guided",
+      "status": "PASS",
+      "measurements": {
+        "topics": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 844,
+          "viewportWidth": 390,
+          "viewportHeight": 844,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 9,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "settings": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 844,
+          "viewportWidth": 390,
+          "viewportHeight": 844,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 844,
+          "viewportWidth": 390,
+          "viewportHeight": 844,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        }
+      },
+      "presentationDoesNotWrite": true,
+      "keyboardFocus": {
+        "tag": "SELECT",
+        "text": "Topic view",
+        "inDialog": true
+      },
+      "preservesEverySavedField": true,
+      "expectInjectedConsoleFailure": false,
+      "injectedConsoleErrors": [
+        "Error updating profile: {code: SYNTHETIC_FAILURE, message: Synthetic core save failed; retry preserves your draft.}"
+      ],
+      "saveFailureRetainsDraft": true,
+      "retryAndReopen": true,
+      "discardRestoresOpeningState": true,
+      "guidedLocksAndIdentity": true
+    },
+    {
+      "name": "phone-dark-legacy",
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "scenario": "legacy",
+      "status": "PASS",
+      "measurements": {
+        "topics": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 844,
+          "viewportWidth": 390,
+          "viewportHeight": 844,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 7,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "settings": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 844,
+          "viewportWidth": 390,
+          "viewportHeight": 844,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        },
+        "layout": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 844,
+          "viewportWidth": 390,
+          "viewportHeight": 844,
+          "documentOverflow": false,
+          "overflow": [],
+          "unnamedButtons": [],
+          "iconTargetsMeasured": 2,
+          "minimumIconTargetWidth": 44,
+          "minimumIconTargetHeight": 44
+        }
+      },
+      "presentationDoesNotWrite": true,
+      "keyboardFocus": {
+        "tag": "BUTTON",
+        "text": "Select topics",
+        "inDialog": true
+      },
+      "preservesEverySavedField": true,
+      "expectInjectedConsoleFailure": false,
+      "injectedConsoleErrors": [
+        "Error updating profile: {code: SYNTHETIC_FAILURE, message: Synthetic core save failed; retry preserves your draft.}"
+      ],
+      "saveFailureRetainsDraft": true,
+      "retryAndReopen": true,
+      "discardRestoresOpeningState": true,
+      "legacyZeroWrittenAndNulls": true
+    }
+  ],
+  "auxiliary": [],
+  "screenshots": [
+    {
+      "file": "desktop-light-custom-topics.png",
+      "sha256": "1b2c743c5070d6c930778341c132baa7d48003dca2dcebb975de3f56a5889305"
+    },
+    {
+      "file": "desktop-light-custom-settings.png",
+      "sha256": "80846abeef1d7834c176a7e67e846e11546134ab44de77d9d27ed16964d8e111"
+    },
+    {
+      "file": "desktop-light-custom-layout.png",
+      "sha256": "2a8f224213f7694020964a54053fd543899a4fee7c01d3b55150b07583baaa9e"
+    },
+    {
+      "file": "desktop-light-custom-retry.png",
+      "sha256": "0f8ad25b6b562e802d167af5d8301506d8b90e50c41e9e020ee8f4032a8fb583"
+    },
+    {
+      "file": "desktop-light-custom-topic-edits.png",
+      "sha256": "6655fd7974ff3c55d7ef5ebd36088dde7cbf28e2cec50688eaf8de8e8e20df36"
+    },
+    {
+      "file": "desktop-light-guided-topics.png",
+      "sha256": "5d95c744c96ec0f069427abac53bd7c1e58033498d2100b3fba3a336aa4d8dbe"
+    },
+    {
+      "file": "desktop-light-guided-settings.png",
+      "sha256": "6899228871c98f682d2d856ed0af9e8c37d100b88dc025da83f944241c362739"
+    },
+    {
+      "file": "desktop-light-guided-layout.png",
+      "sha256": "d0fbb06929daac5edce1fee3a1f4e9b058faf98b4d64c0d5ffc2a6400690b490"
+    },
+    {
+      "file": "desktop-light-guided-retry.png",
+      "sha256": "b1f5227285560ad087899a70d1281a1dc76f98f0bec2ff39ba0e19c7b0c49519"
+    },
+    {
+      "file": "desktop-light-legacy-topics.png",
+      "sha256": "9bf4773d7d1fc7cf9160bbf93937f8aa94330f5f4097df11fce38dbc7c7b4c34"
+    },
+    {
+      "file": "desktop-light-legacy-settings.png",
+      "sha256": "8e01db99234b47fca6a3e367e70dcb97708a5c9419e61d35887a805c33e64145"
+    },
+    {
+      "file": "desktop-light-legacy-layout.png",
+      "sha256": "ecb57dbd67d7c901a131d698f8ceec2d0545cc5d96e526120d4530cb23c4ef8a"
+    },
+    {
+      "file": "desktop-light-legacy-retry.png",
+      "sha256": "b9e3206c962171049bc81405099517e614363afc8cfa3610b9eb18a018b0b595"
+    },
+    {
+      "file": "desktop-dark-custom-topics.png",
+      "sha256": "ec3d29b336791056b6f317286a8628f97b1ffed6e2be51692e9bd0b3fc577633"
+    },
+    {
+      "file": "desktop-dark-custom-settings.png",
+      "sha256": "d5a49f50ba29b9e8c252f035ac48f00babf5565af92491a55530ca091fafc131"
+    },
+    {
+      "file": "desktop-dark-custom-layout.png",
+      "sha256": "06e587540c60cc6a3f3fd8438ee08174722a85ebf8aeb205140eb7ad513aeecd"
+    },
+    {
+      "file": "desktop-dark-custom-retry.png",
+      "sha256": "e912dfb5fac5363f04537d9e69614bbdb374cedafc8a5e374343dd455688e2a4"
+    },
+    {
+      "file": "desktop-dark-custom-topic-edits.png",
+      "sha256": "18407a5652ba8a62d38e82f97a0311b65fe644b729923c42345921345ecc056c"
+    },
+    {
+      "file": "desktop-dark-guided-topics.png",
+      "sha256": "a1de6339fe507fe5fc513735932eb5ad937e35b8ca7e7b5839abe61ec6cc140a"
+    },
+    {
+      "file": "desktop-dark-guided-settings.png",
+      "sha256": "076826de8e0146677ec4f375420f24cec9b85aa5dd090ef4b8ecf0f3a0c6f60d"
+    },
+    {
+      "file": "desktop-dark-guided-layout.png",
+      "sha256": "83bff30fbf0ba1b25a088d190b85492bc44790c1d1629f125f7e12c20b5517de"
+    },
+    {
+      "file": "desktop-dark-guided-retry.png",
+      "sha256": "2d333572654fe0e05ce7569a475ea1c42b7091d5552f8e6162547776207bf4ce"
+    },
+    {
+      "file": "desktop-dark-legacy-topics.png",
+      "sha256": "8860de6ff825746bbd07c963962ba890782fd37075f3cd7e983c6de854d3c843"
+    },
+    {
+      "file": "desktop-dark-legacy-settings.png",
+      "sha256": "787d7bb58a00f9e3b82d0bc4fcdca37535ede00941e0582be28ad79a29cbcbf8"
+    },
+    {
+      "file": "desktop-dark-legacy-layout.png",
+      "sha256": "4deb72388ff10d7dff9782ab97a44cc35a3aaf34319419ee87e8840e75e2ae5d"
+    },
+    {
+      "file": "desktop-dark-legacy-retry.png",
+      "sha256": "c91cfa0e07cdbd7aace671ec5fa1739be613f9603a8cce47c51b4ab9f7cb76a8"
+    },
+    {
+      "file": "ipad-light-custom-topics.png",
+      "sha256": "94d0fa10e946d679b9d6c08c2ddf22e3bcf1e67f5abdd24a0734ab576094b2e4"
+    },
+    {
+      "file": "ipad-light-custom-settings.png",
+      "sha256": "8b403520f6ac720327d976515c01ab2ff79d2d1547c20bb40d082329fc552f80"
+    },
+    {
+      "file": "ipad-light-custom-layout.png",
+      "sha256": "a97c274433111570076094ea25be7e9f8b7d640ec5b7666a09c1c7d3af28a132"
+    },
+    {
+      "file": "ipad-light-custom-retry.png",
+      "sha256": "1092a323e8715e9d8b843d4a736c13630aa96f5c5fd756d9afef32beeba5d288"
+    },
+    {
+      "file": "ipad-light-custom-topic-edits.png",
+      "sha256": "813e7de471f3bc2b34e301d629a5ee20686418224c87bee30b077ade5c89d5bd"
+    },
+    {
+      "file": "ipad-light-guided-topics.png",
+      "sha256": "a60d59b96353af87e6213516557e1b497dd80c8d29e35d62cf8c180f983d2012"
+    },
+    {
+      "file": "ipad-light-guided-settings.png",
+      "sha256": "df250a985c88d8905520c53ce8e7b93b5f86b9ab53d87585e64754bf87926b3c"
+    },
+    {
+      "file": "ipad-light-guided-layout.png",
+      "sha256": "f115f8e3a109246ecb3792e12f740c9209ecd3b9e3e9e65cbc7fad6fd97d30d1"
+    },
+    {
+      "file": "ipad-light-guided-retry.png",
+      "sha256": "7b9bf41b7fc66cbdd4c2833c3e861d064e537595f7d9b5e09e8b6643927ae0e0"
+    },
+    {
+      "file": "ipad-light-legacy-topics.png",
+      "sha256": "50b47a635f3155e3da5f058b45e1d9cc360437a4499a0ac15413472cc9ba43a7"
+    },
+    {
+      "file": "ipad-light-legacy-settings.png",
+      "sha256": "5532f4548264d58afe6c1c4bbb89ec85fdbbba3f969ba3ec5e4d67f1f7ed2d46"
+    },
+    {
+      "file": "ipad-light-legacy-layout.png",
+      "sha256": "0715cf79a7e8a83bbd2a1dc55ee28e9d9652fd3324bfc625efc8bb9053e629af"
+    },
+    {
+      "file": "ipad-light-legacy-retry.png",
+      "sha256": "d4a0840416b061af5deb647c998d1a23ee493309baec755ee2022f8e5b91760c"
+    },
+    {
+      "file": "ipad-dark-custom-topics.png",
+      "sha256": "6f33c9bc566dd53e6dddac38b0480dda109cccbdd6f86840937b81996b8623fb"
+    },
+    {
+      "file": "ipad-dark-custom-settings.png",
+      "sha256": "59cfdcb5f360621f1c53b6fc0241725d1208999386c71b5bf4497c93fb3d2523"
+    },
+    {
+      "file": "ipad-dark-custom-layout.png",
+      "sha256": "7f3a9dc61280b637476922d5012bc275a53a7222d9224bb83395a1d955258096"
+    },
+    {
+      "file": "ipad-dark-custom-retry.png",
+      "sha256": "da729cc454c2bfa7f03357cd0feb84ecda0f9612cd60777144a6b55d282c078a"
+    },
+    {
+      "file": "ipad-dark-custom-topic-edits.png",
+      "sha256": "0e4bf17e0a6b8427caee7d7953f8219ce06788f3aeb407ee77558effabd91fe7"
+    },
+    {
+      "file": "ipad-dark-guided-topics.png",
+      "sha256": "c3d293f310abb3736dccc076271e85e20a67b81281746652a48b5af05de0ec09"
+    },
+    {
+      "file": "ipad-dark-guided-settings.png",
+      "sha256": "baee3457edc892003792a513b5ba328a1dff05c209bbdd3bbc15afb43f90f74a"
+    },
+    {
+      "file": "ipad-dark-guided-layout.png",
+      "sha256": "a94b8d70dcdc6bf53f9e605fdbaf96b2508769cf76248f7a2c0ffbb5f7da9d9c"
+    },
+    {
+      "file": "ipad-dark-guided-retry.png",
+      "sha256": "336a7ce7c4b461bf7038d2b858a42927b4bc0a31f92d3d1d7ac8c310b80f17e6"
+    },
+    {
+      "file": "ipad-dark-legacy-topics.png",
+      "sha256": "0e1567113178d968f28b4aabfe630c10734f2e73b1c0c8002e043f06ad9b1409"
+    },
+    {
+      "file": "ipad-dark-legacy-settings.png",
+      "sha256": "dabfc43e291e1c81e03b3e68a04dfaff892273c152312638464342246f6b473c"
+    },
+    {
+      "file": "ipad-dark-legacy-layout.png",
+      "sha256": "9ad49d8c1f379ba872adf3e5e1af95f0310701aeebce4ca227a4664ee7351c46"
+    },
+    {
+      "file": "ipad-dark-legacy-retry.png",
+      "sha256": "be2b2b63b093f675b4806fb659e518873a05c43a3121222dca7240ff4ffc08b8"
+    },
+    {
+      "file": "phone-light-custom-topics.png",
+      "sha256": "5533d60005b970dfba62463ed82fd67e09d51712ae37bab5573ca76a077db253"
+    },
+    {
+      "file": "phone-light-custom-settings.png",
+      "sha256": "1d161a1bcdb440cab211287164e99c8339f3b30e8f12fff694c22632f00368b1"
+    },
+    {
+      "file": "phone-light-custom-layout.png",
+      "sha256": "f61d9fa773ab7da2ce0bdbee3ab521e26cff3a9fcaaac82d7584e24e621e8f74"
+    },
+    {
+      "file": "phone-light-custom-retry.png",
+      "sha256": "9b955f1f1bd79a109ddee9fa97591b4cf73392b215dd9489ef0bbe959e3f42af"
+    },
+    {
+      "file": "phone-light-custom-topic-edits.png",
+      "sha256": "c471cfaabc32b05c4072b62434a11fd94b44b264082b544c58bb39915f72ff67"
+    },
+    {
+      "file": "phone-light-guided-topics.png",
+      "sha256": "567d193c798a0b510e469d70b05bf49c408b17ddb843a72758326e3cf086b248"
+    },
+    {
+      "file": "phone-light-guided-settings.png",
+      "sha256": "bd1bdf68d989b9fe39f43df5507ae5522ff7715f5f88d265c91936a4760b3b05"
+    },
+    {
+      "file": "phone-light-guided-layout.png",
+      "sha256": "025b4241939ba80d20858121aee194be5d37d9f7f09928cd3448c8a0a7fe05a5"
+    },
+    {
+      "file": "phone-light-guided-retry.png",
+      "sha256": "4fd5460e9fedc95bee0edf6d9f0a80bb71ae870d913b74abc71ac533b1044657"
+    },
+    {
+      "file": "phone-light-legacy-topics.png",
+      "sha256": "cfef87c20675dcee2fae420fdbd3f37f6743f3b459a6afab8160208d5b31511a"
+    },
+    {
+      "file": "phone-light-legacy-settings.png",
+      "sha256": "0a8bf3a0e9fd504b455628ff4245fefbd31d2ad98779ba7f7864fd6948645aac"
+    },
+    {
+      "file": "phone-light-legacy-layout.png",
+      "sha256": "05382e1631fc97011ba9365ea08a1eb5bf0e39093342ea4006edef3c8e08dde7"
+    },
+    {
+      "file": "phone-light-legacy-retry.png",
+      "sha256": "24cd9b13ba351045b084c1fb1188159745496ebde9c6c70ba79992b87d415d1c"
+    },
+    {
+      "file": "phone-dark-custom-topics.png",
+      "sha256": "cacd4428e0a879ae075115ceabd5234ef847a927b798f7eab83083796611d452"
+    },
+    {
+      "file": "phone-dark-custom-settings.png",
+      "sha256": "eecc610090828e2811354544a35a10f248e2b0d71c4b6032773a9167e4cd6512"
+    },
+    {
+      "file": "phone-dark-custom-layout.png",
+      "sha256": "e2333f1226a35a12efef1fea607ecec22ad2be8dfba76b94e18158754fcec234"
+    },
+    {
+      "file": "phone-dark-custom-retry.png",
+      "sha256": "38d1ff0878924463ecba397bf063d1491c6dfc43285e1df4f477b36f89c3674b"
+    },
+    {
+      "file": "phone-dark-custom-topic-edits.png",
+      "sha256": "236f6e375ce563c555a78c7ff3871e4df0ccba7d11d70fc69b98d79ac67cd951"
+    },
+    {
+      "file": "phone-dark-guided-topics.png",
+      "sha256": "22498335568267206c5330bbd82a835c5d6a77c35ca2314f60ab8bd10ea1e65d"
+    },
+    {
+      "file": "phone-dark-guided-settings.png",
+      "sha256": "c5e40608b678accac07099a50e8595e93e3dfd9f6578e2f12edaa56017ec96fc"
+    },
+    {
+      "file": "phone-dark-guided-layout.png",
+      "sha256": "caf5532f74530af19995b1c982c39985560ec71b33f63683f83bafaa9909cdad"
+    },
+    {
+      "file": "phone-dark-guided-retry.png",
+      "sha256": "0eb0d16bcae79d79a6d2c43716a6da646b291373f8964d19a7b65cb5c2b158ef"
+    },
+    {
+      "file": "phone-dark-legacy-topics.png",
+      "sha256": "8fc4ae7f15e3edf7440721f2828322b1e3cf6a840d4aa67d0bdcc0dd82812a2c"
+    },
+    {
+      "file": "phone-dark-legacy-settings.png",
+      "sha256": "1a3a5815eb35cc09129fb47d5157ba7934bc08753794a620f65644fd0b7883fc"
+    },
+    {
+      "file": "phone-dark-legacy-layout.png",
+      "sha256": "d9d31f58324e6a3ce9760ab2ccaf9415f10fac7a16ad80bcd7aeff0f60bf55d9"
+    },
+    {
+      "file": "phone-dark-legacy-retry.png",
+      "sha256": "0e282b11070250d7f6770e7b57eaac3e6bd5e4f1bc2a2fa69d4f03ae59dc6af9"
+    }
+  ],
+  "blockedRequests": [],
+  "errors": [],
+  "boundary": "Production custom modal \u2192 production parent payload mapper \u2192 owned synthetic memory persistence \u2192 actual save outcome \u2192 reopen. No live account, source fetch, AI, student data or database. Chromium mobile emulation, not physical iOS.",
+  "runtime": {
+    "node": "v24.19.0",
+    "playwright": "1.57.0",
+    "chromium": "/usr/bin/chromium",
+    "chromiumVersion": "151.0.7922.173"
+  },
+  "hashesBefore": {
+    "status": "PASS",
+    "inputs": 3534,
+    "differences": [],
+    "outputDifferences": []
+  },
+  "parentSourceFreeze": {
+    "confirmedBy": "parent-source-freeze",
+    "confirmedAt": "2026-11-24T20:17:22.734Z",
+    "manifestSha256": "1fa5023e381b25579ed01e1edb87fb9bb66ab336fd991343b6a251eec997f919"
+  },
+  "hashesAfter": {
+    "status": "PASS",
+    "inputs": 3534,
+    "differences": [],
+    "outputDifferences": []
+  },
+  "finishedAt": "2026-11-24T20:19:26.349Z",
+  "reportFormat": "Condensed acceptance report. Full computed geometry remains in the external artifact.",
+  "fullReport": {
+    "path": "/tmp/profile-builder-custom-profile-editor/browser-results.json",
+    "sha256": "04ef1cc336dc3e5db8a4b7432cba2cd1d3d8e8fa088c54233f68ab8c8dc40301"
+  }
+}
