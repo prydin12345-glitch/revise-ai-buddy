@@ -60,5 +60,5 @@ it("distinguishes an unconfirmed service outcome from identity or evidence valid
   const record = sourceValidationRecord(new SourceCallUncertainError(), "draft", 3);
   expect(record).toMatchObject({ attempt: 3, stage: "draft", code: "provider_outcome_unknown" });
   expect(record.field).toBeUndefined();
-  expect(record.message).toMatch(/not be retried automatically/);
+  expect(record.message).toBe("The AI response was interrupted while preparing the profile.");
 });

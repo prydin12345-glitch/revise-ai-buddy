@@ -292,7 +292,8 @@ export class SourceQuotaUnavailable extends Error {}
 export const SOURCE_QUOTA_MESSAGE =
   "You have reached the build limit (3 new builds every 10 minutes, 10 per day). No AI call was made and nothing was charged. Wait about 10 minutes, then start a fresh build. Your saved profiles are unchanged.";
 export const SOURCE_TOTAL_BUDGET_MS = 120_000;
-export const SOURCE_READ_CALL_MS = 45_000;
+// The read has its own request and a 60 s lease. Leave time to checkpoint it.
+export const SOURCE_READ_CALL_MS = 55_000;
 export const SOURCE_DRAFT_CALL_MS = 95_000;
 export const SOURCE_DRAFT_MIN_MS = 30_000;
 /** Per-call time allowance; 0 means starting a paid call would be pointless. */
@@ -311,6 +312,7 @@ export interface SourceJobDeps {
     system: string,
     payload: unknown,
     timeoutMs: number,
+    sourceStage?: SourceValidationIssue["stage"],
   ): Promise<{
     value: unknown;
     promptTokens: number;
@@ -2311,9 +2313,7 @@ export async function advanceSourceJob(
       await deps.store.commit(r, { stage: "failed", data, elapsedMs: 0 }),
     );
   }
-  // Reading a chunk is short; drafting a full template (up to 50 parts) can
-  // produce ~10k output tokens and routinely needs more than 45 s. The total
-  // 120 s active budget (enforced in the database) is unchanged.
+  // The database also enforces the 120 s active budget across all stages.
   const budget = sourceCallBudgetMs(r.stage, r.activeMs);
   if (!budget || r.callIntents >= 3) {
     data.needs = [
@@ -2359,7 +2359,7 @@ export async function advanceSourceJob(
       const chunk = data.chunks[data.cursor];
       result = await deps.model(
         EXTRACTION_SYSTEM +
-          " Return {evidence,identityClaims}. Use only the supplied uploaded snippets for document quotations. Preserve known subject, board, level and country. Discover course/component/version only with literal identityClaims referencing supplied locations; never invent a code. UserContext contains unverified student notes, not source evidence: never cite these notes or use them to restore missing source dates. Teaching dates do not establish a specification issue. ReviewedContext contains server-resolved course facts and paper-cover instructions that the server adds separately; do not invent PDF quotes for those facts, do not nominate catalogueFacts or official documents. Keep a source-unknown tier null and source-unknown calculator/selection unknown. Facts stated directly by an active specification are normative even if recorded as observed. Never interpret a maths-skills calculator example as permission for this exam. If a requirement is incomplete in the supplied text, leave it null rather than completing its sentence. Unknown identity details retain the requested value. Prefix every location ID with the chunk ID so later batches can merge. Extract partial facts only; unsupported facts remain null/unknown. Upload document IDs/checksums are fixed below.",
+          " Return {evidence,identityClaims}. Cite short literal spans for assessment facts and topic scope. Do not transcribe learning outcomes or repeat a passage in multiple locations. Keep the named topics needed to establish the scope. Preserve known subject, board, level and country. Discover course/component/version only with literal identityClaims referencing supplied locations; never invent a code. UserContext contains unverified student notes, not source evidence: never cite these notes or use them to restore missing source dates. Teaching dates do not establish a specification issue. ReviewedContext contains server-resolved course facts and paper-cover instructions that the server adds separately; do not invent PDF quotes for those facts, do not nominate catalogueFacts or official documents. Keep a source-unknown tier null and source-unknown calculator/selection unknown. Facts stated directly by an active specification are normative even if recorded as observed. Never interpret a maths-skills calculator example as permission for this exam. If a requirement is incomplete in the supplied text, leave it null rather than completing its sentence. Unknown identity details retain the requested value. Prefix every location ID with the chunk ID so later batches can merge. Extract partial facts only; unsupported facts remain null/unknown. Upload document IDs/checksums are fixed below.",
         {
           schema: z.toJSONSchema(extractionSchema),
           identity: data.identity,
@@ -2414,6 +2414,7 @@ export async function advanceSourceJob(
             : {}),
         },
         budget,
+        "extraction",
       );
       let evidence: ProfileEvidence;
       try {
@@ -2497,6 +2498,7 @@ export async function advanceSourceJob(
           : {}),
       },
       budget,
+      "draft",
     );
     let template: ProfileTemplate;
     try {
@@ -2567,8 +2569,10 @@ export async function advanceSourceJob(
       ),
     );
   } catch (error) {
-    if (callStarted && !result)
-      rememberValidation(new SourceCallUncertainError(), r.stage === "drafting" ? "draft" : "extraction");
+    if (callStarted && !result) {
+      const failure = error instanceof SourceCallUncertainError ? error : new SourceCallUncertainError();
+      rememberValidation(failure, r.stage === "drafting" ? "draft" : "extraction");
+    }
     if (
       result &&
       !data.validationIssues?.some(
@@ -2588,7 +2592,7 @@ export async function advanceSourceJob(
             ? (data.validationIssues?.at(-1)?.message ??
               "We could not verify the assessment details returned from this source.")
             : callStarted
-              ? "The source service could not finish. This request will not repeat a possibly charged call. Your saved profiles are unchanged."
+              ? "A provider attempt may have been charged. Check progress for this request, or start a new build when you’re ready. The previous attempt will not run again."
               : "The AI service is unavailable. Your saved profiles are unchanged.",
     ];
     if (error instanceof SourceIdentityConflict)

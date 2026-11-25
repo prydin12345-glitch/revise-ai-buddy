@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { ExamProfileBuilder } from "@/components/profiles/ExamProfileBuilder";
 import { invokeProfileBuilder, rememberPendingBuilderJob } from "@/lib/profile-builder-client";
 import { builderInitialIdentity } from "@/lib/profile-builder-resolution";
-import { buildHandlerFixture, handlerRuntime } from "../../supabase/tests/profile-builder-handler-runtime";
+import { buildHandlerFixture, handlerRuntime, streamedBuilderReply } from "../../supabase/tests/profile-builder-handler-runtime";
 import { memoryJobStore, ownerKey } from "../../supabase/tests/profile-builder-jobs-fixtures";
 import { ownerEvidence } from "../../supabase/tests/profile-builder-fixtures";
 import { canonical, checksum, type ProfileTemplate } from "../../supabase/functions/_shared/profile-template";
@@ -44,7 +44,7 @@ const privateNotes = "Private reminder: draw my own market map before Friday.";
 const json = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 
 /** Two deterministic provider replies, with every request handled in the bundled VM. */
-function runtime(calculator: "not_allowed" | "unknown" = "not_allowed") {
+function runtime(calculator: "not_allowed" | "unknown" = "not_allowed", readFailure?: "interrupted" | "busy" | "timeout") {
   const memory = memoryJobStore();
   const documentText = calculator === "unknown" ? sourceText.replace(" No calculator allowed.", "") : sourceText;
   const coverText = calculator === "unknown" ? cover.replace(" No calculator allowed.", "") : cover;
@@ -100,7 +100,12 @@ function runtime(calculator: "not_allowed" | "unknown" = "not_allowed") {
     };
     return json(modelDraft);
   };
-  const r = handlerRuntime([extraction, draft], owner, async (name, args) => {
+  const r = handlerRuntime([async (payload: any) => {
+    if (readFailure === "busy" || readFailure === "timeout") {
+      return new Response("PRIVATE_GATEWAY_ERROR", { status: readFailure === "busy" ? 429 : 504 });
+    }
+    return streamedBuilderReply(await extraction(payload), readFailure !== "interrupted");
+  }, (payload: any) => streamedBuilderReply(draft(payload))], owner, async (name, args) => {
     const record = () => ({ ...memory.records.get(ownerKey(args.p_owner, args.p_request))!, leaseToken: args.p_token, revision: args.p_revision });
     const change = () => ({ stage: args.p_stage, data: args.p_checkpoint, elapsedMs: args.p_elapsed_ms, ...(args.p_proposal ? { proposal: args.p_proposal } : {}) });
     switch (name) {
@@ -166,6 +171,12 @@ async function generateIntoReview(r: Runtime) {
   expect(proposal.evidence!.topicDetails!.flatMap(detail => detail.sources.map(source => source.page))).toEqual([1, 1, 1]);
   expect(JSON.stringify(proposal.evidence!.topicDetails)).toContain("including its final qualification.");
   expect(r.provider).toHaveLength(2);
+  for (const request of r.provider) {
+    expect(request).toMatchObject({ stream: true, stream_options: { include_usage: true } });
+  }
+  expect(r.memory.usage).toEqual(Array.from({ length: 2 }, () => ({
+    outcome: "provider_success", promptTokens: 7, completionTokens: 3,
+  })));
   expect(r.memory.reservations).toBe(1);
   return { view, proposal, requestId };
 }
@@ -235,6 +246,39 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); localStorage.clear(); });
 afterAll(() => { vi.unstubAllGlobals(); });
 
 describe("actual AI profile editor → client → handler → owned save → reopen", () => {
+  it.each([
+    ["interrupted", "The AI response was interrupted while reading the assessment."],
+    ["busy", "The AI service limited requests while reading the assessment."],
+    ["timeout", "The AI service timed out while reading the assessment."],
+  ] as const)("keeps a %s provider attempt on its receipt without automatically replaying it", async (failure, message) => {
+    const r = runtime("not_allowed", failure);
+    const requestId = crypto.randomUUID();
+    const identity = { ...builderInitialIdentity({ subject: "Business", board: "Edexcel", level: "level3", region: "GB" }),
+      course: "9BS0", component: "Paper 1", specificationVersion: "", tier: null };
+    const prepared = await invokeProfileBuilder({
+      action: "prepare_source", requestId, identity, specificationVersionIntent: "source", mode: "full_mock",
+      uploads: [{ contentType: "text/plain", base64: Buffer.from(r.documentText).toString("base64") }],
+    });
+    expect(prepared.job?.stage).toBe("identifying");
+    const failed = await invokeProfileBuilder({ action: "advance_source", jobId: requestId });
+    expect(failed.job).toMatchObject({
+      stage: "failed", canAdvance: false,
+      validationIssues: [{ stage: "extraction", code: "provider_outcome_unknown", attempt: 1, message }],
+    });
+    expect(JSON.stringify(failed)).not.toMatch(/PRIVATE_GATEWAY_ERROR|invalidExtraction/);
+    await rememberPendingBuilderJob("Business", requestId);
+    render(<ExamProfileBuilder {...props} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Resume request" }));
+    expect(await screen.findByLabelText("Profile validation details")).toHaveTextContent(message);
+    expect(screen.getAllByText(failed.job!.message)).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Start new build" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Check progress" }));
+    await waitFor(() => expect(r.calls.at(-1)?.input).toEqual({ action: "source_status", jobId: requestId }));
+    expect(r.provider).toHaveLength(1);
+    expect(r.memory.usage).toEqual([{ outcome: "unknown_provider_cost", promptTokens: 0, completionTokens: 0 }]);
+    expect(r.profiles.size).toBe(0);
+  });
+
   it.each(["not_allowed", "unknown"] as const)("transfers every generated template and source field unchanged through save/reopen with calculator %s", async calculator => {
     const r = runtime(calculator);
     const { view, proposal, requestId } = await generateIntoReview(r);

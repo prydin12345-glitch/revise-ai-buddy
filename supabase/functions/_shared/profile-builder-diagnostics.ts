@@ -26,7 +26,9 @@ export class SourceIdentityValidationError extends Error {
   }
 }
 export class SourceCallUncertainError extends Error {
-  constructor() { super("The source service did not confirm this call's outcome."); }
+  constructor(public reason: "timeout" | "busy" | "unavailable" | "interrupted" = "interrupted") {
+    super("The source service did not confirm this call's outcome.");
+  }
 }
 
 /** Controlled student-facing reasons, without rejected JSON, quotes or tokens. */
@@ -56,9 +58,16 @@ export function sourceValidationRecord(
     };
   }
   if (error instanceof SourceCallUncertainError) {
+    const step = stage === "draft" ? "preparing the profile" : "reading the assessment";
+    const reasons = {
+      timeout: `The AI service timed out while ${step}.`,
+      busy: `The AI service limited requests while ${step}.`,
+      unavailable: `The AI service was unavailable while ${step}.`,
+      interrupted: `The AI response was interrupted while ${step}.`,
+    };
     return { attempt: Math.max(1, Math.min(3, attempt)), stage,
       code: "provider_outcome_unknown",
-      message: "The source service did not confirm whether this attempt completed. It will not be retried automatically.",
+      message: reasons[error.reason],
       detail };
   }
   const missing = detail.match(

@@ -23,7 +23,8 @@ const exports = [
   ['profile-builder-service.ts', 'prepareProfileSave'],
   ['profile-evidence.ts', 'validateEvidence'],
   ['profile-template-context.ts', 'snapshotTemplate'],
-].map(([file, names]) => `export {${names}} from ${JSON.stringify(path.join(shared, file))};`).join('\n');
+].map(([file, names]) => `export {${names}} from ${JSON.stringify(path.join(shared, file))};`).join('\n') +
+  `\nexport {readBuilderCompletion} from ${JSON.stringify(path.join(shared, '../profile-builder/provider-response.ts'))};`;
 await build({ stdin: { contents: exports + `\nexport {memoryJobStore,ownerKey} from ${JSON.stringify(path.join(root, 'supabase/tests/profile-builder-jobs-fixtures.ts'))};`, resolveDir: root }, bundle: true, platform: 'node', format: 'esm', outfile: path.join(dir, 'reader.mjs'), logLevel: 'error', plugins: [{ name: 'offline-test-helper', setup(b) { b.onResolve({ filter: /^vitest$/ }, () => ({ path: 'vitest', namespace: 'local' })); b.onLoad({ filter: /.*/, namespace: 'local' }, () => ({ contents: 'export const vi={fn:fn=>fn};' })); } }] });
 const m = await import(pathToFileURL(path.join(dir, 'reader.mjs')).href);
 const pages = await m.extractIndexedPdfPages(new Uint8Array(bytes), getDocumentProxy);
@@ -31,6 +32,15 @@ const identity = { country: 'GB', educationSystem: 'UK', stage: 'Secondary', qua
 const discovery = await m.discoverSourceAssessments([{ id: 'upload-1', checksum: sha256, pages }], identity);
 assert.equal(discovery.candidates.length, 3); assert.equal(discovery.ambiguous, false);
 const results = [];
+function streamedReply(value) {
+  const json = JSON.stringify(value);
+  const frames = json.match(/[\s\S]{1,400}/g).map(content =>
+    `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`);
+  frames.push('data: {"choices":[{"finish_reason":"stop"}]}\n\n', 'data: [DONE]\n\n');
+  return m.readBuilderCompletion(new Response(frames.join(''), {
+    headers: { 'Content-Type': 'text/event-stream' },
+  }), 5000);
+}
 for (const selected of discovery.candidates) {
   const memory = m.memoryJobStore(), owner = 'offline-public-reference', requestId = crypto.randomUUID();
   let calls = 0;
@@ -42,12 +52,12 @@ for (const selected of discovery.candidates) {
     if (!payload.documents) {
       assert.equal(payload.evidence.topicDetails, undefined);
       const topics = payload.evidence.facts.topics;
-      return { promptTokens: 0, completionTokens: 0, value: {
+      return streamedReply({
         schemaVersion: 1, identity: payload.identity, mode: payload.mode, marks: 100, durationMinutes: 120,
         topics, calculator: payload.evidence.facts.calculator,
         sections: [{ id: 'paper', title: 'Examly layout', groups: [0, 1, 2, 3].map(i => ({ id: `g${i}`, parts: [{ id: `p${i}`, topic: topics[i], marks: 25, response: i % 2 ? 'long_form' : 'short_answer', demand: 'AO2', resource: 'none' }] })) }],
         warnings: [], designDecisions: ['Four 25-mark parts are a controlled practice layout, not an official question distribution.'],
-      } };
+      });
     }
     const source = payload.documents[0], locations = [], claims = [];
     const cite = (field, physicalPage, text, quote = text) => {
@@ -74,11 +84,11 @@ for (const selected of discovery.candidates) {
       const heading = find(new RegExp('Theme ' + theme + ': [^\\n]+'));
       roots.push(heading.text.trim()); cite('topics', heading.page, heading.text);
     }
-    return { promptTokens: 0, completionTokens: 0, value: { evidence: {
+    return streamedReply({ evidence: {
       version: 1, identity: payload.identity,
       documents: [{ id: source.id, checksum: source.checksum, title: 'Public Pearson Business reference', url: null, kind: 'specification', authority: 'owner_supplied', state: 'active', version: payload.identity.specificationVersion, retrievedOn: '2026-11-21', applicableCohort: 'First assessment 2017', locations }],
       facts: { marks: 100, durationMinutes: 120, topics: roots, tier: null, calculator: 'unknown', formats: ['short_answer', 'long_form'], selection: 'all_compulsory', mathsRequirement: null, practicalRequirement: null }, claims, unresolved: [], conflicts: [],
-    }, identityClaims: [] } };
+    }, identityClaims: [] });
   } };
   const prepared = await m.prepareSourceJob(owner, { action: 'prepare_source', requestId, identity: { ...identity, component: selected.label }, selectedAssessmentId: selected.id, specificationVersionIntent: 'source', mode: 'full_mock', uploads: [{ contentType: 'application/pdf', base64: bytes.toString('base64') }] }, deps);
   assert.equal(prepared.stage, 'identifying', JSON.stringify(prepared));
@@ -108,6 +118,6 @@ for (const selected of discovery.candidates) {
   assert.equal(calls, 2, 'One controlled read and one controlled draft; no paid calls');
   results.push({ code: selected.componentCode, leafTopics: evidence.facts.topics.length, paths: [...new Set(evidence.topicDetails.map(d => d.path.join(' > ')))], physicalContentPages: [...new Set(evidence.topicDetails.flatMap(d => d.sources.map(s => s.page)))], literalExcerpts: true, siblingsExcluded: true, saveRoundTrip: true, privateOutcomesRedactedFromSharedSnapshot: true, controlledModelCalls: calls });
 }
-const report = { status: 'PASS', boundary: 'Actual public PDF and local reader/job/save flow; controlled model and in-memory store, no live AI or user data.', sha256, physicalPages: pages.length, papers: results };
+const report = { status: 'PASS', boundary: 'Actual public PDF, streamed synthetic provider replies, local reader/job/save flow and in-memory store; no live AI or user data.', sha256, physicalPages: pages.length, papers: results };
 if (resultPath) await writeFile(resultPath, JSON.stringify(report, null, 2) + '\n');
 console.log(JSON.stringify(report, null, 2));

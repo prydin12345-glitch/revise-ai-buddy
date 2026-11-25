@@ -3,6 +3,29 @@ import { build } from "esbuild";
 import vm from "node:vm";
 
 let code: string;
+export function streamedBuilderReply(value: unknown, complete = true): Response {
+  const json = JSON.stringify(value);
+  const frames: string[] = [": connected\r\n\r\n"];
+  for (let i = 0; i < json.length; i += 173) {
+    const delta = { choices: [{ index: 0, delta: { content: json.slice(i, i + 173) } }] };
+    frames.push(`data: ${JSON.stringify(delta)}\r\n\r\n`);
+  }
+  if (complete) {
+    frames.push('data: {"choices":[{"index":0,"finish_reason":"stop"}]}\r\n\r\n');
+    frames.push('data: {"choices":[],"usage":{"prompt_tokens":7,"completion_tokens":3}}\r\n\r\n');
+    frames.push("data: [DONE]\r\n\r\n");
+  }
+  const bytes = new TextEncoder().encode(frames.join(""));
+  let offset = 0;
+  return new Response(new ReadableStream({
+    pull(controller) {
+      if (offset === bytes.length) return controller.close();
+      controller.enqueue(bytes.subarray(offset, offset + 71));
+      offset = Math.min(bytes.length, offset + 71);
+    },
+  }), { headers: { "Content-Type": "text/event-stream; charset=utf-8" } });
+}
+
 export async function buildHandlerFixture() {
   const result = await build({
     entryPoints: ["supabase/functions/profile-builder/index.ts"],
@@ -184,6 +207,7 @@ export function handlerRuntime(
       provider.push(JSON.parse(init.body));
       const next = responses.shift();
       const value = typeof next === "function" ? await next(JSON.parse(JSON.parse(init.body).messages[1].content)) : next;
+      if (value instanceof Response) return value;
       return new Response(
         JSON.stringify({
           usage: { prompt_tokens: 7, completion_tokens: 3 },
