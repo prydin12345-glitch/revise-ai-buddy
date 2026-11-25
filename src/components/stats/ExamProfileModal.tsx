@@ -11,7 +11,6 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-  DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
@@ -30,9 +29,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
   Check,
-  ArrowLeft,
   ArrowRight,
-  Settings2,
   X,
   Pencil,
 } from "lucide-react";
@@ -72,7 +69,9 @@ import {
   hasTopicSuggestions,
 } from "@/lib/topicSuggestions";
 import { ProfilePaperPreview } from "./profile/ProfilePaperPreview";
-import { ProfileTopicBrowser } from "./profile/ProfileTopicBrowser";
+import { CustomProfileTopics } from "./profile/CustomProfileTopics";
+import { profileTopicLabel, type ProfileTopicPresentationEdit } from "@/lib/profile-topic-presentation";
+import { preserveCustomProfilePayload, type ProfileSaveArgs, type ProfileSaveResult } from "@/lib/custom-profile-save";
 import { ProfileTimeLimit } from "./profile/ProfileTimeLimit";
 import { ProfileLayoutEditor } from "./profile/ProfileLayoutEditor";
 import {
@@ -101,7 +100,7 @@ const humaniseTier = (tier: string): string => {
   );
 };
 
-type ProfileStep = "basics" | "paper" | "layout" | "review";
+type ProfileStep = "topics" | "settings" | "layout";
 
 function NumberControl({
   label,
@@ -119,8 +118,8 @@ function NumberControl({
   disabled?: boolean;
 }) {
   return (
-    <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2.5">
-      <span className="text-sm">{label}</span>
+    <label className="flex flex-col gap-2 text-xs text-muted-foreground">
+      <span>{label}</span>
       <Input
         aria-label={label}
         type="number"
@@ -134,7 +133,7 @@ function NumberControl({
           if (Number.isInteger(next) && next >= min && next <= max)
             onChange(next);
         }}
-        className="h-9 w-20 shrink-0 text-center tabular-nums"
+        className="min-h-11 w-full text-foreground tabular-nums"
       />
     </label>
   );
@@ -243,16 +242,7 @@ interface ExamProfileModalProps {
   /** Enter the assistant directly from a subject; the manual editor stays available. */
   initialBuilder?: boolean;
   availableTopics: string[];
-  onSave: (
-    profileName: string,
-    topics: string[],
-    questionCount: number,
-    educationalTier?: string,
-    timeLimitMinutes?: number | null,
-    advanced?: AdvancedSettings,
-    writtenQuestionCount?: number,
-    structureSettings?: QuestionStructureSettings,
-  ) => void;
+  onSave: (...args: ProfileSaveArgs) => void | ProfileSaveResult | Promise<void | ProfileSaveResult>;
   /** Shown only when editing a saved profile. Resolves after the delete finishes. */
   onDelete?: (profileId: string) => Promise<boolean>;
   initialData?: {
@@ -303,10 +293,23 @@ export const ExamProfileModal = ({
   const { ownerId } = useWorkspaceSession();
   const [builderOpen, setBuilderOpen] = useState(false);
   const userRegion = detectRegionKey(preferences?.curriculum_region);
-  const [step, setStep] = useState<"basics" | "paper" | "layout" | "review">(
-    "basics",
+  const [step, setStep] = useState<ProfileStep>(
+    "settings",
   );
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [setupComplete, setSetupComplete] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [manualStructureTouched, setManualStructureTouched] = useState(false);
+  const [paperConfigurationTouched, setPaperConfigurationTouched] = useState(false);
+  const [explicitPlanApplied, setExplicitPlanApplied] = useState(false);
+  const [hydrationKey, setHydrationKey] = useState(0);
+  const [topicEdits, setTopicEdits] = useState<ProfileTopicPresentationEdit[]>([]);
+  const [topicUndo, setTopicUndo] = useState<Array<{topics: string[]; edits: ProfileTopicPresentationEdit[]}>>([]);
+  const openingDraft = useRef<ReturnType<typeof draftSnapshot> | null>(null);
+  const openingPayload = useRef<Record<string, unknown> | null>(null);
+  const pendingAction = useRef<"close" | "builder">("close");
+  const afterDiscard = useRef<"close" | "builder" | null>(null);
+  const closeAfterDelete = useRef(false);
   const [stepError, setStepError] = useState<string | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const [profileName, setProfileName] = useState("");
@@ -391,13 +394,14 @@ export const ExamProfileModal = ({
     (!isMcqOnlyProfile && questionStructure === "sub_questions") ||
     blueprintActive;
   useEffect(() => {
-    if (structureLocksWritten && paperMode === "custom") {
+    if (manualStructureTouched && structureLocksWritten && paperMode === "custom") {
       const derived = blueprintActive
-        ? Math.min(20, blueprintTotalQuestions)
+        ? blueprintTotalQuestions
         : Math.min(20, parentQuestionCount * maxPartsPerQuestion);
       if (writtenCount !== derived) setWrittenCount(derived);
     }
   }, [
+    manualStructureTouched,
     structureLocksWritten,
     parentQuestionCount,
     maxPartsPerQuestion,
@@ -407,23 +411,28 @@ export const ExamProfileModal = ({
   ]);
   useEffect(() => {
     if (
-      paperMode === "custom" &&
+      manualStructureTouched && paperMode === "custom" &&
       !isMcqOnlyProfile &&
       questionStructure === "mixed" &&
       parentQuestionCount > writtenCount
     ) {
       setParentQuestionCount(Math.max(1, writtenCount));
     }
-  }, [questionStructure, writtenCount, paperMode]);
+  }, [questionStructure, writtenCount, paperMode, manualStructureTouched]);
 
   useEffect(() => {
     if (open) {
       setBuilderOpen(!!initialData?.profile_template || (!initialData && initialBuilder));
-      setStep(initialData ? "review" : "basics");
-      setAdvancedOpen(false);
+      setStep(initialData ? "topics" : "settings");
+      setSetupComplete(!!initialData); setSaving(false); setDiscardOpen(false);
+      setManualStructureTouched(false); setTopicUndo([]);
+      setPaperConfigurationTouched(false); setExplicitPlanApplied(false);
+      openingDraft.current = null; openingPayload.current = null;
+      setHydrationKey(value => value + 1);
       setStepError(null);
       setProfileName(initialData?.profile_name || "");
       setSelectedTopics(initialData?.topics || []);
+      setNewTextTitle(""); setNewTextRole(studiedContentCfg.roles[0].id);
       setStudiedTexts(
         Array.isArray((initialData as any)?.studied_texts)
           ? (initialData as any).studied_texts
@@ -431,6 +440,11 @@ export const ExamProfileModal = ({
       );
       const bp = (initialData as any)?.paper_blueprint;
       setBiologyBCustom(bp?.biologyBCustomSettings ?? null);
+      setTopicEdits(Array.isArray(bp?.topicEdits) ? structuredClone(bp.topicEdits.filter((value: unknown) => {
+        if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+        const edit = value as Record<string, unknown>;
+        return typeof edit.topic === "string" && typeof edit.label === "string" && !!edit.label.trim() && edit.label.trim().length <= 180;
+      })) : []);
       setInteractiveResponses(bp?.responseFormats === "interactive_v1");
       setVisualAssessment(bp?.visualAssessment === "ocr_h420_03_visual_v1");
       setSelectedCourseId(profileCourseId(bp));
@@ -443,7 +457,7 @@ export const ExamProfileModal = ({
         (initialData?.question_count
           ? Math.max(
               initialData.question_count - (initialData.mcq_count ?? 0),
-              5,
+              0,
             )
           : 10);
       setWrittenCount(initWritten);
@@ -471,6 +485,8 @@ export const ExamProfileModal = ({
       } else if (rawTier && isKnownLevel(rawTier)) {
         setEducationalTier(rawTier);
         setCustomTier("");
+      } else if (initialData && rawTier) {
+        setEducationalTier("other"); setCustomTier(rawTier);
       } else {
         setEducationalTier("");
         setCustomTier("");
@@ -584,15 +600,16 @@ export const ExamProfileModal = ({
         savedContractVersion,
       )
     : null;
-  const effectiveTopics =
-    currentPlan?.parts.some((p) => p.assessmentRole === "synoptic_essay") ||
+  const effectiveTopics = currentPlan && initialData && !paperConfigurationTouched
+    ? selectedTopics
+    : currentPlan?.parts.some((p) => p.assessmentRole === "synoptic_essay") ||
     (currentPlan?.courseId === OCR_ALEVEL_BIOLOGY_ID &&
       currentPlan.paperId === "paper_3")
       ? [...(paperDefinition?.topics ?? [])]
       : currentPlan
         ? [...new Set(currentPlan.parts.map((p) => p.topic))]
         : selectedTopics;
-  const configurationReady =
+  const chosenConfigurationReady =
     (!explicitCourseNeeded ||
       (!!courseCapability &&
         courseCapability.generationAvailable !== false &&
@@ -609,9 +626,15 @@ export const ExamProfileModal = ({
     (!selectedPaperId || !!paperDefinition) &&
     (selectedPaperId !== "paper_2" || !!selectedTier) &&
     (paperMode === "custom" || !!currentPlan);
+  // A legacy custom reference is still editable even when it has no current
+  // guided-course definition. Keep its stored metadata until an explicit choice.
+  const configurationReady = chosenConfigurationReady ||
+    (!!initialData && !paperConfigurationTouched && paperMode === "custom" && !courseCapability &&
+      !!(profileCourseId(initialData.paper_blueprint) || profilePaperId(initialData.paper_blueprint)));
 
   // Explicit conversion only — nothing is overwritten until the user accepts.
   const applyGuidedPlan = (plan: PaperPlan) => {
+    setExplicitPlanApplied(true); setPaperConfigurationTouched(true);
     if (
       plan.courseId === EDEXCEL_ALEVEL_BIOLOGY_B_ID &&
       !guidedActive &&
@@ -689,6 +712,7 @@ export const ExamProfileModal = ({
   };
 
   const changePaperMode = (mode: PaperMode) => {
+    setPaperConfigurationTouched(true); setExplicitPlanApplied(false);
     if (
       courseCapability?.id === EDEXCEL_ALEVEL_BIOLOGY_B_ID &&
       mode === "custom" &&
@@ -715,7 +739,7 @@ export const ExamProfileModal = ({
     setPlanApplied(mode === "custom");
     setSavedContractVersion(undefined);
   };
-  const currentBlueprint = (() => {
+  const layoutBlueprint = (() => {
         const courseSelection =
           (courseCapability?.id === OCR_GATEWAY_BIOLOGY_ID ||
             selectedPaperId) &&
@@ -773,6 +797,7 @@ export const ExamProfileModal = ({
           },
         };
         })();
+  const currentBlueprint = topicEdits.length ? { ...(layoutBlueprint ?? {}), topicEdits } : layoutBlueprint;
   const approvalSettings = {
     ...initialData, subject_name:subjectName, profile_name:profileName,
     exam_board:initialData?.exam_board ?? examBoard ?? null, educational_tier:finalTier,
@@ -792,69 +817,42 @@ export const ExamProfileModal = ({
     assessment_tier:effectiveAssessmentTier,paper_blueprint:currentBlueprint,
     ...(isTextBasedSubject?{studied_texts:studiedTexts}:{}),
   };
-  const currentApproval = evaluateApproval(approvalSettings,(initialData?.profile_template as any)?.presetId);
+  const reviewSettings = openingPayload.current ? { ...approvalSettings,
+    ...preserveCustomProfilePayload(initialData, openingPayload.current, approvalSettings,
+      { mode: explicitPlanApplied ? "guided" : "custom", blueprintConfigurationChanged: paperConfigurationTouched }) } : approvalSettings;
+  const currentApproval = evaluateApproval(reviewSettings,(initialData?.profile_template as any)?.presetId);
   const restoreApproval = () => {
     const id=currentApproval.entry?.id??(initialData?.profile_template as any)?.presetId;
     if(!id)return;
     try {const {plan,settings}=approvedPreset(id);setInteractiveResponses(false);setVisualAssessment(false);setSelectedCourseId(plan.courseId);setSelectedPaperId(plan.paperId);setAssessmentTier(plan.tier);setPaperMode(plan.mode);applyGuidedPlan(plan);setSelectedTopics(settings.topics);setAdvanced({...DEFAULT_ADVANCED,mcqCount:settings.mcq_count,mcqPosition:settings.mcq_position});}catch(error){setStepError((error as Error).message);}
   };
 
-  const handleSave = () => {
-    if (
-      !profileName.trim() ||
-      effectiveTopics.length === 0 ||
-      !finalTier ||
-      !configurationReady
-    )
-      return;
-    const timeVal = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
-    const advancedWithMcq = {
-      ...advanced,
-      mcqCount: currentPlan
-        ? currentPlan.parts.filter((p) => p.responseType === "mcq_single")
-            .length
-        : mcqCount,
-      assessmentTier: effectiveAssessmentTier,
-      examBoard: initialData?.exam_board ?? examBoard ?? null,
-      studiedTexts: isTextBasedSubject ? studiedTexts : undefined,
-      paperBlueprint: currentBlueprint,
-    };
-    const resolvedQuestionStructure = isMcqOnlyProfile
-      ? "mcq_only"
-      : questionStructure;
-    onSave(
-      profileName.trim(),
-      effectiveTopics,
-      currentPlan?.partCount ?? totalQuestionCount,
-      finalTier || undefined,
-      currentPlan?.durationMinutes ?? timeVal,
-      advancedWithMcq,
-      currentPlan
-        ? currentPlan.parts.filter((p) => p.responseType !== "mcq_single")
-            .length
-        : writtenCount,
-      {
-        questionStructure: resolvedQuestionStructure,
-        parentQuestionCount: currentPlan?.parentCount ?? parentQuestionCount,
-        maxPartsPerQuestion: currentPlan
-          ? Math.max(
-              ...currentPlan.parts.map(
-                (p) =>
-                  currentPlan.parts.filter((q) => q.parentId === p.parentId)
-                    .length,
-              ),
-            )
-          : maxPartsPerQuestion,
-        mcqOptionsCount: currentPlan ? 4 : mcqOptionsCount,
-        includeGraphs: currentPlan
-          ? currentPlan.parts.some((p) => p.resource === "graph")
-          : includeGraphs,
-        includeTables: currentPlan
-          ? currentPlan.parts.some((p) => p.resource === "data_table")
-          : includeTables,
-      },
-    );
-    onOpenChange(false);
+  const handleSave = async () => {
+    if (saving || !profileName.trim() || !effectiveTopics.length || !finalTier || !configurationReady) return;
+    setSaving(true); setStepError(null);
+    try {
+      const currentPayload = { ...approvalSettings,
+        profile_name: openingPayload.current?.profile_name === profileName ? profileName : profileName.trim() };
+      const profilePatch = preserveCustomProfilePayload(initialData, openingPayload.current ?? approvalSettings, currentPayload,
+        { mode: explicitPlanApplied ? "guided" : "custom", blueprintConfigurationChanged: paperConfigurationTouched });
+      const result = await onSave(profileName.trim(), effectiveTopics, currentPlan?.partCount ?? totalQuestionCount, finalTier,
+        currentPlan?.durationMinutes ?? (timeLimitMinutes ? Number(timeLimitMinutes) : null),
+        { ...advanced, mcqCount: currentPlan ? currentPlan.parts.filter(part => part.responseType === "mcq_single").length : mcqCount,
+          assessmentTier: effectiveAssessmentTier, examBoard: initialData?.exam_board ?? examBoard ?? null,
+          studiedTexts: profilePatch.studied_texts, paperBlueprint: profilePatch.paper_blueprint, profilePatch },
+        currentPlan ? currentPlan.parts.filter(part => part.responseType !== "mcq_single").length : writtenCount,
+        { questionStructure: isMcqOnlyProfile ? "mcq_only" : questionStructure,
+          parentQuestionCount: currentPlan?.parentCount ?? parentQuestionCount,
+          maxPartsPerQuestion: currentPlan ? Math.max(...currentPlan.parts.map(part => currentPlan.parts.filter(other => other.parentId === part.parentId).length)) : maxPartsPerQuestion,
+          mcqOptionsCount: currentPlan ? 4 : mcqOptionsCount,
+          includeGraphs: currentPlan ? currentPlan.parts.some(part => part.resource === "graph") : includeGraphs,
+          includeTables: currentPlan ? currentPlan.parts.some(part => part.resource === "data_table") : includeTables });
+      if (result && typeof result === "object" && !result.ok) {
+        setStepError(result.message || "Could not save this profile. Your edits are kept. Try again."); return;
+      }
+      onOpenChange(false);
+    } catch (error) { setStepError(error instanceof Error ? error.message : "Could not save this profile. Your edits are kept. Try again."); }
+    finally { setSaving(false); }
   };
 
   const blueprintHasInvalidMarks =
@@ -868,79 +866,26 @@ export const ExamProfileModal = ({
     !timeLimitMinutes ||
     (Number.isInteger(Number(timeLimitMinutes)) &&
       Number(timeLimitMinutes) >= 1);
+  const hasPendingStudiedText = isTextBasedSubject && !guidedActive && !!newTextTitle.trim();
   const canSave =
     configurationReady &&
     !!profileName.trim() &&
     effectiveTopics.length > 0 &&
     !!finalTier &&
     !blueprintHasInvalidMarks &&
-    validTime;
-  const navigation: Array<{ id: ProfileStep; label: string }> = [
-    { id: "basics", label: "Basics" },
-    { id: "paper", label: "Your paper" },
-    ...(!guidedActive && blueprintEnabled
-      ? [{ id: "layout" as const, label: "Sections & marks" }]
-      : []),
-    { id: "review", label: "Review" },
-  ];
-  const goTo = (next: ProfileStep) => {
-    setAdvancedOpen(false);
-    setStepError(null);
-    setStep(next);
-    bodyRef.current?.scrollTo({ top: 0 });
-  };
-  const checkBasics = () =>
-    !profileName.trim()
-      ? "Give your profile a name."
-      : !finalTier
-        ? "Choose an educational level."
-        : !configurationReady
-          ? "Choose your course and paper, then apply the preset or choose Custom."
-          : null;
-  const checkPaper = () =>
-    !effectiveTopics.length
-      ? "Choose at least one topic."
-      : !validTime
-        ? "Enter a whole number of minutes above zero."
-        : null;
-  const continueStep = () => {
-    const error =
-      step === "basics"
-        ? checkBasics()
-        : step === "paper"
-          ? checkPaper()
-          : blueprintHasInvalidMarks
-            ? "Give each question at least one mark."
-            : !blueprintActive
-              ? "Add a question or use simple structure."
-              : null;
-    if (error) {
-      setStepError(error);
-      return;
-    }
-    goTo(
-      step === "basics"
-        ? "paper"
-        : step === "paper" && !guidedActive && blueprintEnabled
-          ? "layout"
-          : "review",
-    );
-  };
-  const saveProfile = () => {
-    const error =
-      checkBasics() ||
-      checkPaper() ||
-      (blueprintHasInvalidMarks
-        ? "Give each question at least one mark."
-        : null);
-    if (error) {
-      setStepError(error);
-      return;
-    }
-    handleSave();
+    validTime && !hasPendingStudiedText;
+  const goTo = (next: ProfileStep) => { setStepError(null); setStep(next); bodyRef.current?.scrollTo({ top: 0 }); };
+  const checkBasics = () => !profileName.trim() ? "Give your profile a name." : !finalTier ? "Choose an educational level." : !configurationReady ? "Choose your course and paper, then apply the preset or choose Custom." : null;
+  const checkPaper = () => !effectiveTopics.length ? "Choose at least one topic." : !validTime ? "Enter a whole number of minutes above zero."
+    : hasPendingStudiedText ? "Add the studied content, or clear its title before saving." : null;
+  const continueStep = () => { const error = checkBasics(); if (error) { setStepError(error); return; } setSetupComplete(true); goTo("topics"); };
+  const saveProfile = async () => {
+    const error = checkBasics() || checkPaper() || (blueprintHasInvalidMarks ? "Give each question at least one mark." : null);
+    if (error) { setStepError(error); return; }
+    await handleSave();
   };
   const startLayout = () => {
-    setBlueprintEnabled(true);
+    setManualStructureTouched(true); setBlueprintEnabled(true);
     if (!blueprintSections.length)
       setBlueprintSections([
         {
@@ -976,155 +921,54 @@ export const ExamProfileModal = ({
     checkPaper() ||
     (blueprintHasInvalidMarks ? "Give each question at least one mark." : null);
 
-  if (builderOpen) return <ExamProfileBuilder open={open} onOpenChange={onOpenChange}
-    accountId={ownerId}
-    subjectName={subjectName} examBoard={initialData?.exam_board||examBoard||preferences?.preferred_exam_board}
-    educationalLevel={initialData?.educational_tier||finalTier||preferences?.preferred_educational_level}
-    curriculumRegion={preferences?.curriculum_region} courseId={selectedCourseId} paperId={selectedPaperId}
-    assessmentTier={assessmentTier} initialMode={initialData ? paperMode : "full_mock"} initialProfile={initialData}
-    onManual={()=>setBuilderOpen(false)} onDelete={onDelete} />;
+  function draftSnapshot() {
+    return { profileName, selectedTopics, writtenCount, mcqCount, educationalTier, customTier, assessmentTier,
+      timeLimitMinutes, advanced, questionStructure, parentQuestionCount, maxPartsPerQuestion, mcqOptionsCount,
+      includeGraphs, includeTables, interactiveResponses, visualAssessment, biologyBCustom, paperMode, planApplied,
+      savedContractVersion, selectedCourseId, selectedPaperId, studiedTexts, newTextTitle, newTextRole, blueprintEnabled, blueprintSections, topicEdits,
+      paperConfigurationTouched, explicitPlanApplied };
+  }
+  useEffect(() => {
+    if (!hydrationKey) return;
+    openingDraft.current = structuredClone(draftSnapshot());
+    openingPayload.current = structuredClone(approvalSettings);
+  // A hydration key captures the complete opening state after its setters commit.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrationKey]);
+  const reviewDirty = !!openingDraft.current && JSON.stringify(draftSnapshot()) !== JSON.stringify(openingDraft.current);
+  const discardChanges = () => {
+    const value = openingDraft.current; if (!value || saving) return;
+    const v = structuredClone(value);
+    setProfileName(v.profileName); setSelectedTopics(v.selectedTopics); setWrittenCount(v.writtenCount); setMcqCount(v.mcqCount);
+    setEducationalTier(v.educationalTier); setCustomTier(v.customTier); setAssessmentTier(v.assessmentTier); setTimeLimitMinutes(v.timeLimitMinutes);
+    setAdvanced(v.advanced); setQuestionStructure(v.questionStructure); setParentQuestionCount(v.parentQuestionCount); setMaxPartsPerQuestion(v.maxPartsPerQuestion);
+    setMcqOptionsCount(v.mcqOptionsCount); setIncludeGraphs(v.includeGraphs); setIncludeTables(v.includeTables); setInteractiveResponses(v.interactiveResponses);
+    setVisualAssessment(v.visualAssessment); setBiologyBCustom(v.biologyBCustom); setPaperMode(v.paperMode); setPlanApplied(v.planApplied);
+    setSavedContractVersion(v.savedContractVersion); setSelectedCourseId(v.selectedCourseId); setSelectedPaperId(v.selectedPaperId); setStudiedTexts(v.studiedTexts);
+    setBlueprintEnabled(v.blueprintEnabled); setBlueprintSections(v.blueprintSections); setTopicEdits(v.topicEdits);
+    setPaperConfigurationTouched(v.paperConfigurationTouched); setExplicitPlanApplied(v.explicitPlanApplied);
+    setManualStructureTouched(false); setTopicUndo([]); setNewTextTitle(v.newTextTitle); setNewTextRole(v.newTextRole); setStepError(null);
+  };
+  const requestClose = () => { if (saving) return; if (reviewDirty) { pendingAction.current = "close"; setDiscardOpen(true); } else onOpenChange(false); };
+  const requestBuilder = () => { if (saving) return; if (reviewDirty) { pendingAction.current = "builder"; setDiscardOpen(true); } else setBuilderOpen(true); };
+  const pushTopicUndo = () => setTopicUndo(history => [...history.slice(-19), { topics: [...selectedTopics], edits: structuredClone(topicEdits) }]);
+  const changeTopics = (topics: string[]) => {
+    if (saving || guidedActive) return;
+    pushTopicUndo(); setSelectedTopics(topics); setTopicEdits(edits => edits.filter(edit => topics.includes(edit.topic)));
+  };
+  const renameTopic = (topic: string, label: string) => {
+    if (saving || guidedActive || selectedTopics.filter(value => value === topic).length !== 1) return;
+    const trimmed = label.trim(); if (!trimmed || trimmed.length > 180) return;
+    pushTopicUndo();
+    setTopicEdits(edits => trimmed === topic ? edits.filter(edit => edit.topic !== topic)
+      : edits.some(edit => edit.topic === topic) ? edits.map(edit => edit.topic === topic ? { ...edit, label: trimmed } : edit)
+        : [...edits, { topic, label: trimmed }]);
+  };
+  const undoTopics = () => { const previous = topicUndo.at(-1); if (!previous || saving || guidedActive) return;
+    setSelectedTopics(previous.topics); setTopicEdits(previous.edits); setTopicUndo(history => history.slice(0,-1)); };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        hideCloseButton
-        onEscapeKeyDown={(event) => {
-          if (advancedOpen) {
-            event.preventDefault();
-            setAdvancedOpen(false);
-          }
-        }}
-        className="exam-profile-settings sm:max-w-2xl h-[88vh] max-h-[88vh] flex flex-col p-0 gap-0 bg-card border-border overflow-hidden"
-      >
-        <DialogHeader className="shrink-0 px-5 sm:px-6 pt-5 pb-4 border-b border-border text-left">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <DialogDescription
-                className="mb-1 text-xs font-medium"
-                style={{ color: subjectColor }}
-              >
-                {subjectName}
-                {(initialData?.exam_board ?? examBoard)
-                  ? ` · ${initialData?.exam_board ?? examBoard}`
-                  : ""}
-              </DialogDescription>
-              <DialogTitle className="font-serif text-[25px] font-semibold leading-tight">
-                {initialData ? "Edit exam profile" : "Create exam profile"}
-              </DialogTitle>
-            </div>
-            <div className="flex shrink-0 gap-1">
-              <button
-                type="button"
-                aria-label="Advanced settings"
-                title="Advanced settings"
-                aria-expanded={advancedOpen}
-                aria-controls="profile-advanced-panel"
-                onClick={() => setAdvancedOpen((value) => !value)}
-                className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-              >
-                <Settings2 className="h-4 w-4" />
-              </button>
-              <DialogClose
-                className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </DialogClose>
-            </div>
-          </div>
-          <div className="!mt-3 flex flex-wrap items-center justify-between gap-2">
-            <ProfileApprovalBadge profile={approvalSettings}/>
-            <div className="flex items-center gap-2">
-              {initialData?.id && onDelete && (
-                <Button type="button" size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={()=>setConfirmDelete(true)}>
-                  <Trash2 className="mr-1.5 h-3.5 w-3.5" />Delete
-                </Button>
-              )}
-              <Button type="button" size="sm" variant="outline" onClick={()=>setBuilderOpen(true)}>Build profile for me</Button>
-            </div>
-          </div>
-          <AlertDialog open={confirmDelete} onOpenChange={(o)=>!deleting&&setConfirmDelete(o)}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete "{initialData?.profile_name}"?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This removes the exam profile. Exams and practice you already made from it are kept.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  disabled={deleting}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={async (ev)=>{
-                    ev.preventDefault();
-                    if (!initialData?.id || !onDelete) return;
-                    setDeleting(true);
-                    const ok = await onDelete(initialData.id);
-                    setDeleting(false);
-                    setConfirmDelete(false);
-                    if (ok) onOpenChange(false);
-                  }}
-                >
-                  {deleting ? "Deleting..." : "Delete profile"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          {currentApproval.status==='customised'&&<Button type="button" variant="ghost" size="sm" onClick={restoreApproval}>Restore approved settings</Button>}
-          <nav
-            aria-label="Profile setup"
-            className="!mt-4 flex items-center gap-1 rounded-md bg-muted/50 p-1"
-          >
-            {navigation.map((item, i) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => goTo(item.id)}
-                aria-label={item.label}
-                aria-current={step === item.id ? "step" : undefined}
-                className={`min-h-9 min-w-0 flex-1 rounded px-1.5 text-xs transition-colors ${step === item.id ? "bg-card font-semibold text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                <span className="mr-1.5 hidden sm:inline tabular-nums opacity-60">
-                  {i + 1}
-                </span>
-                {item.label}
-              </button>
-            ))}
-          </nav>
-        </DialogHeader>
-
-        <div
-          ref={bodyRef}
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 sm:px-6 py-4"
-          style={{ "--scroll-accent": subjectColor } as React.CSSProperties}
-        >
-          {advancedOpen ? (
-            <section
-              id="profile-advanced-panel"
-              className="mx-auto max-w-md space-y-5"
-            >
-              <h2 className="font-serif text-xl">Advanced settings</h2>
-              {guidedActive ? (
-                <p className="text-sm text-muted-foreground">
-                  The preset sets these options. Choose Custom in Basics to
-                  change them.
-                </p>
-              ) : (
-                <ExamProfileAdvanced
-                  settings={advanced}
-                  onChange={setAdvanced}
-                  questionLimit={writtenCount}
-                  subjectColor={subjectColor}
-                  curriculumRegion={preferences?.curriculum_region}
-                  embedded
-                />
-              )}
-            </section>
-          ) : (
-            <>
-              {step === "basics" && (
-                <div className="space-y-5">
+  const basicsPane = (
+<div className="space-y-5">
                   <div className="grid grid-cols-1 sm:grid-cols-[1.15fr_1fr] gap-4">
                     <div className="space-y-1.5">
                       <Label
@@ -1149,6 +993,7 @@ export const ExamProfileModal = ({
                         aria-label="Educational level"
                         value={educationalTier}
                         onChange={(event) => {
+                          setPaperConfigurationTouched(true); setExplicitPlanApplied(false);
                           setEducationalTier(event.target.value);
                           setSelectedCourseId(null);
                           setSelectedPaperId(null);
@@ -1196,6 +1041,7 @@ export const ExamProfileModal = ({
                     value={selectedCourseId}
                     tier={selectedTier}
                     onChange={(id) => {
+                      setPaperConfigurationTouched(true); setExplicitPlanApplied(false);
                       setBiologyBCustom(null);
                       setSelectedCourseId(id);
                       setSelectedPaperId(null);
@@ -1209,6 +1055,7 @@ export const ExamProfileModal = ({
                       options={assessmentTierOptions}
                       value={effectiveAssessmentTier}
                       onChange={(tier) => {
+                        setPaperConfigurationTouched(true); setExplicitPlanApplied(false);
                         setAssessmentTier(tier);
                         setPlanApplied(false);
                       }}
@@ -1224,6 +1071,7 @@ export const ExamProfileModal = ({
                     value={selectedPaperId}
                     tier={selectedTier}
                     onChange={(id) => {
+                      setPaperConfigurationTouched(true); setExplicitPlanApplied(false);
                       setSelectedPaperId(id);
                       setPlanApplied(false);
                       setSavedContractVersion(undefined);
@@ -1264,7 +1112,7 @@ export const ExamProfileModal = ({
                             : "Written questions"
                         }
                         value={writtenCount}
-                        max={20}
+                        max={blueprintActive ? Math.max(20, blueprintTotalQuestions) : 20}
                         disabled={guidedActive || structureLocksWritten}
                         onChange={(value) => {
                           if (value || mcqCount) setWrittenCount(value);
@@ -1282,11 +1130,9 @@ export const ExamProfileModal = ({
                     </div>
                   </section>
                 </div>
-              )}
-
-              {step === "paper" && (
-                <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] items-start gap-5">
-                  <section
+  );
+  const structurePane = (
+<section
                     aria-label="Question structure"
                     className="space-y-3"
                   >
@@ -1328,9 +1174,9 @@ export const ExamProfileModal = ({
                                   type="button"
                                   key={option.id}
                                   aria-pressed={questionStructure === option.id}
-                                  onClick={() =>
-                                    setQuestionStructure(option.id)
-                                  }
+                                  onClick={() => {
+                                    setManualStructureTouched(true); setQuestionStructure(option.id);
+                                  }}
                                   className={`flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-md border px-1.5 text-xs ${questionStructure === option.id ? "border-border-strong bg-muted font-medium" : "border-border bg-background text-muted-foreground hover:text-foreground"}`}
                                 >
                                   <span>{option.label}</span>
@@ -1380,14 +1226,14 @@ export const ExamProfileModal = ({
                             value={parentQuestionCount}
                             min={1}
                             max={10}
-                            onChange={setParentQuestionCount}
+                            onChange={value => { setManualStructureTouched(true); setParentQuestionCount(value); }}
                           />
                           <NumberControl
                             label="Parts per question"
                             value={maxPartsPerQuestion}
                             min={2}
                             max={6}
-                            onChange={setMaxPartsPerQuestion}
+                            onChange={value => { setManualStructureTouched(true); setMaxPartsPerQuestion(value); }}
                           />
                         </div>
                       )}
@@ -1462,22 +1308,10 @@ export const ExamProfileModal = ({
                         </label>
                       )}
                   </section>
-                  <div className="min-w-0 border-t border-border pt-4 sm:border-t-0 sm:pt-0">
-                    <ProfileTopicBrowser
-                      allTopics={
-                        guidedActive
-                          ? effectiveTopics
-                          : [...new Set([...allTopics, ...topicSuggestions])]
-                      }
-                      selectedTopics={effectiveTopics}
-                      onChange={setSelectedTopics}
-                      subjectName={subjectName}
-                      accent={subjectColor}
-                      locked={guidedActive}
-                    />
-                  </div>
-                  {isTextBasedSubject && !guidedActive && (
-                    <section className="space-y-3 border-t border-border pt-4 sm:col-span-2">
+  );
+  const studiedContentPane = <>
+{isTextBasedSubject && !guidedActive && (
+                    <section className="space-y-3">
                       <h3 className="text-sm font-semibold">
                         {studiedContentCfg.title}
                       </h3>
@@ -1502,7 +1336,7 @@ export const ExamProfileModal = ({
                                 studiedTexts.filter((_, j) => j !== i),
                               )
                             }
-                            className="flex h-9 w-9 shrink-0 items-center justify-center text-muted-foreground hover:text-destructive"
+                            title={`Remove ${text.title}`} className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground hover:text-destructive"
                           >
                             <X className="h-3.5 w-3.5" />
                           </button>
@@ -1549,32 +1383,24 @@ export const ExamProfileModal = ({
                       </div>
                     </section>
                   )}
-                  <div className="sm:col-span-2">
-                    <ProfileTimeLimit
-                      value={
-                        currentPlan
-                          ? String(currentPlan.durationMinutes)
-                          : timeLimitMinutes
-                      }
-                      onChange={setTimeLimitMinutes}
-                      locked={guidedActive}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {step === "layout" && (
-                <ProfileLayoutEditor
+  </>;
+  const exactLayoutPane = (
+<ProfileLayoutEditor
                   sections={blueprintSections}
-                  onChange={setBlueprintSections}
+                  onChange={value => {
+                    const count = (sections: typeof blueprintSections) => sections.reduce((total, section) => total + section.questions.length, 0);
+                    if (count(value) !== count(blueprintSections)) setManualStructureTouched(true);
+                    setBlueprintSections(value);
+                  }}
                   presets={availablePresets}
                   presetId={advanced.structurePreset}
                   subjectName={subjectName}
                   onRemove={() => {
-                    setBlueprintEnabled(false);
-                    goTo("paper");
+                    setManualStructureTouched(true); setBlueprintEnabled(false);
+                    goTo("layout");
                   }}
                   onPresetChange={(id) => {
+                    setManualStructureTouched(true);
                     const preset = availablePresets.find(
                       (value) => value.id === id,
                     );
@@ -1586,220 +1412,101 @@ export const ExamProfileModal = ({
                     }));
                   }}
                 />
-              )}
+  );
 
-              {step === "review" && (
-                <div className="space-y-5">
-                  <div className="flex justify-between items-start gap-3">
-                    <div>
-                      <h2 className="font-serif text-xl leading-snug">
-                        {profileName.trim() || "Your exam profile"}
-                      </h2>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {paperDefinition && (guidedActive || selectedPaperId)
-                          ? paperDefinition.displayName
-                          : ALL_LEVELS.find((value) => value.id === finalTier)
-                              ?.label || humaniseTier(finalTier)}
-                        {effectiveAssessmentTier &&
-                        effectiveAssessmentTier !== "not_tiered"
-                          ? ` · ${effectiveAssessmentTier === "higher" ? "Higher" : "Foundation"}`
-                          : ""}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => goTo("basics")}
-                      className="flex min-h-9 items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      <Pencil className="h-3 w-3" />
-                      Edit basics
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-x-6 gap-y-2 border-y border-border py-3 text-xs">
-                    <span>
-                      <strong className="font-semibold tabular-nums">
-                        {presetCount}
-                      </strong>{" "}
-                      {currentPlan || questionStructure === "sub_questions"
-                        ? "parts"
-                        : "questions"}
-                    </span>
-                    {currentPlan && (
-                      <span>
-                        <strong className="font-semibold tabular-nums">
-                          {currentPlan.totalMarks}
-                        </strong>{" "}
-                        marks
-                      </span>
-                    )}
-                    {blueprintActive && !currentPlan && (
-                      <span>
-                        <strong className="font-semibold tabular-nums">
-                          {blueprintCountedMarks}
-                        </strong>{" "}
-                        marks counted
-                      </span>
-                    )}
-                    <span>
-                      <strong className="font-semibold tabular-nums">
-                        {currentPlan?.durationMinutes ?? timeLimitMinutes}
-                      </strong>{" "}
-                      {timeLimitMinutes || currentPlan
-                        ? "minutes"
-                        : "No time limit"}
-                    </span>
-                    <span>
-                      <strong className="font-semibold tabular-nums">
-                        {effectiveTopics.length}
-                      </strong>{" "}
-                      topics
-                    </span>
-                  </div>
-                  {preview(true)}
-                  <section className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-sm font-semibold">Topics</h3>
-                      <button
-                        type="button"
-                        onClick={() => goTo("paper")}
-                        className="min-h-9 text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        {guidedActive ? "View paper" : "Edit paper"}
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {effectiveTopics.map((topic) => (
-                        <span
-                          key={topic}
-                          className="rounded-md bg-muted px-2.5 py-1.5 text-xs"
-                        >
-                          {topic}
-                        </span>
-                      ))}
-                    </div>
-                  </section>
-                  {isTextBasedSubject && studiedTexts.length > 0 && (
-                    <section>
-                      <h3 className="mb-2 text-sm font-semibold">
-                        {studiedContentCfg.title}
-                      </h3>
-                      <div className="space-y-1.5">
-                        {studiedTexts.map((text, i) => (
-                          <p key={i} className="text-sm text-muted-foreground">
-                            {text.title}
-                          </p>
-                        ))}
-                      </div>
-                    </section>
-                  )}
-                  {blueprintActive && !guidedActive && (
-                    <button
-                      type="button"
-                      onClick={() => goTo("layout")}
-                      className="min-h-9 text-xs font-medium underline decoration-border-strong underline-offset-4"
-                    >
-                      Edit sections & marks
-                    </button>
-                  )}
-                  {missingSaveReason && (
-                    <p role="status" className="text-sm text-muted-foreground">
-                      {missingSaveReason}
-                    </p>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-        </div>
+  if (builderOpen) return <ExamProfileBuilder open={open} onOpenChange={onOpenChange}
+    accountId={ownerId}
+    subjectName={subjectName} examBoard={initialData?.exam_board||examBoard||preferences?.preferred_exam_board}
+    educationalLevel={initialData?.educational_tier||finalTier||preferences?.preferred_educational_level}
+    curriculumRegion={preferences?.curriculum_region} courseId={selectedCourseId} paperId={selectedPaperId}
+    assessmentTier={assessmentTier} initialMode={initialData ? paperMode : "full_mock"} initialProfile={initialData}
+    onManual={()=>setBuilderOpen(false)} onDelete={onDelete} />;
 
-        {stepError && (
-          <p
-            role="alert"
-            className="shrink-0 border-t border-border px-5 sm:px-6 py-2.5 text-xs text-destructive"
-          >
-            {stepError}
-          </p>
-        )}
-        <DialogFooter className="shrink-0 flex-row items-center justify-between border-t border-border bg-card px-3 sm:px-6 py-3 gap-2">
-          {advancedOpen ? (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setAdvancedOpen(false)}
-            >
-              <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-              Back
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() =>
-                step === "basics"
-                  ? onOpenChange(false)
-                  : goTo(
-                      step === "review"
-                        ? !guidedActive && blueprintEnabled
-                          ? "layout"
-                          : "paper"
-                        : step === "layout"
-                          ? "paper"
-                          : "basics",
-                    )
-              }
-              className="px-2 text-muted-foreground"
-            >
-              {step !== "basics" && (
-                <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-              )}
-              {step === "basics" ? "Cancel" : "Back"}
-            </Button>
-          )}
-          <div className="flex min-w-0 items-center gap-2">
-            {!advancedOpen && step !== "review" && (
-              <Button
-                type="button"
-                className="px-3 sm:px-4"
-                variant={initialData ? "outline" : "default"}
-                onClick={continueStep}
-              >
-                {step === "basics"
-                  ? "Continue"
-                  : step === "paper" && !guidedActive && blueprintEnabled
-                    ? "Sections & marks"
-                    : "Review"}
-                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-              </Button>
-            )}
-            {advancedOpen && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setAdvancedOpen(false)}
-              >
-                Done
-              </Button>
-            )}
-            {((!advancedOpen && step === "review") || initialData) && (
-              <Button
-                type="button"
-                aria-label={initialData ? "Update Profile" : "Create Profile"}
-                onClick={saveProfile}
-                disabled={!canSave}
-                style={{ backgroundColor: subjectColor }}
-                className="px-3 sm:px-4 text-white disabled:opacity-50"
-              >
-                <span className="sm:hidden">
-                  {initialData ? "Save" : "Create"}
-                </span>
-                <span className="hidden sm:inline">
-                  {initialData ? "Update Profile" : "Create Profile"}
-                </span>
-              </Button>
-            )}
+  return <>
+    <Dialog open={open} onOpenChange={value => { if (!value) requestClose(); }}>
+      <DialogContent hideCloseButton
+        onEscapeKeyDown={event => { if (saving || discardOpen || confirmDelete) event.preventDefault(); }}
+        onInteractOutside={event => { if (saving || discardOpen || confirmDelete) event.preventDefault(); }}
+        className="exam-profile-settings left-0 top-0 flex h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-border bg-card p-0 text-foreground sm:left-1/2 sm:top-1/2 sm:h-[90dvh] sm:max-h-[850px] sm:w-[calc(100%_-_2rem)] sm:max-w-[1040px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg">
+        <DialogHeader className="sr-only"><DialogTitle>{initialData ? "Edit exam profile" : "Create exam profile"}</DialogTitle>
+          <DialogDescription>Choose your topics, exam settings and paper layout.</DialogDescription>
+        </DialogHeader>
+        <header className="shrink-0 px-5 pb-4 pt-6 sm:px-7 sm:pb-5 sm:pt-7">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 items-center gap-1.5"><h2 className="min-w-0 break-words text-[23px] font-semibold leading-snug tracking-tight sm:text-[25px]">{profileName.trim() || "Create exam profile"}</h2>
+                <Button type="button" variant="ghost" size="icon" aria-label="Edit profile name" title="Edit profile name" disabled={saving} className="h-11 w-11 shrink-0" onClick={() => goTo("settings")}><Pencil aria-hidden="true" className="h-4 w-4" /></Button>
+              </div>
+              <p className="mt-1.5 break-words text-xs leading-relaxed text-muted-foreground">{[initialData?.exam_board ?? examBoard, ALL_LEVELS.find(level => level.id === finalTier)?.label || finalTier, subjectName].filter(Boolean).join(" · ")}</p>
+              {paperDefinition && (guidedActive || selectedPaperId) && <p className="mt-1 break-words text-xs text-muted-foreground">{paperDefinition.displayName}{effectiveAssessmentTier && effectiveAssessmentTier !== "not_tiered" ? ` · ${effectiveAssessmentTier === "higher" ? "Higher" : "Foundation"}` : ""}</p>}
+            </div>
+            <Button type="button" variant="ghost" size="icon" aria-label="Close profile" title="Close profile" disabled={saving} className="-mr-1 -mt-1 h-11 w-11 shrink-0" onClick={requestClose}><X aria-hidden="true" className="h-4 w-4" /></Button>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
+            <span>{currentPlan ? `${currentPlan.durationMinutes} minutes` : timeLimitMinutes ? `${timeLimitMinutes} minutes` : "No time limit"}</span><span aria-hidden="true">·</span>
+            <span>{presetCount} {currentPlan || questionStructure === "sub_questions" ? "parts" : "questions"}</span>
+            {(currentPlan || blueprintActive) && <><span aria-hidden="true">·</span><span>{currentPlan?.totalMarks ?? blueprintCountedMarks} marks</span></>}
+            <span aria-hidden="true">·</span><span>{guidedActive ? paperMode === "full_mock" ? "Full mock" : "Short practice" : "Custom profile"}</span>
+          </div>
+        </header>
+        {setupComplete && <nav aria-label="Profile sections" className="flex shrink-0 gap-6 border-b border-border px-5 sm:gap-7 sm:px-7">
+          {([["topics", "Topics"], ["settings", "Exam settings"], ["layout", "Paper layout"]] as const).map(([value,label]) => <button key={value} type="button" disabled={saving} aria-current={step === value ? "page" : undefined} onClick={() => goTo(value)}
+            className={`min-h-11 border-b-2 py-3 text-[11px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-xs ${step === value ? "border-foreground/70 text-foreground" : "border-transparent text-muted-foreground"}`}>
+              {label}{value === "topics" && <span className="ml-1.5 text-[10px] font-normal tabular-nums text-muted-foreground">{effectiveTopics.length}</span>}
+          </button>)}
+        </nav>}
+        {setupComplete && step === "topics" ? <>
+          <CustomProfileTopics topics={effectiveTopics} allTopics={guidedActive ? effectiveTopics : [...new Set([...allTopics, ...topicSuggestions])]} subjectName={subjectName} accent={subjectColor}
+            getTopicLabel={topic => profileTopicLabel({ topics: effectiveTopics, paper_blueprint: { topicEdits } }, topic)}
+            onChange={changeTopics} onRename={renameTopic} disabled={saving} locked={guidedActive} onUndo={undoTopics} canUndo={topicUndo.length > 0} />
+          {isTextBasedSubject && !guidedActive && <details className="max-h-[40%] shrink-0 overflow-y-auto border-t border-border px-5 py-2 sm:px-7"><summary className="min-h-11 cursor-pointer content-center text-xs font-medium">{studiedContentCfg.title}{studiedTexts.length ? ` · ${studiedTexts.length}` : ""}</summary><fieldset disabled={saving} className="pb-4">{studiedContentPane}</fieldset></details>}
+        </> : <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-7 sm:py-6">
+          <fieldset disabled={saving} className="space-y-6">
+            {(!setupComplete || step === "settings") ? <>
+              <div><h3 className="text-lg font-semibold">{setupComplete ? "Exam settings" : "Set up your profile"}</h3><p className="mt-1 text-xs text-muted-foreground">{setupComplete ? "Your paper details and question settings." : "Choose a name and qualification, then add your topics."}</p></div>
+              {basicsPane}
+              {!setupComplete && <div className="border-t border-border pt-3"><Button type="button" variant="ghost" onClick={requestBuilder}>Build profile for me</Button></div>}
+              {setupComplete && <>
+                <ProfileTimeLimit value={currentPlan ? String(currentPlan.durationMinutes) : timeLimitMinutes} onChange={setTimeLimitMinutes} locked={guidedActive} />
+                <details className="border-t border-border pt-2"><summary className="min-h-11 cursor-pointer content-center text-xs font-medium">More question settings</summary><div className="pb-4 pt-3">
+                  {guidedActive ? <p className="text-xs text-muted-foreground">The preset sets these options. Choose Custom in Exam settings to change them.</p> : <ExamProfileAdvanced settings={advanced} onChange={setAdvanced} questionLimit={writtenCount} subjectColor={subjectColor} curriculumRegion={preferences?.curriculum_region} embedded />}
+                </div></details>
+                <details className="border-t border-border pt-2"><summary className="min-h-11 cursor-pointer content-center text-xs font-medium">Profile options</summary><div className="space-y-3 py-3">
+                  <ProfileApprovalBadge profile={reviewSettings}/>
+                  {currentApproval.status === "customised" && <Button type="button" variant="ghost" size="sm" onClick={restoreApproval}>Restore approved settings</Button>}
+                  <div className="flex flex-wrap gap-3"><Button type="button" variant="ghost" onClick={requestBuilder}>Build profile for me</Button>
+                    {initialData?.id && onDelete && <Button type="button" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setConfirmDelete(true)}><Trash2 aria-hidden="true" className="mr-1.5 h-4 w-4" />Delete profile</Button>}
+                  </div>
+                </div></details>
+              </>}
+            </> : <>
+              <div><h3 className="text-lg font-semibold">Paper layout</h3><p className="mt-1 text-xs text-muted-foreground">Your structure, sections and question marks.</p></div>
+              {blueprintEnabled && !guidedActive ? exactLayoutPane : structurePane}
+              {currentPlan && <details className="border-t border-border pt-2"><summary className="min-h-11 cursor-pointer content-center text-xs font-medium">Full paper preview</summary><div className="pt-3">{preview(true)}</div></details>}
+            </>}
+          </fieldset>
+        </div>}
+        {stepError ? <p role="alert" className="shrink-0 border-t border-border px-5 py-2.5 text-xs text-destructive sm:px-7">{stepError}</p>
+          : !canSave && setupComplete && missingSaveReason ? <p role={!validTime ? "alert" : "status"} className={`shrink-0 border-t border-border px-5 py-2.5 text-xs sm:px-7 ${!validTime ? "text-destructive" : "text-muted-foreground"}`}>{missingSaveReason}</p> : null}
+        <DialogFooter className="shrink-0 flex-row items-center justify-between gap-2 border-t border-border bg-card px-5 py-3 sm:justify-between sm:space-x-0 sm:px-7 sm:py-4">
+          <p role="status" className="min-w-0 text-[10px] text-muted-foreground sm:text-xs">{saving ? "Saving…" : reviewDirty ? "Unsaved changes" : initialData ? "All changes saved" : "Ready to create"}</p>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button type="button" variant="ghost" className="min-h-11 rounded-md px-3 text-xs font-normal" disabled={saving || !reviewDirty} onClick={discardChanges}>Discard changes</Button>
+            {setupComplete ? <Button type="button" aria-label={initialData ? "Update Profile" : "Create Profile"} disabled={saving || !canSave} onClick={() => void saveProfile()} className="min-h-11 rounded-md px-3 text-xs">{saving ? "Saving…" : initialData ? "Save changes" : "Create profile"}</Button>
+              : <Button type="button" disabled={saving} onClick={continueStep} className="min-h-11 rounded-md px-3 text-xs">Continue<ArrowRight aria-hidden="true" className="ml-1.5 h-3.5 w-3.5" /></Button>}
           </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+    <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}><AlertDialogContent onCloseAutoFocus={event => {
+      if (!afterDiscard.current) return;
+      event.preventDefault(); const action = afterDiscard.current; afterDiscard.current = null;
+      discardChanges(); if (action === "builder") setBuilderOpen(true); else onOpenChange(false);
+    }}><AlertDialogHeader><AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle><AlertDialogDescription>Your saved profile stays unchanged. Your edits in this window will be discarded.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Keep editing</AlertDialogCancel><AlertDialogAction onClick={() => { afterDiscard.current = pendingAction.current; setDiscardOpen(false); }}>Discard and continue</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+    <AlertDialog open={confirmDelete} onOpenChange={value => { if (!deleting) setConfirmDelete(value); }}><AlertDialogContent onCloseAutoFocus={event => { if (closeAfterDelete.current) { event.preventDefault(); closeAfterDelete.current = false; onOpenChange(false); } }}><AlertDialogHeader><AlertDialogTitle>Delete "{initialData?.profile_name}"?</AlertDialogTitle><AlertDialogDescription>This removes the exam profile. Exams and practice you already made from it are kept.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel><AlertDialogAction disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={async event => {
+      event.preventDefault(); if (!initialData?.id || !onDelete) return; setDeleting(true);
+      try { const ok = await onDelete(initialData.id); if (ok) { closeAfterDelete.current = true; setConfirmDelete(false); } else setStepError("Could not delete this profile. Try again."); }
+      catch { setStepError("Could not delete this profile. Try again."); } finally { setDeleting(false); }
+    }}>{deleting ? "Deleting…" : "Delete profile"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+  </>;
 };

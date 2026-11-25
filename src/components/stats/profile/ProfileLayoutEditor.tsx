@@ -80,7 +80,7 @@ export function ProfileLayoutEditor({
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-serif text-xl">Sections & marks</h2>
+        <h2 className="text-sm font-semibold">Sections & marks</h2>
         <button
           type="button"
           className="min-h-9 text-xs text-muted-foreground hover:text-foreground"
@@ -121,7 +121,7 @@ export function ProfileLayoutEditor({
             key={i}
             aria-pressed={index === i}
             onClick={() => setActive(i)}
-            className={`min-h-10 rounded-md px-3 text-xs ${index === i ? "bg-muted font-semibold text-foreground" : "text-muted-foreground hover:bg-muted/50"}`}
+            className={`min-h-11 border-b-2 px-3 text-xs ${index === i ? "border-foreground/70 font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
           >
             {value.title || `Section ${i + 1}`}
           </button>
@@ -145,7 +145,7 @@ export function ProfileLayoutEditor({
         </button>
       </div>
       {section && (
-        <section className="space-y-4 rounded-lg border border-border bg-background p-4">
+        <section className="space-y-4 border-t border-border pt-4">
           <div className="flex items-end gap-2">
             <div className="flex-1">
               <label
@@ -165,9 +165,11 @@ export function ProfileLayoutEditor({
               variant="ghost"
               size="icon"
               aria-label="Remove section"
+              title="Remove section"
+              className="h-11 w-11"
               onClick={() => onChange(sections.filter((_, i) => i !== index))}
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 aria-hidden="true" className="h-4 w-4" />
             </Button>
           </div>
           <div className="max-h-[256px] space-y-3 overflow-y-auto overscroll-contain pr-1">
@@ -239,14 +241,15 @@ export function ProfileLayoutEditor({
                   <button
                     type="button"
                     aria-label={`Remove question ${questionStart + qi + 1}`}
+                    title={`Remove question ${questionStart + qi + 1}`}
                     onClick={() =>
                       update({
                         questions: section.questions.filter((_, i) => i !== qi),
                       })
                     }
-                    className="flex h-10 w-8 items-center justify-center text-muted-foreground hover:text-destructive"
+                    className="flex h-11 w-11 items-center justify-center text-muted-foreground hover:text-destructive"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 aria-hidden="true" className="h-4 w-4" />
                   </button>
                 </div>
               );

@@ -146,9 +146,8 @@ it("uses the existing editor container and keeps the manual route available", ()
   fireEvent.click(screen.getByRole("button", { name: "Build profile for me" }));
   expect(screen.getByRole("dialog").className).toContain("sm:max-w-2xl");
   fireEvent.click(screen.getByRole("button", { name: "Manual editor" }));
-  expect(
-    screen.getByRole("button", { name: "Advanced settings" }),
-  ).toBeInTheDocument();
+  expect(screen.getByRole("textbox", { name: "Profile name" })).toBeVisible();
+  expect(screen.getByRole("combobox", { name: "Educational level" })).toBeVisible();
 });
 it.each([false, true])("new modal builder uses full paper when initialBuilder is %s", async initialBuilder => {
   const proposal = templateFromPreset(entry.id);

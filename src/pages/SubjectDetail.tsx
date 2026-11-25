@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { EditSubjectModal } from "@/lib/EditSubjectModal";
@@ -16,6 +16,7 @@ import { ExamProfileList } from "@/components/subjects/ExamProfileList";
 import { TopicMasteryGrid } from "@/components/subjects/TopicMasteryGrid";
 import { RecentActivityList } from "@/components/subjects/RecentActivityList";
 import { getBoardDisplayName } from "@/lib/board-scrubber";
+import { buildCustomProfilePayload, type ProfileSaveArgs, type ProfileSaveResult } from "@/lib/custom-profile-save";
 
 const SubjectDetail = () => {
   const { subjectName: raw } = useParams<{ subjectName: string }>();
@@ -43,6 +44,9 @@ const SubjectDetail = () => {
 
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<any | null>(null);
+  // Keep the draft's initialData stable after a partial create. Its next save
+  // must update the inserted row without triggering modal rehydration.
+  const createdProfileId = useRef<string | null>(null);
 
   const topics = subject ? getTopicsForSubject(subject.subject_name) : [];
   const profiles = subject ? getProfilesForSubject(subject.subject_name) : [];
@@ -92,56 +96,25 @@ const SubjectDetail = () => {
   const displayName = (subject as any).custom_name || subject.subject_name;
 
   const handleOpenCreateProfile = () => {
+    createdProfileId.current = null;
     setEditingProfile(null);
     setProfileModalOpen(true);
   };
 
-  const handleSaveProfile = async (
-    profileName: string,
-    profileTopics: string[],
-    questionCount: number,
-    educationalTier?: string,
-    timeLimitMinutes?: number | null,
-    advanced?: any,
-    writtenQuestionCount?: number,
-    structureSettings?: any
-  ) => {
-    const payload = {
-      profile_name: profileName,
-      topics: profileTopics,
-      question_count: questionCount,
-      educational_tier: educationalTier || null,
-      time_limit_minutes: timeLimitMinutes ?? null,
-      structure_preset: advanced?.structurePreset ?? "custom",
-      mcq_count: advanced?.mcqCount ?? 0,
-      mcq_position: advanced?.mcqPosition ?? "start",
-      mark_distribution: advanced?.markDistribution ?? {},
-      include_extended: advanced?.includeExtended ?? false,
-      extended_marks: advanced?.extendedMarks ?? 0,
-      difficulty_progression: advanced?.difficultyProgression ?? "ascending",
-      calculator_policy: advanced?.calculatorPolicy ?? "allowed",
-      written_question_count: writtenQuestionCount ?? (questionCount - (advanced?.mcqCount ?? 0)),
-      question_structure: structureSettings?.questionStructure ?? "standalone",
-      parent_question_count: structureSettings?.parentQuestionCount ?? 4,
-      max_parts_per_question: structureSettings?.maxPartsPerQuestion ?? 3,
-      mcq_options_count: structureSettings?.mcqOptionsCount ?? 4,
-      include_graphs: structureSettings?.includeGraphs ?? false,
-      include_tables: structureSettings?.includeTables ?? false,
-      studied_texts: (advanced as any)?.studiedTexts ?? null,
-      paper_blueprint: (advanced as any)?.paperBlueprint ?? null,
-      exam_board: advanced?.examBoard ?? subject.exam_board ?? null,
-      assessment_tier: advanced?.assessmentTier ?? null,
+  const handleSaveProfile = async (...args: ProfileSaveArgs): Promise<ProfileSaveResult> => {
+    const advanced = args[5];
+    const saveArgs: ProfileSaveArgs = [...args];
+    saveArgs[5] = {
+      ...advanced,
+      examBoard: advanced?.examBoard === undefined ? subject.exam_board ?? null : advanced.examBoard,
     };
-    if (editingProfile) {
-      await updateProfile(editingProfile.id, payload);
-    } else {
-      await createProfile(
-        subject.subject_name, profileName, profileTopics, questionCount, educationalTier,
-        timeLimitMinutes,
-        { ...advanced, examBoard: advanced?.examBoard ?? subject.exam_board ?? null },
-        writtenQuestionCount, structureSettings
-      );
-    }
+    const payload = buildCustomProfilePayload(...saveArgs);
+    const profileId = editingProfile?.id ?? createdProfileId.current;
+    if (profileId) return updateProfile(profileId, payload);
+
+    const result = await createProfile(subject.subject_name, ...saveArgs);
+    if (result.profileId) createdProfileId.current = result.profileId;
+    return result;
   };
 
   return (
@@ -326,7 +299,10 @@ const SubjectDetail = () => {
 
         <ExamProfileModal
           open={profileModalOpen}
-          onOpenChange={setProfileModalOpen}
+          onOpenChange={(open) => {
+            if (!open) createdProfileId.current = null;
+            setProfileModalOpen(open);
+          }}
           subjectName={subject.subject_name}
           subjectColor={subject.subject_color}
           examBoard={subject.exam_board}
